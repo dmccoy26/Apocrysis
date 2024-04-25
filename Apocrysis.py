@@ -41,19 +41,37 @@ class MeleeWeapon(Weapon):
     def __init__(self, name, damage, durability):
         super().__init__(name, damage)
         self.durability = durability
-    # Optionally override the __str__ method if you want to include additional info
-    def __str__(self):
-        return f"{self.name} (Damage: {self.damage}, Durability: {self.durability})"
+
+    def use(self):
+        if self.durability > 0:
+            self.durability -= 1
+            return self.damage
+        else:
+            print(f"{self.name} is broken and cannot be used.")
+            return 0  # Return 0 damage if the weapon is broken
 
 class RangedWeapon:
-    def __init__(self, name, damage, ammo):
+    def __init__(self, name, damage, max_ammo):
         self.name = name
         self.damage = damage
-        self.ammo = ammo
+        self.max_ammo = max_ammo
+        self.ammo = max_ammo  # Initialize ammo count to the maximum
 
-    # Optionally override the __str__ method if you want to include additional info
+    def fire(self):
+        if self.ammo > 0:
+            self.ammo -= 1
+            print(f"You fire your {self.name}. Ammo remaining: {self.ammo}/{self.max_ammo}")
+            # Implement damage logic or any other functionality here
+        else:
+            print("Out of ammo! You need to reload.")
+
+    def reload(self, ammo_count):
+        self.ammo = min(ammo_count, self.max_ammo)  # Reload up to the maximum ammo count
+
     def __str__(self):
-        return f"{self.name} (Damage: {self.damage})"
+        return f"{self.name} (Damage: {self.damage}, Ammo: {self.ammo}/{self.max_ammo})"
+
+
 
 class Zombie:
     def __init__(self, name, health, attack):
@@ -172,6 +190,10 @@ class Apocrysis:
         self.wisdom = attrs.wisdom
         self.equipped_weapon = attrs.equipped_weapon
 
+        # Add starting ammo for player classes with ranged weapons
+        if isinstance(self.equipped_weapon, RangedWeapon):
+            # Add 5 ammo to start with
+            self.equipped_weapon.reload(5)  # Adjust the number as needed
 
     def initialize_player_class(player_class_name):
         if player_class_name in player_classes:
@@ -461,7 +483,15 @@ class Apocrysis:
         # Search for the weapon in the backpack's weapons list
         for weapon in self.backpack.weapons:
             if weapon.name.lower() == weapon_name.lower():
+                # Check if there's already a weapon equipped
+                if self.equipped_weapon:
+                    # If there's already a weapon equipped, put it back in the backpack
+                    self.backpack.weapons.append(self.equipped_weapon)
+                    print(f"The {self.equipped_weapon.name} has been returned to the backpack.")
+                # Equip the new weapon
                 self.equipped_weapon = weapon
+                # Remove the newly equipped weapon from the backpack
+                self.backpack.weapons.remove(weapon)
                 print(f"You have equipped the {weapon.name}.")
                 return
         print(f"Weapon named '{weapon_name}' not found in inventory.")
@@ -526,11 +556,39 @@ class Apocrysis:
     def battle(self, zombie):
         while self.health > 0 and zombie.health > 0:
             # Player's turn to attack
-            print(f"You attack the {zombie.name} with your {self.equipped_weapon.name}.")
-            zombie.take_damage(self.equipped_weapon.damage)
-            print(
-                f"The {zombie.name} takes {self.equipped_weapon.damage} damage. Zombie's current health: {zombie.health}")
+            if self.health <= 0:
+                print("You have died. Game over.")
+                break
 
+            if self.equipped_weapon and isinstance(self.equipped_weapon, RangedWeapon):
+                if self.equipped_weapon.ammo > 0:
+                    damage = self.equipped_weapon.use()  # Use the equipped weapon
+                    if damage > 0:
+                        print(f"You attack the {zombie.name} with your {self.equipped_weapon.name}.")
+                        print(
+                            f"You fire your {self.equipped_weapon.name}. Ammo remaining: {self.equipped_weapon.ammo}/{self.equipped_weapon.max_ammo}")
+                        zombie.take_damage(damage)
+                        print(f"The {zombie.name} takes {damage} damage.")
+                    else:
+                        print("You cannot attack with a broken weapon.")
+                else:
+                    print("You have no ammo left for your ranged weapon!")
+            elif self.equipped_weapon:
+                damage = self.equipped_weapon.use()  # Use the equipped weapon
+                if damage > 0:
+                    print(f"You attack the {zombie.name} with your {self.equipped_weapon.name}.")
+                    print(
+                        f"You fire your {self.equipped_weapon.name}. Ammo remaining: {self.equipped_weapon.ammo}/{self.equipped_weapon.max_ammo}")
+                    zombie.take_damage(damage)
+                    print(f"The {zombie.name} takes {damage} damage.")
+                else:
+                    print("You cannot attack with a broken weapon.")
+            else:
+                print("You have no weapon equipped and attempt to fight with your hands!")
+                zombie.take_damage(2)  # Minimal damage when unarmed
+                print("You deal 2 damage with your bare hands.")
+
+            # Check if the zombie has been defeated
             if zombie.health <= 0:
                 print(f"The {zombie.name} has been defeated!")
                 self.handle_loot(zombie.loot_table)
@@ -541,17 +599,19 @@ class Apocrysis:
             self.take_damage(zombie.attack)
             print(f"You took {zombie.attack} damage. Your current health is {self.health}.")
 
-            if self.health <= 0:
-                print("You have died. Game over.")
-                break
-            elif self.health <= self.max_health * 0.1:
-                print("You are critically wounded and unable to continue the fight!")
-                flee_chance = random.random()
-                if flee_chance < 0.1:
-                    print("Miraculously, you managed to flee from the zombie.")
+            # Check for critical health condition for fleeing chance
+            if self.health <= self.max_health * 0.1:
+                print("You are critically wounded!")
+                if random.random() < 0.1:  # 10% chance to flee successfully
+                    print("In a desperate move, you managed to flee from the zombie.")
                     break
                 else:
-                    print("Failed to flee! You have to fight the zombie.")
+                    print("Unable to flee, you brace yourself for the zombie's attack.")
+
+            # Subtract ammo used from inventory
+            if self.equipped_weapon and isinstance(self.equipped_weapon, RangedWeapon):
+                self.equipped_weapon.ammo -= 1
+
 
 def main():
     name = input("Enter your name: ")
@@ -592,4 +652,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

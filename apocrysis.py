@@ -297,17 +297,8 @@ class Apocrysis:
         self.thirst = max(0, self.thirst - thirst_decay)
 
     def print_stat_changes(self, old_stats):
-        current_stats = {
-            "health": self.health,
-            "hunger": self.hunger,
-            "thirst": self.thirst,
-            "fatigue": self.fatigue,
-            "strength": self.strength,
-            "dexterity": self.dexterity,
-            "intelligence": self.intelligence,
-            "wisdom": self.wisdom,
-        }
-        
+        current_stats = {stat: getattr(self, stat) for stat in old_stats}
+
         changes = []
         for stat in old_stats:
             if current_stats[stat] != old_stats[stat]:

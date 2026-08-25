@@ -87,7 +87,7 @@ class Backpack:
                 category = ConsumableType[item.upper()]
                 self.consumables[category.value] += 1
             except KeyError:
-                pass  # Gracefully ignore unrecognized strings
+                print(f"'{item}' is not a recognized item and was not added.")
         elif isinstance(item, Weapon):
             self.weapons.append(item)
         else:
@@ -143,6 +143,7 @@ class RangedWeapon(Weapon):
         self.max_ammo = max_ammo
         self.ammo = max_ammo  # Initialize ammo count to the maximum
         self.durability = durability
+        self.max_durability = durability
 
     def fire(self):
         if self.ammo > 0 and self.durability > 0:
@@ -168,6 +169,7 @@ class RangedWeapon(Weapon):
 
     def reload(self, ammo_count):
         self.ammo = min(ammo_count, self.max_ammo)  # Reload up to the maximum ammo count
+        self.durability = self.max_durability  # Reloading also services the weapon
 
     def __str__(self):
         return f"{self.name} (Damage: {self.damage}, Ammo: {self.ammo}/{self.max_ammo})"
@@ -192,18 +194,27 @@ class FreshZombie(Zombie):
 
     def __init__(self):
         super().__init__("Fresh Zombie", 30, 5)
+        self.hunger_cost = 2
+        self.thirst_cost = 2
+        self.fatigue_cost = 5
 
 class RegularZombie(Zombie):
     loot_table = ["food", "water", "medicine", "weapon"]
 
     def __init__(self):
         super().__init__("Regular Zombie", 50, 10)
+        self.hunger_cost = 4
+        self.thirst_cost = 4
+        self.fatigue_cost = 10
 
 class HeavyZombie(Zombie):
     loot_table = ["food", "water", "medicine", "weapon", "ammo"]
 
     def __init__(self):
         super().__init__("Heavy Zombie", 100, 20)
+        self.hunger_cost = 8
+        self.thirst_cost = 8
+        self.fatigue_cost = 20
 
 
 @dataclass
@@ -214,6 +225,15 @@ class Goal:
     reward_type: str = "health"
     reward_amount: int = 5
     goal_type: str = ""
+
+@dataclass
+class Task:
+    title: str
+    description: str = ""
+    completed: bool = False
+    reward_type: str = "xp"
+    reward_amount: int = 10
+    task_type: str = ""
 
 @dataclass
 class PlayerClass:
@@ -233,6 +253,7 @@ class PlayerClass:
         self.thirst = max(0, min(100, self.thirst + thirst_delta))
 
 class Apocrysis:
+    prize_for_next_game = False
     crafting_recipes = {
         "steel_sword": {"ingredients": {"weapon": 1, "food": 2}, "result": lambda: MeleeWeapon("Steel Sword", 20, 50)},
         "heavy_bow": {"ingredients": {"weapon": 1, "ammo": 3}, "result": lambda: RangedWeapon("Heavy Bow", 25, 10)},
@@ -253,7 +274,15 @@ class Apocrysis:
         self.initialize_player(player_class)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
-        self.goals = []  # Track player goals/objectives
+        self.goals = [
+            Goal(title="Find Food", description="Locate some food to sustain yourself.", goal_type="eat"),
+            Goal(title="Stay Hydrated", description="Find a source of clean water.", goal_type="drink"),
+            Goal(title="Gather Supplies", description="Collect medicine for emergencies.", goal_type="medicine"),
+            Goal(title="Clear the Area", description="Defeat any nearby threats.", goal_type="kill"),
+            Goal(title="Explore", description="Venture into uncharted territory.", goal_type=""),
+            Goal(title="Reach the Town Center", description="Find your way to the Town Center to win.", goal_type="reach_town")
+        ]  # Track player goals/objectives
+        self.tasks = []  # Dynamic task system for side objectives and progression milestones
         self.won = False  # Win condition tracker
         
         # Day/Night Cycle Initialization
@@ -269,6 +298,37 @@ class Apocrysis:
         self.xp = 0
         self.level = 1
         self.max_xp = 100
+        
+        # Action tracking for automatic goal completion
+        self.last_action = ""
+
+        if Apocrysis.prize_for_next_game:
+            print("\nYou received a generous prize for your next game!")
+            self.backpack.food += 10
+            self.backpack.water += 10
+            self.backpack.medicine += 5
+            self.backpack.ammo += 20
+            Apocrysis.prize_for_next_game = False
+
+    def _map_command_to_action(self, command):
+        if command in ('eat', 'ea'): return 'eat'
+        if command in ('drink', 'dr'): return 'drink'
+        if command.startswith(('craft', 'cr')): return 'craft'
+        if command in ('fight', 'f'): return 'kill'
+        if command == 'm': return 'map'
+        if command in ('n', 's', 'e', 'w'): return 'move'
+        if command in ('rest', 'r'): return 'rest'
+        if command.startswith(('equip', 'eq')): return 'equip'
+        if command.startswith('reload'): return 'reload'
+        return ''
+
+    def _auto_check_goals(self):
+        """Automatically mark goals as completed when they are achieved based on the last action."""
+        for i, g in enumerate(self.goals):
+            if g.completed or not getattr(g, 'goal_type', None): continue
+            
+            if g.goal_type == self.last_action:
+                self.complete_goal(i)
 
     def _update_time(self):
         prev_hour = self.time_of_day // 60
@@ -325,6 +385,22 @@ class Apocrysis:
             type_desc = f"Type: {g.goal_type or 'General'}"
             print(f"{i+1}. {status} {g.title} - {g.description or 'No description'} ({reward_desc}, {type_desc})")
 
+    def _prompt_complete_goal(self):
+        try:
+            index = int(input("Goal index (1-based): ")) - 1
+        except ValueError:
+            print("Please enter a valid number.")
+            return
+        self.complete_goal(index)
+
+    def _prompt_complete_task(self):
+        try:
+            index = int(input("Task index (1-based): ")) - 1
+        except ValueError:
+            print("Please enter a valid number.")
+            return
+        self.complete_task(index)
+
     def complete_goal(self, index):
         if 0 <= index < len(self.goals) and not self.goals[index].completed:
             goal = self.goals[index]
@@ -353,6 +429,65 @@ class Apocrysis:
             
             if g.goal_type == action_type:
                 self.complete_goal(i)
+
+    # --- Task System Methods ---
+    def add_task(self, title, description="", task_type="", reward_type="xp", reward_amount=10):
+        self.tasks.append(Task(title=title, description=description, task_type=task_type, reward_type=reward_type, reward_amount=reward_amount))
+        print(f"New task added: {title}")
+
+    def list_tasks(self):
+        if not self.tasks:
+            print("No active tasks.")
+            return
+        print("\n--- Active Tasks ---")
+        for i, t in enumerate(self.tasks):
+            status = "[DONE]" if t.completed else "[ACTIVE]"
+            reward_desc = f"Reward: +{t.reward_amount} {t.reward_type}"
+            type_desc = f"Type: {t.task_type or 'General'}"
+            print(f"{i+1}. {status} {t.title} - {t.description or 'No description'} ({reward_desc}, {type_desc})")
+
+    def complete_task(self, index):
+        if 0 <= index < len(self.tasks) and not self.tasks[index].completed:
+            task = self.tasks[index]
+            task.completed = True
+            print(f"Task completed: {task.title}!")
+            
+            # Apply reward
+            if task.reward_type == "xp":
+                self.award_xp(task.reward_amount)
+            elif task.reward_type == "health":
+                self.health = min(100, self.health + task.reward_amount)
+            elif task.reward_type == "fatigue":
+                self.fatigue = max(0, self.fatigue - task.reward_amount)
+            elif task.reward_type == "food":
+                self.backpack.food += task.reward_amount
+            elif task.reward_type == "water":
+                self.backpack.water += task.reward_amount
+            elif task.reward_type == "medicine":
+                self.backpack.medicine += task.reward_amount
+                
+            print(f"Reward applied: +{task.reward_amount} {task.reward_type}")
+        else:
+            print("Invalid task index or already completed.")
+
+    def _generate_dynamic_tasks(self):
+        """Creates new tasks dynamically based on game state and player progression."""
+        active_task_types = [t.task_type for t in self.tasks if not t.completed]
+        
+        # Exploration Milestone
+        if "explore" not in active_task_types:
+            unvisited_count = sum(1 for y in range(self.map_size) for x in range(self.map_size) if (x, y) not in self.visited)
+            target = min(unvisited_count, 5)
+            if target > 0:
+                self.add_task("Scout the Wastes", f"Explore {target} uncharted tiles.", task_type="explore", reward_amount=25)
+
+        # Combat Milestone
+        if "combat" not in active_task_types and self.day >= 3:
+            self.add_task("Hunt the Infected", "Defeat 3 zombies to clear your sector.", task_type="combat", reward_amount=30, reward_type="xp")
+
+        # Survival Milestone
+        if "survival" not in active_task_types and (self.backpack.food == 0 or self.backpack.water == 0):
+            self.add_task("Forage for Supplies", "Find food or water to sustain yourself.", task_type="survival", reward_amount=15)
 
     def run_game_loop(self):
         try:
@@ -434,11 +569,22 @@ class Apocrysis:
             else:
                 right_lines.append("No weapons in inventory.")
 
+            # Tasks Section (Dynamic Objectives)
+            active_tasks = [t for t in self.tasks if not t.completed]
+            if active_tasks:
+                right_lines.append("")
+                right_lines.append("--- Active Tasks ---")
+                for i, task in enumerate(active_tasks):
+                    reward_info = f"+{task.reward_amount} {task.reward_type}"
+                    right_lines.append(f"  [{i+1}] {task.title} ({reward_info})")
+
             # Commands
             cmd_list = ["n (north)", "s (south)", "e (east)", "w (west)", "m (map)", "i (inventory)", "st (stats)", "h (help)", "x (exit game)", "q (quit)", "sv (save)", "ds (delete save)"]
             cmd_list.append("go [title] (add goal)")
             cmd_list.append("goals (list goals)")
             cmd_list.append("complete [idx] (finish goal)")
+            cmd_list.append("ts (tasks)")
+            cmd_list.append("ct [idx] (complete task)")
             
             if self.backpack.weapons:
                 cmd_list.append("eq [weapon name] (equip)")
@@ -480,6 +626,9 @@ class Apocrysis:
             
             direction_aliases = {"north": "n", "south": "s", "east": "e", "west": "w"}
             command = direction_aliases.get(command, command)
+
+            # Track action for automatic goal completion
+            self.last_action = self._map_command_to_action(command)
 
             old_stats = {
                 "health": self.health,
@@ -523,11 +672,13 @@ class Apocrysis:
                 'f': lambda: self.encounter_zombie(),
                 'save': lambda: self.save_game(input("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
                 'sv': lambda: self.save_game(input("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
-                'ds': lambda: self.delete_save(input("Enter save slot name to delete: ") + ".json"),
-                'delete save': lambda: self.delete_save(input("Enter save slot name to delete: ") + ".json"),
+                'ds': self._prompt_delete_save,
+                'delete save': self._prompt_delete_save,
                 'go': lambda: self.add_goal(input("Goal title: "), goal_type=input("Goal type (eat/drink/medicine/craft/kill/reach_town): ").lower()),
                 'goals': self.list_goals,
-                'complete': lambda: self.complete_goal(int(input("Goal index (1-based): ")) - 1),
+                'complete': self._prompt_complete_goal,
+                'ts': self.list_tasks,
+                'ct': self._prompt_complete_task,
             }
 
             if command in ('q', 'quit'):
@@ -583,16 +734,15 @@ class Apocrysis:
                 else:
                     print("Usage: craft [recipe_name] (type 'craft list' for recipes)")
             else:
-                if command.startswith(('eat', 'ea')) and self.backpack.food <= 0:
-                    print("No food in inventory to eat.")
-                elif command.startswith(('drink', 'dr')) and self.backpack.water <= 0:
-                    print("No water in inventory to drink.")
-                elif command.startswith(('medicine', 'med')) and self.backpack.medicine <= 0:
-                    print("No medicine in inventory to use.")
-                else:
-                    print(f"Unknown command: '{command}'. Type 'help' for available commands.")
+                print(f"Unknown command: '{command}'. Type 'help' for available commands.")
 
             self.print_stat_changes(old_stats)
+            # Automatically check and complete goals based on the performed action
+            self._auto_check_goals()
+            
+            # Generate new dynamic tasks periodically or when conditions change
+            if random.random() < 0.1:  # 10% chance per turn to evaluate task generation
+                self._generate_dynamic_tasks()
 
     def initialize_player(self, player_class):
         attrs = self.initialize_player_class(player_class)
@@ -739,6 +889,8 @@ class Apocrysis:
             if isinstance(current_tile, dict) and current_tile.get('content') == 'T':
                 self.won = True
                 print(f"\n{BOLD}{GREEN}You have reached the Town Center! The survivors welcome you home. You WIN!{RESET}\n")
+                print(f"{BOLD}A grateful stash of supplies awaits you when you start your next game!{RESET}\n")
+                Apocrysis.prize_for_next_game = True
                 self._check_and_complete_goals("reach_town")
                 return
             
@@ -839,6 +991,9 @@ class Apocrysis:
                 print("Failed to flee! You have to fight the zombie.")
 
         print(f"Preparing for battle against the {zombie.name}...")
+        self.hunger = max(0, self.hunger - zombie.hunger_cost)
+        self.thirst = max(0, self.thirst - zombie.thirst_cost)
+        self.fatigue = min(100, self.fatigue + zombie.fatigue_cost)
         while self.health > 0 and zombie.health > 0:
             # Process status effects at start of turn
             if self.status_effects.get("Stun", 0) > 0:
@@ -923,10 +1078,59 @@ class Apocrysis:
         self.health = min(100, self.health + 10)
         print(f"{BOLD}{GREEN}Level Up! You are now level {self.level}.{RESET}")
 
+    ZOMBIE_CLASSES = {
+        "FreshZombie": FreshZombie,
+        "RegularZombie": RegularZombie,
+        "HeavyZombie": HeavyZombie,
+    }
+
+    def _serialize_map(self):
+        # Map cells are either a plain terrain dict (already JSON-safe)
+        # or a real Zombie instance placed directly into the cell by
+        # generate_map() - those need their type/health/attack pulled
+        # out into a JSON-safe dict instead, or json.dump() would fail
+        # outright on an object it doesn't know how to serialize.
+        return [
+            [
+                {
+                    "zombie_type": type(cell).__name__,
+                    "health": cell.health,
+                    "attack": cell.attack,
+                }
+                if isinstance(cell, Zombie)
+                else cell
+                for cell in row
+            ]
+            for row in self.map
+        ]
+
+    @classmethod
+    def _deserialize_map(cls, map_data):
+        return [
+            [
+                cls._zombie_from_cell(cell)
+                if isinstance(cell, dict) and "zombie_type" in cell
+                else cell
+                for cell in row
+            ]
+            for row in map_data
+        ]
+
+    @classmethod
+    def _zombie_from_cell(cls, cell):
+        zombie_cls = cls.ZOMBIE_CLASSES.get(cell["zombie_type"], FreshZombie)
+        zombie = zombie_cls()
+        zombie.health = cell["health"]
+        zombie.attack = cell["attack"]
+        return zombie
+
     def save_game(self, filename="apocrysis_save.json"):
         data = {
             "name": self.name,
+            "player_class": self.player_class,
+            "map_size": self.map_size,
             "health": self.health,
+            "max_health": self.max_health,
             "hunger": self.hunger,
             "thirst": self.thirst,
             "fatigue": self.fatigue,
@@ -939,6 +1143,10 @@ class Apocrysis:
             "max_xp": self.max_xp,
             "current_position": list(self.current_position),
             "time_of_day": self.time_of_day,
+            "day": self.day,
+            "is_night": self.is_night,
+            "visibility_radius": self.visibility_radius,
+            "last_action": self.last_action,
             "visited": [list(pos) for pos in self.visited],
             "backpack_food": self.backpack.food,
             "backpack_water": self.backpack.water,
@@ -947,7 +1155,9 @@ class Apocrysis:
             "weapons": [],
             "equipped_weapon": None,
             "goals": [{"title": g.title, "description": g.description, "completed": g.completed, "reward_type": g.reward_type, "reward_amount": g.reward_amount, "goal_type": getattr(g, 'goal_type', "")} for g in self.goals],
-            "status_effects": self.status_effects
+            "tasks": [{"title": t.title, "description": t.description, "completed": t.completed, "reward_type": t.reward_type, "reward_amount": t.reward_amount, "task_type": getattr(t, 'task_type', "")} for t in self.tasks],
+            "status_effects": self.status_effects,
+            "map": self._serialize_map(),
         }
 
         for w in self.backpack.weapons:
@@ -974,6 +1184,23 @@ class Apocrysis:
             json.dump(data, f, indent=2)
         print(f"Game saved to {filename}.")
 
+    def _prompt_delete_save(self):
+        try:
+            save_files = [f for f in os.listdir(".") if f.endswith(".json")]
+        except OSError:
+            save_files = []
+
+        if save_files:
+            print("Available save files:", ", ".join(save_files))
+        else:
+            print("No saved games found.")
+            return
+
+        slot_name = input("Enter save slot name to delete: ").strip()
+        if not slot_name.endswith(".json"):
+            slot_name += ".json"
+        self.delete_save(slot_name)
+
     def delete_save(self, filename="apocrysis_save.json"):
         if os.path.exists(filename):
             os.remove(filename)
@@ -989,9 +1216,14 @@ class Apocrysis:
         with open(filename, 'r') as f:
             data = json.load(f)
             
-        player = cls(data.get("name", "SavedPlayer"), "gamer", 25)
+        player = cls(
+            data.get("name", "SavedPlayer"),
+            data.get("player_class", "gamer"),
+            data.get("map_size", 25),
+        )
 
         player.health = data.get("health", 100)
+        player.max_health = data.get("max_health", 100)
         player.hunger = data.get("hunger", 95)
         player.thirst = data.get("thirst", 95)
         player.fatigue = data.get("fatigue", 0)
@@ -1002,21 +1234,44 @@ class Apocrysis:
         player.level = data.get("level", 1)
         player.xp = data.get("xp", 0)
         player.max_xp = data.get("max_xp", 100)
-        
+        player.day = data.get("day", 1)
+        player.is_night = data.get("is_night", False)
+        player.visibility_radius = data.get("visibility_radius", 3)
+        player.last_action = data.get("last_action", "")
+
+        # "won" is deliberately never restored from a save - main()'s
+        # own post-game-loop check treats player.won as an immediate
+        # win the moment run_game_loop() returns, so restoring True
+        # here would end the loaded game before the player got a turn.
+
+        # Backward compatible with older saves that predate map
+        # persistence - falls back to whatever generate_map() already
+        # built fresh during cls(...) above, same as before this fix.
+        if "map" in data:
+            player.map = cls._deserialize_map(data["map"])
+
         player.current_position = tuple(data.get("current_position", [12, 12]))
         player.time_of_day = data.get("time_of_day", 480)
         player.visited = set(tuple(pos) for pos in data.get("visited", []))
         
-        player.backpack.food = data.get("backpack_food", 0)
-        player.backpack.water = data.get("backpack_water", 0)
-        player.backpack.medicine = data.get("backpack_medicine", 0)
-        player.backpack.ammo = data.get("backpack_ammo", 0)
+        # Real bug found live: this used to overwrite (=) the backpack
+        # with the save file's own values, silently discarding any
+        # win bonus __init__ just granted a moment earlier via
+        # cls(...) above (prize_for_next_game is only checked in
+        # __init__ - a load calls __init__ too, but its bonus was
+        # being thrown away immediately after). Adding (+=) on top of
+        # whatever __init__ already set - 0 for a normal load, or the
+        # bonus amount right after a win - preserves it either way.
+        player.backpack.food += data.get("backpack_food", 0)
+        player.backpack.water += data.get("backpack_water", 0)
+        player.backpack.medicine += data.get("backpack_medicine", 0)
+        player.backpack.ammo += data.get("backpack_ammo", 0)
         
         for w_data in data.get("weapons", []):
             if w_data.get("type") == "MeleeWeapon":
                 w = MeleeWeapon(w_data.get("name"), w_data.get("damage"), w_data.get("durability", 10))
             else:
-                w = RangedWeapon(w_data.get("name"), w_data.get("damage"), w_data.get("max_ammo", 5))
+                w = RangedWeapon(w_data.get("name"), w_data.get("damage"), w_data.get("max_ammo", 5), w_data.get("durability", 20))
                 w.ammo = w_data.get("ammo")
             player.backpack.weapons.append(w)
             
@@ -1025,17 +1280,39 @@ class Apocrysis:
             if eq_w_data.get("type") == "MeleeWeapon":
                 player.equipped_weapon = MeleeWeapon(eq_w_data.get("name"), eq_w_data.get("damage"), eq_w_data.get("durability", 10))
             else:
-                player.equipped_weapon = RangedWeapon(eq_w_data.get("name"), eq_w_data.get("damage"), eq_w_data.get("max_ammo", 5))
+                player.equipped_weapon = RangedWeapon(eq_w_data.get("name"), eq_w_data.get("damage"), eq_w_data.get("max_ammo", 5), eq_w_data.get("durability", 20))
                 player.equipped_weapon.ammo = eq_w_data.get("ammo")
                 
-        for g_data in data.get("goals", []):
-            player.goals.append(Goal(
-                title=g_data["title"],
-                description=g_data.get("description", ""),
-                completed=g_data.get("completed", False),
-                reward_type=g_data.get("reward_type", "health"),
-                reward_amount=g_data.get("reward_amount", 5),
-                goal_type=g_data.get("goal_type", "")
+        # Real bug found live: this used to APPEND the save's goals
+        # onto whatever fresh __init__ already created, duplicating
+        # every goal a save actually has (e.g. "Reach the Town
+        # Center" once from __init__, once again from the save file).
+        # A save with a real "goals" key is a complete snapshot of
+        # what the player's goals actually were - it should replace
+        # the fresh set, not blend with it. An older save with no
+        # "goals" key at all (saved before goal persistence existed)
+        # still falls back to the fresh __init__ goals untouched.
+        if "goals" in data:
+            player.goals = [
+                Goal(
+                    title=g_data["title"],
+                    description=g_data.get("description", ""),
+                    completed=g_data.get("completed", False),
+                    reward_type=g_data.get("reward_type", "health"),
+                    reward_amount=g_data.get("reward_amount", 5),
+                    goal_type=g_data.get("goal_type", "")
+                )
+                for g_data in data["goals"]
+            ]
+
+        for t_data in data.get("tasks", []):
+            player.tasks.append(Task(
+                title=t_data["title"],
+                description=t_data.get("description", ""),
+                completed=t_data.get("completed", False),
+                reward_type=t_data.get("reward_type", "xp"),
+                reward_amount=t_data.get("reward_amount", 10),
+                task_type=t_data.get("task_type", "")
             ))
 
         player.status_effects = data.get("status_effects", {})
@@ -1150,6 +1427,8 @@ class Apocrysis:
         print("  cr [name] (craft)                       - Combine items into upgraded gear (type 'cr list' for recipes)")
         print("  r (rest)                                - Rest to recover fatigue (rate based on Wisdom)")
         print("  a (auto)                                - Automatically play for a short duration")
+        print("  ts                                      - View active tasks")
+        print("  ct [idx]                                - Complete a task by index")
         print("  q, x, quit                              - Quit the game")
         print("  h, ? (help)                             - Show this message\n")
 
@@ -1362,10 +1641,10 @@ def main():
             
         if save_files:
             print("Available save files:", ", ".join(save_files))
-        load_choice = input("Load saved game? (y/n): ").lower()
-        if load_choice == 'y':
-            filename = input("Enter save file name (e.g., 'apocrysis_save.json'): ")
-            player = Apocrysis.load_game(filename)
+            load_choice = input("Load saved game? (y/n): ").lower()
+            if load_choice == 'y':
+                filename = input("Enter save file name (e.g., 'apocrysis_save.json'): ")
+                player = Apocrysis.load_game(filename)
         
         if player is None:
             name = input("Enter your name: ")
@@ -1435,7 +1714,19 @@ def main():
         print(" ")
         player.run_game_loop()
 
-        if getattr(player, 'quit', False) or player.health <= 0 or getattr(player, 'won', False):
+        if getattr(player, 'won', False):
+            # Real bug found live: winning used to hit the same
+            # "break" as quitting/dying, ending the whole program
+            # before Apocrysis.prize_for_next_game (set on win) could
+            # ever be consumed - it's only checked in __init__, which
+            # never ran again once the process exited. Looping back
+            # instead of breaking lets the outer while True create a
+            # fresh Apocrysis() next, which is exactly what actually
+            # grants the earned bonus.
+            print("Starting a new game with your earned supplies...\n")
+            continue
+
+        if getattr(player, 'quit', False) or player.health <= 0:
             print("Thanks for playing!")
             break
 
@@ -1552,6 +1843,12 @@ def run_tests():
     test_zombie.take_damage(damage)
     assert test_zombie.health < initial_z_health, "Zombie health should decrease after taking weapon damage"
     assert 0 <= ap_battle.health <= 100, "Player health must remain within valid bounds"
+    
+    # Test Task System Integration
+    ap_tasks = Apocrysis("TaskTest", "gamer", 5)
+    ap_tasks.add_task("Clear Camp", "Defeat nearby threats.", task_type="combat")
+    assert len(ap_tasks.tasks) == 1
+    assert ap_tasks.tasks[0].title == "Clear Camp"
     
     print("All tests passed!")
 

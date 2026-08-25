@@ -3,11 +3,12 @@ import re
 import unittest
 from unittest.mock import patch
 
-from apocrysis import (
-    Apocrysis, Backpack, ConsumableType, MeleeWeapon, RangedWeapon,
-    FreshZombie, RegularZombie, HeavyZombie, PlayerClass,
-    _visible_len, _display_ljust, TERRAIN_SYMBOLS,
-)
+from src.constants import TERRAIN_SYMBOLS
+from src.game import Apocrysis
+from src.items import Backpack, ConsumableType, MeleeWeapon, RangedWeapon
+from src.player import PlayerClass
+from src.text_utils import _visible_len, _display_ljust
+from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
 
 class TestBackpack(unittest.TestCase):

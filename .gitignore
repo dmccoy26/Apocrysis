@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+
+# Save files (runtime game state, not source)
+*.json
+
+# Atlas's own tooling output for this project (bugs/decisions/lessons/
+# repair history) - not game source, kept out of this repo
+memory/
+.atlas/
+.atlasignore

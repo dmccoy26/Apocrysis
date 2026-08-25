@@ -1,5 +1,71 @@
 # Apocrysis
 
+A terminal-based zombie-apocalypse survival RPG. Explore a
+procedurally generated map, manage hunger/thirst/fatigue, fight or
+flee zombies, craft weapons, complete goals and tasks, level up, and
+try to reach the Town Center before your health runs out.
+
+## Running it
+
+```
+python3 apocrysis.py           # play
+python3 apocrysis.py --test    # run the built-in smoke test suite
+```
+
+Requires Python 3 and the standard library only - no dependencies to
+install.
+
+## Controls
+
+Movement is `n`/`s`/`e`/`w`. In-game, `h` (or `?`) prints the full
+command list, which is also context-sensitive - `eat`/`drink`/`med`
+only appear once you actually have that item, `f` (fight) only
+appears when a zombie is on your tile, `eq`/`reload` only appear once
+you have a weapon that needs them.
+
+Progress can be saved (`sv`) and reloaded from the main menu; multiple
+save slots are supported by filename.
+
+## Project layout
+
+```
+apocrysis.py            # entry point - imports src/ and calls main()
+src/
+    text_utils.py        # ANSI-aware string helpers (map/panel alignment)
+    constants.py          # color codes, terrain symbols/legend
+    items.py               # Item, Backpack, Weapon, MeleeWeapon, RangedWeapon, ConsumableType
+    zombies.py               # Zombie and its three difficulty subclasses
+    objectives.py              # Goal, Task dataclasses
+    player.py                   # PlayerClass dataclass + the per-class starting-stats table
+    game.py                      # the Apocrysis class (composed from the mixins below)
+    cli.py                        # main() / run_tests() - the interactive entry logic
+    mixins/
+        objectives_mixin.py       # goal/task tracking
+        world_mixin.py             # map generation, movement, loot
+        combat_mixin.py             # zombie encounters, XP/leveling
+        persistence_mixin.py         # save/load
+        ui_mixin.py                   # rendering, the main game loop, command dispatch
+        actions_mixin.py               # eat/drink/rest/equip/craft/auto-play
+    tests/
+        test_apocrysis.py             # unit tests (unittest, no live input needed)
+```
+
+`Apocrysis` (`src/game.py`) is composed from the six mixins above via
+multiple inheritance - each mixin owns one area of behavior, and
+`Apocrysis` itself holds only `__init__`, day/night time advancement,
+and hunger/thirst decay. Save files store plain field data and class
+names as strings, not module paths, so existing saves keep loading
+across this layout.
+
+## Testing
+
+```
+python3 -m unittest src.tests.test_apocrysis -v   # from the project directory
+python3 apocrysis.py --test                          # built-in end-to-end smoke test
+```
+
+## License
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 

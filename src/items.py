@@ -5,6 +5,22 @@ import enum
 from collections import Counter
 
 
+def format_weapon_list(weapons):
+    """Group identical weapons (same display string) onto one line
+    with an "xN" suffix - a long haul of looted duplicates would
+    otherwise repeat the same line once per item and swamp the
+    inventory display."""
+    counts = {}
+    order = []
+    for w in weapons:
+        key = str(w)
+        if key not in counts:
+            counts[key] = 0
+            order.append(key)
+        counts[key] += 1
+    return [f"{key} x{counts[key]}" if counts[key] > 1 else key for key in order]
+
+
 class ConsumableType(enum.Enum):
     FOOD = "food"
     WATER = "water"
@@ -117,9 +133,18 @@ class RangedWeapon(Weapon):
             print("Out of ammo or weapon is broken!")
             return 0
 
-    def reload(self, ammo_count):
-        self.ammo = min(ammo_count, self.max_ammo)  # Reload up to the maximum ammo count
+    def reload(self, available_ammo):
+        # Tops off toward max_ammo, drawing at most `available_ammo`
+        # from the caller's ammo pool - never invents ammo the pool
+        # doesn't have. Returns how much was actually drawn, so the
+        # caller (ui_mixin.py) can debit backpack.ammo by exactly
+        # that amount instead of assuming the full request went
+        # through.
+        needed = self.max_ammo - self.ammo
+        used = max(0, min(needed, available_ammo))
+        self.ammo += used
         self.durability = self.max_durability  # Reloading also services the weapon
+        return used
 
     def __str__(self):
         return (

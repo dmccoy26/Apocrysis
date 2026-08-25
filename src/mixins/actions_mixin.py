@@ -3,7 +3,7 @@
 
 import random
 
-from src.items import MeleeWeapon, RangedWeapon
+from src.items import MeleeWeapon, RangedWeapon, format_weapon_list
 from src.player import PLAYER_CLASSES, STARTER_CLASS_NAME
 
 
@@ -46,11 +46,8 @@ class ActionsMixin:
         self.intelligence = attrs.intelligence
         self.wisdom = attrs.wisdom
         self.equipped_weapon = attrs.equipped_weapon
-
-        # Add starting ammo for player classes with ranged weapons
-        if isinstance(self.equipped_weapon, RangedWeapon):
-            # Add 5 ammo to start with
-            self.equipped_weapon.reload(5)  # Adjust the number as needed
+        # RangedWeapon.__init__ already starts ammo at max_ammo - no
+        # separate top-up needed here.
 
     def initialize_player_class(self, player_class_name):
         # No longer @staticmethod (v3 SPRINT step 6) - the fallback
@@ -131,6 +128,34 @@ class ActionsMixin:
                 self.io.say(f"You have equipped the {weapon.name}.")
                 return
         self.io.say(f"Weapon named '{weapon_name}' not found in inventory.")
+
+    def drop_weapon(self, weapon_name):
+        target = None
+        in_backpack = False
+        for weapon in self.backpack.weapons:
+            if weapon.name.lower() == weapon_name.lower():
+                target = weapon
+                in_backpack = True
+                break
+        if target is None and self.equipped_weapon and self.equipped_weapon.name.lower() == weapon_name.lower():
+            target = self.equipped_weapon
+
+        if target is None:
+            self.io.say(f"Weapon named '{weapon_name}' not found in inventory.")
+            return
+
+        salvage_note = ""
+        if isinstance(target, RangedWeapon) and target.ammo > 0:
+            self.backpack.ammo += target.ammo
+            salvage_note = f" Salvaged {target.ammo} ammo back into your pack."
+            target.ammo = 0
+
+        if in_backpack:
+            self.backpack.weapons.remove(target)
+        else:
+            self.equipped_weapon = None
+
+        self.io.say(f"You drop the {target.name}.{salvage_note}")
 
     def describe_recipes(self):
         """
@@ -251,8 +276,8 @@ class ActionsMixin:
 
         if self.backpack.weapons:
             self.io.say("\nWeapons in Inventory:")
-            for weapon in self.backpack.weapons:
-                self.io.say(weapon)
+            for line in format_weapon_list(self.backpack.weapons):
+                self.io.say(line)
         else:
             self.io.say("\nNo weapons in inventory.")
 

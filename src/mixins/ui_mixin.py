@@ -5,7 +5,7 @@ import random
 import shutil
 
 from src.constants import BOLD, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
-from src.items import RangedWeapon
+from src.items import RangedWeapon, format_weapon_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
@@ -41,6 +41,8 @@ class UIMixin:
 
         if self.backpack.weapons:
             cmd_list.append("eq [weapon name] (equip)")
+        if self.backpack.weapons or self.equipped_weapon:
+            cmd_list.append("drop [weapon name] (drop)")
         if isinstance(self.equipped_weapon, RangedWeapon):
             cmd_list.append(f"reload ({self.equipped_weapon.name})")
 
@@ -156,8 +158,7 @@ class UIMixin:
 
                 if self.backpack.weapons:
                     right_lines.append("Inventory:")
-                    for weapon in self.backpack.weapons:
-                        right_lines.append(str(weapon))
+                    right_lines.extend(format_weapon_list(self.backpack.weapons))
                 else:
                     right_lines.append("No weapons in inventory.")
 
@@ -271,10 +272,16 @@ class UIMixin:
                     self.equip_weapon(' '.join(parts[1:]))
                 else:
                     self.io.say("Missing weapon name for equip.")
+            elif command.startswith('drop'):
+                parts = command.split()
+                if len(parts) > 1:
+                    self.drop_weapon(' '.join(parts[1:]))
+                else:
+                    self.io.say("Missing weapon name for drop.")
             elif command.startswith(('reload', 'rl')):
                 parts = command.split()
                 weapon_name = ' '.join(parts[1:]) if len(parts) > 1 else None
-                
+
                 target_weapon = self.equipped_weapon
                 if weapon_name:
                     candidates = list(self.backpack.weapons)
@@ -284,14 +291,22 @@ class UIMixin:
                         if isinstance(w, RangedWeapon) and w.name.lower() == weapon_name.lower():
                             target_weapon = w
                             break
-                
+
                 if target_weapon and isinstance(target_weapon, RangedWeapon):
-                    ammo_input = self.io.ask(f"How much ammo to reload {target_weapon.name} with? ")
-                    try:
-                        amount = int(ammo_input)
-                        target_weapon.reload(amount)
-                    except ValueError:
-                        self.io.say("Invalid ammo count.")
+                    # Always tops off to max - drawing from the
+                    # backpack's shared ammo pool - rather than asking
+                    # the player to type an amount every time.
+                    if target_weapon.ammo >= target_weapon.max_ammo:
+                        self.io.say(f"{target_weapon.name} is already fully loaded.")
+                    elif self.backpack.ammo <= 0:
+                        self.io.say("No ammo in your backpack to reload with.")
+                    else:
+                        used = target_weapon.reload(self.backpack.ammo)
+                        self.backpack.ammo -= used
+                        self.io.say(
+                            f"Reloaded {target_weapon.name} with {used} ammo "
+                            f"({target_weapon.ammo}/{target_weapon.max_ammo})."
+                        )
                 else:
                     self.io.say("No valid ranged weapon found to reload.")
             elif command.startswith(('craft', 'cr')):
@@ -405,6 +420,9 @@ class UIMixin:
         self.io.say("  st (stats)                              - View player statistics")
         self.io.say("  f (fight)                               - Fight the zombie on your current tile")
         self.io.say("  eq [name] (equip)                       - Equip a weapon from your inventory")
+        self.io.say("  drop [name]                             - Drop a weapon (salvages any ammo it's holding)")
+        if isinstance(self.equipped_weapon, RangedWeapon):
+            self.io.say("  reload [name]                           - Reload to max, drawing from your ammo pool")
         if self.backpack.food > 0:
             self.io.say("  ea (eat)                                - Consume food to reduce hunger and restore health")
         if self.backpack.water > 0:
@@ -432,8 +450,8 @@ class UIMixin:
         # str(weapon) already carries damage/durability (items.py) -
         # use it here too, matching view_weapon_info()'s existing
         # behavior (actions_mixin.py).
-        for weapon in self.backpack.weapons:
-            self.io.say(f"- {weapon}")
+        for line in format_weapon_list(self.backpack.weapons):
+            self.io.say(f"- {line}")
         # Display other inventory items as needed
 
     def stats(self):
@@ -460,6 +478,7 @@ class UIMixin:
         if command in ('n', 's', 'e', 'w'): return 'move'
         if command in ('rest', 'r'): return 'rest'
         if command.startswith(('equip', 'eq')): return 'equip'
+        if command.startswith('drop'): return 'drop'
         if command.startswith('reload'): return 'reload'
         return ''
 

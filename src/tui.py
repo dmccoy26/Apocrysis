@@ -19,10 +19,11 @@ import queue
 from rich.text import Text
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
+from src.items import format_weapon_list
 
 
 class AppClosed(Exception):
@@ -97,8 +98,14 @@ class ApocrysisApp(App):
     # Both now share the remaining space (roughly 55/45) so the log
     # actually has enough height to read without constant scrolling.
     CSS = """
+    #body {
+        height: 1fr;
+    }
+    #left_col {
+        width: 1fr;
+    }
     #main {
-        height: 55%;
+        height: 65%;
     }
     #map_panel_wrap {
         width: 1fr;
@@ -109,10 +116,19 @@ class ApocrysisApp(App):
         color: $text-muted;
         margin-bottom: 1;
     }
+    #map_scroll {
+        overflow: auto auto;
+    }
+    #map_panel {
+        width: auto;
+        height: auto;
+    }
     #stats_panel {
-        width: 44;
+        width: 60;
+        height: 1fr;
         border: solid $accent;
         padding: 1;
+        overflow-y: auto;
     }
     .stat_row {
         height: 1;
@@ -165,14 +181,20 @@ class ApocrysisApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal(id="main"):
-            with Vertical(id="map_panel_wrap"):
-                yield Static(
-                    "Directions:  ↑/N  ↓/S  ←/W  →/E   "
-                    "(arrow keys or type n/s/e/w)",
-                    id="directions_text",
-                )
-                yield Static(id="map_panel")
+        with Horizontal(id="body"):
+            with Vertical(id="left_col"):
+                with Horizontal(id="main"):
+                    with Vertical(id="map_panel_wrap"):
+                        yield Static(
+                            "Directions:  ↑/N  ↓/S  ←/W  →/E   "
+                            "(arrow keys or type n/s/e/w)",
+                            id="directions_text",
+                        )
+                        with ScrollableContainer(id="map_scroll"):
+                            yield Static(id="map_panel")
+                with Vertical(id="console"):
+                    yield RichLog(id="log", max_lines=200)
+                    yield Input(placeholder="command", id="command_input")
             with Vertical(id="stats_panel"):
                 yield Static(id="stats_text")
                 yield Static(id="objective_text")
@@ -189,9 +211,6 @@ class ApocrysisApp(App):
                     yield Static("Fatigue", classes="stat_label")
                     yield ProgressBar(id="fatigue_bar", total=100, show_eta=False, classes="stat_bar")
                 yield Static(id="commands_text")
-        with Vertical(id="console"):
-            yield RichLog(id="log", max_lines=200)
-            yield Input(placeholder="command", id="command_input")
         yield Footer()
 
     def action_move_direction(self, direction):
@@ -305,7 +324,7 @@ class ApocrysisApp(App):
         # carries damage/durability (items.py) - use it here too.
         equipped = str(p.equipped_weapon) if p.equipped_weapon else "None"
         backpack_weapons = (
-            "\n  ".join(str(w) for w in p.backpack.weapons)
+            "\n  ".join(format_weapon_list(p.backpack.weapons))
             if p.backpack.weapons
             else "(none)"
         )

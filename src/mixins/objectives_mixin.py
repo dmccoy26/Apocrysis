@@ -16,32 +16,32 @@ class ObjectivesMixin:
 
     def add_goal(self, title, description="", goal_type=""):
         self.goals.append(Goal(title=title, description=description, goal_type=goal_type))
-        print(f"New goal added: {title}")
+        self.io.say(f"New goal added: {title}")
 
     def list_goals(self):
         if not self.goals:
-            print("No active goals.")
+            self.io.say("No active goals.")
             return
-        print("\n--- Active Goals ---")
+        self.io.say("\n--- Active Goals ---")
         for i, g in enumerate(self.goals):
             status = "[DONE]" if g.completed else "[ACTIVE]"
             reward_desc = f"Reward: +{g.reward_amount} {g.reward_type}"
             type_desc = f"Type: {g.goal_type or 'General'}"
-            print(f"{i+1}. {status} {g.title} - {g.description or 'No description'} ({reward_desc}, {type_desc})")
+            self.io.say(f"{i+1}. {status} {g.title} - {g.description or 'No description'} ({reward_desc}, {type_desc})")
 
     def _prompt_complete_goal(self):
         try:
-            index = int(input("Goal index (1-based): ")) - 1
+            index = int(self.io.ask("Goal index (1-based): ")) - 1
         except ValueError:
-            print("Please enter a valid number.")
+            self.io.say("Please enter a valid number.")
             return
         self.complete_goal(index)
 
     def _prompt_complete_task(self):
         try:
-            index = int(input("Task index (1-based): ")) - 1
+            index = int(self.io.ask("Task index (1-based): ")) - 1
         except ValueError:
-            print("Please enter a valid number.")
+            self.io.say("Please enter a valid number.")
             return
         self.complete_task(index)
 
@@ -49,7 +49,7 @@ class ObjectivesMixin:
         if 0 <= index < len(self.goals) and not self.goals[index].completed:
             goal = self.goals[index]
             goal.completed = True
-            print(f"Goal completed: {goal.title}!")
+            self.io.say(f"Goal completed: {goal.title}!")
             
             # Apply reward
             if goal.reward_type == "health":
@@ -63,9 +63,9 @@ class ObjectivesMixin:
             elif goal.reward_type == "medicine":
                 self.backpack.medicine += goal.reward_amount
                 
-            print(f"Reward applied: +{goal.reward_amount} {goal.reward_type}")
+            self.io.say(f"Reward applied: +{goal.reward_amount} {goal.reward_type}")
         else:
-            print("Invalid goal index or already completed.")
+            self.io.say("Invalid goal index or already completed.")
 
     def _check_and_complete_goals(self, action_type):
         for i, g in enumerate(self.goals):
@@ -77,24 +77,24 @@ class ObjectivesMixin:
     # --- Task System Methods ---
     def add_task(self, title, description="", task_type="", reward_type="xp", reward_amount=10):
         self.tasks.append(Task(title=title, description=description, task_type=task_type, reward_type=reward_type, reward_amount=reward_amount))
-        print(f"New task added: {title}")
+        self.io.say(f"New task added: {title}")
 
     def list_tasks(self):
         if not self.tasks:
-            print("No active tasks.")
+            self.io.say("No active tasks.")
             return
-        print("\n--- Active Tasks ---")
+        self.io.say("\n--- Active Tasks ---")
         for i, t in enumerate(self.tasks):
             status = "[DONE]" if t.completed else "[ACTIVE]"
             reward_desc = f"Reward: +{t.reward_amount} {t.reward_type}"
             type_desc = f"Type: {t.task_type or 'General'}"
-            print(f"{i+1}. {status} {t.title} - {t.description or 'No description'} ({reward_desc}, {type_desc})")
+            self.io.say(f"{i+1}. {status} {t.title} - {t.description or 'No description'} ({reward_desc}, {type_desc})")
 
     def complete_task(self, index):
         if 0 <= index < len(self.tasks) and not self.tasks[index].completed:
             task = self.tasks[index]
             task.completed = True
-            print(f"Task completed: {task.title}!")
+            self.io.say(f"Task completed: {task.title}!")
             
             # Apply reward
             if task.reward_type == "xp":
@@ -110,9 +110,9 @@ class ObjectivesMixin:
             elif task.reward_type == "medicine":
                 self.backpack.medicine += task.reward_amount
                 
-            print(f"Reward applied: +{task.reward_amount} {task.reward_type}")
+            self.io.say(f"Reward applied: +{task.reward_amount} {task.reward_type}")
         else:
-            print("Invalid task index or already completed.")
+            self.io.say("Invalid task index or already completed.")
 
     def _generate_dynamic_tasks(self):
         """Creates new tasks dynamically based on game state and player progression."""

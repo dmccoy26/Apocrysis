@@ -1,19 +1,47 @@
 # Apocrysis
 
-A terminal-based zombie-apocalypse survival RPG. Explore a
-procedurally generated map, manage hunger/thirst/fatigue, fight or
-flee zombies, craft weapons, complete goals and tasks, level up, and
-try to reach the Town Center before your health runs out.
+A zombie-apocalypse survival RPG with a `textual` terminal UI.
+Explore a procedurally generated map that grows and gets harder as
+you level up, manage hunger/thirst/fatigue, fight or flee zombies,
+craft weapons, complete goals and tasks, and try to reach the Town
+Center before your health runs out.
 
 ## Running it
 
 ```
-python3 apocrysis.py           # play
-python3 apocrysis.py --test    # run the built-in smoke test suite
+pip install -r requirements.txt
+
+python3 apocrysis.py             # play (textual UI)
+python3 apocrysis.py --classic   # play (plain terminal, no textual dependency)
+python3 apocrysis.py --test      # run the built-in smoke test suite
 ```
 
-Requires Python 3 and the standard library only - no dependencies to
-install.
+`--test` never needs `textual` installed - it always runs the classic,
+dependency-free path.
+
+## v3: what's different from earlier versions
+
+- **No class choice at the start.** Every game begins as the same
+  baseline; classes are now a **level-based progression** - reaching
+  a level threshold (5/10/15/20) blends in a harder tier's stats on
+  top of what you've already earned, never a reset.
+- **Your name and progress carry forward automatically.** Winning or
+  quitting saves a profile (name/level/stats/backpack/weapon); the
+  next launch picks it up with no prompts. This is separate from the
+  named save slots below, which capture an exact in-progress game
+  (map/position/day included) for a precise resume instead.
+- **The map grows and gets harder with your level** - bigger, the
+  town spawns farther from your (now random, not fixed-center) spawn
+  point, and from level 4 onward mountains and rivers appear as real
+  obstacles you have to route around. A generated map is always
+  solvable - the town is guaranteed reachable.
+- **Six zombie types**, not three - Fresh/Regular/Heavy plus Swift
+  (fast), Toxic (poisons on hit), and Armored (reduces incoming
+  damage).
+- **Crafting is a real progression system** now - `craft list` shows
+  every recipe including locked ones and what level unlocks them.
+- **A day/night cycle that actually completes** within a normal trek,
+  instead of a 24-hour clock a short walk barely dented.
 
 ## Controls
 
@@ -21,30 +49,35 @@ Movement is `n`/`s`/`e`/`w`. In-game, `h` (or `?`) prints the full
 command list, which is also context-sensitive - `eat`/`drink`/`med`
 only appear once you actually have that item, `f` (fight) only
 appears when a zombie is on your tile, `eq`/`reload` only appear once
-you have a weapon that needs them.
+you have a weapon that needs them. The fight-or-flee prompt is a
+plain yes/no - an unrecognized answer just asks again.
 
-Progress can be saved (`sv`) and reloaded from the main menu; multiple
-save slots are supported by filename.
+Progress can also be saved (`sv`) to a named slot and reloaded from
+the main menu for an exact resume, independent of the automatic
+profile above.
 
 ## Project layout
 
 ```
-apocrysis.py            # entry point - imports src/ and calls main()
+apocrysis.py            # entry point - textual UI by default, --classic/--test fallbacks
+requirements.txt        # textual (only needed for the default UI, not --classic/--test)
 src/
-    text_utils.py        # ANSI-aware string helpers (map/panel alignment)
-    constants.py          # color codes, terrain symbols/legend
+    text_utils.py        # ANSI-aware string helpers (map/panel alignment, classic mode)
+    constants.py          # colors, terrain symbols, map/pacing tuning constants
     items.py               # Item, Backpack, Weapon, MeleeWeapon, RangedWeapon, ConsumableType
-    zombies.py               # Zombie and its three difficulty subclasses
+    zombies.py               # Zombie and its six difficulty subclasses
     objectives.py              # Goal, Task dataclasses
-    player.py                   # PlayerClass dataclass + the per-class starting-stats table
-    game.py                      # the Apocrysis class (composed from the mixins below)
-    cli.py                        # main() / run_tests() - the interactive entry logic
+    player.py                   # PlayerClass dataclass, the stats table, and CLASS_TIERS
+    io_console.py                # ConsoleIO - the classic-mode print()/input() backend
+    game.py                       # the Apocrysis class (composed from the mixins below)
+    cli.py                         # main()/main_tui()/run_tests() - the entry logic
+    tui.py                          # the textual App (TextualIO, ApocrysisApp)
     mixins/
         objectives_mixin.py       # goal/task tracking
         world_mixin.py             # map generation, movement, loot
         combat_mixin.py             # zombie encounters, XP/leveling
-        persistence_mixin.py         # save/load
-        ui_mixin.py                   # rendering, the main game loop, command dispatch
+        persistence_mixin.py         # save/load, profile persistence
+        ui_mixin.py                   # classic-mode rendering, main game loop, command dispatch
         actions_mixin.py               # eat/drink/rest/equip/craft/auto-play
     tests/
         test_apocrysis.py             # unit tests (unittest, no live input needed)
@@ -53,9 +86,13 @@ src/
 `Apocrysis` (`src/game.py`) is composed from the six mixins above via
 multiple inheritance - each mixin owns one area of behavior, and
 `Apocrysis` itself holds only `__init__`, day/night time advancement,
-and hunger/thirst decay. Save files store plain field data and class
-names as strings, not module paths, so existing saves keep loading
-across this layout.
+and hunger/thirst decay. Every mixin talks to the player through
+`self.io` (an injected `say()`/`ask()`/`ask_yes_no()` interface) rather
+than calling `print()`/`input()` directly - `ConsoleIO` is the classic-
+mode default, `tui.py`'s `TextualIO` bridges the same calls into the
+textual UI from a background thread. Save files store plain field data
+and class names as strings, not module paths, so existing saves keep
+loading across this layout.
 
 ## Testing
 

@@ -9,72 +9,70 @@ from src.player import PlayerClass
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
 
+def main_tui():
+    # v3 SPRINT step 6: the TUI (src/tui.py's ApocrysisApp) owns its
+    # own profile-loading/game construction in on_mount() - the only
+    # thing that must happen HERE, in the plain terminal before
+    # Textual takes over the screen, is asking for a name when no
+    # profile exists yet (on_mount() re-checks load_profile() itself
+    # for everything else - stats/backpack/weapon - so this isn't
+    # duplicating that logic, just the one piece that can't happen
+    # inside the TUI without it needing to prompt for a name itself).
+    from src.tui import ApocrysisApp
+
+    name = None
+    if Apocrysis.load_profile() is None:
+        name = input("Enter your name: ")
+
+    app = ApocrysisApp(name=name)
+    app.run()
+
+
 def main():
+    # v3 SPRINT step 1: no class prompt (classes are level-based now -
+    # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and
+    # no re-entering your name/starting-over every launch. A profile
+    # (name/level/xp/stats/backpack/weapon - PersistenceMixin's
+    # save_profile()/load_profile(), distinct from the full-state
+    # named save slots below) auto-loads if one exists; map size is
+    # always derived from the carried-forward level
+    # (game.py's __init__), not a manual prompt, since v3's whole
+    # point is that the map grows with you automatically.
+    profile = Apocrysis.load_profile()
+
     while True:
         player = None
-        # List available save files for convenience
-        try:
-            save_files = [f for f in os.listdir(".") if f.endswith(".json")]
-        except OSError:
-            save_files = []
-            
-        if save_files:
-            print("Available save files:", ", ".join(save_files))
-            load_choice = input("Load saved game? (y/n): ").lower()
-            if load_choice == 'y':
-                filename = input("Enter save file name (e.g., 'apocrysis_save.json'): ")
-                player = Apocrysis.load_game(filename)
-        
+
+        # Named-slot manual load - kept as a fallback for an exact
+        # full-state resume (map/position/day included), only offered
+        # when no profile exists yet to auto-continue from.
+        if profile is None:
+            try:
+                save_files = [f for f in os.listdir(".") if f.endswith(".json")]
+            except OSError:
+                save_files = []
+
+            if save_files:
+                print("Available save files:", ", ".join(save_files))
+                load_choice = input("Load saved game? (y/n): ").lower()
+                if load_choice == 'y':
+                    filename = input("Enter save file name (e.g., 'apocrysis_save.json'): ")
+                    player = Apocrysis.load_game(filename)
+
         if player is None:
-            name = input("Enter your name: ")
-            
-            class_list = [
-                "husband", "grandpa", "gamer", "office worker", "engineer", 
-                "student", "teacher", "chef", "artist", "prepper", 
-                "survivalist", "army ranger", "medic", "hunter", "farmer", 
-                "mechanic", "pro gamer", "scavenger", "soldier", "police officer", 
-                "doctor", "scientist"
-            ]
-            
-            print("\nAvailable Classes:")
-            for i, cls in enumerate(class_list, 1):
-                print(f"{i}. {cls}")
-                
-            while True:
-                selection = input("Choose your class (number or name): ").strip().lower()
-                if not selection:
-                    continue
-                    
-                try:
-                    idx = int(selection)
-                    if 1 <= idx <= len(class_list):
-                        player_class = class_list[idx - 1]
-                        break
-                    else:
-                        print(f"Please enter a number between 1 and {len(class_list)}.")
-                except ValueError:
-                    if selection in class_list:
-                        player_class = selection
-                        break
-                    else:
-                        print("Invalid selection. Please try again.")
+            if profile is not None:
+                name = profile.get("name", "Survivor")
+                level = profile.get("level", 1)
+                print(f"\nWelcome back, {name} - level {level}.")
+            else:
+                name = input("Enter your name: ")
+                level = 1
 
-            map_size = 25
-            while True:
-                try:
-                    map_size_input = input(f"Enter the size of the game board (default {map_size}): ")
-                    if not map_size_input.strip():
-                        break
-                    new_map_size = int(map_size_input)
-                    if new_map_size <= 0 or new_map_size > 50:
-                        raise ValueError
-                    map_size = new_map_size
-                    break
-                except ValueError:
-                    print("Invalid input. Please enter a positive integer for the game board size (max 50).")
+            player = Apocrysis(name, level=level)
 
-            player = Apocrysis(name, player_class, map_size)
-            
+            if profile is not None:
+                player.apply_profile(profile)
+
         print(" ")
         print(" ")
         print("In the twilight years of the 21st century, the world as we knew it teetered on the brink of an abyss, ")
@@ -92,6 +90,15 @@ def main():
         print("refuse to be extinguished, even in the darkest of times.")
         print(" ")
         player.run_game_loop()
+
+        # v3 SPRINT step 1: save the profile on every way a playthrough
+        # ends, not just on a win - "automatic" means the player's
+        # name/level/stats are never re-asked for, regardless of why
+        # this game ended. Re-read immediately after so the top of the
+        # next loop iteration (or the next process launch) sees the
+        # exact same state either way - one code path for both.
+        player.save_profile()
+        profile = Apocrysis.load_profile()
 
         if getattr(player, 'won', False):
             # Real bug found live: winning used to hit the same
@@ -171,7 +178,7 @@ def run_tests():
     assert pc.health == 100
     
     # Test Apocrysis map size and player setup
-    ap = Apocrysis("TestPlayer", "gamer", 10)
+    ap = Apocrysis("TestPlayer", map_size=10, seed=1)
     assert ap.map_size == 10
     assert len(ap.map) == 10
     assert ap.player_class is not None
@@ -182,7 +189,7 @@ def run_tests():
     print("\nRunning advanced feature tests...")
     
     # Test stat modifications (eat/drink/medicine)
-    ap_stats = Apocrysis("StatTest", "gamer", 5)
+    ap_stats = Apocrysis("StatTest", map_size=5, seed=1)
     initial_health = ap_stats.health
     
     ap_stats.backpack.food += 10
@@ -200,18 +207,22 @@ def run_tests():
     ap_stats.use_medicine()
     assert ap_stats.health == min(100, current_health + 20), "Health should increase by 20 after using medicine"
     
-    # Test weapon equipping and battle logic
-    ap_battle = Apocrysis("BattleTest", "engineer", 5)
-    # Engineer starts with a crossbow. Add a melee weapon to test equip swap.
+    # Test weapon equipping and battle logic. v3: no class choice, so
+    # the starting weapon is whatever STARTER_CLASS_NAME's PlayerClass
+    # gives (src/player.py) - test the equip-swap mechanic generically
+    # rather than assuming a specific starting weapon type.
+    ap_battle = Apocrysis("BattleTest", map_size=5, seed=1)
+    starting_weapon = ap_battle.equipped_weapon
     ap_battle.backpack.weapons.append(MeleeWeapon("Axe", 8, 50))
-    
+
     assert len(ap_battle.backpack.weapons) == 1, "Backpack should contain the added Axe"
-    assert isinstance(ap_battle.equipped_weapon, RangedWeapon), "Engineer should start equipped with a ranged weapon"
-    
+    assert starting_weapon is not None, "A starter class should always start with a weapon equipped"
+
     # Equip the axe
     ap_battle.equip_weapon("axe")
     assert ap_battle.equipped_weapon.name.lower() == "axe", "Equipped weapon should be Axe after command"
-    assert len(ap_battle.backpack.weapons) == 1, "Crossbow should return to backpack when equipping new weapon"
+    assert len(ap_battle.backpack.weapons) == 1, "Starting weapon should return to backpack when equipping new weapon"
+    assert ap_battle.backpack.weapons[0] is starting_weapon, "Returned weapon should be the original starting weapon"
     
     # Deal one attack round with the newly equipped axe. Not
     # ap_battle.battle(...) - that method was removed as dead code
@@ -226,7 +237,7 @@ def run_tests():
     assert 0 <= ap_battle.health <= 100, "Player health must remain within valid bounds"
     
     # Test Task System Integration
-    ap_tasks = Apocrysis("TaskTest", "gamer", 5)
+    ap_tasks = Apocrysis("TaskTest", map_size=5, seed=1)
     ap_tasks.add_task("Clear Camp", "Defeat nearby threats.", task_type="combat")
     assert len(ap_tasks.tasks) == 1
     assert ap_tasks.tasks[0].title == "Clear Camp"

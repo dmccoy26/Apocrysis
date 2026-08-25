@@ -24,142 +24,172 @@ class UIMixin:
                 changes.append(f"{BOLD}{color}{stat.capitalize()}: {sign}{diff}{RESET}")
         
         if changes:
-            print("\n" + " | ".join(changes))
+            self.io.say("\n" + " | ".join(changes))
+
+    def _available_commands(self):
+        # v3 SPRINT step 6: pulled out of run_game_loop() so a native
+        # UI (tui.py) can show the same context-sensitive command list
+        # (eat/drink/craft/fight only when actually applicable)
+        # without needing run_game_loop()'s own classic-mode ASCII
+        # block at all - see the renders_natively split below.
+        cmd_list = ["n (north)", "s (south)", "e (east)", "w (west)", "m (map)", "i (inventory)", "st (stats)", "h (help)", "x (exit game)", "q (quit)", "sv (save)", "ds (delete save)"]
+        cmd_list.append("go [title] (add goal)")
+        cmd_list.append("goals (list goals)")
+        cmd_list.append("complete [idx] (finish goal)")
+        cmd_list.append("ts (tasks)")
+        cmd_list.append("ct [idx] (complete task)")
+
+        if self.backpack.weapons:
+            cmd_list.append("eq [weapon name] (equip)")
+        if isinstance(self.equipped_weapon, RangedWeapon):
+            cmd_list.append(f"reload ({self.equipped_weapon.name})")
+
+        cmd_list.append("cr [recipe] (craft) (type 'cr list' for recipes)")
+
+        current_tile = self.map[self.current_position[1]][self.current_position[0]]
+        if isinstance(current_tile, (FreshZombie, RegularZombie, HeavyZombie)):
+            cmd_list.append("f (fight)")
+        if self.backpack.food > 0:
+            cmd_list.append("ea (eat)")
+        if self.backpack.water > 0:
+            cmd_list.append("dr (drink)")
+        if self.backpack.medicine > 0:
+            cmd_list.append("med (medicine)")
+
+        return cmd_list
 
     def run_game_loop(self):
         try:
             term_width = shutil.get_terminal_size().columns
         except Exception:
             term_width = 80
-            
+
         left_col_width = max(40, term_width // 2 - 1)
         right_col_width = term_width - left_col_width - 3
 
+        # v3 SPRINT step 6: a native UI (tui.py's TextualIO) renders
+        # the map/stats/commands itself via its own widgets - this
+        # whole classic two-column ASCII block would otherwise get
+        # pushed through self.io.say() every turn and flood a native
+        # UI's message log with a redundant duplicate of what its own
+        # panels already show. ConsoleIO.renders_natively is False
+        # (the default), so classic mode's output is completely
+        # unaffected by this split.
+        native = getattr(self.io, "renders_natively", False)
+
         while self.health > 0 and not getattr(self, 'won', False):
-            # Visual separator between turns to prevent text overlap from previous screens
-            print("\n" + "*" * term_width)
-            
-            left_lines = []
-            right_lines = []
+            # v3 SPRINT fix: this used to be cached once per turn
+            # (self._last_cmd_list) and reused by the TUI's every
+            # panel refresh - but combat/looting happen INSIDE a
+            # single turn (this same while-loop iteration, after a
+            # move triggers a fight) and can add weapons/food/water,
+            # which that stale per-turn snapshot never picked up until
+            # the NEXT command was submitted. Only classic mode needs
+            # this list once per turn (for its single printed block);
+            # the TUI now always asks fresh (tui.py's refresh_panels())
+            # instead of relying on anything cached here.
+            cmd_list = self._available_commands()
 
-            # Left Panel: Map
-            # Real bug found live: this used to be its own inline copy
-            # of the map-rendering logic, separate from print_map()'s
-            # - a fix applied to print_map() (terrain symbols, real
-            # town feature letters, the legend) never showed up here,
-            # since this is the rendering actually used every turn;
-            # print_map() itself was only ever reached via the
-            # explicit 'm'/'map' command. Sharing one method closes
-            # that gap for good, not just for this one fix.
-            left_lines.extend(self._render_map_lines())
-            left_lines.extend(TERRAIN_LEGEND.split("\n"))
+            if not native:
+                # Visual separator between turns to prevent text overlap from previous screens
+                self.io.say("\n" + "*" * term_width)
 
-            # Right Panel: Stats & Inventory
-            hour = self.time_of_day // 60
-            minute = self.time_of_day % 60
-            time_str = f"{hour:02d}:{minute:02d}"
-            day_night = "Night" if self.is_night else "Day"
-            
-            right_lines.append(f"Time: {time_str} ({day_night})")
-            right_lines.append("--- Player Stats ---")
-            stats_list = [
-                ("Day", self.day),
-                ("Health", f"{self.health}/{self.max_health}"),
-                ("Hunger", self.hunger),
-                ("Thirst", self.thirst),
-                ("Fatigue", self.fatigue),
-                ("Strength", self.strength),
-                ("Dexterity", self.dexterity),
-                ("Intelligence", self.intelligence),
-                ("Wisdom", self.wisdom),
-                ("Level", self.level),
-                ("XP", f"{self.xp}/{self.max_xp}"),
-            ]
-            for label, value in stats_list:
-                right_lines.append(f"{label:<12} : {value}")
-            
-            if self.equipped_weapon:
-                right_lines.append(f"{'Equipped Weapon':<12} : {self.equipped_weapon.name}")
-            else:
-                right_lines.append("Equipped Weapon : None")
+                left_lines = []
+                right_lines = []
 
-            right_lines.append("")
-            right_lines.append("--- Inventory ---")
-            inv_list = [
-                ("Food", self.backpack.food),
-                ("Water", self.backpack.water),
-                ("Medicine", self.backpack.medicine),
-                ("Ammo", self.backpack.ammo),
-            ]
-            for label, value in inv_list:
-                right_lines.append(f"{label:<12} : {value}")
+                # Left Panel: Map
+                # Real bug found live: this used to be its own inline copy
+                # of the map-rendering logic, separate from print_map()'s
+                # - a fix applied to print_map() (terrain symbols, real
+                # town feature letters, the legend) never showed up here,
+                # since this is the rendering actually used every turn;
+                # print_map() itself was only ever reached via the
+                # explicit 'm'/'map' command. Sharing one method closes
+                # that gap for good, not just for this one fix.
+                left_lines.extend(self._render_map_lines())
+                left_lines.extend(TERRAIN_LEGEND.split("\n"))
 
-            # Consolidated weapons section to fix positioning and overlap issues
-            right_lines.append("--- Weapons ---")
-            if self.equipped_weapon:
-                right_lines.append(f"Equipped: {self.equipped_weapon}")
-            
-            if self.backpack.weapons:
-                right_lines.append("Inventory:")
-                for weapon in self.backpack.weapons:
-                    right_lines.append(str(weapon))
-            else:
-                right_lines.append("No weapons in inventory.")
+                # Right Panel: Stats & Inventory
+                hour = self.time_of_day // 60
+                minute = self.time_of_day % 60
+                time_str = f"{hour:02d}:{minute:02d}"
+                day_night = "Night" if self.is_night else "Day"
 
-            # Tasks Section (Dynamic Objectives)
-            active_tasks = [t for t in self.tasks if not t.completed]
-            if active_tasks:
+                right_lines.append(f"Time: {time_str} ({day_night})")
+                right_lines.append("--- Player Stats ---")
+                stats_list = [
+                    ("Day", self.day),
+                    ("Health", f"{self.health}/{self.max_health}"),
+                    ("Hunger", self.hunger),
+                    ("Thirst", self.thirst),
+                    ("Fatigue", self.fatigue),
+                    ("Strength", self.strength),
+                    ("Dexterity", self.dexterity),
+                    ("Intelligence", self.intelligence),
+                    ("Wisdom", self.wisdom),
+                    ("Level", self.level),
+                    ("XP", f"{self.xp}/{self.max_xp}"),
+                ]
+                for label, value in stats_list:
+                    right_lines.append(f"{label:<12} : {value}")
+
+                if self.equipped_weapon:
+                    right_lines.append(f"{'Equipped Weapon':<12} : {self.equipped_weapon.name}")
+                else:
+                    right_lines.append("Equipped Weapon : None")
+
                 right_lines.append("")
-                right_lines.append("--- Active Tasks ---")
-                for i, task in enumerate(active_tasks):
-                    reward_info = f"+{task.reward_amount} {task.reward_type}"
-                    right_lines.append(f"  [{i+1}] {task.title} ({reward_info})")
+                right_lines.append("--- Inventory ---")
+                inv_list = [
+                    ("Food", self.backpack.food),
+                    ("Water", self.backpack.water),
+                    ("Medicine", self.backpack.medicine),
+                    ("Ammo", self.backpack.ammo),
+                ]
+                for label, value in inv_list:
+                    right_lines.append(f"{label:<12} : {value}")
 
-            # Commands
-            cmd_list = ["n (north)", "s (south)", "e (east)", "w (west)", "m (map)", "i (inventory)", "st (stats)", "h (help)", "x (exit game)", "q (quit)", "sv (save)", "ds (delete save)"]
-            cmd_list.append("go [title] (add goal)")
-            cmd_list.append("goals (list goals)")
-            cmd_list.append("complete [idx] (finish goal)")
-            cmd_list.append("ts (tasks)")
-            cmd_list.append("ct [idx] (complete task)")
-            
-            if self.backpack.weapons:
-                cmd_list.append("eq [weapon name] (equip)")
-            if isinstance(self.equipped_weapon, RangedWeapon):
-                cmd_list.append(f"reload ({self.equipped_weapon.name})")
-            
-            cmd_list.append("cr [recipe] (craft) (type 'cr list' for recipes)")
-            
-            current_tile = self.map[self.current_position[1]][self.current_position[0]]
-            if isinstance(current_tile, (FreshZombie, RegularZombie, HeavyZombie)):
-                cmd_list.append("f (fight)")
-            if self.backpack.food > 0:
-                cmd_list.append("ea (eat)")
-            if self.backpack.water > 0:
-                cmd_list.append("dr (drink)")
-            if self.backpack.medicine > 0:
-                cmd_list.append("med (medicine)")
+                # Consolidated weapons section to fix positioning and overlap issues
+                right_lines.append("--- Weapons ---")
+                if self.equipped_weapon:
+                    right_lines.append(f"Equipped: {self.equipped_weapon}")
 
-            right_lines.append("")
-            right_lines.append("What would you like to do?")
-            for c in cmd_list:
-                right_lines.append(f"  {c}")
+                if self.backpack.weapons:
+                    right_lines.append("Inventory:")
+                    for weapon in self.backpack.weapons:
+                        right_lines.append(str(weapon))
+                else:
+                    right_lines.append("No weapons in inventory.")
 
-            # Render side-by-side with dynamic column widths to minimize spacing
-            max_left_len = max((_visible_len(line) for line in left_lines), default=0)
-            max_right_len = max((_visible_len(line) for line in right_lines), default=0)
+                # Tasks Section (Dynamic Objectives)
+                active_tasks = [t for t in self.tasks if not t.completed]
+                if active_tasks:
+                    right_lines.append("")
+                    right_lines.append("--- Active Tasks ---")
+                    for i, task in enumerate(active_tasks):
+                        reward_info = f"+{task.reward_amount} {task.reward_type}"
+                        right_lines.append(f"  [{i+1}] {task.title} ({reward_info})")
 
-            left_col_width = max_left_len + 2
-            right_col_width = max_right_len
+                right_lines.append("")
+                right_lines.append("What would you like to do?")
+                for c in cmd_list:
+                    right_lines.append(f"  {c}")
 
-            max_rows = max(len(left_lines), len(right_lines))
-            for i in range(max_rows):
-                left_line = left_lines[i] if i < len(left_lines) else ""
-                right_line = right_lines[i] if i < len(right_lines) else ""
+                # Render side-by-side with dynamic column widths to minimize spacing
+                max_left_len = max((_visible_len(line) for line in left_lines), default=0)
+                max_right_len = max((_visible_len(line) for line in right_lines), default=0)
 
-                print(f"{_display_ljust(left_line, left_col_width)} | {_display_ljust(right_line, right_col_width)}")
+                left_col_width = max_left_len + 2
+                right_col_width = max_right_len
 
-            command = input("> ").lower()
+                max_rows = max(len(left_lines), len(right_lines))
+                for i in range(max_rows):
+                    left_line = left_lines[i] if i < len(left_lines) else ""
+                    right_line = right_lines[i] if i < len(right_lines) else ""
+
+                    self.io.say(f"{_display_ljust(left_line, left_col_width)} | {_display_ljust(right_line, right_col_width)}")
+
+            command = self.io.ask("> ").lower()
             
             direction_aliases = {"north": "n", "south": "s", "east": "e", "west": "w"}
             command = direction_aliases.get(command, command)
@@ -181,7 +211,7 @@ class UIMixin:
             }
 
             dispatch_map = {
-                'exit': lambda: print("Exiting game..."),
+                'exit': lambda: self.io.say("Exiting game..."),
                 'n': lambda: self.move_and_search('n'),
                 's': lambda: self.move_and_search('s'),
                 'e': lambda: self.move_and_search('e'),
@@ -191,10 +221,10 @@ class UIMixin:
                 'st': self.stats,
                 'h': self.print_help,
                 '?': self.print_help,
-                'q': lambda: print("Exiting game..."),
-                'quit': lambda: print("Exiting game..."),
-                'x': lambda: print("Exiting game..."),
-                'exit game': lambda: print("Exiting game..."),
+                'q': lambda: self.io.say("Exiting game..."),
+                'quit': lambda: self.io.say("Exiting game..."),
+                'x': lambda: self.io.say("Exiting game..."),
+                'exit game': lambda: self.io.say("Exiting game..."),
                 'eat': self.eat,
                 'ea': self.eat,
                 'drink': self.drink,
@@ -207,11 +237,11 @@ class UIMixin:
                 'a': self.auto_play,
                 'fight': lambda: self.encounter_zombie(),
                 'f': lambda: self.encounter_zombie(),
-                'save': lambda: self.save_game(input("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
-                'sv': lambda: self.save_game(input("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
+                'save': lambda: self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
+                'sv': lambda: self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
                 'ds': self._prompt_delete_save,
                 'delete save': self._prompt_delete_save,
-                'go': lambda: self.add_goal(input("Goal title: "), goal_type=input("Goal type (eat/drink/medicine/craft/kill/reach_town): ").lower()),
+                'go': lambda: self.add_goal(self.io.ask("Goal title: "), goal_type=self.io.ask("Goal type (eat/drink/medicine/craft/kill/reach_town): ").lower()),
                 'goals': self.list_goals,
                 'complete': self._prompt_complete_goal,
                 'ts': self.list_tasks,
@@ -219,28 +249,28 @@ class UIMixin:
             }
 
             if command in ('q', 'quit'):
-                save_choice = input("Do you want to save? (y/n): ").lower()
+                save_choice = self.io.ask("Do you want to save? (y/n): ").lower()
                 if save_choice == 'y':
-                    self.save_game(input("Enter save slot name (e.g., 'Slot1'): ") + ".json")
-                print("\n" + "*" * term_width)
+                    self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json")
+                self.io.say("\n" + "*" * term_width)
                 self.quit = True
                 break
             elif command in ('exit', 'x', 'exit game'):
-                print("\n" + "*" * term_width)
+                self.io.say("\n" + "*" * term_width)
                 dispatch_map[command]()
                 self.quit = True
                 break
             
             action = dispatch_map.get(command)
             if action:
-                print("\n" + "*" * term_width)
+                self.io.say("\n" + "*" * term_width)
                 action()
             elif command.startswith(('equip', 'eq')):
                 parts = command.split()
                 if len(parts) > 1:
                     self.equip_weapon(' '.join(parts[1:]))
                 else:
-                    print("Missing weapon name for equip.")
+                    self.io.say("Missing weapon name for equip.")
             elif command.startswith(('reload', 'rl')):
                 parts = command.split()
                 weapon_name = ' '.join(parts[1:]) if len(parts) > 1 else None
@@ -256,22 +286,22 @@ class UIMixin:
                             break
                 
                 if target_weapon and isinstance(target_weapon, RangedWeapon):
-                    ammo_input = input(f"How much ammo to reload {target_weapon.name} with? ")
+                    ammo_input = self.io.ask(f"How much ammo to reload {target_weapon.name} with? ")
                     try:
                         amount = int(ammo_input)
                         target_weapon.reload(amount)
                     except ValueError:
-                        print("Invalid ammo count.")
+                        self.io.say("Invalid ammo count.")
                 else:
-                    print("No valid ranged weapon found to reload.")
+                    self.io.say("No valid ranged weapon found to reload.")
             elif command.startswith(('craft', 'cr')):
                 parts = command.split()
                 if len(parts) > 1:
                     self.craft(parts[1])
                 else:
-                    print("Usage: craft [recipe_name] (type 'craft list' for recipes)")
+                    self.io.say("Usage: craft [recipe_name] (type 'craft list' for recipes)")
             else:
-                print(f"Unknown command: '{command}'. Type 'help' for available commands.")
+                self.io.say(f"Unknown command: '{command}'. Type 'help' for available commands.")
 
             self.print_stat_changes(old_stats)
             # Automatically check and complete goals based on the performed action
@@ -280,6 +310,29 @@ class UIMixin:
             # Generate new dynamic tasks periodically or when conditions change
             if random.random() < 0.1:  # 10% chance per turn to evaluate task generation
                 self._generate_dynamic_tasks()
+
+        # v3 SPRINT: the loop above used to just silently end - real
+        # gap found live: dying or winning closed the game (in the
+        # TUI, the whole app) with nothing telling the player which
+        # one happened or why. self.io.ask() blocks until
+        # acknowledged in BOTH modes - a real pause to read the
+        # result, not just a scrollback line that vanishes when the
+        # TUI closes.
+        if getattr(self, 'won', False):
+            self.io.say(f"\n{BOLD}{GREEN}*** VICTORY ***{RESET}")
+            self.io.say(
+                f"You made it to the Town Center on day {self.day} "
+                f"as a level {self.level} survivor!"
+            )
+        elif self.health <= 0:
+            self.io.say(f"\n{BOLD}{RED}*** YOU DIED ***{RESET}")
+            self.io.say(
+                f"{self.name} succumbed on day {self.day}, "
+                f"level {self.level}."
+            )
+
+        if getattr(self, 'won', False) or self.health <= 0:
+            self.io.ask("Press Enter to continue...")
 
     def _render_map_lines(self):
         # Shared by print_map() (the standalone 'm'/'map' command) and
@@ -340,57 +393,57 @@ class UIMixin:
 
     def print_map(self):
         for line in self._render_map_lines():
-            print(line)
-        print(TERRAIN_LEGEND)
+            self.io.say(line)
+        self.io.say(TERRAIN_LEGEND)
 
     def print_help(self):
-        print("\n--- Help ---")
-        print("Available commands:")
-        print("  n (north), s (south), e (east), w (west) - Move")
-        print("  m (map)                                 - Display the current map")
-        print("  i (inventory)                           - Show your backpack contents")
-        print("  st (stats)                              - View player statistics")
-        print("  f (fight)                               - Fight the zombie on your current tile")
-        print("  eq [name] (equip)                       - Equip a weapon from your inventory")
+        self.io.say("\n--- Help ---")
+        self.io.say("Available commands:")
+        self.io.say("  n (north), s (south), e (east), w (west) - Move")
+        self.io.say("  m (map)                                 - Display the current map")
+        self.io.say("  i (inventory)                           - Show your backpack contents")
+        self.io.say("  st (stats)                              - View player statistics")
+        self.io.say("  f (fight)                               - Fight the zombie on your current tile")
+        self.io.say("  eq [name] (equip)                       - Equip a weapon from your inventory")
         if self.backpack.food > 0:
-            print("  ea (eat)                                - Consume food to reduce hunger and restore health")
+            self.io.say("  ea (eat)                                - Consume food to reduce hunger and restore health")
         if self.backpack.water > 0:
-            print("  dr (drink)                              - Consume water to reduce thirst and restore health")
+            self.io.say("  dr (drink)                              - Consume water to reduce thirst and restore health")
         if self.backpack.medicine > 0:
-            print("  med (medicine)                          - Use medicine to restore health")
-        print("  cr [name] (craft)                       - Combine items into upgraded gear (type 'cr list' for recipes)")
-        print("  r (rest)                                - Rest to recover fatigue (rate based on Wisdom)")
-        print("  a (auto)                                - Automatically play for a short duration")
-        print("  ts                                      - View active tasks")
-        print("  ct [idx]                                - Complete a task by index")
-        print("  q, x, quit                              - Quit the game")
-        print("  h, ? (help)                             - Show this message\n")
+            self.io.say("  med (medicine)                          - Use medicine to restore health")
+        self.io.say("  cr [name] (craft)                       - Combine items into upgraded gear (type 'cr list' for recipes)")
+        self.io.say("  r (rest)                                - Rest to recover fatigue (rate based on Wisdom)")
+        self.io.say("  a (auto)                                - Automatically play for a short duration")
+        self.io.say("  ts                                      - View active tasks")
+        self.io.say("  ct [idx]                                - Complete a task by index")
+        self.io.say("  q, x, quit                              - Quit the game")
+        self.io.say("  h, ? (help)                             - Show this message\n")
 
     def display_inventory(self):
-        print("\n--- Inventory ---")
-        print(f"Food: {self.backpack.food}")
-        print(f"Water: {self.backpack.water}")
-        print(f"Medicine: {self.backpack.medicine}")
-        print(f"Ammo: {self.backpack.ammo}")  # If applicable
-        print("Weapons:")
+        self.io.say("\n--- Inventory ---")
+        self.io.say(f"Food: {self.backpack.food}")
+        self.io.say(f"Water: {self.backpack.water}")
+        self.io.say(f"Medicine: {self.backpack.medicine}")
+        self.io.say(f"Ammo: {self.backpack.ammo}")  # If applicable
+        self.io.say("Weapons:")
         for weapon in self.backpack.weapons:
-            print(f"- {weapon.name}")
+            self.io.say(f"- {weapon.name}")
         # Display other inventory items as needed
 
     def stats(self):
-        print("\n--- Player Stats ---")
-        print(f"Health: {self.health}")
-        print(f"Hunger: {self.hunger}")
-        print(f"Thirst: {self.thirst}")
-        print(f"Fatigue: {self.fatigue}")
-        print(f"Strength: {self.strength}")
-        print(f"Dexterity: {self.dexterity}")
-        print(f"Intelligence: {self.intelligence}")
-        print(f"Wisdom: {self.wisdom}")
+        self.io.say("\n--- Player Stats ---")
+        self.io.say(f"Health: {self.health}")
+        self.io.say(f"Hunger: {self.hunger}")
+        self.io.say(f"Thirst: {self.thirst}")
+        self.io.say(f"Fatigue: {self.fatigue}")
+        self.io.say(f"Strength: {self.strength}")
+        self.io.say(f"Dexterity: {self.dexterity}")
+        self.io.say(f"Intelligence: {self.intelligence}")
+        self.io.say(f"Wisdom: {self.wisdom}")
         if self.equipped_weapon:
-            print(f"Equipped Weapon: {self.equipped_weapon.name}")
+            self.io.say(f"Equipped Weapon: {self.equipped_weapon.name}")
         else:
-            print("Equipped Weapon: None")
+            self.io.say("Equipped Weapon: None")
 
     def _map_command_to_action(self, command):
         if command in ('eat', 'ea'): return 'eat'

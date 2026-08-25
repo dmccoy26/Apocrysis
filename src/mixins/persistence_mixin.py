@@ -9,6 +9,35 @@ from src.objectives import Goal, Task
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
 
+DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
+
+
+def _serialize_weapon(w):
+    return {
+        "name": w.name,
+        "damage": w.damage,
+        "type": type(w).__name__,
+        "durability": getattr(w, 'durability', None),
+        "ammo": getattr(w, 'ammo', None),
+        "max_ammo": getattr(w, 'max_ammo', None),
+    }
+
+
+def _deserialize_weapon(w_data):
+    if w_data.get("type") == "MeleeWeapon":
+        return MeleeWeapon(
+            w_data.get("name"), w_data.get("damage"),
+            w_data.get("durability", 10),
+        )
+
+    w = RangedWeapon(
+        w_data.get("name"), w_data.get("damage"),
+        w_data.get("max_ammo", 5), w_data.get("durability", 20),
+    )
+    w.ammo = w_data.get("ammo")
+    return w
+
+
 class PersistenceMixin:
 
     ZOMBIE_CLASSES = {
@@ -94,28 +123,14 @@ class PersistenceMixin:
         }
 
         for w in self.backpack.weapons:
-            data["weapons"].append({
-                "name": w.name,
-                "damage": w.damage,
-                "type": type(w).__name__,
-                "durability": getattr(w, 'durability', None),
-                "ammo": getattr(w, 'ammo', None),
-                "max_ammo": getattr(w, 'max_ammo', None)
-            })
+            data["weapons"].append(_serialize_weapon(w))
 
         if self.equipped_weapon:
-            data["equipped_weapon"] = {
-                "name": self.equipped_weapon.name,
-                "damage": self.equipped_weapon.damage,
-                "type": type(self.equipped_weapon).__name__,
-                "durability": getattr(self.equipped_weapon, 'durability', None),
-                "ammo": getattr(self.equipped_weapon, 'ammo', None),
-                "max_ammo": getattr(self.equipped_weapon, 'max_ammo', None)
-            }
+            data["equipped_weapon"] = _serialize_weapon(self.equipped_weapon)
 
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
-        print(f"Game saved to {filename}.")
+        self.io.say(f"Game saved to {filename}.")
 
     def _prompt_delete_save(self):
         try:
@@ -124,12 +139,12 @@ class PersistenceMixin:
             save_files = []
 
         if save_files:
-            print("Available save files:", ", ".join(save_files))
+            self.io.say("Available save files:", ", ".join(save_files))
         else:
-            print("No saved games found.")
+            self.io.say("No saved games found.")
             return
 
-        slot_name = input("Enter save slot name to delete: ").strip()
+        slot_name = self.io.ask("Enter save slot name to delete: ").strip()
         if not slot_name.endswith(".json"):
             slot_name += ".json"
         self.delete_save(slot_name)
@@ -137,9 +152,9 @@ class PersistenceMixin:
     def delete_save(self, filename="apocrysis_save.json"):
         if os.path.exists(filename):
             os.remove(filename)
-            print(f"Saved game deleted from {filename}.")
+            self.io.say(f"Saved game deleted from {filename}.")
         else:
-            print("No saved game found to delete.")
+            self.io.say("No saved game found to delete.")
 
     @classmethod
     def load_game(cls, filename="apocrysis_save.json"):
@@ -151,9 +166,16 @@ class PersistenceMixin:
             
         player = cls(
             data.get("name", "SavedPlayer"),
-            data.get("player_class", "gamer"),
-            data.get("map_size", 25),
+            map_size=data.get("map_size", 25),
+            level=data.get("level", 1),
         )
+
+        # player_class is no longer chosen (v3) - restored here purely
+        # for older-save display/compatibility; initialize_player()
+        # already set it to the current STARTER_CLASS_NAME, and the
+        # tier system (combat_mixin.py's level_up()) is what actually
+        # updates it going forward.
+        player.player_class = data.get("player_class", player.player_class)
 
         player.health = data.get("health", 100)
         player.max_health = data.get("max_health", 100)
@@ -201,21 +223,13 @@ class PersistenceMixin:
         player.backpack.ammo += data.get("backpack_ammo", 0)
         
         for w_data in data.get("weapons", []):
-            if w_data.get("type") == "MeleeWeapon":
-                w = MeleeWeapon(w_data.get("name"), w_data.get("damage"), w_data.get("durability", 10))
-            else:
-                w = RangedWeapon(w_data.get("name"), w_data.get("damage"), w_data.get("max_ammo", 5), w_data.get("durability", 20))
-                w.ammo = w_data.get("ammo")
-            player.backpack.weapons.append(w)
-            
+            player.backpack.weapons.append(_deserialize_weapon(w_data))
+
         eq_w_data = data.get("equipped_weapon")
         if eq_w_data and eq_w_data.get("name"):
-            if eq_w_data.get("type") == "MeleeWeapon":
-                player.equipped_weapon = MeleeWeapon(eq_w_data.get("name"), eq_w_data.get("damage"), eq_w_data.get("durability", 10))
-            else:
-                player.equipped_weapon = RangedWeapon(eq_w_data.get("name"), eq_w_data.get("damage"), eq_w_data.get("max_ammo", 5), eq_w_data.get("durability", 20))
-                player.equipped_weapon.ammo = eq_w_data.get("ammo")
-                
+            player.equipped_weapon = _deserialize_weapon(eq_w_data)
+
+
         # Real bug found live: this used to APPEND the save's goals
         # onto whatever fresh __init__ already created, duplicating
         # every goal a save actually has (e.g. "Reach the Town
@@ -249,6 +263,85 @@ class PersistenceMixin:
             ))
 
         player.status_effects = data.get("status_effects", {})
-                
+
         return player
+
+    # --------------------------------------------------
+    # Profile persistence (v3 SPRINT, step 1)
+    # --------------------------------------------------
+    #
+    # Distinct from save_game()/load_game() above on purpose: those
+    # capture a full playthrough snapshot (map, position, day/time)
+    # for exact resume. The profile is the player's IDENTITY and
+    # PROGRESSION only (name/level/xp/stats/backpack/weapon) - what
+    # should carry into a brand new game (a new map, sized/placed
+    # from the carried-forward level - see game.py's __init__ and
+    # world_mixin.py's generate_map()), not a resume of the old map.
+    # cli.py's main() uses these instead of prompting for name/class
+    # on every launch when a profile already exists.
+
+    def save_profile(self, filename=DEFAULT_PROFILE_FILENAME):
+        data = {
+            "name": self.name,
+            "player_class": self.player_class,
+            "level": self.level,
+            "xp": self.xp,
+            "max_xp": self.max_xp,
+            "strength": self.strength,
+            "dexterity": self.dexterity,
+            "intelligence": self.intelligence,
+            "wisdom": self.wisdom,
+            "backpack_food": self.backpack.food,
+            "backpack_water": self.backpack.water,
+            "backpack_medicine": self.backpack.medicine,
+            "backpack_ammo": self.backpack.ammo,
+            "weapons": [_serialize_weapon(w) for w in self.backpack.weapons],
+            "equipped_weapon": (
+                _serialize_weapon(self.equipped_weapon)
+                if self.equipped_weapon
+                else None
+            ),
+        }
+
+        with open(filename, 'w') as f:
+            json.dump(data, f, indent=2)
+
+    @staticmethod
+    def load_profile(filename=DEFAULT_PROFILE_FILENAME):
+        if not os.path.exists(filename):
+            return None
+
+        with open(filename, 'r') as f:
+            return json.load(f)
+
+    def apply_profile(self, profile):
+        """
+        Overwrites this (freshly constructed) instance's identity/
+        progression fields from a profile dict (load_profile()'s
+        return value) - same after-construction-overwrite pattern
+        __init__ already uses for prize_for_next_game, just applied
+        explicitly by the caller instead of automatically.
+        """
+
+        self.name = profile.get("name", self.name)
+        self.player_class = profile.get("player_class", self.player_class)
+        self.level = profile.get("level", self.level)
+        self.xp = profile.get("xp", self.xp)
+        self.max_xp = profile.get("max_xp", self.max_xp)
+        self.strength = profile.get("strength", self.strength)
+        self.dexterity = profile.get("dexterity", self.dexterity)
+        self.intelligence = profile.get("intelligence", self.intelligence)
+        self.wisdom = profile.get("wisdom", self.wisdom)
+
+        self.backpack.food += profile.get("backpack_food", 0)
+        self.backpack.water += profile.get("backpack_water", 0)
+        self.backpack.medicine += profile.get("backpack_medicine", 0)
+        self.backpack.ammo += profile.get("backpack_ammo", 0)
+
+        for w_data in profile.get("weapons", []):
+            self.backpack.weapons.append(_deserialize_weapon(w_data))
+
+        eq_w_data = profile.get("equipped_weapon")
+        if eq_w_data and eq_w_data.get("name"):
+            self.equipped_weapon = _deserialize_weapon(eq_w_data)
 

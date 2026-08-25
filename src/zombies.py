@@ -40,3 +40,44 @@ class HeavyZombie(Zombie):
         self.fatigue_cost = 20
 
 
+# v3 SPRINT step 3: more zombie variety beyond Fresh/Regular/Heavy.
+
+class SwiftZombie(Zombie):
+    loot_table = ["food", "ammo"]
+
+    def __init__(self):
+        super().__init__("Swift Zombie", 25, 15)
+        self.hunger_cost = 3
+        self.thirst_cost = 3
+        self.fatigue_cost = 8
+
+
+class ToxicZombie(Zombie):
+    # Its bite inflicts "Poison" (combat_mixin.py's encounter_zombie(),
+    # constants.py's STATUS_EFFECT_DAMAGE) - 3 damage/turn for 4
+    # turns, guaranteed on hit rather than a chance roll like
+    # Bleeding/Stun, matching its name being the whole point of
+    # fighting one.
+    loot_table = ["medicine", "weapon"]
+
+    def __init__(self):
+        super().__init__("Toxic Zombie", 40, 8)
+        self.hunger_cost = 5
+        self.thirst_cost = 5
+        self.fatigue_cost = 12
+
+
+class ArmoredZombie(Zombie):
+    loot_table = ["weapon", "ammo", "medicine"]
+    damage_reduction = 0.5
+
+    def __init__(self):
+        super().__init__("Armored Zombie", 120, 15)
+        self.hunger_cost = 10
+        self.thirst_cost = 10
+        self.fatigue_cost = 25
+
+    def take_damage(self, damage):
+        super().take_damage(damage * (1 - self.damage_reduction))
+
+

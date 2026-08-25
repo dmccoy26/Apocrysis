@@ -24,6 +24,17 @@ class PlayerClass:
         self.thirst = max(0, min(100, self.thirst + thirst_delta))
 
 
+def _power_score(player_class):
+    return (
+        player_class.health
+        + player_class.strength * 2
+        + player_class.dexterity * 2
+        + player_class.intelligence
+        + player_class.wisdom
+        - player_class.fatigue * 3
+    )
+
+
 PLAYER_CLASSES = {
     "husband": PlayerClass(100, 90, 90, 5, 12, 10, 10, 10, MeleeWeapon("Kitchen Knife", 6, 80)),
     "grandpa": PlayerClass(90, 85, 85, 10, 8, 7, 14, 16, MeleeWeapon("Walking Cane", 4, 100)),
@@ -48,3 +59,48 @@ PLAYER_CLASSES = {
     "doctor": PlayerClass(105, 95, 95, 0, 8, 10, 17, 16, MeleeWeapon("Surgical Scissors", 6, 70)),
     "scientist": PlayerClass(95, 90, 90, 5, 7, 11, 18, 14, MeleeWeapon("Lab Pipette", 3, 30)),
 }
+
+
+# SPRINT v3: level-based progression (no class choice at game start -
+# see src/mixins/actions_mixin.py's initialize_player()). Classes
+# collapse into 5 difficulty tiers, derived programmatically from
+# PLAYER_CLASSES's own stats rather than hand-ranked, so a future
+# edit to PLAYER_CLASSES doesn't need a parallel manual re-ranking.
+#
+# CLASS_TIERS is an ordered list of tiers, each a list of class-name
+# strings sorted ascending by _power_score within the tier (easiest
+# tier first). Each tier's REPRESENTATIVE (used by level_up()'s tier
+# blend, combat_mixin.py) is deterministically the STRONGEST class in
+# that tier's slice - its last element, since the slice itself is
+# sorted ascending - not an arbitrary first element.
+
+_TIER_COUNT = 5
+
+
+def _split_into_tiers(sorted_names, tier_count=_TIER_COUNT):
+    tiers = []
+    n = len(sorted_names)
+    base, extra = divmod(n, tier_count)
+    index = 0
+    for i in range(tier_count):
+        size = base + (1 if i < extra else 0)
+        tiers.append(sorted_names[index:index + size])
+        index += size
+    return tiers
+
+
+_SORTED_CLASS_NAMES = sorted(
+    PLAYER_CLASSES,
+    key=lambda name: _power_score(PLAYER_CLASSES[name]),
+)
+
+CLASS_TIERS = _split_into_tiers(_SORTED_CLASS_NAMES)
+
+TIER_LEVEL_THRESHOLDS = [1, 5, 10, 15, 20]
+
+
+def tier_representative(tier_index):
+    return CLASS_TIERS[tier_index][-1]
+
+
+STARTER_CLASS_NAME = tier_representative(0)

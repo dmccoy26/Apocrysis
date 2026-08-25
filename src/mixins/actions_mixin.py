@@ -1,6 +1,7 @@
 # Auto-extracted from the original monolithic apocrysis.py during
 # the src/ restructuring - see README.md for the project layout.
 
+import copy
 import random
 
 from src.items import MeleeWeapon, RangedWeapon, format_weapon_list
@@ -45,7 +46,17 @@ class ActionsMixin:
         self.dexterity = attrs.dexterity
         self.intelligence = attrs.intelligence
         self.wisdom = attrs.wisdom
-        self.equipped_weapon = attrs.equipped_weapon
+        # Real bug found live (via the new autoplay balance harness
+        # running many games in one process): PLAYER_CLASSES' weapons
+        # are single module-level instances, shared by every player
+        # who ever rolls that starter/tier class - attrs.equipped_
+        # weapon is that same object, not a fresh one. Combat mutates
+        # durability/ammo in place, so without copying here, one
+        # game's wear and tear on "Kitchen Knife" permanently carries
+        # into every future game (or TUI win-continuation - see
+        # tui.py's _game_thread()) that rolls the same class, for the
+        # rest of the process's lifetime.
+        self.equipped_weapon = copy.deepcopy(attrs.equipped_weapon)
         # RangedWeapon.__init__ already starts ammo at max_ammo - no
         # separate top-up needed here.
 

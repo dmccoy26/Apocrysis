@@ -426,8 +426,14 @@ class UIMixin:
         self.io.say(f"Medicine: {self.backpack.medicine}")
         self.io.say(f"Ammo: {self.backpack.ammo}")  # If applicable
         self.io.say("Weapons:")
+        # Real gap found live: this only ever showed the bare name -
+        # no way to compare two weapons (e.g. a looted Rusty Dagger
+        # vs. the equipped Kitchen Knife) without reading source.
+        # str(weapon) already carries damage/durability (items.py) -
+        # use it here too, matching view_weapon_info()'s existing
+        # behavior (actions_mixin.py).
         for weapon in self.backpack.weapons:
-            self.io.say(f"- {weapon.name}")
+            self.io.say(f"- {weapon}")
         # Display other inventory items as needed
 
     def stats(self):

@@ -87,3 +87,19 @@ TERRAIN_MOVE_MINUTES = {
     'mountain': 40,
     'river': 40,
 }
+
+# Real bug found live: world_mixin.py's find_loot() used to build
+# every looted weapon as MeleeWeapon(name, 10, 100) regardless of
+# which name got picked - a "Rusty Dagger" and a "Steel Katana" were
+# mechanically identical, and "Broken Rifle"/"Leather Bow" (names
+# that clearly mean a ranged weapon) were built as MeleeWeapon
+# instances that could never use ammo/reload at all. Real stat
+# variance tied to the name, and the correct weapon type per name.
+LOOT_WEAPON_TABLE = {
+    "Rusty Dagger": {"type": "melee", "damage": 8, "durability": 40},
+    "Chipped Sword": {"type": "melee", "damage": 12, "durability": 50},
+    "Iron Axe": {"type": "melee", "damage": 16, "durability": 90},
+    "Steel Katana": {"type": "melee", "damage": 20, "durability": 110},
+    "Broken Rifle": {"type": "ranged", "damage": 10, "max_ammo": 5, "durability": 15},
+    "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45},
+}

@@ -19,9 +19,9 @@ from src.constants import (
     BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     IMPASSABLE_TERRAIN,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
-    TERRAIN_MOVE_MINUTES,
+    TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE,
 )
-from src.items import MeleeWeapon
+from src.items import MeleeWeapon, RangedWeapon
 from src.zombies import (
     Zombie, FreshZombie, RegularZombie, HeavyZombie,
     SwiftZombie, ToxicZombie, ArmoredZombie,
@@ -356,13 +356,20 @@ class WorldMixin:
             self.award_xp(10)
 
             if loot_type == "weapon":
-                # Parameterized weapon names for randomized loot generation
-                possible_weapon_names = [
-                    "Rusty Dagger", "Iron Axe", "Broken Rifle",
-                    "Steel Katana", "Leather Bow", "Chipped Sword"
-                ]
-                new_weapon_name = random.choice(possible_weapon_names)
-                new_weapon = MeleeWeapon(new_weapon_name, 10, 100)
+                # Real stat variance per name, and the correct weapon
+                # type (melee vs ranged) - see LOOT_WEAPON_TABLE's own
+                # comment in constants.py for the bug this replaced.
+                new_weapon_name = random.choice(list(LOOT_WEAPON_TABLE.keys()))
+                spec = LOOT_WEAPON_TABLE[new_weapon_name]
+                if spec["type"] == "ranged":
+                    new_weapon = RangedWeapon(
+                        new_weapon_name, spec["damage"],
+                        spec["max_ammo"], spec["durability"],
+                    )
+                else:
+                    new_weapon = MeleeWeapon(
+                        new_weapon_name, spec["damage"], spec["durability"],
+                    )
                 self.backpack.weapons.append(new_weapon)
                 self.io.say(f"You obtained a {new_weapon.name}.")
             elif loot_type == "food":

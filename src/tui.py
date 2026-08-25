@@ -198,33 +198,54 @@ class ApocrysisApp(App):
         if self.io is not None and self._expecting_command:
             self.io.submit_answer(direction)
 
-    def on_mount(self):
-        self.io = TextualIO(self)
-
+    def _new_player(self):
+        # Shared by on_mount() (first launch) and _game_thread()'s
+        # post-win loop below - both need the exact same "continue
+        # from a saved profile, or start fresh" construction.
         profile = Apocrysis.load_profile()
         if profile is not None:
-            self.player = Apocrysis(
+            player = Apocrysis(
                 profile.get("name", "Survivor"),
                 level=profile.get("level", 1),
                 io=self.io,
             )
-            self.player.apply_profile(profile)
+            player.apply_profile(profile)
         else:
-            self.player = Apocrysis(
+            player = Apocrysis(
                 self._name or "Survivor",
                 level=self._level,
                 seed=self._seed,
                 io=self.io,
             )
+        return player
+
+    def on_mount(self):
+        self.io = TextualIO(self)
+        self.player = self._new_player()
 
         self.refresh_panels()
         self.query_one("#command_input", Input).focus()
         self.run_worker(self._game_thread, thread=True)
 
     def _game_thread(self):
+        # Real bug found live: this used to always exit the whole app
+        # the moment run_game_loop() returned, for ANY reason - quit,
+        # death, OR a win. Classic mode's cli.py main() loop already
+        # gets this right (checks player.won and starts a fresh game
+        # instead of exiting); the TUI never had the same check, so
+        # pressing Enter at the "Press Enter to continue..." prompt
+        # after a WIN just closed the whole app instead of starting
+        # the next game with the carried-forward profile.
         try:
-            self.player.run_game_loop()
-            self.player.save_profile()
+            while True:
+                self.player.run_game_loop()
+                self.player.save_profile()
+
+                if not getattr(self.player, 'won', False):
+                    break  # quit or death - a real exit, not a new game
+
+                self.player = self._new_player()
+                self.call_from_thread(self.refresh_panels)
         except AppClosed:
             # App is already shutting down for some other reason -
             # nothing left to do here, and calling self.exit() again
@@ -278,12 +299,13 @@ class ApocrysisApp(App):
         map_widget.update(Text.from_ansi("\n".join(p._render_map_lines())))
 
         stats_widget = self.query_one("#stats_text", Static)
-        equipped = p.equipped_weapon.name if p.equipped_weapon else "None"
-        # v3 SPRINT: backpack weapons weren't shown anywhere ambient -
-        # only the equipped one - so a player had no way to see what
-        # they were carrying without typing "i" every time.
+        # v3 SPRINT: showed only the bare weapon name (equipped and
+        # backpack both) - no way to compare a looted weapon against
+        # what's equipped without typing "i". str(weapon) already
+        # carries damage/durability (items.py) - use it here too.
+        equipped = str(p.equipped_weapon) if p.equipped_weapon else "None"
         backpack_weapons = (
-            ", ".join(w.name for w in p.backpack.weapons)
+            "\n  ".join(str(w) for w in p.backpack.weapons)
             if p.backpack.weapons
             else "(none)"
         )
@@ -292,7 +314,7 @@ class ApocrysisApp(App):
             f"XP: {p.xp}/{p.max_xp}\n"
             f"Day {p.day} - {'Night' if p.is_night else 'Day'}\n"
             f"Equipped: {equipped}\n"
-            f"Backpack weapons: {backpack_weapons}\n"
+            f"Backpack weapons:\n  {backpack_weapons}\n"
             f"Food {p.backpack.food}  Water {p.backpack.water}  "
             f"Medicine {p.backpack.medicine}  Ammo {p.backpack.ammo}\n"
         )

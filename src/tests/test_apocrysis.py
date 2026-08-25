@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 import unittest
@@ -92,6 +93,55 @@ class TestWeapons(unittest.TestCase):
         weapon.ammo = 0
         weapon.reload(999)
         self.assertEqual(weapon.ammo, 5)
+
+    def test_melee_str_shows_durability_not_just_damage(self):
+        # Real gap found live: a player had no way to compare two
+        # melee weapons' durability without reading source.
+        weapon = MeleeWeapon("Rusty Dagger", 8, 40)
+        text = str(weapon)
+        self.assertIn("Damage: 8", text)
+        self.assertIn("Durability: 40/40", text)
+
+    def test_ranged_str_shows_durability_alongside_ammo(self):
+        weapon = RangedWeapon("Broken Rifle", 10, max_ammo=5, durability=15)
+        text = str(weapon)
+        self.assertIn("Ammo: 5/5", text)
+        self.assertIn("Durability: 15/15", text)
+
+
+class TestLootWeapons(unittest.TestCase):
+    """
+    Real bug found live: find_loot() (world_mixin.py) used to build
+    every looted weapon as MeleeWeapon(name, 10, 100) regardless of
+    which name got picked - a "Rusty Dagger" and a "Steel Katana"
+    were mechanically identical, and name-implied ranged weapons
+    ("Broken Rifle", "Leather Bow") were built as MeleeWeapon and
+    could never use ammo/reload.
+    """
+
+    def test_loot_table_has_real_stat_variety(self):
+        from src.constants import LOOT_WEAPON_TABLE
+        damages = {spec["damage"] for spec in LOOT_WEAPON_TABLE.values()}
+        durabilities = {spec["durability"] for spec in LOOT_WEAPON_TABLE.values()}
+        self.assertGreater(len(damages), 1, "every loot weapon has the same damage")
+        self.assertGreater(len(durabilities), 1, "every loot weapon has the same durability")
+
+    def test_ranged_named_loot_produces_a_real_ranged_weapon(self):
+        with patch("builtins.print"):
+            game = Apocrysis("LootTest", map_size=8, seed=1)
+
+        # Force: loot occurs, loot_type is "weapon", name is "Broken
+        # Rifle" - the specific case the original bug got wrong.
+        with patch("random.random", return_value=0.0), \
+             patch("random.choice", side_effect=["weapon", "Broken Rifle"]), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertEqual(len(game.backpack.weapons), 1)
+        looted = game.backpack.weapons[0]
+        self.assertIsInstance(looted, RangedWeapon)
+        self.assertEqual(looted.name, "Broken Rifle")
+        self.assertTrue(hasattr(looted, "ammo"))
 
 
 class TestZombies(unittest.TestCase):
@@ -811,6 +861,61 @@ class TestCombatV3(unittest.TestCase):
 
         self.assertLess(self.game.health, health_before)  # bleeding applied once
         self.assertNotIn("Bleeding", self.game.status_effects)  # then expired
+
+
+try:
+    from src.tui import ApocrysisApp
+    _TEXTUAL_AVAILABLE = True
+except ImportError:
+    _TEXTUAL_AVAILABLE = False
+
+
+@unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed - --test never requires it")
+class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
+    """
+    Real bug found live: winning and pressing Enter at the "Press
+    Enter to continue..." prompt closed the whole TUI app instead of
+    starting the next game with the carried-forward profile - classic
+    mode's cli.py main() loop already checked player.won and looped;
+    tui.py's _game_thread never had the same check, so ANY reason
+    run_game_loop() returned (quit, death, OR a win) exited the app.
+    """
+
+    async def asyncSetUp(self):
+        self._profile_file = "apocrysis_profile.json"
+        if os.path.exists(self._profile_file):
+            os.remove(self._profile_file)
+
+    async def asyncTearDown(self):
+        if os.path.exists(self._profile_file):
+            os.remove(self._profile_file)
+
+    async def test_winning_starts_a_new_game_instead_of_exiting(self):
+        app = ApocrysisApp(name="WinTest", level=1, seed=1)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+
+            original_player = app.player
+            app.player.won = True
+            app.player.health = 100
+
+            # Re-enter run_game_loop() so it sees won=True and exits
+            # the while loop into the victory/continue-prompt path.
+            await asyncio.wait_for(pilot.click("#command_input"), timeout=5)
+            await asyncio.wait_for(pilot.press("enter"), timeout=5)
+            await asyncio.wait_for(pilot.pause(0.5), timeout=5)
+
+            self.assertEqual(
+                app.query_one("#command_input").placeholder,
+                "Press Enter to continue...",
+            )
+
+            await asyncio.wait_for(pilot.press("enter"), timeout=5)
+            await asyncio.wait_for(pilot.pause(0.5), timeout=5)
+
+            self.assertTrue(app.is_running, "app exited instead of starting a new game")
+            self.assertIsNot(app.player, original_player)
+            self.assertFalse(app.player.won)
 
 
 if __name__ == "__main__":

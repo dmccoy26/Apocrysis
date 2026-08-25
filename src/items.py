@@ -68,6 +68,7 @@ class MeleeWeapon(Weapon):
     def __init__(self, name, damage, durability):
         super().__init__(name, damage)
         self.durability = durability
+        self.max_durability = durability
 
     def use(self):
         if self.durability > 0:
@@ -76,6 +77,15 @@ class MeleeWeapon(Weapon):
         else:
             print(f"{self.name} is broken and cannot be used.")
             return 0  # Return 0 damage if the weapon is broken
+
+    def __str__(self):
+        # Real gap found live: Weapon's own __str__ (inherited here
+        # before this override existed) showed damage only - a
+        # player had no way to compare two melee weapons' durability
+        # without reading source. i (inventory)/eq's weapon listing
+        # both call str() on each weapon, so this one change surfaces
+        # it everywhere weapons are already displayed.
+        return f"{self.name} - Damage: {self.damage}, Durability: {self.durability}/{self.max_durability}"
 
 class RangedWeapon(Weapon):
     def __init__(self, name, damage, max_ammo, durability=20):
@@ -112,7 +122,11 @@ class RangedWeapon(Weapon):
         self.durability = self.max_durability  # Reloading also services the weapon
 
     def __str__(self):
-        return f"{self.name} (Damage: {self.damage}, Ammo: {self.ammo}/{self.max_ammo})"
+        return (
+            f"{self.name} (Damage: {self.damage}, "
+            f"Ammo: {self.ammo}/{self.max_ammo}, "
+            f"Durability: {self.durability}/{self.max_durability})"
+        )
 
 
 

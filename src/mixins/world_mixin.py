@@ -21,6 +21,7 @@ from src.constants import (
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
+    CHUNK_SIZE, MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS,
 )
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import (
@@ -43,16 +44,32 @@ class WorldMixin:
             max(0, self.expeditions_completed - OBSTACLE_START_LEVEL) * OBSTACLE_DENSITY_PER_LEVEL,
         )
 
+        # Chunk-based terrain generation investigation: one base
+        # terrain rolls per CHUNK_SIZE x CHUNK_SIZE block instead of
+        # independently per tile, so forests/plains/etc form
+        # contiguous regions instead of a checkerboard of unrelated
+        # single-tile rolls. Obstacle terrain (mountain/river) is
+        # still an overlay rolled per-tile inside any chunk via
+        # _pick_terrain() - it represents a hazard cutting across a
+        # region, not a region type of its own.
+        chunk_terrain = {}
+        for cy in range(0, self.map_size, CHUNK_SIZE):
+            for cx in range(0, self.map_size, CHUNK_SIZE):
+                chunk_terrain[(cx, cy)] = self.rng.choice(terrain_types)
+
         self.map = [
             [
                 {
-                    'terrain': self._pick_terrain(terrain_types, obstacle_density),
+                    'terrain': self._pick_terrain(
+                        chunk_terrain[(x - x % CHUNK_SIZE, y - y % CHUNK_SIZE)],
+                        obstacle_density,
+                    ),
                     'content': '-',
                     'explored': False,
                 }
-                for _ in range(self.map_size)
+                for x in range(self.map_size)
             ]
-            for _ in range(self.map_size)
+            for y in range(self.map_size)
         ]
 
         # Random player spawn (v3 #6) - was always the map center.
@@ -60,28 +77,50 @@ class WorldMixin:
         self.current_position = spawn
         self.map[spawn[1]][spawn[0]]['content'] = 'P'
 
-        # Town placement, distance-scaled from spawn and level (#5).
+        # Multiple-settlements investigation: 1-MAX_SETTLEMENTS
+        # populated areas, more as expeditions_completed grows.
+        # Exactly one (chosen at random, not always the first placed)
+        # gets the real Town Center - the rest are decoys with no
+        # win-triggering tile, just loot/exploration opportunities
+        # (organic-settlement investigation covers each one's own
+        # shape/district structure - see _generate_settlement()).
+        # Known limitation: settlements are placed independently, each
+        # only checked against SPAWN distance - with 2-3 on a small
+        # map they can end up adjacent or slightly overlapping. Not a
+        # correctness requirement the way spawn-to-real-Town-Center
+        # reachability below is, so left as-is rather than adding a
+        # full non-overlap placement search.
         town_size = min(5, self.map_size)
         min_distance = min(
             self.map_size - 2,
             BASE_TOWN_MIN_DISTANCE + self.expeditions_completed * TOWN_DISTANCE_GROWTH_PER_LEVEL,
         )
-        town_top_left = self._pick_town_position(town_size, spawn, min_distance)
-        town_center = (
-            town_top_left[0] + town_size // 2,
-            town_top_left[1] + town_size // 2,
+        num_settlements = min(
+            MAX_SETTLEMENTS,
+            1 + self.expeditions_completed // SETTLEMENTS_PER_EXPEDITIONS,
         )
+        real_settlement_index = self.rng.randrange(num_settlements)
 
-        # Exactly one town center (#2 - the multiple-'T' bug fix):
-        # every OTHER town tile draws from H/R/S/B only.
-        town_features = ['H', 'R', 'S', 'B']
-        for y in range(town_top_left[1], town_top_left[1] + town_size):
-            for x in range(town_top_left[0], town_top_left[0] + town_size):
-                feature = 'T' if (x, y) == town_center else self.rng.choice(town_features)
-                self.map[y][x] = {'terrain': 'town', 'content': feature, 'explored': False}
+        # Real bug found live: with the real settlement placed in loop
+        # order (not necessarily last), an overlapping DECOY placed
+        # afterward could straight-up overwrite its 'T' tile with an
+        # H/R/S/B letter, silently deleting the only win tile on the
+        # map. Placing every decoy first and the real settlement last
+        # guarantees its tiles (including 'T') always win any overlap.
+        settlement_order = [i for i in range(num_settlements) if i != real_settlement_index]
+        settlement_order.append(real_settlement_index)
+
+        town_center = None
+        for i in settlement_order:
+            top_left = self._pick_town_position(town_size, spawn, min_distance)
+            center = self._generate_settlement(top_left, town_size, is_real=(i == real_settlement_index))
+            if center is not None:
+                town_center = center
 
         # Connectivity guarantee (#7) - a "harder" map with more
-        # obstacles must never generate an unreachable town.
+        # obstacles must never generate an unreachable REAL Town
+        # Center. Decoy settlements are best-effort only (see the
+        # known-limitation note above) - never carved for.
         self._ensure_reachable(spawn, town_center)
 
         # Zombie placement (10% of tiles) - unchanged shape, now via
@@ -109,10 +148,54 @@ class WorldMixin:
 
         return self.map
 
-    def _pick_terrain(self, terrain_types, obstacle_density):
+    def _generate_settlement(self, top_left, size, is_real):
+        """
+        Organic-settlement investigation: fills a size x size bounding
+        box with an irregular (diamond-ish, not solid-square)
+        boundary and per-tile district tags based on distance from
+        the settlement's own center. Returns the town-center
+        coordinate if is_real (the only settlement that gets a real
+        'T' tile), else None.
+        """
+        town_features = ['H', 'R', 'S', 'B']
+        cx = top_left[0] + size // 2
+        cy = top_left[1] + size // 2
+        max_dist = max(1, size // 2)
+
+        for y in range(top_left[1], top_left[1] + size):
+            for x in range(top_left[0], top_left[0] + size):
+                if not (0 <= x < self.map_size and 0 <= y < self.map_size):
+                    continue
+
+                dist = abs(x - cx) + abs(y - cy)
+
+                # Irregular boundary: tiles outside the inscribed
+                # diamond (the box's own corners) have a real chance
+                # to stay whatever background terrain was already
+                # there, instead of every bounding-box tile becoming
+                # part of the settlement - breaks up the solid-square
+                # silhouette without touching the box's own size.
+                if dist > max_dist and self.rng.random() < 0.6:
+                    continue
+
+                is_center = is_real and (x, y) == (cx, cy)
+                feature = 'T' if is_center else self.rng.choice(town_features)
+                district = (
+                    "downtown" if dist <= max_dist // 2
+                    else "commercial" if dist <= max_dist
+                    else "residential"
+                )
+                self.map[y][x] = {
+                    'terrain': 'town', 'content': feature,
+                    'explored': False, 'district': district,
+                }
+
+        return (cx, cy) if is_real else None
+
+    def _pick_terrain(self, base_terrain, obstacle_density):
         if obstacle_density > 0 and self.rng.random() < obstacle_density:
             return self.rng.choice(['mountain', 'river'])
-        return self.rng.choice(terrain_types)
+        return base_terrain
 
     def _pick_random_walkable_tile(self):
         while True:
@@ -318,6 +401,23 @@ class WorldMixin:
         # Check tile contents for placed zombies
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
 
+        if (
+            isinstance(current_tile, dict)
+            and current_tile.get('content') == 'T'
+            and not self.settlement_explored
+        ):
+            # Objective-driven win condition investigation: the Town
+            # Center alone no longer wins - the player must have
+            # already set foot in this (or any) settlement's other
+            # tiles first (below), so reaching it is confirmation of
+            # exploring, not the entire objective.
+            self.io.say(
+                "The Town Center looks quiet - too quiet. You should "
+                "search the settlement's buildings and streets before "
+                "assuming it's safe to call this home."
+            )
+            return
+
         if isinstance(current_tile, dict) and current_tile.get('content') == 'T':
             self.won = True
             self.expeditions_completed += 1
@@ -343,6 +443,23 @@ class WorldMixin:
         # Apply terrain-specific effects
         if isinstance(current_tile, dict):
             terrain = current_tile.get('terrain')
+
+            if terrain == 'town' and current_tile.get('content') != 'T':
+                # Objective-driven win condition / organic-settlement
+                # investigations: stepping into any non-Town-Center
+                # settlement tile satisfies the exploration gate above
+                # (any settlement, decoy or real - see generate_map()'s
+                # own known-limitation note on this simplification),
+                # and surfaces the tile's district (the actual ask
+                # behind the organic-settlement investigation: "I'm
+                # entering the residential district", not a uniform
+                # block of letters).
+                if not self.settlement_explored:
+                    self.settlement_explored = True
+                    self.io.say("You've found a settlement - it's worth exploring before moving on.")
+                district = current_tile.get('district')
+                if district:
+                    self.io.say(f"You're in the {district} district.")
 
             if terrain == 'building':
                 self.io.say("You enter a building. It's a safe zone.")

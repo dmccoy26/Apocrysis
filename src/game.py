@@ -98,6 +98,13 @@ class Apocrysis(
         # other terrain (ui_mixin._render_map_lines()).
         self.town_known = False
 
+        # Objective-driven win condition investigation: True once the
+        # player has set foot in any settlement's non-Town-Center
+        # tile (world_mixin.move_and_search()) - until then, reaching
+        # the Town Center itself doesn't win. Reset each fresh
+        # expedition/map, same as town_known.
+        self.settlement_explored = False
+
         # Day/Night Cycle Initialization
         self.time_of_day = 480  # Start at 08:00 (minutes from midnight)
         self.visibility_radius = 3

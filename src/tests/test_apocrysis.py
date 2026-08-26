@@ -1301,6 +1301,12 @@ class TestExpeditionsAndCampaign(unittest.TestCase):
         # regardless of where generate_map()'s random spawn landed.
         game.current_position = (0, 0)
         game.map[0][1] = {"terrain": "plain", "content": "T", "explored": True}
+        # Objective-driven win condition investigation: reaching 'T'
+        # alone no longer wins - these tests are about the campaign/
+        # expedition-counter mechanics specifically, not that gate, so
+        # satisfy it directly rather than also staging a settlement
+        # tile to walk through first.
+        game.settlement_explored = True
         return game
 
     def test_reaching_town_increments_expeditions_completed(self):
@@ -1332,6 +1338,153 @@ class TestExpeditionsAndCampaign(unittest.TestCase):
         self.assertEqual(game.expeditions_completed, CAMPAIGN_LENGTH - 1)
         self.assertFalse(any("CAMPAIGN COMPLETE" in m for m in messages))
         self.assertTrue(any("You WIN" in m for m in messages))
+
+
+class TestObjectiveDrivenWin(unittest.TestCase):
+    """
+    Objective-driven win condition investigation: reaching the Town
+    Center alone no longer wins - the player must have already set
+    foot in a settlement's other tiles first.
+    """
+
+    def _make_game(self):
+        with patch("builtins.print"):
+            game = Apocrysis("ObjectiveTest", map_size=10, seed=1)
+        game.current_position = (0, 0)
+        game.map[0][1] = {"terrain": "plain", "content": "T", "explored": True}
+        return game
+
+    def test_reaching_town_center_before_exploring_does_not_win(self):
+        game = self._make_game()
+        self.assertFalse(game.settlement_explored)
+
+        with patch("builtins.print"):
+            game.move_and_search("e")
+
+        self.assertFalse(game.won)
+
+    def test_stepping_on_a_settlement_tile_sets_the_explored_flag(self):
+        game = self._make_game()
+        game.map[0][1] = {
+            "terrain": "town", "content": "H",
+            "explored": True, "district": "residential",
+        }
+
+        with patch("builtins.print"):
+            game.move_and_search("e")
+
+        self.assertTrue(game.settlement_explored)
+        self.assertFalse(game.won)  # H tile, not T - still no win
+
+    def test_reaching_town_center_after_exploring_wins(self):
+        game = self._make_game()
+        game.settlement_explored = True
+
+        with patch("builtins.print"):
+            game.move_and_search("e")
+
+        self.assertTrue(game.won)
+
+
+class TestSettlementGeneration(unittest.TestCase):
+    """Multiple-settlements + organic-settlement investigations."""
+
+    def _town_tiles(self, game):
+        return [
+            tile for row in game.map for tile in row
+            if isinstance(tile, dict) and tile.get("terrain") == "town"
+        ]
+
+    def test_exactly_one_town_center_regardless_of_settlement_count(self):
+        with patch("builtins.print"):
+            game = Apocrysis("SettleTest", map_size=30, seed=3, expeditions_completed=20)
+        centers = [t for t in self._town_tiles(game) if t.get("content") == "T"]
+        self.assertEqual(len(centers), 1)
+
+    def test_settlement_count_grows_with_expeditions_completed(self):
+        from src.constants import MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS
+        with patch("builtins.print"):
+            early = Apocrysis("SettleEarly", map_size=30, seed=3, expeditions_completed=0)
+        with patch("builtins.print"):
+            late = Apocrysis(
+                "SettleLate", map_size=30, seed=3,
+                expeditions_completed=MAX_SETTLEMENTS * SETTLEMENTS_PER_EXPEDITIONS,
+            )
+        # Indirect measure: more settlements means more town tiles on
+        # the same map size/seed (content varies, but total count of
+        # terrain=='town' tiles scales with settlement count).
+        self.assertGreater(len(self._town_tiles(late)), len(self._town_tiles(early)))
+
+    def test_settlement_boundary_is_not_a_solid_square(self):
+        # Organic-settlement investigation: at least one corner of the
+        # bounding box should NOT be settlement terrain, across many
+        # seeds (the 0.6 skip-chance makes a solid square on every
+        # single seed astronomically unlikely if the skip is wired
+        # correctly, but check several seeds rather than one to keep
+        # this from being a flaky single-sample assertion).
+        found_irregular = False
+        for seed in range(10):
+            with patch("builtins.print"):
+                game = Apocrysis("BoundaryTest", map_size=15, seed=seed)
+            town_tiles = self._town_tiles(game)
+            if not town_tiles:
+                continue
+            # Find the bounding box of all town tiles and check
+            # whether its four corners are actually town terrain.
+            coords = [
+                (x, y)
+                for y, row in enumerate(game.map)
+                for x, t in enumerate(row)
+                if isinstance(t, dict) and t.get("terrain") == "town"
+            ]
+            min_x, max_x = min(c[0] for c in coords), max(c[0] for c in coords)
+            min_y, max_y = min(c[1] for c in coords), max(c[1] for c in coords)
+            corners = [(min_x, min_y), (min_x, max_y), (max_x, min_y), (max_x, max_y)]
+            corner_terrains = {game.map[y][x].get("terrain") for x, y in corners}
+            if corner_terrains != {"town"}:
+                found_irregular = True
+                break
+        self.assertTrue(found_irregular, "every sampled settlement was a solid square")
+
+    def test_settlement_tiles_are_tagged_with_a_district(self):
+        with patch("builtins.print"):
+            game = Apocrysis("DistrictTest", map_size=15, seed=1)
+        town_tiles = self._town_tiles(game)
+        self.assertTrue(town_tiles)
+        self.assertTrue(all("district" in t for t in town_tiles))
+        self.assertTrue(
+            {t["district"] for t in town_tiles} <= {"downtown", "commercial", "residential"}
+        )
+
+
+class TestChunkBasedTerrain(unittest.TestCase):
+    def test_terrain_forms_contiguous_chunks_not_a_checkerboard(self):
+        from src.constants import CHUNK_SIZE
+        with patch("builtins.print"):
+            game = Apocrysis("ChunkTest", map_size=20, seed=1)
+
+        # Every tile within one chunk (excluding town tiles and
+        # per-tile mountain/river obstacle overlays) must share the
+        # same base terrain - a checkerboard regression would produce
+        # a chunk with multiple different non-obstacle terrains.
+        found_multi_terrain_chunk = False
+        for cy in range(0, game.map_size, CHUNK_SIZE):
+            for cx in range(0, game.map_size, CHUNK_SIZE):
+                terrains = set()
+                for y in range(cy, min(cy + CHUNK_SIZE, game.map_size)):
+                    for x in range(cx, min(cx + CHUNK_SIZE, game.map_size)):
+                        tile = game.map[y][x]
+                        if not isinstance(tile, dict):
+                            continue
+                        terrain = tile.get("terrain")
+                        if terrain not in ("mountain", "river", "town"):
+                            terrains.add(terrain)
+                if len(terrains) > 1:
+                    found_multi_terrain_chunk = True
+        self.assertFalse(
+            found_multi_terrain_chunk,
+            "a chunk contained more than one non-obstacle terrain type",
+        )
 
 
 class TestCombatV3(unittest.TestCase):

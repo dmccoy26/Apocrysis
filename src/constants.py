@@ -51,6 +51,20 @@ CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is con
 BASE_TOWN_MIN_DISTANCE = 6
 TOWN_DISTANCE_GROWTH_PER_LEVEL = 2
 
+# Chunk-based terrain generation investigation: one terrain type rolls
+# per CHUNK_SIZE x CHUNK_SIZE block instead of per tile, so forests/
+# plains/etc form contiguous regions rather than an independent-roll
+# checkerboard. Obstacle terrain (mountain/river) still rolls per-tile
+# as an overlay inside any chunk - see generate_map().
+CHUNK_SIZE = 4
+
+# Multiple-settlements investigation: how many populated areas a map
+# can contain, scaling with expeditions_completed (1 early, up to 3
+# later) - only one ever holds the real Town Center; the rest are
+# decoys with no win-triggering tile at all.
+MAX_SETTLEMENTS = 3
+SETTLEMENTS_PER_EXPEDITIONS = 4  # +1 settlement every this-many expeditions_completed
+
 # Combat difficulty scaling (world_mixin.py's _select_zombie_for_
 # encounter()) - composition (which zombie types appear, and whether
 # an elite variant rolls) now does most of the scaling work, keyed to

@@ -1217,13 +1217,61 @@ class TestCombatV3(unittest.TestCase):
         # _select_zombie_for_encounter().
         with patch("builtins.print"):
             game = Apocrysis("ZombieVarietyTest", map_size=8, seed=5)
-        game.day = 20  # else-branch weights give every type a real chance
+        # else-branch weights (keyed to expeditions_completed, not
+        # in-run day, since the combat-scaling investigation) give
+        # every type a real chance.
+        game.expeditions_completed = 20
         seen_types = {
             type(game._select_zombie_for_encounter()) for _ in range(200)
         }
         self.assertIn(SwiftZombie, seen_types)
         self.assertIn(ToxicZombie, seen_types)
         self.assertIn(ArmoredZombie, seen_types)
+
+    def test_zombie_composition_keys_off_expeditions_completed_not_day(self):
+        # Combat scaling investigation: composition used to shift with
+        # in-run day count - now it's expeditions_completed (the same
+        # map-level axis map_size/obstacle_density already use), so a
+        # long day count on an early expedition doesn't itself make
+        # tougher zombie types common.
+        with patch("builtins.print"):
+            game = Apocrysis("CompositionTest", map_size=8, seed=5)
+        game.day = 999
+        game.expeditions_completed = 0
+
+        # expeditions_completed<=2 weights give HeavyZombie only 0.03 -
+        # a day-driven regression would instead land in the else-
+        # branch weights, where it's common (0.25). 500 samples keeps
+        # the ~15-expected-vs-~125-expected gap far apart from noise.
+        heavy_count = sum(
+            1 for _ in range(500)
+            if type(game._select_zombie_for_encounter()) is HeavyZombie
+        )
+        self.assertLess(heavy_count, 60)
+
+    def test_elite_variant_boosts_stats_and_renames_zombie(self):
+        with patch("builtins.print"):
+            game = Apocrysis("EliteTest", map_size=8, seed=1, expeditions_completed=5)
+        game.day = 1  # isolate the elite multiplier from the day-based ramp
+
+        with patch.object(game.rng, "random", return_value=0.0):  # guarantees the elite roll
+            zombie = game._select_zombie_for_encounter()
+
+        self.assertTrue(zombie.name.startswith("Elite "))
+        base_health, base_attack = game._ZOMBIE_BASE_STATS[type(zombie)]
+        self.assertEqual(zombie.health, int(base_health * 1.0 * 1.5))
+        self.assertEqual(zombie.attack, int(base_attack * 1.0 * 1.5))
+
+    def test_no_elite_variants_before_min_expedition(self):
+        from src.constants import ELITE_MIN_EXPEDITION
+        with patch("builtins.print"):
+            game = Apocrysis(
+                "NoEliteTest", map_size=8, seed=1,
+                expeditions_completed=ELITE_MIN_EXPEDITION - 1,
+            )
+        with patch.object(game.rng, "random", return_value=0.0):  # would guarantee elite if eligible
+            zombie = game._select_zombie_for_encounter()
+        self.assertFalse(zombie.name.startswith("Elite "))
 
     @patch("builtins.input", return_value="y")
     @patch("builtins.print")

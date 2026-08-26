@@ -19,6 +19,7 @@ from src.constants import (
     BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     IMPASSABLE_TERRAIN,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
+    MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE,
 )
 from src.items import MeleeWeapon, RangedWeapon
@@ -231,14 +232,18 @@ class WorldMixin:
     }
 
     def _select_zombie_for_encounter(self):
-        # Difficulty scaling based on day count
-        difficulty_factor = max(1.0, self.day * 0.2)
-
-        # Adjust weights towards harder/more varied zombies as days
-        # progress - Fresh/Regular/Heavy, Swift, Toxic, Armored.
-        if self.day <= 5:
+        # Combat difficulty scaling investigation: composition (which
+        # zombie types can appear, and whether an elite variant rolls)
+        # is now the primary difficulty lever, keyed to
+        # expeditions_completed (the same map-level axis that already
+        # drives map size/obstacle density) - not raw player level,
+        # and not an unbounded flat stat multiplier. A player who
+        # grinds one map indefinitely no longer faces ever-scarier
+        # zombies from that alone; finishing expeditions is what
+        # brings in tougher composition.
+        if self.expeditions_completed <= 2:
             weights = [0.55, 0.20, 0.03, 0.15, 0.05, 0.02]
-        elif self.day <= 15:
+        elif self.expeditions_completed <= 6:
             weights = [0.25, 0.25, 0.10, 0.20, 0.15, 0.05]
         else:
             weights = [0.10, 0.15, 0.25, 0.15, 0.15, 0.20]
@@ -246,6 +251,24 @@ class WorldMixin:
         zombie_classes = list(self._ZOMBIE_BASE_STATS.keys())
         zombie_class = self.rng.choices(zombie_classes, weights=weights)[0]
         choice = zombie_class()
+
+        # Day still gives a mild in-run ramp - capped now (was
+        # unbounded: day * 0.2, ~3x by day 15) so it's a secondary
+        # effect rather than the main way zombies get tougher.
+        difficulty_factor = min(MAX_DAY_DIFFICULTY_FACTOR, max(1.0, self.day * 0.1))
+
+        # Elite variant: same subclass, boosted stats - gated behind
+        # expeditions_completed so they don't show up before the
+        # player's had any chance to gear up. This is the "harder
+        # without inflating every zombie forever" lever: elites are a
+        # composition choice (this roll), not a universal multiplier.
+        is_elite = (
+            self.expeditions_completed >= ELITE_MIN_EXPEDITION
+            and self.rng.random() < min(0.3, self.expeditions_completed * 0.03)
+        )
+        if is_elite:
+            difficulty_factor *= ELITE_STAT_MULTIPLIER
+            choice.name = f"Elite {choice.name}"
 
         base_health, base_attack = self._ZOMBIE_BASE_STATS[zombie_class]
         choice.health = int(base_health * difficulty_factor)

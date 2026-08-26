@@ -51,6 +51,17 @@ CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is con
 BASE_TOWN_MIN_DISTANCE = 6
 TOWN_DISTANCE_GROWTH_PER_LEVEL = 2
 
+# Combat difficulty scaling (world_mixin.py's _select_zombie_for_
+# encounter()) - composition (which zombie types appear, and whether
+# an elite variant rolls) now does most of the scaling work, keyed to
+# expeditions_completed rather than raw player level or in-run day.
+# MAX_DAY_DIFFICULTY_FACTOR caps the old flat per-day stat multiplier
+# (previously unbounded: day * 0.2, ~3x by day 15) so it's a mild
+# in-run ramp rather than the primary difficulty lever.
+MAX_DAY_DIFFICULTY_FACTOR = 1.5
+ELITE_MIN_EXPEDITION = 3
+ELITE_STAT_MULTIPLIER = 1.5
+
 OBSTACLE_DENSITY_CAP = 0.18
 OBSTACLE_DENSITY_PER_LEVEL = 0.015
 OBSTACLE_START_LEVEL = 4

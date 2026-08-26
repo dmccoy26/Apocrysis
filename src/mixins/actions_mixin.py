@@ -254,8 +254,10 @@ class ActionsMixin:
                     round(new_item.durability * quality_multiplier),
                 )
                 new_item.max_durability = new_item.durability
-        self.backpack.weapons.append(new_item)
-        self.io.say(f"Crafted a {new_item.name}!")
+        if not self.backpack.add_weapon(new_item):
+            self.io.say(f"Crafted a {new_item.name}, but your pack is full - it was lost. Drop something first next time.")
+        else:
+            self.io.say(f"Crafted a {new_item.name}!")
         self._check_and_complete_goals("craft")
 
     def _roll_craft_quality(self):

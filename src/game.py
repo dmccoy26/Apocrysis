@@ -106,6 +106,7 @@ class Apocrysis(
         # spawn isn't known until generate_map() picks it).
         self.generate_map()
         self.visited = {self.current_position}
+        self.tile_event_cooldowns = {}
 
         # Action tracking for automatic goal completion
         self.last_action = ""

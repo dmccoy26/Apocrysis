@@ -32,6 +32,12 @@ class Item:
         self.name = name
 
 class Backpack:
+    MAX_FOOD = 50
+    MAX_WATER = 50
+    MAX_MEDICINE = 50
+    MAX_AMMO = 99
+    MAX_WEAPONS = 12
+
     def __init__(self):
         self.consumables = Counter()  # Unified storage for food, water, medicine, ammo
         self.weapons = []             # Dedicated list for Weapon objects
@@ -49,25 +55,31 @@ class Backpack:
         else:
             self.items.append(item)
 
+    def add_weapon(self, weapon):
+        if len(self.weapons) < self.MAX_WEAPONS:
+            self.weapons.append(weapon)
+            return True
+        return False
+
     @property
     def food(self): return self.consumables["food"]
     @food.setter
-    def food(self, value): self.consumables["food"] = value
+    def food(self, value): self.consumables["food"] = min(value, self.MAX_FOOD)
 
     @property
     def water(self): return self.consumables["water"]
     @water.setter
-    def water(self, value): self.consumables["water"] = value
+    def water(self, value): self.consumables["water"] = min(value, self.MAX_WATER)
 
     @property
     def medicine(self): return self.consumables["medicine"]
     @medicine.setter
-    def medicine(self, value): self.consumables["medicine"] = value
+    def medicine(self, value): self.consumables["medicine"] = min(value, self.MAX_MEDICINE)
 
     @property
     def ammo(self): return self.consumables["ammo"]
     @ammo.setter
-    def ammo(self, value): self.consumables["ammo"] = value
+    def ammo(self, value): self.consumables["ammo"] = min(value, self.MAX_AMMO)
 
 
 

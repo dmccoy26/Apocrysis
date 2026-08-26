@@ -329,6 +329,9 @@ class WorldMixin:
             elif terrain == 'forest':
                 self.io.say("You move through dense forest.")
 
+        if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
+            return
+
         encounter_chance = 0.5 if self.is_night else 0.3
 
         # Forest increases encounter rate
@@ -341,6 +344,8 @@ class WorldMixin:
             self.encounter_zombie()
         else:
             self.find_loot()
+
+        self.tile_event_cooldowns[self.current_position] = self.day + 3
 
     def find_loot(self):
         # Intelligence increases chance of finding loot and better items

@@ -381,8 +381,10 @@ class WorldMixin:
                     new_weapon = MeleeWeapon(
                         new_weapon_name, spec["damage"], spec["durability"],
                     )
-                self.backpack.weapons.append(new_weapon)
-                self.io.say(f"You obtained a {new_weapon.name}.")
+                if self.backpack.add_weapon(new_weapon):
+                    self.io.say(f"You obtained a {new_weapon.name}.")
+                else:
+                    self.io.say("You found a weapon but your pack is full - drop something first.")
             elif loot_type == "food":
                 # Increase food in the backpack
                 self.backpack.food += 1

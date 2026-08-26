@@ -7,7 +7,7 @@ import shutil
 from src.constants import BOLD, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
 from src.items import RangedWeapon, format_weapon_list
 from src.text_utils import _visible_len, _display_ljust
-from src.zombies import FreshZombie, RegularZombie, HeavyZombie
+from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
 
 class UIMixin:
@@ -49,8 +49,14 @@ class UIMixin:
         cmd_list.append("cr [recipe] (craft) (type 'cr list' for recipes)")
 
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
-        if isinstance(current_tile, (FreshZombie, RegularZombie, HeavyZombie)):
+        # Zombie base class, not the FreshZombie/RegularZombie/HeavyZombie
+        # tuple used elsewhere in this file (e.g. the map-render check
+        # below) - matches punch()'s own isinstance(current_tile, Zombie)
+        # check in combat_mixin.py, so SwiftZombie/ToxicZombie/ArmoredZombie
+        # don't silently fall through both commands' availability checks.
+        if isinstance(current_tile, Zombie):
             cmd_list.append("f (fight)")
+            cmd_list.append("p (punch)")
         if self.backpack.food > 0:
             cmd_list.append("ea (eat)")
         if self.backpack.water > 0:
@@ -238,6 +244,8 @@ class UIMixin:
                 'a': self.auto_play,
                 'fight': lambda: self.encounter_zombie(),
                 'f': lambda: self.encounter_zombie(),
+                'punch': self.punch,
+                'p': self.punch,
                 'save': lambda: self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
                 'sv': lambda: self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
                 'ds': self._prompt_delete_save,
@@ -422,6 +430,7 @@ class UIMixin:
         self.io.say("  i (inventory)                           - Show your backpack contents")
         self.io.say("  st (stats)                              - View player statistics")
         self.io.say("  f (fight)                               - Fight the zombie on your current tile")
+        self.io.say("  p (punch)                               - Attack unarmed, regardless of what's equipped")
         self.io.say("  eq [name] (equip)                       - Equip a weapon from your inventory")
         self.io.say("  drop [name]                             - Drop a weapon (salvages any ammo it's holding)")
         if isinstance(self.equipped_weapon, RangedWeapon):
@@ -476,7 +485,7 @@ class UIMixin:
         if command in ('eat', 'ea'): return 'eat'
         if command in ('drink', 'dr'): return 'drink'
         if command.startswith(('craft', 'cr')): return 'craft'
-        if command in ('fight', 'f'): return 'kill'
+        if command in ('fight', 'f', 'punch', 'p'): return 'kill'
         if command == 'm': return 'map'
         if command in ('n', 's', 'e', 'w'): return 'move'
         if command in ('rest', 'r'): return 'rest'

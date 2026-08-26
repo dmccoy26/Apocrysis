@@ -171,6 +171,24 @@ class TestLootWeapons(unittest.TestCase):
              patch("builtins.print"):
             game.find_loot()
 
+    def test_find_loot_respects_weapon_carry_cap(self):
+        # Real bug found live: find_loot() used to append straight to
+        # backpack.weapons, bypassing Backpack.add_weapon()'s
+        # MAX_WEAPONS cap entirely (unlike craft(), which already
+        # respects it) - a player could accumulate unlimited weapons
+        # just by walking around.
+        with patch("builtins.print"):
+            game = Apocrysis("LootCapTest", map_size=8, seed=1)
+        for _ in range(game.backpack.MAX_WEAPONS):
+            game.backpack.weapons.append(MeleeWeapon("Filler", 1, 1))
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=["weapon", "Broken Rifle"]), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertEqual(len(game.backpack.weapons), game.backpack.MAX_WEAPONS)
+
 
 class TestZombies(unittest.TestCase):
     def test_take_damage(self):
@@ -1045,6 +1063,40 @@ class TestCombatV3(unittest.TestCase):
         health_before = zombie.health
         zombie.take_damage(10)
         self.assertEqual(zombie.health, health_before - 5)  # 50% reduction
+
+    @patch("builtins.input", return_value="y")
+    @patch("builtins.print")
+    def test_unarmed_combat_damage_scaled_by_condition_penalty(self, mock_print, mock_input):
+        # Real gap found live: encounter_zombie()'s unarmed branch dealt
+        # a flat 2 damage regardless of the player's condition, while
+        # the armed branch already applied _condition_penalty() - the
+        # two branches disagreed about whether low health/hunger/
+        # fatigue should weaken an attack. Spying on take_damage's
+        # exact call argument (rather than just the zombie's final
+        # health) is what actually distinguishes "penalty applied"
+        # from "not applied" - 2 damage would also kill a 1-health
+        # zombie, so a health-only assertion can't tell them apart.
+        zombie = FreshZombie()
+        zombie.health = 1  # one recorded hit is lethal, ending the loop
+        self.game.equipped_weapon = None
+        real_take_damage = zombie.take_damage
+
+        with patch.object(self.game, "_condition_penalty", return_value=0.5), \
+             patch.object(zombie, "take_damage", side_effect=real_take_damage) as mock_take_damage:
+            self.game.encounter_zombie(zombie)
+
+        mock_take_damage.assert_called_once_with(round(2 * 0.5))
+
+    @patch("builtins.input", side_effect=["p", "quit", "n"])
+    @patch("builtins.print")
+    def test_punch_command_is_wired_into_the_game_loop(self, mock_print, mock_input):
+        # Real bug found live: CombatMixin.punch() existed but nothing
+        # in run_game_loop()'s dispatch_map called it, so the command
+        # was documented (_available_commands()) but never actually
+        # reachable from the keyboard.
+        with patch.object(self.game, "punch") as mock_punch:
+            self.game.run_game_loop()
+        mock_punch.assert_called_once_with()
 
     def test_select_zombie_for_encounter_can_produce_every_v3_type(self):
         # All 6 types (not just the original 3) must be real, reachable

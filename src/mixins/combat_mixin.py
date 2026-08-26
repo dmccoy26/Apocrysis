@@ -123,8 +123,9 @@ class CombatMixin:
                 self.io.say(f"The {zombie.name} takes {damage} damage.")
             else:
                 self.io.say("You have no weapon equipped and attempt to fight with your hands!")
-                zombie.take_damage(2)  # Minimal damage when unarmed
-                self.io.say("You deal 2 damage with your bare hands.")
+                unarmed_damage = round(2 * self._condition_penalty())
+                zombie.take_damage(unarmed_damage)
+                self.io.say(f"You deal {unarmed_damage} damage with your bare hands.")
 
             # Process status effects - data-driven via
             # STATUS_EFFECT_DAMAGE (constants.py) so a new damaging

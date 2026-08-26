@@ -49,10 +49,12 @@ class TextualIO:
         self.app.call_from_thread(self.app.log_message, text)
 
     def ask(self, prompt=""):
+        self._drain_stale_answers()
         self.app.call_from_thread(self.app.request_input, prompt)
         return self._wait_for_answer()
 
     def ask_yes_no(self, prompt):
+        self._drain_stale_answers()
         self.app.call_from_thread(self.app.request_input, f"{prompt} (y/n)")
         while True:
             answer = self._wait_for_answer().strip().lower()
@@ -61,7 +63,28 @@ class TextualIO:
             if answer in ("n", "no"):
                 return False
             self.app.call_from_thread(self.app.log_message, "Please answer y or n.")
+            self._drain_stale_answers()
             self.app.call_from_thread(self.app.request_input, f"{prompt} (y/n)")
+
+    def _drain_stale_answers(self):
+        # Real bug found live: self._answers is never drained between
+        # prompt cycles - rapidly pressing arrow keys during one "> "
+        # prompt (action_move_direction below calls submit_answer()
+        # directly, same queue the Input widget's Submitted handler
+        # also feeds) can queue MORE entries than this prompt's single
+        # _wait_for_answer() call consumes. Those leftovers then sit
+        # in the queue and get silently handed to whichever LATER,
+        # unrelated prompt calls _wait_for_answer() next (e.g. a "Do
+        # you want to fight? (y/n)" dialog), answering it with a stale
+        # keypress instead of waiting for real input directed at it.
+        # Clearing the queue right before a new prompt starts
+        # listening ensures it only ever consumes input submitted
+        # during its OWN active window.
+        while True:
+            try:
+                self._answers.get_nowait()
+            except queue.Empty:
+                break
 
     def _wait_for_answer(self):
         # Real bug found live: an unbounded self._answers.get() blocks
@@ -257,7 +280,22 @@ class ApocrysisApp(App):
         # the next game with the carried-forward profile.
         try:
             while True:
-                self.player.run_game_loop()
+                try:
+                    self.player.run_game_loop()
+                except AppClosed:
+                    # Real bug found live: AppClosed raised mid-
+                    # run_game_loop() (app shutting down while blocked
+                    # on an ask()/ask_yes_no() prompt) skipped straight
+                    # to the outer except below, past the
+                    # save_profile() call two lines down - a valid,
+                    # in-progress player's identity/progression was
+                    # silently never saved on shutdown. Save here,
+                    # using whatever state self.player was actually in
+                    # when the shutdown interrupted it, then re-raise
+                    # to the same outer handling as before.
+                    self.player.save_profile()
+                    raise
+
                 self.player.save_profile()
 
                 if not getattr(self.player, 'won', False):

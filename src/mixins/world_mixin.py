@@ -345,11 +345,17 @@ class WorldMixin:
     def find_loot(self):
         # Intelligence increases chance of finding loot and better items
         find_chance = min(1.0, 0.2 + self.intelligence / 250)
-        if random.random() < find_chance:
-            loot_type = random.choice(["food", "water", "medicine", "ammo", "weapon"])
+        if self.rng.random() < find_chance:
+            loot_types = ["food", "water", "medicine", "ammo", "weapon"]
+            # Only a live possibility until it's actually been found -
+            # once town_known is True there's nothing left to reveal,
+            # so it drops out of the pool instead of wasting a roll.
+            if not self.town_known:
+                loot_types.append("map")
+            loot_type = self.rng.choice(loot_types)
 
             # Higher intelligence increases chance of finding weapons over consumables
-            if self.intelligence > 10 and random.random() < (self.intelligence / 100):
+            if self.intelligence > 10 and self.rng.random() < (self.intelligence / 100):
                 loot_type = "weapon"
 
             self.io.say(f"You found {loot_type}!")
@@ -359,7 +365,7 @@ class WorldMixin:
                 # Real stat variance per name, and the correct weapon
                 # type (melee vs ranged) - see LOOT_WEAPON_TABLE's own
                 # comment in constants.py for the bug this replaced.
-                new_weapon_name = random.choice(list(LOOT_WEAPON_TABLE.keys()))
+                new_weapon_name = self.rng.choice(list(LOOT_WEAPON_TABLE.keys()))
                 spec = LOOT_WEAPON_TABLE[new_weapon_name]
                 if spec["type"] == "ranged":
                     new_weapon = RangedWeapon(
@@ -386,5 +392,11 @@ class WorldMixin:
                 self.io.say("You found some medicine. Medicine stock increased.")
             elif loot_type == "ammo":
                 # Increase ammo in the backpack to support ranged crafting recipes
-                self.backpack.ammo += random.randint(1, 3)
+                self.backpack.ammo += self.rng.randint(1, 3)
                 self.io.say("You found some ammo! Ammo stock increased.")
+            elif loot_type == "map":
+                self.town_known = True
+                self.io.say(
+                    "You found a weathered survivor's map! The Town "
+                    "Center's location is now revealed."
+                )

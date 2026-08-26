@@ -24,18 +24,21 @@ def _serialize_weapon(w):
 
 
 def _deserialize_weapon(w_data):
-    if w_data.get("type") == "MeleeWeapon":
+    w_type = w_data.get("type")
+    if w_type == "MeleeWeapon":
         return MeleeWeapon(
             w_data.get("name"), w_data.get("damage"),
             w_data.get("durability", 10),
         )
-
-    w = RangedWeapon(
-        w_data.get("name"), w_data.get("damage"),
-        w_data.get("max_ammo", 5), w_data.get("durability", 20),
-    )
-    w.ammo = w_data.get("ammo")
-    return w
+    elif w_type == "RangedWeapon":
+        w = RangedWeapon(
+            w_data.get("name"), w_data.get("damage"),
+            w_data.get("max_ammo", 5), w_data.get("durability", 20),
+        )
+        w.ammo = w_data.get("ammo")
+        return w
+    else:
+        raise ValueError(f'Unknown weapon type: {w_type}')
 
 
 class PersistenceMixin:
@@ -80,10 +83,10 @@ class PersistenceMixin:
 
     @classmethod
     def _zombie_from_cell(cls, cell):
-        zombie_cls = cls.ZOMBIE_CLASSES.get(cell["zombie_type"], FreshZombie)
+        zombie_cls = cls.ZOMBIE_CLASSES.get(cell.get("zombie_type"), FreshZombie)
         zombie = zombie_cls()
-        zombie.health = cell["health"]
-        zombie.attack = cell["attack"]
+        zombie.health = cell.get("health", zombie.health)
+        zombie.attack = cell.get("attack", zombie.attack)
         return zombie
 
     def save_game(self, filename="apocrysis_save.json"):
@@ -120,6 +123,7 @@ class PersistenceMixin:
             "tasks": [{"title": t.title, "description": t.description, "completed": t.completed, "reward_type": t.reward_type, "reward_amount": t.reward_amount, "task_type": getattr(t, 'task_type', "")} for t in self.tasks],
             "status_effects": self.status_effects,
             "map": self._serialize_map(),
+            "town_known": self.town_known,
         }
 
         for w in self.backpack.weapons:
@@ -193,6 +197,7 @@ class PersistenceMixin:
         player.is_night = data.get("is_night", False)
         player.visibility_radius = data.get("visibility_radius", 3)
         player.last_action = data.get("last_action", "")
+        player.town_known = data.get("town_known", False)
 
         # "won" is deliberately never restored from a save - main()'s
         # own post-game-loop check treats player.won as an immediate
@@ -252,15 +257,23 @@ class PersistenceMixin:
                 for g_data in data["goals"]
             ]
 
-        for t_data in data.get("tasks", []):
-            player.tasks.append(Task(
-                title=t_data["title"],
-                description=t_data.get("description", ""),
-                completed=t_data.get("completed", False),
-                reward_type=t_data.get("reward_type", "xp"),
-                reward_amount=t_data.get("reward_amount", 10),
-                task_type=t_data.get("task_type", "")
-            ))
+        # Same pattern as goals: a save with a "tasks" key is a
+        # complete snapshot of what the player's tasks actually were.
+        # Replace the fresh __init__ tasks rather than appending to
+        # avoid duplication. Older saves without a "tasks" key fall
+        # back to the fresh __init__ tasks untouched.
+        if "tasks" in data:
+            player.tasks = [
+                Task(
+                    title=t_data["title"],
+                    description=t_data.get("description", ""),
+                    completed=t_data.get("completed", False),
+                    reward_type=t_data.get("reward_type", "xp"),
+                    reward_amount=t_data.get("reward_amount", 10),
+                    task_type=t_data.get("task_type", "")
+                )
+                for t_data in data["tasks"]
+            ]
 
         player.status_effects = data.get("status_effects", {})
 
@@ -344,4 +357,3 @@ class PersistenceMixin:
         eq_w_data = profile.get("equipped_weapon")
         if eq_w_data and eq_w_data.get("name"):
             self.equipped_weapon = _deserialize_weapon(eq_w_data)
-

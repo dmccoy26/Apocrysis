@@ -20,7 +20,7 @@ class UIMixin:
             if current_stats[stat] != old_stats[stat]:
                 diff = current_stats[stat] - old_stats[stat]
                 sign = "+" if diff > 0 else ""
-                color = GREEN if diff > 0 else RED
+                color = (RED if diff > 0 else GREEN) if stat == "fatigue" else (GREEN if diff > 0 else RED)
                 changes.append(f"{BOLD}{color}{stat.capitalize()}: {sign}{diff}{RESET}")
         
         if changes:
@@ -374,17 +374,20 @@ class UIMixin:
                         color = RED
                     char = f"{BOLD}{color}P{RESET}"
                 elif isinstance(tile, dict):
-                    if tile.get('terrain') == 'town':
-                        # Real bug found live: this used to hardcode
-                        # 'T' for EVERY town tile no matter which
-                        # feature (House/Road/Shop/Building/Town
-                        # center) generate_map() actually assigned to
-                        # it - town_features' letters were stored in
-                        # tile['content'] but never rendered, so the
-                        # whole town always looked like a uniform
-                        # block of 'T's. Showing the real feature
-                        # letter is what "what does TTT mean" was
-                        # actually asking about.
+                    if tile.get('terrain') == 'town' and (in_range or self.town_known):
+                        # Real bug found live: town tiles used to
+                        # render their real feature letter (House/
+                        # Road/Shop/Building/Town center) completely
+                        # unconditionally - the ONE terrain type that
+                        # ignored fog-of-war entirely, so the player
+                        # could always see exactly where the town (and
+                        # therefore the win condition) was from turn
+                        # one, no exploration required. Town tiles now
+                        # follow the same in_range/visited/hidden rule
+                        # as everything else below, with `town_known`
+                        # (set by find_loot()'s map item) as the one
+                        # deliberate override - a found map reveals
+                        # the town regardless of current visibility.
                         char = tile.get('content') or 'T'
                     elif in_range:
                         # Show real terrain (forest/water/building/

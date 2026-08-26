@@ -16,14 +16,14 @@ class ActionsMixin:
     # ingredient types (food/water/medicine/ammo/weapon - no new
     # resource types, so Backpack needs no changes).
     crafting_recipes = {
-        "steel_sword": {"ingredients": {"weapon": 1, "food": 2}, "min_level": 1, "result": lambda: MeleeWeapon("Steel Sword", 20, 50)},
-        "heavy_bow": {"ingredients": {"weapon": 1, "ammo": 3}, "min_level": 1, "result": lambda: RangedWeapon("Heavy Bow", 25, 10)},
-        "combat_knife": {"ingredients": {"weapon": 1, "medicine": 1}, "min_level": 1, "result": lambda: MeleeWeapon("Combat Knife", 15, 40)},
-        "reinforced_blade": {"ingredients": {"weapon": 1, "medicine": 1, "food": 1}, "min_level": 4, "result": lambda: MeleeWeapon("Reinforced Blade", 28, 60)},
-        "hunting_crossbow": {"ingredients": {"weapon": 1, "ammo": 5, "food": 1}, "min_level": 6, "result": lambda: RangedWeapon("Hunting Crossbow", 30, 15)},
-        "survivor_machete": {"ingredients": {"weapon": 2, "water": 2}, "min_level": 9, "result": lambda: MeleeWeapon("Survivor Machete", 35, 70)},
-        "military_carbine": {"ingredients": {"weapon": 1, "ammo": 8, "medicine": 2}, "min_level": 13, "result": lambda: RangedWeapon("Military Carbine", 45, 20)},
-        "apex_blade": {"ingredients": {"weapon": 2, "medicine": 3, "food": 3}, "min_level": 18, "result": lambda: MeleeWeapon("Apex Blade", 55, 100)},
+        "steel_sword": {"ingredients": {"weapon": 1, "food": 2}, "min_level": 1, "result_name": "Steel Sword", "result": lambda: MeleeWeapon("Steel Sword", 20, 50)},
+        "heavy_bow": {"ingredients": {"weapon": 1, "ammo": 3}, "min_level": 1, "result_name": "Heavy Bow", "result": lambda: RangedWeapon("Heavy Bow", 25, 10)},
+        "combat_knife": {"ingredients": {"weapon": 1, "medicine": 1}, "min_level": 1, "result_name": "Combat Knife", "result": lambda: MeleeWeapon("Combat Knife", 15, 40)},
+        "reinforced_blade": {"ingredients": {"weapon": 1, "medicine": 1, "food": 1}, "min_level": 4, "result_name": "Reinforced Blade", "result": lambda: MeleeWeapon("Reinforced Blade", 28, 60)},
+        "hunting_crossbow": {"ingredients": {"weapon": 1, "ammo": 5, "food": 1}, "min_level": 6, "result_name": "Hunting Crossbow", "result": lambda: RangedWeapon("Hunting Crossbow", 30, 15)},
+        "survivor_machete": {"ingredients": {"weapon": 2, "water": 2}, "min_level": 9, "result_name": "Survivor Machete", "result": lambda: MeleeWeapon("Survivor Machete", 35, 70)},
+        "military_carbine": {"ingredients": {"weapon": 1, "ammo": 8, "medicine": 2}, "min_level": 13, "result_name": "Military Carbine", "result": lambda: RangedWeapon("Military Carbine", 45, 20)},
+        "apex_blade": {"ingredients": {"weapon": 2, "medicine": 3, "food": 3}, "min_level": 18, "result_name": "Apex Blade", "result": lambda: MeleeWeapon("Apex Blade", 55, 100)},
     }
 
     def initialize_player(self):
@@ -182,7 +182,7 @@ class ActionsMixin:
                 "key": key,
                 "ingredients": dict(data["ingredients"]),
                 "min_level": data.get("min_level", 1),
-                "result_name": data["result"]().name,
+                "result_name": data["result_name"],
                 "locked": self.level < data.get("min_level", 1),
             }
             for key, data in self.crafting_recipes.items()
@@ -242,9 +242,37 @@ class ActionsMixin:
 
         # Add result
         new_item = recipe["result"]()
+        quality_label, quality_multiplier = self._roll_craft_quality()
+        if quality_label != "Standard":
+            new_item.name = f"{quality_label} {new_item.name}"
+            new_item.damage = max(
+                new_item.damage + 1, round(new_item.damage * quality_multiplier)
+            )
+            if hasattr(new_item, 'durability'):
+                new_item.durability = max(
+                    new_item.durability + 1,
+                    round(new_item.durability * quality_multiplier),
+                )
+                new_item.max_durability = new_item.durability
         self.backpack.weapons.append(new_item)
         self.io.say(f"Crafted a {new_item.name}!")
         self._check_and_complete_goals("craft")
+
+    def _roll_craft_quality(self):
+        # Skill-based crafting quality: dexterity-scaled odds of a
+        # bonus tier on top of the recipe's base result, same style as
+        # combat_mixin.py's existing crit_chance/dodge_chance (both
+        # `min(cap, self.dexterity / N)`). Deliberately additive only -
+        # unlike a crit/dodge roll, there's no failure/waste branch
+        # here; the worst outcome is just the recipe's normal result.
+        masterwork_chance = min(0.3, self.dexterity / 100)
+        fine_chance = 0.25  # flat band above masterwork_chance
+        roll = self.rng.random()
+        if roll < masterwork_chance:
+            return "Masterwork", 1.3
+        if roll < masterwork_chance + fine_chance:
+            return "Fine", 1.15
+        return "Standard", 1.0
 
     def auto_play(self):
         self.io.say("\nAuto-playing game...\n")
@@ -295,4 +323,3 @@ class ActionsMixin:
     def increase_max_health(self, amount):
       self.max_health += amount
       self.health = self.max_health
-

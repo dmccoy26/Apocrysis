@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass
 
-from src.items import MeleeWeapon, RangedWeapon, Weapon
+from src.items import MeleeWeapon, RangedWeapon
 
 
 @dataclass

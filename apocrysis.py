@@ -12,15 +12,21 @@
 # beyond bare print(), and run_tests() always uses the classic path.
 # ============================================================
 
-import sys
+import argparse
 
 from src.cli import main, main_tui, run_tests
 
 
 if __name__ == "__main__":
-    if "--test" in sys.argv:
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--test", action="store_true", help="Run tests")
+    group.add_argument("--classic", action="store_true", help="Run classic print-loop mode")
+    args = parser.parse_args()
+
+    if args.test:
         run_tests()
-    elif "--classic" in sys.argv:
+    elif args.classic:
         main()
     else:
         main_tui()

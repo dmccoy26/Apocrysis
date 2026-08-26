@@ -8,11 +8,7 @@ class ObjectivesMixin:
 
     def _auto_check_goals(self):
         """Automatically mark goals as completed when they are achieved based on the last action."""
-        for i, g in enumerate(self.goals):
-            if g.completed or not getattr(g, 'goal_type', None): continue
-            
-            if g.goal_type == self.last_action:
-                self.complete_goal(i)
+        self._check_and_complete_goals(self.last_action)
 
     def add_goal(self, title, description="", goal_type=""):
         self.goals.append(Goal(title=title, description=description, goal_type=goal_type))
@@ -52,7 +48,9 @@ class ObjectivesMixin:
             self.io.say(f"Goal completed: {goal.title}!")
             
             # Apply reward
-            if goal.reward_type == "health":
+            if goal.reward_type == "xp":
+                self.award_xp(goal.reward_amount)
+            elif goal.reward_type == "health":
                 self.health = min(100, self.health + goal.reward_amount)
             elif goal.reward_type == "fatigue":
                 self.fatigue = max(0, self.fatigue - goal.reward_amount)
@@ -132,4 +130,3 @@ class ObjectivesMixin:
         # Survival Milestone
         if "survival" not in active_task_types and (self.backpack.food == 0 or self.backpack.water == 0):
             self.add_task("Forage for Supplies", "Find food or water to sustain yourself.", task_type="survival", reward_amount=15)
-

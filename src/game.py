@@ -86,6 +86,12 @@ class Apocrysis(
         self.tasks = []  # Dynamic task system for side objectives and progression milestones
         self.won = False  # Win condition tracker
 
+        # True once the player has found a map item revealing the
+        # Town Center's location (world_mixin.find_loot()) - until
+        # then, town tiles are hidden by fog-of-war exactly like any
+        # other terrain (ui_mixin._render_map_lines()).
+        self.town_known = False
+
         # Day/Night Cycle Initialization
         self.time_of_day = 480  # Start at 08:00 (minutes from midnight)
         self.visibility_radius = 3

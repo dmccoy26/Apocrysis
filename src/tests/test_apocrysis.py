@@ -1,12 +1,11 @@
 import asyncio
 import os
-import re
 import unittest
 from unittest.mock import patch
 
 from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
-from src.items import Backpack, ConsumableType, MeleeWeapon, RangedWeapon
+from src.items import Backpack, MeleeWeapon, RangedWeapon
 from src.player import PlayerClass
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (
@@ -132,8 +131,11 @@ class TestLootWeapons(unittest.TestCase):
 
         # Force: loot occurs, loot_type is "weapon", name is "Broken
         # Rifle" - the specific case the original bug got wrong.
-        with patch("random.random", return_value=0.0), \
-             patch("random.choice", side_effect=["weapon", "Broken Rifle"]), \
+        # find_loot() draws from game.rng (a per-instance
+        # random.Random), not the global random module, so that's
+        # what needs patching to force a deterministic outcome here.
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=["weapon", "Broken Rifle"]), \
              patch("builtins.print"):
             game.find_loot()
 
@@ -142,6 +144,29 @@ class TestLootWeapons(unittest.TestCase):
         self.assertIsInstance(looted, RangedWeapon)
         self.assertEqual(looted.name, "Broken Rifle")
         self.assertTrue(hasattr(looted, "ammo"))
+
+    def test_finding_a_map_reveals_the_town_and_drops_out_of_future_loot_pools(self):
+        with patch("builtins.print"):
+            game = Apocrysis("LootTest", map_size=8, seed=1)
+        self.assertFalse(game.town_known)
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", return_value="map"), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertTrue(game.town_known)
+
+        # Once already known, "map" must drop out of the loot pool -
+        # nothing left to reveal, so re-rolling it would be wasted.
+        def _choice_excludes_map(options):
+            self.assertNotIn("map", options)
+            return options[0]
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=_choice_excludes_map), \
+             patch("builtins.print"):
+            game.find_loot()
 
 
 class TestZombies(unittest.TestCase):
@@ -393,8 +418,10 @@ class TestCrafting(unittest.TestCase):
         self.assertEqual(self.game.backpack.food, 3)  # steel_sword costs 2 food
         # one weapon consumed as an ingredient, one crafted result added
         self.assertEqual(len(self.game.backpack.weapons), weapons_before)
+        # endswith, not ==: a "Fine"/"Masterwork" quality roll (see
+        # TestCraftingQuality below) prefixes the name.
         self.assertTrue(
-            any(w.name == "Steel Sword" for w in self.game.backpack.weapons)
+            any(w.name.endswith("Steel Sword") for w in self.game.backpack.weapons)
         )
 
     def test_craft_insufficient_ingredients_is_refused(self):
@@ -451,7 +478,7 @@ class TestCrafting(unittest.TestCase):
             self.game.craft("apex_blade")
 
         self.assertTrue(
-            any(w.name == "Apex Blade" for w in self.game.backpack.weapons)
+            any(w.name.endswith("Apex Blade") for w in self.game.backpack.weapons)
         )
 
     def test_craft_consumes_the_full_weapon_count_a_recipe_needs(self):
@@ -470,7 +497,9 @@ class TestCrafting(unittest.TestCase):
 
         # Both scrap weapons consumed, one Survivor Machete added.
         self.assertEqual(len(self.game.backpack.weapons), 1)
-        self.assertEqual(self.game.backpack.weapons[0].name, "Survivor Machete")
+        self.assertTrue(
+            self.game.backpack.weapons[0].name.endswith("Survivor Machete")
+        )
 
     def test_craft_refuses_when_not_enough_weapons_for_multi_weapon_recipe(self):
         self.game.level = 9
@@ -489,6 +518,67 @@ class TestCrafting(unittest.TestCase):
         self.assertFalse(recipes["steel_sword"]["locked"])
         self.assertTrue(recipes["apex_blade"]["locked"])
         self.assertEqual(recipes["apex_blade"]["min_level"], 18)
+
+
+class TestCraftingQuality(unittest.TestCase):
+    """
+    Skill-based crafting quality (dexterity-scaled bonus tier on top
+    of a recipe's base result) - deliberately additive only, so these
+    tests focus on "never worse than base" and "never loses
+    ingredients regardless of roll", not on any failure/waste path
+    (there isn't one).
+    """
+
+    def setUp(self):
+        with patch("builtins.print"):
+            self.game = Apocrysis("QualityTest", map_size=10, seed=1)
+
+    def test_roll_quality_never_below_base_multiplier(self):
+        self.game.dexterity = 5
+        for _ in range(50):
+            label, multiplier = self.game._roll_craft_quality()
+            self.assertIn(label, ("Standard", "Fine", "Masterwork"))
+            self.assertGreaterEqual(multiplier, 1.0)
+
+    def test_high_dexterity_can_roll_masterwork(self):
+        # dexterity=100 hits the 0.3 masterwork_chance cap - with a
+        # fixed seed, at least one of many rolls should land it.
+        self.game.dexterity = 100
+        labels = {self.game._roll_craft_quality()[0] for _ in range(50)}
+        self.assertIn("Masterwork", labels)
+
+    def test_crafted_item_stats_scale_with_quality_label(self):
+        self.game.backpack.food = 5
+        self.game.backpack.weapons = [MeleeWeapon("Scrap", 1, 1)]
+        self.game.dexterity = 100  # maximize odds of a non-Standard roll
+
+        with patch("builtins.print"):
+            self.game.craft("steel_sword")
+
+        crafted = next(
+            w for w in self.game.backpack.weapons if w.name.endswith("Steel Sword")
+        )
+        if crafted.name != "Steel Sword":
+            # A quality tier was rolled - stats must scale up, never down.
+            self.assertGreater(crafted.damage, 20)
+            self.assertGreater(crafted.durability, 50)
+            self.assertEqual(crafted.durability, crafted.max_durability)
+
+    def test_craft_never_loses_ingredients_regardless_of_quality_roll(self):
+        # Same ingredient-consumption assertion as
+        # TestCrafting.test_craft_success_consumes_ingredients_and_adds_weapon,
+        # just re-run across many seeds to cover every quality branch.
+        for seed in range(10):
+            with patch("builtins.print"):
+                game = Apocrysis("SeedTest", map_size=5, seed=seed)
+            game.backpack.food = 5
+            game.backpack.weapons = [MeleeWeapon("Scrap", 1, 1)]
+
+            with patch("builtins.print"):
+                game.craft("steel_sword")
+
+            self.assertEqual(game.backpack.food, 3)
+            self.assertEqual(len(game.backpack.weapons), 1)
 
 
 class TestSaveLoad(unittest.TestCase):
@@ -533,6 +623,19 @@ class TestSaveLoad(unittest.TestCase):
     def test_load_missing_file_returns_none(self):
         self.assertFalse(os.path.exists("_definitely_missing.json"))
         self.assertIsNone(Apocrysis.load_game("_definitely_missing.json"))
+
+    def test_round_trip_preserves_town_known(self):
+        # town_known is per-map state (set by find_loot()'s map item,
+        # consumed by ui_mixin._render_map_lines()'s fog-of-war check)
+        # - a mid-game save/load must not silently forget it and
+        # re-hide a town the player already revealed.
+        self.game.town_known = True
+
+        with patch("builtins.print"):
+            self.game.save_game(self.SAVE_FILE)
+            loaded = Apocrysis.load_game(self.SAVE_FILE)
+
+        self.assertTrue(loaded.town_known)
 
 
 class TestProfilePersistence(unittest.TestCase):
@@ -640,6 +743,33 @@ class TestRendering(unittest.TestCase):
         # one town center, always.
         town_centers = [t for t in town_tiles if t["content"] == "T"]
         self.assertEqual(len(town_centers), 1)
+
+    def test_town_hidden_by_fog_of_war_until_in_range_or_town_known(self):
+        # Real bug found live this session: town tiles used to render
+        # their real feature letter completely unconditionally - the
+        # one terrain type that ignored fog-of-war entirely, so the
+        # win condition's location was always visible from turn one.
+        town_pos = next(
+            (x, y)
+            for y, row in enumerate(self.game.map)
+            for x, tile in enumerate(row)
+            if isinstance(tile, dict) and tile.get("terrain") == "town"
+        )
+        tx, ty = town_pos
+        dist = abs(tx - self.game.current_position[0]) + abs(ty - self.game.current_position[1])
+        self.assertGreater(
+            dist, self.game.visibility_radius,
+            "test needs a town tile out of spawn's visibility range",
+        )
+
+        self.game.town_known = False
+        lines = self.game._render_map_lines()
+        # +1 for the leading border '*' column.
+        self.assertIn(lines[ty + 1][tx + 1], (" ", "."))
+
+        self.game.town_known = True
+        lines = self.game._render_map_lines()
+        self.assertIn(lines[ty + 1][tx + 1], {"H", "R", "S", "B", "T"})
 
     def test_terrain_symbols_cover_every_generated_terrain_type(self):
         terrains_in_use = {

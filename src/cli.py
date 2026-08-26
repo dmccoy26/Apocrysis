@@ -93,11 +93,13 @@ def main():
         if player is None:
             if profile is not None:
                 level = profile.get("level", 1)
+                expeditions_completed = profile.get("expeditions_completed", 0)
                 print(f"\nWelcome back, {name} - level {level}.")
             else:
                 level = 1
+                expeditions_completed = 0
 
-            player = Apocrysis(name, level=level, hardcore=hardcore)
+            player = Apocrysis(name, level=level, hardcore=hardcore, expeditions_completed=expeditions_completed)
 
             if profile is not None:
                 player.apply_profile(profile)

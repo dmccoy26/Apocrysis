@@ -943,26 +943,30 @@ class TestMapGeneration(unittest.TestCase):
 
     def test_town_center_reachable_from_spawn_across_many_seeds(self):
         # Governing invariant: generate_map() must never return with
-        # spawn unable to reach the town center, at any level
-        # (obstacle density scales with level - this is exactly where
-        # an unreachable map would show up if the carve-path guarantee
-        # were broken).
+        # spawn unable to reach the town center, at any expedition
+        # count (obstacle density scales with expeditions_completed,
+        # not player level, since the map/player/campaign level split
+        # - this is exactly where an unreachable map would show up if
+        # the carve-path guarantee were broken).
         for seed in range(20):
-            for level in (1, 4, 8, 12, 20):
+            for expeditions_completed in (0, 4, 8, 12, 20):
                 with patch("builtins.print"):
-                    game = Apocrysis("ReachTest", map_size=15, level=level, seed=seed)
+                    game = Apocrysis(
+                        "ReachTest", map_size=15, seed=seed,
+                        expeditions_completed=expeditions_completed,
+                    )
                 town_center = self._find_town_center(game)
                 self.assertIsNotNone(town_center)
                 self.assertTrue(
                     game._bfs_reachable(game.current_position, town_center),
-                    f"unreachable town at seed={seed} level={level}",
+                    f"unreachable town at seed={seed} expeditions_completed={expeditions_completed}",
                 )
 
-    def test_town_min_distance_grows_with_level(self):
+    def test_town_min_distance_grows_with_expeditions_completed(self):
         with patch("builtins.print"):
-            low_level_game = Apocrysis("DistTest", map_size=40, level=1, seed=3)
+            low_game = Apocrysis("DistTest", map_size=40, seed=3, expeditions_completed=0)
         with patch("builtins.print"):
-            high_level_game = Apocrysis("DistTest", map_size=40, level=15, seed=3)
+            high_game = Apocrysis("DistTest", map_size=40, seed=3, expeditions_completed=15)
 
         def distance(game):
             tc = self._find_town_center(game)
@@ -970,25 +974,27 @@ class TestMapGeneration(unittest.TestCase):
             return abs(tc[0] - sx) + abs(tc[1] - sy)
 
         # Not a strict inequality on a single sample (placement is
-        # still randomized above the minimum), but the level-15 game's
-        # own minimum bound must be higher than level-1's.
+        # still randomized above the minimum), but the 15-expedition
+        # game's own minimum bound must be higher than the 0-expedition
+        # game's.
         self.assertGreater(
-            self._min_distance_for(high_level_game),
-            self._min_distance_for(low_level_game),
+            self._min_distance_for(high_game),
+            self._min_distance_for(low_game),
         )
-        self.assertGreaterEqual(distance(high_level_game), self._min_distance_for(high_level_game))
+        self.assertGreaterEqual(distance(high_game), self._min_distance_for(high_game))
 
     @staticmethod
     def _min_distance_for(game):
         from src.constants import BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL
         return min(
             game.map_size - 2,
-            BASE_TOWN_MIN_DISTANCE + (game.level - 1) * TOWN_DISTANCE_GROWTH_PER_LEVEL,
+            BASE_TOWN_MIN_DISTANCE + game.expeditions_completed * TOWN_DISTANCE_GROWTH_PER_LEVEL,
         )
 
     def test_carve_path_never_touches_spawn_or_town_center(self):
         with patch("builtins.print"):
-            game = Apocrysis("CarveTest", map_size=15, level=20, seed=7)  # max obstacle density
+            # expeditions_completed=20: max obstacle density
+            game = Apocrysis("CarveTest", map_size=15, seed=7, expeditions_completed=20)
         town_center = self._find_town_center(game)
 
         spawn_tile = game.map[game.current_position[1]][game.current_position[0]]
@@ -997,17 +1003,69 @@ class TestMapGeneration(unittest.TestCase):
         self.assertNotIn(spawn_tile.get("terrain"), {"mountain", "river"})
         self.assertEqual(town_tile.get("content"), "T")
 
-    def test_map_size_grows_with_level(self):
+    def test_map_size_grows_with_expeditions_completed(self):
         with patch("builtins.print"):
-            low = Apocrysis("SizeTest", level=1, seed=1)
+            low = Apocrysis("SizeTest", seed=1, expeditions_completed=0)
         with patch("builtins.print"):
-            high = Apocrysis("SizeTest", level=15, seed=1)
+            high = Apocrysis("SizeTest", seed=1, expeditions_completed=15)
         self.assertGreater(high.map_size, low.map_size)
 
-    def test_explicit_map_size_overrides_level_derivation(self):
+    def test_explicit_map_size_overrides_expeditions_completed_derivation(self):
         with patch("builtins.print"):
-            game = Apocrysis("SizeTest", map_size=9, level=15, seed=1)
+            game = Apocrysis("SizeTest", map_size=9, seed=1, expeditions_completed=15)
         self.assertEqual(game.map_size, 9)
+
+
+class TestExpeditionsAndCampaign(unittest.TestCase):
+    """
+    Map/player/campaign level split: expeditions_completed (not raw
+    player level) now drives map_size/obstacle_density/town distance
+    (TestMapGeneration above), and increments on reaching the Town
+    Center - these tests cover the win-condition side: the counter
+    actually advancing, and the distinct CAMPAIGN_LENGTH milestone.
+    """
+
+    def _make_game(self, expeditions_completed=0):
+        with patch("builtins.print"):
+            game = Apocrysis(
+                "ExpTest", map_size=10, seed=1,
+                expeditions_completed=expeditions_completed,
+            )
+        # Deterministic spawn + an adjacent, walkable Town Center tile,
+        # regardless of where generate_map()'s random spawn landed.
+        game.current_position = (0, 0)
+        game.map[0][1] = {"terrain": "plain", "content": "T", "explored": True}
+        return game
+
+    def test_reaching_town_increments_expeditions_completed(self):
+        game = self._make_game(expeditions_completed=3)
+        with patch("builtins.print"):
+            game.move_and_search("e")
+        self.assertTrue(game.won)
+        self.assertEqual(game.expeditions_completed, 4)
+
+    def test_campaign_complete_message_at_campaign_length(self):
+        from src.constants import CAMPAIGN_LENGTH
+        game = self._make_game(expeditions_completed=CAMPAIGN_LENGTH - 1)
+
+        messages = []
+        game.io.say = lambda *a, **k: messages.append(" ".join(str(x) for x in a))
+        game.move_and_search("e")
+
+        self.assertEqual(game.expeditions_completed, CAMPAIGN_LENGTH)
+        self.assertTrue(any("CAMPAIGN COMPLETE" in m for m in messages))
+
+    def test_ordinary_win_below_campaign_length_uses_the_normal_message(self):
+        from src.constants import CAMPAIGN_LENGTH
+        game = self._make_game(expeditions_completed=CAMPAIGN_LENGTH - 2)
+
+        messages = []
+        game.io.say = lambda *a, **k: messages.append(" ".join(str(x) for x in a))
+        game.move_and_search("e")
+
+        self.assertEqual(game.expeditions_completed, CAMPAIGN_LENGTH - 1)
+        self.assertFalse(any("CAMPAIGN COMPLETE" in m for m in messages))
+        self.assertTrue(any("You WIN" in m for m in messages))
 
 
 class TestCombatV3(unittest.TestCase):

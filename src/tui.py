@@ -266,6 +266,7 @@ class ApocrysisApp(App):
                 profile.get("name", self._name or "Survivor"),
                 level=profile.get("level", 1),
                 hardcore=profile.get("hardcore", self._hardcore),
+                expeditions_completed=profile.get("expeditions_completed", 0),
                 io=self.io,
             )
             player.apply_profile(profile)

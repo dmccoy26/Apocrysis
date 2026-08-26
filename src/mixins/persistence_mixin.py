@@ -330,6 +330,7 @@ class PersistenceMixin:
                 else None
             ),
             "hardcore": getattr(self, "hardcore", False),
+            "expeditions_completed": self.expeditions_completed,
         }
 
         with open(filename, 'w') as f:
@@ -418,6 +419,7 @@ class PersistenceMixin:
         self.name = profile.get("name", self.name)
         self.player_class = profile.get("player_class", self.player_class)
         self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
+        self.expeditions_completed = profile.get("expeditions_completed", self.expeditions_completed)
         self.level = profile.get("level", self.level)
         self.xp = profile.get("xp", self.xp)
         self.max_xp = profile.get("max_xp", self.max_xp)

@@ -46,6 +46,7 @@ IMPASSABLE_TERRAIN = {'mountain', 'river'}
 BASE_MAP_SIZE = 15
 MAP_GROWTH_PER_LEVEL = 2
 MAX_MAP_SIZE = 50
+CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is considered beaten
 
 BASE_TOWN_MIN_DISTANCE = 6
 TOWN_DISTANCE_GROWTH_PER_LEVEL = 2

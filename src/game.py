@@ -29,7 +29,7 @@ class Apocrysis(
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
@@ -54,6 +54,7 @@ class Apocrysis(
 
         self.name = name
         self.hardcore = hardcore
+        self.expeditions_completed = expeditions_completed
         self.rng = random.Random(seed)
 
         self.xp = 0
@@ -65,7 +66,7 @@ class Apocrysis(
             if map_size is not None
             else min(
                 MAX_MAP_SIZE,
-                BASE_MAP_SIZE + (level - 1) * MAP_GROWTH_PER_LEVEL,
+                BASE_MAP_SIZE + expeditions_completed * MAP_GROWTH_PER_LEVEL,
             )
         )
 

@@ -15,7 +15,7 @@ from collections import deque
 import random
 
 from src.constants import (
-    BOLD, GREEN, RESET,
+    BOLD, GREEN, RESET, CAMPAIGN_LENGTH,
     BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     IMPASSABLE_TERRAIN,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
@@ -39,7 +39,7 @@ class WorldMixin:
 
         obstacle_density = min(
             OBSTACLE_DENSITY_CAP,
-            max(0, self.level - OBSTACLE_START_LEVEL) * OBSTACLE_DENSITY_PER_LEVEL,
+            max(0, self.expeditions_completed - OBSTACLE_START_LEVEL) * OBSTACLE_DENSITY_PER_LEVEL,
         )
 
         self.map = [
@@ -63,7 +63,7 @@ class WorldMixin:
         town_size = min(5, self.map_size)
         min_distance = min(
             self.map_size - 2,
-            BASE_TOWN_MIN_DISTANCE + (self.level - 1) * TOWN_DISTANCE_GROWTH_PER_LEVEL,
+            BASE_TOWN_MIN_DISTANCE + self.expeditions_completed * TOWN_DISTANCE_GROWTH_PER_LEVEL,
         )
         town_top_left = self._pick_town_position(town_size, spawn, min_distance)
         town_center = (
@@ -297,13 +297,23 @@ class WorldMixin:
 
         if isinstance(current_tile, dict) and current_tile.get('content') == 'T':
             self.won = True
-            self.io.say(f"\n{BOLD}{GREEN}You have reached the Town Center! The survivors welcome you home. You WIN!{RESET}\n")
-            self.io.say(f"{BOLD}A grateful stash of supplies awaits you when you start your next game!{RESET}\n")
-            # self.__class__, not a direct Apocrysis reference -
-            # importing Apocrysis here would be circular (game.py
-            # imports WorldMixin from this module). Equivalent at
-            # runtime since self is always an Apocrysis instance.
-            self.__class__.prize_for_next_game = True
+            self.expeditions_completed += 1
+            if self.expeditions_completed >= CAMPAIGN_LENGTH:
+                self.io.say(f"\n{BOLD}{GREEN}You have reached the Town Center after {self.expeditions_completed} expeditions - the outbreak is finally contained. CAMPAIGN COMPLETE!{RESET}\n")
+                self.io.say(f"{BOLD}A hero's stash of supplies awaits you when you start your next game!{RESET}\n")
+                self.__class__.prize_for_next_game = True
+                self.backpack.food += 10
+                self.backpack.water += 10
+                self.backpack.medicine += 5
+                self.backpack.ammo += 20
+            else:
+                self.io.say(f"\n{BOLD}{GREEN}You have reached the Town Center! The survivors welcome you home. You WIN!{RESET}\n")
+                self.io.say(f"{BOLD}A grateful stash of supplies awaits you when you start your next game!{RESET}\n")
+                # self.__class__, not a direct Apocrysis reference -
+                # importing Apocrysis here would be circular (game.py
+                # imports WorldMixin from this module). Equivalent at
+                # runtime since self is always an Apocrysis instance.
+                self.__class__.prize_for_next_game = True
             self._check_and_complete_goals("reach_town")
             return
 

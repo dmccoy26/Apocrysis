@@ -5,20 +5,28 @@ import enum
 from collections import Counter
 
 
-def format_weapon_list(weapons):
-    """Group identical weapons (same display string) onto one line
-    with an "xN" suffix - a long haul of looted duplicates would
-    otherwise repeat the same line once per item and swamp the
-    inventory display."""
+def _format_item_list(items):
+    """Group identical items (same display string) onto one line with
+    an "xN" suffix - a long haul of looted duplicates would otherwise
+    repeat the same line once per item and swamp the inventory
+    display."""
     counts = {}
     order = []
-    for w in weapons:
-        key = str(w)
+    for item in items:
+        key = str(item)
         if key not in counts:
             counts[key] = 0
             order.append(key)
         counts[key] += 1
     return [f"{key} x{counts[key]}" if counts[key] > 1 else key for key in order]
+
+
+def format_weapon_list(weapons):
+    return _format_item_list(weapons)
+
+
+def format_armor_list(armor_pieces):
+    return _format_item_list(armor_pieces)
 
 
 class ConsumableType(enum.Enum):
@@ -37,10 +45,12 @@ class Backpack:
     MAX_MEDICINE = 50
     MAX_AMMO = 99
     MAX_WEAPONS = 12
+    MAX_ARMOR = 6
 
     def __init__(self):
         self.consumables = Counter()  # Unified storage for food, water, medicine, ammo
         self.weapons = []             # Dedicated list for Weapon objects
+        self.armor = []               # Dedicated list for Armor objects (equipment-slot investigation)
         self.items = []               # Generic items that aren't consumables or weapons
 
     def add_item(self, item):
@@ -52,12 +62,20 @@ class Backpack:
                 print(f"'{item}' is not a recognized item and was not added.")
         elif isinstance(item, Weapon):
             self.weapons.append(item)
+        elif isinstance(item, Armor):
+            self.armor.append(item)
         else:
             self.items.append(item)
 
     def add_weapon(self, weapon):
         if len(self.weapons) < self.MAX_WEAPONS:
             self.weapons.append(weapon)
+            return True
+        return False
+
+    def add_armor(self, armor):
+        if len(self.armor) < self.MAX_ARMOR:
+            self.armor.append(armor)
             return True
         return False
 
@@ -164,6 +182,37 @@ class RangedWeapon(Weapon):
             f"Ammo: {self.ammo}/{self.max_ammo}, "
             f"Durability: {self.durability}/{self.max_durability})"
         )
+
+
+class Armor(Item):
+    """
+    Equipment-slot investigation: a single body-armor slot
+    (equipped_armor on Apocrysis), not the full head/body/hands/feet
+    set the original todo sketched - starting with one slot keeps the
+    inventory/save-format/TUI surface area proportionate; more slots
+    can follow the same pattern later if wanted.
+    """
+
+    def __init__(self, name, damage_reduction, durability):
+        super().__init__(name)
+        self.damage_reduction = damage_reduction
+        self.durability = durability
+        self.max_durability = durability
+
+    def absorb(self, incoming_damage):
+        """
+        Reduces incoming damage by damage_reduction, degrading
+        durability by 1 per hit absorbed. Broken armor (durability<=0)
+        absorbs nothing - matches MeleeWeapon.use()'s "broken tool
+        does nothing" pattern rather than blocking combat.
+        """
+        if self.durability <= 0:
+            return incoming_damage
+        self.durability -= 1
+        return max(0, incoming_damage - self.damage_reduction)
+
+    def __str__(self):
+        return f"{self.name} - Reduction: {self.damage_reduction}, Durability: {self.durability}/{self.max_durability}"
 
 
 

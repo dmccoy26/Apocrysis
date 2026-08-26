@@ -4,7 +4,7 @@
 import copy
 import random
 
-from src.items import MeleeWeapon, RangedWeapon, format_weapon_list
+from src.items import MeleeWeapon, RangedWeapon, format_weapon_list, format_armor_list
 from src.player import PLAYER_CLASSES, STARTER_CLASS_NAME
 
 
@@ -167,6 +167,40 @@ class ActionsMixin:
             self.equipped_weapon = None
 
         self.io.say(f"You drop the {target.name}.{salvage_note}")
+
+    def equip_armor(self, armor_name):
+        for armor in self.backpack.armor:
+            if armor.name.lower() == armor_name.lower():
+                if self.equipped_armor:
+                    self.backpack.armor.append(self.equipped_armor)
+                    self.io.say(f"The {self.equipped_armor.name} has been returned to the backpack.")
+                self.equipped_armor = armor
+                self.backpack.armor.remove(armor)
+                self.io.say(f"You have equipped the {armor.name}.")
+                return
+        self.io.say(f"Armor named '{armor_name}' not found in inventory.")
+
+    def drop_armor(self, armor_name):
+        target = None
+        in_backpack = False
+        for armor in self.backpack.armor:
+            if armor.name.lower() == armor_name.lower():
+                target = armor
+                in_backpack = True
+                break
+        if target is None and self.equipped_armor and self.equipped_armor.name.lower() == armor_name.lower():
+            target = self.equipped_armor
+
+        if target is None:
+            self.io.say(f"Armor named '{armor_name}' not found in inventory.")
+            return
+
+        if in_backpack:
+            self.backpack.armor.remove(target)
+        else:
+            self.equipped_armor = None
+
+        self.io.say(f"You drop the {target.name}.")
 
     def describe_recipes(self):
         """

@@ -20,9 +20,9 @@ from src.constants import (
     IMPASSABLE_TERRAIN,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
-    TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE,
+    TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
 )
-from src.items import MeleeWeapon, RangedWeapon
+from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import (
     Zombie, FreshZombie, RegularZombie, HeavyZombie,
     SwiftZombie, ToxicZombie, ArmoredZombie,
@@ -390,7 +390,7 @@ class WorldMixin:
         # Intelligence increases chance of finding loot and better items
         find_chance = min(1.0, 0.2 + self.intelligence / 250)
         if self.rng.random() < find_chance:
-            loot_types = ["food", "water", "medicine", "ammo", "weapon"]
+            loot_types = ["food", "water", "medicine", "ammo", "weapon", "armor"]
             # Only a live possibility until it's actually been found -
             # once town_known is True there's nothing left to reveal,
             # so it drops out of the pool instead of wasting a roll.
@@ -432,6 +432,20 @@ class WorldMixin:
                     self.io.say(f"You obtained a {new_weapon.name}.")
                 else:
                     self.io.say("You found a weapon but your pack is full - drop something first.")
+            elif loot_type == "armor":
+                # Equipment-slot investigation: same expedition-banding
+                # pattern as weapons above.
+                eligible_armor = {
+                    name: spec for name, spec in ARMOR_TABLE.items()
+                    if spec.get('min_expedition', 0) <= self.expeditions_completed
+                }
+                new_armor_name = self.rng.choice(list(eligible_armor.keys()))
+                spec = eligible_armor[new_armor_name]
+                new_armor = Armor(new_armor_name, spec["reduction"], spec["durability"])
+                if self.backpack.add_armor(new_armor):
+                    self.io.say(f"You obtained {new_armor.name}.")
+                else:
+                    self.io.say("You found armor but your pack is full - drop something first.")
             elif loot_type == "food":
                 # Increase food in the backpack
                 self.backpack.food += 1

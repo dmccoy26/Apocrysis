@@ -74,6 +74,7 @@ class Apocrysis(
         self.max_health = 100  # Maximum health at the start
         self.backpack = Backpack()
         self.equipped_weapon = None
+        self.equipped_armor = None  # equipment-slot investigation
         self.initialize_player()
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)

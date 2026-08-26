@@ -5,7 +5,7 @@ import random
 import shutil
 
 from src.constants import BOLD, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
-from src.items import RangedWeapon, format_weapon_list
+from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
@@ -45,6 +45,10 @@ class UIMixin:
             cmd_list.append("drop [weapon name] (drop)")
         if isinstance(self.equipped_weapon, RangedWeapon):
             cmd_list.append(f"reload ({self.equipped_weapon.name})")
+        if self.backpack.armor:
+            cmd_list.append("wr [armor name] (wear)")
+        if self.backpack.armor or self.equipped_armor:
+            cmd_list.append("da [armor name] (dropa)")
 
         cmd_list.append("cr [recipe] (craft) (type 'cr list' for recipes)")
 
@@ -274,6 +278,23 @@ class UIMixin:
             if action:
                 self.io.say("\n" + "*" * term_width)
                 action()
+            elif command.startswith(('wear', 'wr')):
+                # Checked before 'equip'/'eq' below - distinct prefix,
+                # no ambiguity risk (equipment-slot investigation).
+                parts = command.split()
+                if len(parts) > 1:
+                    self.equip_armor(' '.join(parts[1:]))
+                else:
+                    self.io.say("Missing armor name for wear.")
+            elif command.startswith(('dropa', 'da')):
+                # Checked before the generic 'drop' below - 'dropa'
+                # itself starts with 'drop', so this must come first
+                # or the weapon-drop branch would swallow it.
+                parts = command.split()
+                if len(parts) > 1:
+                    self.drop_armor(' '.join(parts[1:]))
+                else:
+                    self.io.say("Missing armor name for dropa.")
             elif command.startswith(('equip', 'eq')):
                 parts = command.split()
                 if len(parts) > 1:
@@ -435,6 +456,8 @@ class UIMixin:
         self.io.say("  drop [name]                             - Drop a weapon (salvages any ammo it's holding)")
         if isinstance(self.equipped_weapon, RangedWeapon):
             self.io.say("  reload [name]                           - Reload to max, drawing from your ammo pool")
+        self.io.say("  wr [name] (wear)                        - Equip armor from your inventory")
+        self.io.say("  da [name] (dropa)                       - Drop a piece of armor")
         if self.backpack.food > 0:
             self.io.say("  ea (eat)                                - Consume food to reduce hunger and restore health")
         if self.backpack.water > 0:
@@ -464,6 +487,9 @@ class UIMixin:
         # behavior (actions_mixin.py).
         for line in format_weapon_list(self.backpack.weapons):
             self.io.say(f"- {line}")
+        self.io.say("Armor:")
+        for line in format_armor_list(self.backpack.armor):
+            self.io.say(f"- {line}")
         # Display other inventory items as needed
 
     def stats(self):
@@ -480,6 +506,10 @@ class UIMixin:
             self.io.say(f"Equipped Weapon: {self.equipped_weapon.name}")
         else:
             self.io.say("Equipped Weapon: None")
+        if self.equipped_armor:
+            self.io.say(f"Equipped Armor: {self.equipped_armor.name}")
+        else:
+            self.io.say("Equipped Armor: None")
 
     def _map_command_to_action(self, command):
         if command in ('eat', 'ea'): return 'eat'
@@ -489,6 +519,8 @@ class UIMixin:
         if command == 'm': return 'map'
         if command in ('n', 's', 'e', 'w'): return 'move'
         if command in ('rest', 'r'): return 'rest'
+        if command.startswith(('wear', 'wr')): return 'equip'
+        if command.startswith(('dropa', 'da')): return 'drop'
         if command.startswith(('equip', 'eq')): return 'equip'
         if command.startswith('drop'): return 'drop'
         if command.startswith('reload'): return 'reload'

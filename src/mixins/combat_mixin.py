@@ -249,8 +249,12 @@ class CombatMixin:
 
     def take_damage(self, damage):
         """
-        Reduces the player's health by the specified damage amount.
+        Reduces the player's health by the specified damage amount,
+        after equipped armor absorbs its share (equipment-slot
+        investigation).
         """
+        if self.equipped_armor:
+            damage = self.equipped_armor.absorb(damage)
         self.health -= damage
         self.io.say(f"The {self.name} takes {damage} damage. Its current health is {self.health}.")
         if self.health <= 0:

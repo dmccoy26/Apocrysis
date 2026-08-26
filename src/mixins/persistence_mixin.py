@@ -6,7 +6,7 @@ import json
 import os
 import re
 
-from src.items import MeleeWeapon, RangedWeapon
+from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.objectives import Goal, Task
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
@@ -54,6 +54,24 @@ def _deserialize_weapon(w_data):
         return w
     else:
         raise ValueError(f'Unknown weapon type: {w_type}')
+
+
+def _serialize_armor(a):
+    return {
+        "name": a.name,
+        "damage_reduction": a.damage_reduction,
+        "durability": a.durability,
+        "max_durability": a.max_durability,
+    }
+
+
+def _deserialize_armor(a_data):
+    armor = Armor(
+        a_data.get("name"), a_data.get("damage_reduction"),
+        a_data.get("max_durability", 10),
+    )
+    armor.durability = a_data.get("durability", armor.max_durability)
+    return armor
 
 
 class PersistenceMixin:
@@ -136,6 +154,8 @@ class PersistenceMixin:
             "backpack_ammo": self.backpack.ammo,
             "weapons": [],
             "equipped_weapon": None,
+            "armor": [],
+            "equipped_armor": None,
             "goals": [{"title": g.title, "description": g.description, "completed": g.completed, "reward_type": g.reward_type, "reward_amount": g.reward_amount, "goal_type": getattr(g, 'goal_type', "")} for g in self.goals],
             "tasks": [{"title": t.title, "description": t.description, "completed": t.completed, "reward_type": t.reward_type, "reward_amount": t.reward_amount, "task_type": getattr(t, 'task_type', "")} for t in self.tasks],
             "status_effects": self.status_effects,
@@ -148,6 +168,12 @@ class PersistenceMixin:
 
         if self.equipped_weapon:
             data["equipped_weapon"] = _serialize_weapon(self.equipped_weapon)
+
+        for a in self.backpack.armor:
+            data["armor"].append(_serialize_armor(a))
+
+        if self.equipped_armor:
+            data["equipped_armor"] = _serialize_armor(self.equipped_armor)
 
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
@@ -253,6 +279,13 @@ class PersistenceMixin:
         if eq_w_data and eq_w_data.get("name"):
             player.equipped_weapon = _deserialize_weapon(eq_w_data)
 
+        for a_data in data.get("armor", []):
+            player.backpack.armor.append(_deserialize_armor(a_data))
+
+        eq_a_data = data.get("equipped_armor")
+        if eq_a_data and eq_a_data.get("name"):
+            player.equipped_armor = _deserialize_armor(eq_a_data)
+
 
         # Real bug found live: this used to APPEND the save's goals
         # onto whatever fresh __init__ already created, duplicating
@@ -331,6 +364,12 @@ class PersistenceMixin:
             "equipped_weapon": (
                 _serialize_weapon(self.equipped_weapon)
                 if self.equipped_weapon
+                else None
+            ),
+            "armor": [_serialize_armor(a) for a in self.backpack.armor],
+            "equipped_armor": (
+                _serialize_armor(self.equipped_armor)
+                if self.equipped_armor
                 else None
             ),
             "hardcore": getattr(self, "hardcore", False),
@@ -446,3 +485,10 @@ class PersistenceMixin:
         eq_w_data = profile.get("equipped_weapon")
         if eq_w_data and eq_w_data.get("name"):
             self.equipped_weapon = _deserialize_weapon(eq_w_data)
+
+        for a_data in profile.get("armor", []):
+            self.backpack.armor.append(_deserialize_armor(a_data))
+
+        eq_a_data = profile.get("equipped_armor")
+        if eq_a_data and eq_a_data.get("name"):
+            self.equipped_armor = _deserialize_armor(eq_a_data)

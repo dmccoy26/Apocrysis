@@ -115,3 +115,13 @@ LOOT_WEAPON_TABLE = {
     "Broken Rifle": {"type": "ranged", "damage": 10, "max_ammo": 5, "durability": 15, "min_expedition": 0},
     "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45, "min_expedition": 2},
 }
+
+# Equipment-slot investigation: a single body-armor slot, banded by
+# expeditions_completed the same way LOOT_WEAPON_TABLE is - stronger
+# armor only starts appearing on later expeditions.
+ARMOR_TABLE = {
+    "Padded Vest": {"reduction": 2, "durability": 30, "min_expedition": 0},
+    "Leather Jacket": {"reduction": 4, "durability": 50, "min_expedition": 0},
+    "Kevlar Vest": {"reduction": 7, "durability": 70, "min_expedition": 3},
+    "Riot Armor": {"reduction": 10, "durability": 100, "min_expedition": 6},
+}

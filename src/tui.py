@@ -23,7 +23,7 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
-from src.items import format_weapon_list
+from src.items import format_weapon_list, format_armor_list
 from src.mixins.persistence_mixin import profile_filename_for_name
 
 
@@ -402,17 +402,26 @@ class ApocrysisApp(App):
         # what's equipped without typing "i". str(weapon) already
         # carries damage/durability (items.py) - use it here too.
         equipped = str(p.equipped_weapon) if p.equipped_weapon else "None"
+        equipped_armor = str(p.equipped_armor) if p.equipped_armor else "None"
         backpack_weapons = (
             "\n  ".join(format_weapon_list(p.backpack.weapons))
             if p.backpack.weapons
             else "(none)"
         )
+        backpack_armor = (
+            "\n  ".join(format_armor_list(p.backpack.armor))
+            if p.backpack.armor
+            else "(none)"
+        )
+        day_phase = getattr(p, "day_phase", "night" if p.is_night else "day").title()
         stats_widget.update(
             f"{p.name} - Level {p.level}\n"
             f"XP: {p.xp}/{p.max_xp}\n"
-            f"Day {p.day} - {'Night' if p.is_night else 'Day'}\n"
+            f"Day {p.day} - {day_phase}\n"
             f"Equipped: {equipped}\n"
+            f"Armor: {equipped_armor}\n"
             f"Backpack weapons:\n  {backpack_weapons}\n"
+            f"Backpack armor:\n  {backpack_armor}\n"
             f"Food {p.backpack.food}  Water {p.backpack.water}  "
             f"Medicine {p.backpack.medicine}  Ammo {p.backpack.ammo}\n"
         )

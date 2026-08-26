@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
-from src.items import Backpack, MeleeWeapon, RangedWeapon
+from src.items import Backpack, MeleeWeapon, RangedWeapon, Armor
 from src.mixins.persistence_mixin import profile_filename_for_name
 from src.player import PlayerClass
 from src.text_utils import _visible_len, _display_ljust
@@ -109,6 +109,124 @@ class TestWeapons(unittest.TestCase):
         text = str(weapon)
         self.assertIn("Ammo: 5/5", text)
         self.assertIn("Durability: 15/15", text)
+
+
+class TestArmor(unittest.TestCase):
+    """Equipment-slot investigation: a single equipped_armor slot."""
+
+    def setUp(self):
+        with patch("builtins.print"):
+            self.game = Apocrysis("ArmorTest", map_size=8, seed=1)
+
+    def tearDown(self):
+        # Only test_apply_profile_restores_equipped_armor_across_
+        # expeditions below actually writes a profile file, but
+        # cleaning up here regardless keeps this self-contained rather
+        # than relying on the test remembering to do it inline.
+        f = profile_filename_for_name("ArmorProfileTest")
+        if os.path.exists(f):
+            os.remove(f)
+
+    def test_armor_absorbs_damage_and_degrades_durability(self):
+        self.game.equipped_armor = Armor("Padded Vest", 3, durability=2)
+        self.game.health = 100
+
+        with patch("builtins.print"):
+            self.game.take_damage(10)
+
+        self.assertEqual(self.game.health, 93)  # 10 - 3 reduction
+        self.assertEqual(self.game.equipped_armor.durability, 1)
+
+    def test_broken_armor_absorbs_nothing(self):
+        self.game.equipped_armor = Armor("Padded Vest", 3, durability=0)
+        self.game.health = 100
+
+        with patch("builtins.print"):
+            self.game.take_damage(10)
+
+        self.assertEqual(self.game.health, 90)  # full damage, armor broken
+
+    def test_no_armor_equipped_takes_full_damage(self):
+        self.game.equipped_armor = None
+        self.game.health = 100
+
+        with patch("builtins.print"):
+            self.game.take_damage(10)
+
+        self.assertEqual(self.game.health, 90)
+
+    def test_equip_armor_swaps_and_returns_previous(self):
+        a1 = Armor("Padded Vest", 2, 30)
+        a2 = Armor("Kevlar Vest", 7, 70)
+        self.game.equipped_armor = a1
+        self.game.backpack.armor.append(a2)
+
+        with patch("builtins.print"):
+            self.game.equip_armor("kevlar vest")
+
+        self.assertEqual(self.game.equipped_armor.name, "Kevlar Vest")
+        self.assertIn(a1, self.game.backpack.armor)
+        self.assertNotIn(a2, self.game.backpack.armor)
+
+    def test_drop_armor_removes_equipped_or_backpack_piece(self):
+        a1 = Armor("Padded Vest", 2, 30)
+        self.game.equipped_armor = a1
+
+        with patch("builtins.print"):
+            self.game.drop_armor("padded vest")
+
+        self.assertIsNone(self.game.equipped_armor)
+
+    def test_find_loot_respects_armor_carry_cap(self):
+        x, y = self.game.current_position
+        self.game.map[y][x]["terrain"] = "building"
+        for _ in range(self.game.backpack.MAX_ARMOR):
+            self.game.backpack.armor.append(Armor("Filler", 1, 1))
+
+        with patch.object(self.game.rng, "random", return_value=0.0), \
+             patch.object(self.game.rng, "choice", side_effect=["armor", "Padded Vest"]), \
+             patch("builtins.print"):
+            self.game.find_loot()
+
+        self.assertEqual(len(self.game.backpack.armor), self.game.backpack.MAX_ARMOR)
+
+    def test_armor_drops_respect_min_expedition_banding(self):
+        # Riot Armor has min_expedition=6 - shouldn't be an eligible
+        # option at all at expeditions_completed=0.
+        with patch("builtins.print"):
+            game = Apocrysis("ArmorBandTest", map_size=8, seed=1, expeditions_completed=0)
+        x, y = game.current_position
+        game.map[y][x]["terrain"] = "building"
+
+        def _choice(options):
+            if "armor" in options:
+                return "armor"
+            self.assertNotIn("Riot Armor", options)
+            self.assertNotIn("Kevlar Vest", options)
+            return options[0]
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=_choice), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertEqual(len(game.backpack.armor), 1)
+
+    def test_apply_profile_restores_equipped_armor_across_expeditions(self):
+        with patch("builtins.print"):
+            source = Apocrysis("ArmorProfileTest", map_size=8, seed=1)
+        source.equipped_armor = Armor("Kevlar Vest", 7, 70)
+        filename = profile_filename_for_name(source.name)
+        source.save_profile(filename)
+        profile = Apocrysis.load_profile(filename)
+
+        with patch("builtins.print"):
+            fresh = Apocrysis("ArmorProfileTest", map_size=8, seed=2)
+        fresh.apply_profile(profile)
+
+        self.assertIsNotNone(fresh.equipped_armor)
+        self.assertEqual(fresh.equipped_armor.name, "Kevlar Vest")
+        self.assertEqual(fresh.equipped_armor.damage_reduction, 7)
 
 
 class TestLootWeapons(unittest.TestCase):

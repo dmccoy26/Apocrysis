@@ -1613,6 +1613,30 @@ class TestCombatV3(unittest.TestCase):
         )
         self.assertLess(heavy_count, 60)
 
+    def test_composition_ramps_smoothly_not_in_hard_brackets(self):
+        # Real campaign-simulation finding: the old <=2/<=6/else hard
+        # brackets produced a severe difficulty cliff right at the
+        # <=6/>6 boundary (avg attempts-to-clear jumped from 2-4 to
+        # 40+ between expeditions_completed 6 and 7). Composition now
+        # interpolates continuously - HeavyZombie's weight at the
+        # midpoint (expeditions_completed=5, half of CAMPAIGN_LENGTH)
+        # must sit strictly between its early (0.03) and late (0.25)
+        # values, not jump straight to either endpoint.
+        from src.constants import CAMPAIGN_LENGTH
+        with patch("builtins.print"):
+            game = Apocrysis("SmoothTest", map_size=8, seed=5)
+        game.expeditions_completed = CAMPAIGN_LENGTH // 2
+
+        heavy_count = sum(
+            1 for _ in range(1000)
+            if type(game._select_zombie_for_encounter()) is HeavyZombie
+        )
+        # Early-bracket rate (~15/1000) and late-bracket rate (~250/1000)
+        # bound the expected midpoint band; a real regression back to
+        # hard brackets would land outside it, not just near an edge.
+        self.assertGreater(heavy_count, 60)
+        self.assertLess(heavy_count, 200)
+
     def test_elite_variant_boosts_stats_and_renames_zombie(self):
         with patch("builtins.print"):
             game = Apocrysis("EliteTest", map_size=8, seed=1, expeditions_completed=5)

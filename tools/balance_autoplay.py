@@ -16,6 +16,31 @@ Run:
     python3 tools/balance_autoplay.py
     python3 tools/balance_autoplay.py --games 30 --max-turns 500
     python3 tools/balance_autoplay.py --level 5 --seed 42 --verbose
+    python3 tools/balance_autoplay.py --expeditions-completed 6 --games 200
+
+Updated for the map/player/campaign-level split: map size, obstacle
+density, zombie composition/elites, and loot banding (both weapons
+and armor) are now driven by expeditions_completed, NOT player level
+- --level alone (the only axis this harness varied before that split)
+now only affects starting combat stats, against a map/loot pool that
+doesn't change with it at all. Pass --expeditions-completed to
+actually vary map/loot difficulty; the two are independent by design,
+so testing a level/expeditions combination that wouldn't arise from
+normal single-campaign play (e.g. high level, expeditions_completed=0)
+is a deliberate, valid thing to do here, not a harness bug - just be
+aware of which axis you're testing.
+
+The reverse combination has its own caveat: every game here starts a
+completely fresh, gearless BalanceBot (empty backpack, starter
+weapon only) at whatever --expeditions-completed you pass. In real
+play, reaching expedition 9 means having accumulated loot/crafted
+gear getting there - a level-15 character with zero gear thrown
+straight at expedition-9 zombie composition/elites (confirmed live:
+100% death rate across 30 games, several within the very first
+encounter) is testing "zero-gear player vs late-game difficulty," not
+a realistic point in a real campaign either. High --expeditions-
+completed values are most meaningful paired with a --level roughly
+consistent with having actually played that many expeditions.
 """
 
 import argparse
@@ -42,8 +67,16 @@ _ZOMBIE_HIT_RE = re.compile(r"^The .+ takes (\d+) damage\.$")
 _PLAYER_HIT_RE = re.compile(r"^The .+ takes (\d+) damage\. Its current health is (-?\d+)\.$")
 _ENCOUNTER_RE = re.compile(r"^Encountered a (.+)! What will you do\?$")
 _ZOMBIE_DEFEATED_RE = re.compile(r"^The (.+) has been defeated!$")
-_OBTAINED_RE = re.compile(r"^You obtained a (.+)\.$")
+_OBTAINED_WEAPON_RE = re.compile(r"^You obtained a (.+)\.$")
+# Distinct from weapon's "You obtained a {name}." - find_loot()'s
+# armor branch omits the article: "You obtained {name}." (world_mixin.
+# py). The old single `_OBTAINED_RE` never matched armor at all, so
+# every armor pickup across every prior run of this harness was
+# silently uncounted, not just unreported.
+_OBTAINED_ARMOR_RE = re.compile(r"^You obtained (?!a )(.+)\.$")
 _CRAFTED_RE = re.compile(r"^Crafted a (.+)!$")
+_FLASHLIGHT_FOUND_RE = re.compile(r"^You found a working flashlight!")
+_CAMPAIGN_COMPLETE_RE = re.compile(r"CAMPAIGN COMPLETE!")
 
 
 class Metrics:
@@ -54,6 +87,7 @@ class Metrics:
         self.outcome = None  # 'won' | 'died' | 'timeout'
         self.final_level = 1
         self.final_day = 1
+        self.final_expeditions_completed = 0
         self.min_health = 100
         self.health_samples = []
         self.hits_dealt = []          # (level, damage) per hit landed on a zombie
@@ -62,11 +96,16 @@ class Metrics:
         self.fights = 0
         self.zombies_defeated = 0
         self.weapons_looted = []
+        self.armor_looted = []
         self.crafted = []
         self.drops_issued = 0
         self.reloads_issued = 0
         self.equips_issued = 0
-        self.max_weapon_damage_by_level = {}
+        self.armor_equips_issued = 0
+        self.flashlights_found = 0
+        self.campaign_completions = 0
+        self.max_weapon_damage_by_expedition = {}
+        self.max_armor_reduction_by_expedition = {}
         self._current_zombie_name = None
 
     def observe_line(self, text):
@@ -96,14 +135,27 @@ class Metrics:
             self._current_zombie_name = None
             return
 
-        m = _OBTAINED_RE.match(text)
+        m = _OBTAINED_WEAPON_RE.match(text)
         if m:
             self.weapons_looted.append(m.group(1))
+            return
+
+        m = _OBTAINED_ARMOR_RE.match(text)
+        if m:
+            self.armor_looted.append(m.group(1))
             return
 
         m = _CRAFTED_RE.match(text)
         if m:
             self.crafted.append(m.group(1))
+            return
+
+        if _FLASHLIGHT_FOUND_RE.match(text):
+            self.flashlights_found += 1
+            return
+
+        if _CAMPAIGN_COMPLETE_RE.search(text):
+            self.campaign_completions += 1
             return
 
 
@@ -116,6 +168,14 @@ def _weapon_power(weapon):
     if isinstance(weapon, RangedWeapon):
         usable = usable and weapon.ammo > 0
     return (usable, weapon.damage)
+
+
+def _armor_power(armor):
+    """(is_usable_right_now, damage_reduction) - equipment-slot
+    investigation's Armor, same shape as _weapon_power() above."""
+    if armor is None:
+        return (False, -1)
+    return (armor.durability > 0, armor.damage_reduction)
 
 
 def _find_town_center(player):
@@ -211,24 +271,48 @@ class BotIO:
         self.metrics.turns += 1
         self.metrics.final_level = p.level
         self.metrics.final_day = p.day
+        self.metrics.final_expeditions_completed = p.expeditions_completed
         self.metrics.min_health = min(self.metrics.min_health, p.health)
         self.metrics.health_samples.append(p.health)
-        self.metrics.max_weapon_damage_by_level[p.level] = max(
-            self.metrics.max_weapon_damage_by_level.get(p.level, 0),
+        exp = p.expeditions_completed
+        self.metrics.max_weapon_damage_by_expedition[exp] = max(
+            self.metrics.max_weapon_damage_by_expedition.get(exp, 0),
             _weapon_power(p.equipped_weapon)[1],
             max((w.damage for w in p.backpack.weapons), default=0),
+        )
+        self.metrics.max_armor_reduction_by_expedition[exp] = max(
+            self.metrics.max_armor_reduction_by_expedition.get(exp, 0),
+            max((_armor_power(a)[1] for a in p.equipped_armor.values()), default=0),
+            max((a.damage_reduction for a in p.backpack.armor), default=0),
         )
 
         if self.metrics.turns > self.max_turns:
             return 'x'
 
-        # 1. Swap in a strictly stronger working weapon if the
-        #    backpack has one - equip_weapon() puts the old one back,
-        #    so this never loses gear, just tests the equip path.
+        # 1a. Swap in a strictly stronger working weapon if the
+        #     backpack has one - equip_weapon() puts the old one back,
+        #     so this never loses gear, just tests the equip path.
         best = max(p.backpack.weapons, key=_weapon_power, default=None)
         if best is not None and _weapon_power(best) > _weapon_power(p.equipped_weapon):
             self.metrics.equips_issued += 1
             return f"eq {best.name}"
+
+        # 1b. Same idea for armor, but per-slot (equipment-slot
+        #     investigation, multi-piece follow-up: four independent
+        #     slots, not one) - pick whichever single upgrade across
+        #     any slot improves that slot's reduction the most, one
+        #     per turn, same pacing as the weapon swap above.
+        best_armor_upgrade = None
+        best_armor_delta = 0
+        for piece in p.backpack.armor:
+            current = p.equipped_armor.get(piece.slot)
+            delta = _armor_power(piece)[1] - _armor_power(current)[1]
+            if _armor_power(piece) > _armor_power(current) and delta > best_armor_delta:
+                best_armor_upgrade = piece
+                best_armor_delta = delta
+        if best_armor_upgrade is not None:
+            self.metrics.armor_equips_issued += 1
+            return f"wr {best_armor_upgrade.name}"
 
         # 2. Survival triage, most urgent first.
         if p.health <= p.max_health * 0.4 and p.backpack.medicine > 0:
@@ -251,14 +335,21 @@ class BotIO:
             self.metrics.reloads_issued += 1
             return f"reload {eq.name}"
 
-        # 4. Thin out duplicate weapons once they start piling up -
-        #    exercises the new drop command instead of letting the
-        #    backpack grow unbounded.
+        # 4. Thin out duplicate weapons/armor once they start piling
+        #    up - exercises the drop/dropa commands instead of
+        #    letting the backpack grow unbounded (armor has its own
+        #    much smaller MAX_ARMOR cap than weapons' MAX_WEAPONS).
         counts = Counter(w.name for w in p.backpack.weapons)
         for name, count in counts.items():
             if count > 2:
                 self.metrics.drops_issued += 1
                 return f"drop {name}"
+
+        armor_counts = Counter(a.name for a in p.backpack.armor)
+        for name, count in armor_counts.items():
+            if count > 2:
+                self.metrics.drops_issued += 1
+                return f"dropa {name}"
 
         # 5. Occasionally try crafting - cheap way to sample whether
         #    the recipe system produces a big power spike.
@@ -307,9 +398,12 @@ class BotIO:
         return random.choice(legal) if legal else 'n'
 
 
-def play_one_game(level, seed, max_turns, verbose=False):
+def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False):
     io = BotIO(max_turns=max_turns, verbose=verbose)
-    player = Apocrysis("BalanceBot", level=level, seed=seed, io=io)
+    player = Apocrysis(
+        "BalanceBot", level=level, expeditions_completed=expeditions_completed,
+        seed=seed, io=io,
+    )
     io.player = player
 
     player.run_game_loop()
@@ -324,15 +418,93 @@ def play_one_game(level, seed, max_turns, verbose=False):
     return io.metrics
 
 
+def play_campaign(seed, max_turns, max_attempts_per_tier, verbose=False):
+    """
+    Simulates one full campaign from a fresh level-1 character: plays
+    consecutive expeditions with ONE persisting character, reusing the
+    real game's own save_profile()/apply_profile() to carry level/xp/
+    stats/backpack/weapons/armor forward exactly the way cli.py's
+    main() loop does - a win advances expeditions_completed and keeps
+    everything; a death keeps everything BUT expeditions_completed
+    (retry the same tier, matching the real non-hardcore death-
+    preserves-progress behavior); health resets fresh either way via a
+    brand-new Apocrysis instance. A timeout (turn cap hit) also
+    retries the same tier, same as a death.
+
+    Returns a dict: reached_campaign_length (bool), total_attempts,
+    attempts_per_expedition (dict: expeditions_completed -> attempt
+    count spent at that tier before advancing or giving up),
+    final_level, stuck_at (the expeditions_completed value it gave up
+    at, or None if it completed).
+    """
+    import tempfile
+    from src.constants import CAMPAIGN_LENGTH
+
+    profile = None
+    level = 1
+    expeditions_completed = 0
+    total_attempts = 0
+    attempts_per_expedition = defaultdict(int)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        profile_path = os.path.join(tmp, 'campaign_profile.json')
+
+        while expeditions_completed < CAMPAIGN_LENGTH:
+            attempts_per_expedition[expeditions_completed] += 1
+            total_attempts += 1
+
+            if attempts_per_expedition[expeditions_completed] > max_attempts_per_tier:
+                return {
+                    'reached_campaign_length': False,
+                    'total_attempts': total_attempts,
+                    'attempts_per_expedition': dict(attempts_per_expedition),
+                    'final_level': level,
+                    'stuck_at': expeditions_completed,
+                }
+
+            attempt_seed = None if seed is None else seed + total_attempts
+
+            io = BotIO(max_turns=max_turns, verbose=verbose)
+            player = Apocrysis(
+                'CampaignBot', level=level,
+                expeditions_completed=expeditions_completed,
+                seed=attempt_seed, io=io,
+            )
+            if profile is not None:
+                player.apply_profile(profile)
+            io.player = player
+
+            player.run_game_loop()
+
+            level = player.level
+            if player.won:
+                expeditions_completed = player.expeditions_completed
+            # else: died or timed out - expeditions_completed unchanged, retry same tier
+
+            player.save_profile(profile_path)
+            profile = Apocrysis.load_profile(profile_path)
+
+    return {
+        'reached_campaign_length': True,
+        'total_attempts': total_attempts,
+        'attempts_per_expedition': dict(attempts_per_expedition),
+        'final_level': level,
+        'stuck_at': None,
+    }
+
+
 def _fmt(values):
     if not values:
         return "n/a"
     return f"avg {statistics.mean(values):.1f}, min {min(values)}, max {max(values)}"
 
 
-def print_report(all_metrics, games, level, max_turns):
+def print_report(all_metrics, games, level, expeditions_completed, max_turns):
     print(f"\n{'=' * 60}")
-    print(f"Apocrysis balance report - {games} game(s), start level {level}, cap {max_turns} turns")
+    print(
+        f"Apocrysis balance report - {games} game(s), start level {level}, "
+        f"expeditions_completed {expeditions_completed}, cap {max_turns} turns"
+    )
     print(f"{'=' * 60}\n")
 
     outcomes = Counter(m.outcome for m in all_metrics)
@@ -344,10 +516,12 @@ def print_report(all_metrics, games, level, max_turns):
     levels = [m.final_level for m in all_metrics]
     days = [m.final_day for m in all_metrics]
     min_health = [m.min_health for m in all_metrics]
+    final_expeditions = [m.final_expeditions_completed for m in all_metrics]
 
     print(f"\nTurns to finish : {_fmt(turns)}")
     print(f"Final level      : {_fmt(levels)}")
     print(f"Final day        : {_fmt(days)}")
+    print(f"Final expeditions_completed: {_fmt(final_expeditions)}")
     print(f"Lowest health seen: {_fmt(min_health)}")
 
     near_death = sum(1 for m in all_metrics if m.min_health <= 15)
@@ -396,14 +570,30 @@ def print_report(all_metrics, games, level, max_turns):
     for name, count in weapon_names.most_common(10):
         print(f"  {name}: {count}")
 
-    max_dmg_by_level = defaultdict(list)
+    armor_names = Counter(a for m in all_metrics for a in m.armor_looted)
+    print(f"\nArmor looted (total {sum(armor_names.values())}):")
+    for name, count in armor_names.most_common(10):
+        print(f"  {name}: {count}")
+
+    # Bucketed by expeditions_completed, not player level - map/loot
+    # generation now key off expeditions_completed (map/player/
+    # campaign-level split), so that's the axis that actually
+    # determines what's reachable, independent of combat level.
+    max_dmg_by_expedition = defaultdict(list)
+    max_reduction_by_expedition = defaultdict(list)
     for m in all_metrics:
-        for lvl, dmg in m.max_weapon_damage_by_level.items():
-            max_dmg_by_level[lvl].append(dmg)
-    if max_dmg_by_level:
-        print("\nBest weapon damage available, by player level:")
-        for lvl in sorted(max_dmg_by_level):
-            print(f"  level {lvl:>2}: {_fmt(max_dmg_by_level[lvl])}")
+        for exp, dmg in m.max_weapon_damage_by_expedition.items():
+            max_dmg_by_expedition[exp].append(dmg)
+        for exp, reduction in m.max_armor_reduction_by_expedition.items():
+            max_reduction_by_expedition[exp].append(reduction)
+    if max_dmg_by_expedition:
+        print("\nBest weapon damage available, by expeditions_completed:")
+        for exp in sorted(max_dmg_by_expedition):
+            print(f"  expeditions_completed {exp:>2}: {_fmt(max_dmg_by_expedition[exp])}")
+    if max_reduction_by_expedition:
+        print("\nBest armor reduction available (any one slot), by expeditions_completed:")
+        for exp in sorted(max_reduction_by_expedition):
+            print(f"  expeditions_completed {exp:>2}: {_fmt(max_reduction_by_expedition[exp])}")
 
     crafted = Counter(c for m in all_metrics for c in m.crafted)
     if crafted:
@@ -411,9 +601,16 @@ def print_report(all_metrics, games, level, max_turns):
         for name, count in crafted.most_common():
             print(f"  {name}: {count}")
 
-    print(f"\nDrop command used  : {sum(m.drops_issued for m in all_metrics)} time(s)")
-    print(f"Reload command used: {sum(m.reloads_issued for m in all_metrics)} time(s)")
-    print(f"Equip swaps        : {sum(m.equips_issued for m in all_metrics)} time(s)")
+    total_flashlights = sum(m.flashlights_found for m in all_metrics)
+    total_campaign_completions = sum(m.campaign_completions for m in all_metrics)
+
+    print(f"\nDrop command used   : {sum(m.drops_issued for m in all_metrics)} time(s)")
+    print(f"Reload command used : {sum(m.reloads_issued for m in all_metrics)} time(s)")
+    print(f"Weapon equip swaps  : {sum(m.equips_issued for m in all_metrics)} time(s)")
+    print(f"Armor equip swaps   : {sum(m.armor_equips_issued for m in all_metrics)} time(s)")
+    print(f"Flashlights found   : {total_flashlights}/{games} game(s)")
+    print(f"Campaign completions: {total_campaign_completions}/{games} game(s) "
+          f"(expeditions_completed reaching CAMPAIGN_LENGTH mid-game)")
 
     print(f"\n{'-' * 60}")
     print("Signals worth a human look:")
@@ -435,6 +632,27 @@ def print_report(all_metrics, games, level, max_turns):
             signals.append(f"- dealt:taken ratio grows from {first_ratio:.2f}x at level {levels_seen[0]} to {last_ratio:.2f}x at level {levels_seen[-1]} - player power is outscaling zombie difficulty.")
     if outcomes.get("timeout", 0) / games > 0.3 if games else False:
         signals.append(f"- {outcomes.get('timeout', 0)}/{games} games hit the turn cap without winning or dying - either the map/win condition takes very long, or the bot's pathing is getting stuck (check with --verbose).")
+    if expeditions_completed == 0 and level > 5:
+        signals.append(
+            f"- start level {level} with expeditions_completed=0: map size/obstacle "
+            "density/zombie composition/elites and loot banding (both weapons and "
+            "armor) are all still at their easiest/smallest tier regardless of "
+            "level - this combination tests raw combat power against the weakest "
+            "possible map, not a realistic point in a real campaign. Pass "
+            "--expeditions-completed to test actual map/loot difficulty."
+        )
+    death_rate = outcomes.get("died", 0) / games if games else 0
+    if death_rate >= 0.5 and expeditions_completed >= 3:
+        signals.append(
+            f"- {death_rate * 100:.0f}% death rate at expeditions_completed="
+            f"{expeditions_completed}: every game here starts a completely fresh, "
+            "gearless character at that difficulty tier - real play would have "
+            "accumulated loot/crafted gear getting there. A high death rate here "
+            "may mean the zombie composition/elite chance at this expedition "
+            "count is genuinely too harsh for a GEARLESS character specifically, "
+            "not necessarily too harsh overall - re-run with a --level roughly "
+            "consistent with having played that many expeditions before judging."
+        )
     if not signals:
         signals.append("- nothing jumped out automatically; read the numbers above directly.")
     for s in signals:
@@ -442,24 +660,83 @@ def print_report(all_metrics, games, level, max_turns):
     print()
 
 
+def print_campaign_report(campaign_results, runs, max_attempts_per_tier):
+    print(f"\n{'=' * 60}")
+    print(f"Apocrysis CAMPAIGN report - {runs} campaign run(s), max {max_attempts_per_tier} attempts per expedition tier")
+    print(f"{'=' * 60}\n")
+
+    completed = sum(1 for r in campaign_results if r['reached_campaign_length'])
+    print(f"Campaigns completed (reached CAMPAIGN_LENGTH): {completed}/{runs}")
+
+    attempts = [r['total_attempts'] for r in campaign_results]
+    print(f"Total attempts per campaign: {_fmt(attempts)}")
+
+    final_levels = [r['final_level'] for r in campaign_results]
+    print(f"Final level reached: {_fmt(final_levels)}")
+
+    stuck = Counter(r['stuck_at'] for r in campaign_results if r['stuck_at'] is not None)
+    if stuck:
+        print("\nCampaigns that gave up, by expedition tier they got stuck at:")
+        for tier in sorted(stuck):
+            print(f"  expeditions_completed {tier:>2}: {stuck[tier]} campaign(s)")
+
+    # Average attempts needed per expedition tier, across all campaigns
+    # that got at least that far - shows WHERE difficulty spikes are,
+    # not just whether the whole campaign succeeded.
+    tier_attempts = defaultdict(list)
+    for r in campaign_results:
+        for tier, count in r['attempts_per_expedition'].items():
+            tier_attempts[tier].append(count)
+    if tier_attempts:
+        print("\nAverage attempts needed to clear each expedition tier:")
+        for tier in sorted(tier_attempts):
+            print(f"  expeditions_completed {tier:>2}: {_fmt(tier_attempts[tier])}  (n={len(tier_attempts[tier])} campaigns reached this tier)")
+
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--games", type=int, default=20, help="number of games to simulate (default: 20)")
     parser.add_argument("--level", type=int, default=1, help="starting level for every game (default: 1)")
+    parser.add_argument(
+        "--expeditions-completed", type=int, default=0,
+        help="starting expeditions_completed for every game (default: 0) - "
+             "drives map size/obstacle density/zombie composition & elites/loot "
+             "banding (weapons and armor), independent of --level since the "
+             "map/player/campaign-level split",
+    )
     parser.add_argument("--max-turns", type=int, default=400, help="per-game turn cap, to bound runaway/stuck games (default: 400)")
     parser.add_argument("--seed", type=int, default=None, help="base seed - each game uses seed+i for reproducibility; omit for random")
     parser.add_argument("--verbose", action="store_true", help="print every game message as it's generated")
+    parser.add_argument("--campaign", action="store_true", help="simulate full campaigns (consecutive expeditions, one persisting character per run) instead of isolated single games")
+    parser.add_argument("--campaign-runs", type=int, default=10, help="number of independent campaign playthroughs to simulate (default: 10, only used with --campaign)")
+    parser.add_argument("--campaign-max-attempts", type=int, default=50, help="max retry attempts allowed at a single expedition tier before giving up on that campaign run (default: 50, only used with --campaign)")
     args = parser.parse_args()
+
+    if args.campaign:
+        campaign_results = []
+        for i in range(args.campaign_runs):
+            seed = None if args.seed is None else args.seed + i * 10000
+            result = play_campaign(seed, args.max_turns, args.campaign_max_attempts, verbose=args.verbose)
+            campaign_results.append(result)
+            status = "completed" if result['reached_campaign_length'] else f"stuck at expedition {result['stuck_at']}"
+            print(f"campaign {i + 1}/{args.campaign_runs}: {status} after {result['total_attempts']} attempts, final level {result['final_level']}")
+        print_campaign_report(campaign_results, args.campaign_runs, args.campaign_max_attempts)
+        return
 
     all_metrics = []
     for i in range(args.games):
         seed = None if args.seed is None else args.seed + i
-        metrics = play_one_game(args.level, seed, args.max_turns, verbose=args.verbose)
+        metrics = play_one_game(
+            args.level, args.expeditions_completed, seed, args.max_turns,
+            verbose=args.verbose,
+        )
         all_metrics.append(metrics)
         print(f"game {i + 1}/{args.games}: {metrics.outcome} in {metrics.turns} turns, "
               f"final level {metrics.final_level}, min health {metrics.min_health}")
 
-    print_report(all_metrics, args.games, args.level, args.max_turns)
+    print_report(all_metrics, args.games, args.level, args.expeditions_completed, args.max_turns)
 
 
 if __name__ == "__main__":

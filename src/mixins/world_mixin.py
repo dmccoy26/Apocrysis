@@ -324,12 +324,18 @@ class WorldMixin:
         # grinds one map indefinitely no longer faces ever-scarier
         # zombies from that alone; finishing expeditions is what
         # brings in tougher composition.
-        if self.expeditions_completed <= 2:
-            weights = [0.55, 0.20, 0.03, 0.15, 0.05, 0.02]
-        elif self.expeditions_completed <= 6:
-            weights = [0.25, 0.25, 0.10, 0.20, 0.15, 0.05]
-        else:
-            weights = [0.10, 0.15, 0.25, 0.15, 0.15, 0.20]
+        # Continuous interpolation between the early (t=0) and late
+        # (t=1, reached at CAMPAIGN_LENGTH) weight vectors, replacing
+        # the three hard brackets this used to jump between - see the
+        # campaign-simulation finding above for why a hard jump was a
+        # real problem, not just a style preference.
+        t = min(1.0, self.expeditions_completed / CAMPAIGN_LENGTH)
+        early_weights = [0.55, 0.20, 0.03, 0.15, 0.05, 0.02]
+        late_weights = [0.10, 0.15, 0.25, 0.15, 0.15, 0.20]
+        weights = [
+            early + (late - early) * t
+            for early, late in zip(early_weights, late_weights)
+        ]
 
         zombie_classes = list(self._ZOMBIE_BASE_STATS.keys())
         zombie_class = self.rng.choices(zombie_classes, weights=weights)[0]

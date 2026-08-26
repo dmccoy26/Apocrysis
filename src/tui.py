@@ -24,6 +24,7 @@ from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
 from src.items import format_weapon_list
+from src.mixins.persistence_mixin import profile_filename_for_name
 
 
 class AppClosed(Exception):
@@ -193,14 +194,20 @@ class ApocrysisApp(App):
         ("right", "move_direction('e')", "Move east"),
     ]
 
-    def __init__(self, name=None, level=1, seed=None):
+    def __init__(self, name=None, level=1, seed=None, hardcore=False):
         super().__init__()
         self._name = name
         self._level = level
         self._seed = seed
+        self._hardcore = hardcore
         self.player = None
         self.io = None
         self._expecting_command = False
+        # Set by _new_player() each time it's called, so on_mount()
+        # (main thread) and _game_thread() (worker thread) can each
+        # emit the "Welcome back" greeting through the right channel
+        # for their own thread - see _new_player()'s docstring.
+        self._last_load_was_profile = False
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -241,14 +248,24 @@ class ApocrysisApp(App):
             self.io.submit_answer(direction)
 
     def _new_player(self):
-        # Shared by on_mount() (first launch) and _game_thread()'s
-        # post-win loop below - both need the exact same "continue
-        # from a saved profile, or start fresh" construction.
-        profile = Apocrysis.load_profile()
+        # Shared by on_mount() (first launch, main thread) and
+        # _game_thread()'s post-win loop below (worker thread) - both
+        # need the exact same "continue from a saved profile, or
+        # start fresh" construction. Real bug found live: this used
+        # to build the greeting itself via self.io.say(), which calls
+        # Textual's call_from_thread() internally - that raises
+        # RuntimeError when called from the SAME thread as the app
+        # loop, which is exactly the case for on_mount()'s call here.
+        # Instead this just records whether a profile was loaded
+        # (self._last_load_was_profile) and leaves emitting the
+        # greeting to each caller, which knows its own thread.
+        profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
+        self._last_load_was_profile = profile is not None
         if profile is not None:
             player = Apocrysis(
-                profile.get("name", "Survivor"),
+                profile.get("name", self._name or "Survivor"),
                 level=profile.get("level", 1),
+                hardcore=profile.get("hardcore", self._hardcore),
                 io=self.io,
             )
             player.apply_profile(profile)
@@ -257,13 +274,27 @@ class ApocrysisApp(App):
                 self._name or "Survivor",
                 level=self._level,
                 seed=self._seed,
+                hardcore=self._hardcore,
                 io=self.io,
             )
         return player
 
+    def _save_or_delete_profile(self):
+        if self.player.hardcore and self.player.health <= 0:
+            self.player.delete_profile()
+        else:
+            self.player.save_profile(profile_filename_for_name(self.player.name))
+
     def on_mount(self):
         self.io = TextualIO(self)
         self.player = self._new_player()
+        if self._last_load_was_profile:
+            # Main thread here (on_mount runs on the app's own event
+            # loop) - log_message() directly, not self.io.say()'s
+            # call_from_thread() marshaling, which would raise.
+            self.log_message(
+                f"Welcome back, {self.player.name} - level {self.player.level}."
+            )
 
         self.refresh_panels()
         self.query_one("#command_input", Input).focus()
@@ -289,19 +320,28 @@ class ApocrysisApp(App):
                     # to the outer except below, past the
                     # save_profile() call two lines down - a valid,
                     # in-progress player's identity/progression was
-                    # silently never saved on shutdown. Save here,
-                    # using whatever state self.player was actually in
-                    # when the shutdown interrupted it, then re-raise
-                    # to the same outer handling as before.
-                    self.player.save_profile()
+                    # silently never saved on shutdown. Save (or, for
+                    # a hardcore character who already died, delete)
+                    # here, using whatever state self.player was
+                    # actually in when the shutdown interrupted it,
+                    # then re-raise to the same outer handling as
+                    # before.
+                    self._save_or_delete_profile()
                     raise
 
-                self.player.save_profile()
+                self._save_or_delete_profile()
 
                 if not getattr(self.player, 'won', False):
                     break  # quit or death - a real exit, not a new game
 
                 self.player = self._new_player()
+                if self._last_load_was_profile:
+                    # Worker thread here - self.io.say() is the
+                    # correct channel, its call_from_thread() call is
+                    # only valid off the app's own thread.
+                    self.player.io.say(
+                        f"Welcome back, {self.player.name} - level {self.player.level}."
+                    )
                 self.call_from_thread(self.refresh_panels)
         except AppClosed:
             # App is already shutting down for some other reason -

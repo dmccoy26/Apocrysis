@@ -1,8 +1,10 @@
 # Auto-extracted from the original monolithic apocrysis.py during
 # the src/ restructuring - see README.md for the project layout.
 
+import glob
 import json
 import os
+import re
 
 from src.items import MeleeWeapon, RangedWeapon
 from src.objectives import Goal, Task
@@ -10,6 +12,19 @@ from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
 
 DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
+
+
+def profile_filename_for_name(name):
+    """
+    Derives a per-player profile filename from a display name, e.g.
+    "Jess" -> "apocrysis_profile_Jess.json". Non-filename-safe
+    characters are collapsed to "_" so an arbitrary player-entered
+    name can't escape the current directory or collide with the
+    named SESSION save-slot files (apocrysis_save*.json - a
+    different concept, see the profile-persistence note below).
+    """
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", name.strip()) or "player"
+    return f"apocrysis_profile_{slug}.json"
 
 
 def _serialize_weapon(w):
@@ -314,6 +329,7 @@ class PersistenceMixin:
                 if self.equipped_weapon
                 else None
             ),
+            "hardcore": getattr(self, "hardcore", False),
         }
 
         with open(filename, 'w') as f:
@@ -327,6 +343,69 @@ class PersistenceMixin:
         with open(filename, 'r') as f:
             return json.load(f)
 
+    @staticmethod
+    def list_profile_names():
+        """
+        Display names of every selectable profile: one per
+        apocrysis_profile_<name>.json file on disk (name read from
+        the file's own "name" field, not derived from the filename,
+        so display casing survives the slugging in
+        profile_filename_for_name()), plus the legacy single
+        apocrysis_profile.json file if it's still present and hasn't
+        been migrated into the per-name scheme yet (see
+        load_profile_by_name()).
+        """
+        names = []
+        for path in sorted(glob.glob("apocrysis_profile_*.json")):
+            data = PersistenceMixin.load_profile(path)
+            name = data.get("name") if data else None
+            if name and name not in names:
+                names.append(name)
+
+        legacy = PersistenceMixin.load_profile(DEFAULT_PROFILE_FILENAME)
+        legacy_name = legacy.get("name") if legacy else None
+        if legacy_name and legacy_name not in names:
+            names.append(legacy_name)
+
+        return names
+
+    @classmethod
+    def load_profile_by_name(cls, name):
+        """
+        Loads the profile for `name` from its own per-name file. The
+        first time a name is picked that only exists in the legacy
+        single apocrysis_profile.json (pre-multi-profile saves),
+        transparently migrates it into a per-name file and returns
+        that instead, so every profile from here on lives at a
+        name-derived path.
+        """
+        per_name_file = profile_filename_for_name(name)
+        profile = cls.load_profile(per_name_file)
+        if profile is not None:
+            return profile
+
+        legacy = cls.load_profile(DEFAULT_PROFILE_FILENAME)
+        if legacy is not None and legacy.get("name") == name:
+            with open(per_name_file, 'w') as f:
+                json.dump(legacy, f, indent=2)
+            return legacy
+
+        return None
+
+    def delete_profile(self):
+        """
+        Removes this player's own profile file - the permadeath path
+        for a hardcore character who died, so the next launch can't
+        reload a dead hardcore run under this name.
+        """
+        filename = profile_filename_for_name(self.name)
+        if os.path.exists(filename):
+            os.remove(filename)
+
+        legacy = self.load_profile(DEFAULT_PROFILE_FILENAME)
+        if legacy is not None and legacy.get("name") == self.name:
+            os.remove(DEFAULT_PROFILE_FILENAME)
+
     def apply_profile(self, profile):
         """
         Overwrites this (freshly constructed) instance's identity/
@@ -338,6 +417,7 @@ class PersistenceMixin:
 
         self.name = profile.get("name", self.name)
         self.player_class = profile.get("player_class", self.player_class)
+        self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
         self.level = profile.get("level", self.level)
         self.xp = profile.get("xp", self.xp)
         self.max_xp = profile.get("max_xp", self.max_xp)

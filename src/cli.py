@@ -5,26 +5,57 @@ import os
 
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon
+from src.mixins.persistence_mixin import profile_filename_for_name
 from src.player import PlayerClass
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
+
+
+def _resolve_player_identity():
+    """
+    Shared by main() and main_tui(): the one piece of profile
+    selection that must happen in the plain terminal, before Textual
+    (if any) takes the screen. Offers existing profile names to pick
+    from and prompts for hardcore mode only when the name is brand
+    new - an existing profile's hardcore flag was already decided at
+    creation and is never re-asked. Returns (name, hardcore, profile)
+    where profile is the loaded profile dict, or None for a new name.
+    """
+    existing_names = Apocrysis.list_profile_names()
+    if existing_names:
+        print("Existing survivors:", ", ".join(existing_names))
+        name = input("Enter your name (existing or new): ").strip()
+    else:
+        name = input("Enter your name: ").strip()
+
+    if name in existing_names:
+        profile = Apocrysis.load_profile_by_name(name)
+        hardcore = bool(profile.get("hardcore", False)) if profile else False
+    else:
+        profile = None
+        hardcore_choice = input(
+            "Play in hardcore mode? Death is permanent - no reloading "
+            "this character. (y/n): "
+        ).strip().lower()
+        hardcore = hardcore_choice in ("y", "yes")
+
+    return name, hardcore, profile
 
 
 def main_tui():
     # v3 SPRINT step 6: the TUI (src/tui.py's ApocrysisApp) owns its
     # own profile-loading/game construction in on_mount() - the only
     # thing that must happen HERE, in the plain terminal before
-    # Textual takes over the screen, is asking for a name when no
-    # profile exists yet (on_mount() re-checks load_profile() itself
-    # for everything else - stats/backpack/weapon - so this isn't
-    # duplicating that logic, just the one piece that can't happen
-    # inside the TUI without it needing to prompt for a name itself).
+    # Textual takes over the screen, is resolving name/hardcore via
+    # the picker above (on_mount() re-checks load_profile_by_name()
+    # itself for everything else - stats/backpack/weapon - so this
+    # isn't duplicating that logic, just the one piece that can't
+    # happen inside the TUI without it needing its own terminal
+    # prompt before Textual starts).
     from src.tui import ApocrysisApp
 
-    name = None
-    if Apocrysis.load_profile() is None:
-        name = input("Enter your name: ")
+    name, hardcore, _profile = _resolve_player_identity()
 
-    app = ApocrysisApp(name=name)
+    app = ApocrysisApp(name=name, hardcore=hardcore)
     app.run()
 
 
@@ -38,7 +69,7 @@ def main():
     # always derived from the carried-forward level
     # (game.py's __init__), not a manual prompt, since v3's whole
     # point is that the map grows with you automatically.
-    profile = Apocrysis.load_profile()
+    name, hardcore, profile = _resolve_player_identity()
 
     while True:
         player = None
@@ -61,14 +92,12 @@ def main():
 
         if player is None:
             if profile is not None:
-                name = profile.get("name", "Survivor")
                 level = profile.get("level", 1)
                 print(f"\nWelcome back, {name} - level {level}.")
             else:
-                name = input("Enter your name: ")
                 level = 1
 
-            player = Apocrysis(name, level=level)
+            player = Apocrysis(name, level=level, hardcore=hardcore)
 
             if profile is not None:
                 player.apply_profile(profile)
@@ -91,14 +120,22 @@ def main():
         print(" ")
         player.run_game_loop()
 
-        # v3 SPRINT step 1: save the profile on every way a playthrough
-        # ends, not just on a win - "automatic" means the player's
-        # name/level/stats are never re-asked for, regardless of why
-        # this game ended. Re-read immediately after so the top of the
-        # next loop iteration (or the next process launch) sees the
-        # exact same state either way - one code path for both.
-        player.save_profile()
-        profile = Apocrysis.load_profile()
+        # v3 SPRINT step 1 / hardcore-mode follow-up: save the profile
+        # on every way a playthrough ends EXCEPT a hardcore death -
+        # "automatic" means the player's name/level/stats are never
+        # re-asked for, regardless of why a non-hardcore game ended.
+        # A hardcore character who died instead has their profile
+        # permanently deleted (delete_profile()), so the next launch
+        # can't reload a dead hardcore run under this name - that's
+        # the entire point of choosing hardcore. Re-read immediately
+        # after so the top of the next loop iteration (or the next
+        # process launch) sees the exact same state either way.
+        if player.hardcore and player.health <= 0:
+            player.delete_profile()
+        else:
+            player.save_profile(profile_filename_for_name(player.name))
+
+        profile = Apocrysis.load_profile_by_name(name)
 
         if getattr(player, 'won', False):
             # Real bug found live: winning used to hit the same

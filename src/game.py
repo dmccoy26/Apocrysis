@@ -29,7 +29,7 @@ class Apocrysis(
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
@@ -53,6 +53,7 @@ class Apocrysis(
         # random module.
 
         self.name = name
+        self.hardcore = hardcore
         self.rng = random.Random(seed)
 
         self.xp = 0

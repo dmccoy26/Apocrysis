@@ -11,6 +11,61 @@ from src.zombies import Zombie, ToxicZombie
 
 class CombatMixin:
 
+    def _condition_penalty(self):
+        penalty = 0.0
+        if self.health < 25:
+            penalty += 0.2
+        elif self.health < 50:
+            penalty += 0.1
+
+        if self.hunger < 20 or self.thirst < 20:
+            penalty += 0.2
+        elif self.hunger < 40 or self.thirst < 40:
+            penalty += 0.1
+
+        if self.fatigue > 80:
+            penalty += 0.2
+        elif self.fatigue > 50:
+            penalty += 0.1
+
+        return max(0.5, 1.0 - penalty)
+
+    def punch(self):
+        current_tile = self.map[self.current_position[1]][self.current_position[0]]
+        if isinstance(current_tile, Zombie):
+            zombie = current_tile
+            damage = 2 + max(0, self.strength // 3)
+            zombie.take_damage(damage)
+            self.io.say(f"You punch the {zombie.name} for {damage} damage.")
+            
+            if zombie.health <= 0:
+                self.io.say(f"The {zombie.name} has been defeated!")
+                self.award_xp(25)
+                self.handle_loot(zombie.loot_table)
+                self._check_and_complete_goals("kill")
+            else:
+                # Zombie's turn to attack
+                dodge_chance = min(0.5, self.dexterity / 150)
+                if random.random() < dodge_chance:
+                    self.io.say(f"You deftly dodged the {zombie.name}'s attack!")
+                else:
+                    self.take_damage(zombie.attack)
+
+                    # ToxicZombie's bite is guaranteed to poison
+                    if isinstance(zombie, ToxicZombie):
+                        self.status_effects["Poison"] = 4
+                        self.io.say("The toxic bite poisons you!")
+                    else:
+                        status_roll = random.random()
+                        if status_roll < 0.15 and "Bleeding" not in self.status_effects:
+                            self.status_effects["Bleeding"] = 3
+                            self.io.say("You are bleeding! You will take damage each turn.")
+                        elif status_roll < 0.25 and "Stun" not in self.status_effects:
+                            self.status_effects["Stun"] = 1
+                            self.io.say("You have been stunned!")
+        else:
+            self.io.say("There's nothing to punch here.")
+
     def encounter_zombie(self, current_tile=None):
         # Use passed tile if available and valid, otherwise generate a
         # random one. Checks the Zombie BASE class (v3 SPRINT step 3
@@ -56,7 +111,7 @@ class CombatMixin:
                 self.io.say(f"You are stunned! Turn skipped.")
                 self.status_effects["Stun"] -= 1
             elif self.equipped_weapon:
-                damage = self.equipped_weapon.use() + max(0, self.strength // 3)
+                damage = round((self.equipped_weapon.use() + max(0, self.strength // 3)) * self._condition_penalty())
                 
                 # Critical hit chance scaled by dexterity
                 crit_chance = min(0.25, self.dexterity / 200)

@@ -1,11 +1,14 @@
 import asyncio
 import os
+import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon
+from src.mixins.persistence_mixin import profile_filename_for_name
 from src.player import PlayerClass
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (
@@ -700,6 +703,111 @@ class TestProfilePersistence(unittest.TestCase):
         self.assertEqual(fresh.level, 5)
 
 
+class TestHardcoreProfiles(unittest.TestCase):
+    """
+    Hardcore-mode + multi-profile name selection: each player name
+    gets its own apocrysis_profile_<name>.json (profile_filename_for_
+    name()), list_profile_names()/load_profile_by_name() drive the
+    launch-time picker, and delete_profile() is the permadeath path
+    for a hardcore character who died.
+    """
+
+    def setUp(self):
+        # list_profile_names()/load_profile_by_name()/delete_profile()
+        # all read/write the LITERAL "apocrysis_profile.json" (the
+        # legacy default filename) in the current directory, not a
+        # caller-supplied path - unlike TestProfilePersistence above,
+        # these tests can't just pick a distinctly-named file to avoid
+        # colliding with a real project's own apocrysis_profile.json.
+        # Run from an isolated temp directory instead.
+        self._orig_cwd = os.getcwd()
+        self._tmpdir = tempfile.mkdtemp()
+        os.chdir(self._tmpdir)
+
+    def tearDown(self):
+        os.chdir(self._orig_cwd)
+        shutil.rmtree(self._tmpdir, ignore_errors=True)
+
+    def test_profile_filename_for_name_slugifies_unsafe_characters(self):
+        self.assertEqual(
+            profile_filename_for_name("Jess"), "apocrysis_profile_Jess.json"
+        )
+        self.assertEqual(
+            profile_filename_for_name("../../etc/passwd"),
+            "apocrysis_profile__etc_passwd.json",
+        )
+
+    def test_save_profile_persists_hardcore_flag(self):
+        with patch("builtins.print"):
+            game = Apocrysis("HCTest", map_size=8, seed=1, hardcore=True)
+
+        filename = profile_filename_for_name(game.name)
+        game.save_profile(filename)
+        profile = Apocrysis.load_profile(filename)
+
+        self.assertTrue(profile["hardcore"])
+
+    def test_apply_profile_restores_hardcore_flag(self):
+        with patch("builtins.print"):
+            source = Apocrysis("HCTest2", map_size=8, seed=1, hardcore=True)
+        filename = profile_filename_for_name(source.name)
+        source.save_profile(filename)
+        profile = Apocrysis.load_profile(filename)
+
+        with patch("builtins.print"):
+            fresh = Apocrysis("HCTest2", map_size=8, seed=2, hardcore=False)
+        fresh.apply_profile(profile)
+
+        self.assertTrue(fresh.hardcore)
+
+    def test_list_and_load_profile_by_name_round_trip(self):
+        with patch("builtins.print"):
+            alice = Apocrysis("Alice", map_size=8, seed=1)
+            bob = Apocrysis("Bob", map_size=8, seed=2, hardcore=True)
+
+        alice.save_profile(profile_filename_for_name("Alice"))
+        bob.save_profile(profile_filename_for_name("Bob"))
+
+        names = Apocrysis.list_profile_names()
+        self.assertIn("Alice", names)
+        self.assertIn("Bob", names)
+
+        bob_profile = Apocrysis.load_profile_by_name("Bob")
+        self.assertIsNotNone(bob_profile)
+        self.assertTrue(bob_profile["hardcore"])
+
+        self.assertIsNone(Apocrysis.load_profile_by_name("NoSuchSurvivor"))
+
+    def test_load_profile_by_name_migrates_legacy_flat_file(self):
+        with patch("builtins.print"):
+            legacy_player = Apocrysis("LegacySurvivor", map_size=8, seed=1)
+        legacy_player.save_profile("apocrysis_profile.json")
+
+        per_name_file = profile_filename_for_name("LegacySurvivor")
+        self.assertFalse(os.path.exists(per_name_file))
+
+        migrated = Apocrysis.load_profile_by_name("LegacySurvivor")
+
+        self.assertIsNotNone(migrated)
+        self.assertTrue(os.path.exists(per_name_file))
+        self.assertIn("LegacySurvivor", Apocrysis.list_profile_names())
+
+    def test_delete_profile_removes_own_file_only(self):
+        with patch("builtins.print"):
+            doomed = Apocrysis("Doomed", map_size=8, seed=1, hardcore=True)
+            survivor = Apocrysis("Survivor", map_size=8, seed=2)
+
+        doomed_file = profile_filename_for_name("Doomed")
+        survivor_file = profile_filename_for_name("Survivor")
+        doomed.save_profile(doomed_file)
+        survivor.save_profile(survivor_file)
+
+        doomed.delete_profile()
+
+        self.assertFalse(os.path.exists(doomed_file))
+        self.assertTrue(os.path.exists(survivor_file))
+
+
 class TestRendering(unittest.TestCase):
     def setUp(self):
         with patch("builtins.print"):
@@ -1012,11 +1120,20 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
     """
 
     async def asyncSetUp(self):
-        self._profile_file = "apocrysis_profile.json"
+        self._profile_file = profile_filename_for_name("WinTest")
         if os.path.exists(self._profile_file):
             os.remove(self._profile_file)
 
     async def asyncTearDown(self):
+        # _game_thread runs as a real OS thread (run_worker(thread=
+        # True)) - it notices app shutdown by polling every 0.2s
+        # (TextualIO._wait_for_answer()), not instantly, so its final
+        # save_profile()/delete_profile() call can still be in flight
+        # for a moment after run_test()'s `async with` block above has
+        # already returned. Give it a beat before the one cleanup
+        # check, or a save landing after this check would leak the
+        # file into the real project directory.
+        await asyncio.sleep(0.3)
         if os.path.exists(self._profile_file):
             os.remove(self._profile_file)
 

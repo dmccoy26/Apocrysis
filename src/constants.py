@@ -97,10 +97,10 @@ TERRAIN_MOVE_MINUTES = {
 # instances that could never use ammo/reload at all. Real stat
 # variance tied to the name, and the correct weapon type per name.
 LOOT_WEAPON_TABLE = {
-    "Rusty Dagger": {"type": "melee", "damage": 8, "durability": 40},
-    "Chipped Sword": {"type": "melee", "damage": 12, "durability": 50},
-    "Iron Axe": {"type": "melee", "damage": 16, "durability": 90},
-    "Steel Katana": {"type": "melee", "damage": 20, "durability": 110},
-    "Broken Rifle": {"type": "ranged", "damage": 10, "max_ammo": 5, "durability": 15},
-    "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45},
+    "Rusty Dagger": {"type": "melee", "damage": 8, "durability": 40, "min_expedition": 0},
+    "Chipped Sword": {"type": "melee", "damage": 12, "durability": 50, "min_expedition": 0},
+    "Iron Axe": {"type": "melee", "damage": 16, "durability": 90, "min_expedition": 4},
+    "Steel Katana": {"type": "melee", "damage": 20, "durability": 110, "min_expedition": 6},
+    "Broken Rifle": {"type": "ranged", "damage": 10, "max_ammo": 5, "durability": 15, "min_expedition": 0},
+    "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45, "min_expedition": 2},
 }

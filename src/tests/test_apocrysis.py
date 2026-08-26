@@ -121,6 +121,15 @@ class TestLootWeapons(unittest.TestCase):
     could never use ammo/reload.
     """
 
+    @staticmethod
+    def _stand_on_building(game):
+        # find_loot() only rolls on building/town tiles (loot economy
+        # overhaul) - these tests exercise find_loot() directly and
+        # need a tile that passes that gate, regardless of where
+        # generate_map()'s random spawn actually landed.
+        x, y = game.current_position
+        game.map[y][x]["terrain"] = "building"
+
     def test_loot_table_has_real_stat_variety(self):
         from src.constants import LOOT_WEAPON_TABLE
         damages = {spec["damage"] for spec in LOOT_WEAPON_TABLE.values()}
@@ -128,9 +137,26 @@ class TestLootWeapons(unittest.TestCase):
         self.assertGreater(len(damages), 1, "every loot weapon has the same damage")
         self.assertGreater(len(durabilities), 1, "every loot weapon has the same durability")
 
+    def test_find_loot_does_nothing_on_open_terrain(self):
+        # The actual bug this overhaul fixes: walking across plains/
+        # forest used to roll loot on almost every move regardless of
+        # terrain (243 ammo / 13 guns by level 6-7 in real testing).
+        with patch("builtins.print"):
+            game = Apocrysis("LootGateTest", map_size=8, seed=1)
+        x, y = game.current_position
+        game.map[y][x]["terrain"] = "plain"
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=["weapon", "Broken Rifle"]), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertEqual(len(game.backpack.weapons), 0)
+
     def test_ranged_named_loot_produces_a_real_ranged_weapon(self):
         with patch("builtins.print"):
             game = Apocrysis("LootTest", map_size=8, seed=1)
+        self._stand_on_building(game)
 
         # Force: loot occurs, loot_type is "weapon", name is "Broken
         # Rifle" - the specific case the original bug got wrong.
@@ -151,6 +177,7 @@ class TestLootWeapons(unittest.TestCase):
     def test_finding_a_map_reveals_the_town_and_drops_out_of_future_loot_pools(self):
         with patch("builtins.print"):
             game = Apocrysis("LootTest", map_size=8, seed=1)
+        self._stand_on_building(game)
         self.assertFalse(game.town_known)
 
         with patch.object(game.rng, "random", return_value=0.0), \
@@ -179,6 +206,7 @@ class TestLootWeapons(unittest.TestCase):
         # just by walking around.
         with patch("builtins.print"):
             game = Apocrysis("LootCapTest", map_size=8, seed=1)
+        self._stand_on_building(game)
         for _ in range(game.backpack.MAX_WEAPONS):
             game.backpack.weapons.append(MeleeWeapon("Filler", 1, 1))
 
@@ -188,6 +216,33 @@ class TestLootWeapons(unittest.TestCase):
             game.find_loot()
 
         self.assertEqual(len(game.backpack.weapons), game.backpack.MAX_WEAPONS)
+
+    def test_weapon_drops_respect_min_expedition_banding(self):
+        # Steel Katana has min_expedition=6 - shouldn't be an eligible
+        # option at all at expeditions_completed=0, only after enough
+        # expeditions. Asserts on the actual OPTIONS list rng.choice()
+        # is called with (not just its return value), so a broken
+        # filter that still hands Steel Katana to choice() as an
+        # option would fail this even if choice() happened not to
+        # pick it.
+        with patch("builtins.print"):
+            game = Apocrysis("LootBandTest", map_size=8, seed=1, expeditions_completed=0)
+        self._stand_on_building(game)
+
+        def _choice(options):
+            if "weapon" in options:
+                return "weapon"
+            self.assertNotIn("Steel Katana", options)
+            self.assertNotIn("Iron Axe", options)
+            self.assertNotIn("Leather Bow", options)
+            return options[0]
+
+        with patch.object(game.rng, "random", return_value=0.0), \
+             patch.object(game.rng, "choice", side_effect=_choice), \
+             patch("builtins.print"):
+            game.find_loot()
+
+        self.assertEqual(len(game.backpack.weapons), 1)
 
 
 class TestZombies(unittest.TestCase):

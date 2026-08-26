@@ -358,6 +358,12 @@ class WorldMixin:
         self.tile_event_cooldowns[self.current_position] = self.day + 3
 
     def find_loot(self):
+        current_tile = self.map[self.current_position[1]][self.current_position[0]]
+        terrain = current_tile.get('terrain') if isinstance(current_tile, dict) else None
+        content = current_tile.get('content') if isinstance(current_tile, dict) else None
+        if terrain != 'building' and content not in ('H', 'R', 'S', 'B', 'T'):
+            return
+
         # Intelligence increases chance of finding loot and better items
         find_chance = min(1.0, 0.2 + self.intelligence / 250)
         if self.rng.random() < find_chance:
@@ -380,8 +386,12 @@ class WorldMixin:
                 # Real stat variance per name, and the correct weapon
                 # type (melee vs ranged) - see LOOT_WEAPON_TABLE's own
                 # comment in constants.py for the bug this replaced.
-                new_weapon_name = self.rng.choice(list(LOOT_WEAPON_TABLE.keys()))
-                spec = LOOT_WEAPON_TABLE[new_weapon_name]
+                eligible_weapons = {
+                    name: spec for name, spec in LOOT_WEAPON_TABLE.items()
+                    if spec.get('min_expedition', 0) <= self.expeditions_completed
+                }
+                new_weapon_name = self.rng.choice(list(eligible_weapons.keys()))
+                spec = eligible_weapons[new_weapon_name]
                 if spec["type"] == "ranged":
                     new_weapon = RangedWeapon(
                         new_weapon_name, spec["damage"],

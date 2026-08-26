@@ -47,7 +47,7 @@ class UIMixin:
             cmd_list.append(f"reload ({self.equipped_weapon.name})")
         if self.backpack.armor:
             cmd_list.append("wr [armor name] (wear)")
-        if self.backpack.armor or self.equipped_armor:
+        if self.backpack.armor or any(self.equipped_armor.values()):
             cmd_list.append("da [armor name] (dropa)")
 
         cmd_list.append("cr [recipe] (craft) (type 'cr list' for recipes)")
@@ -506,10 +506,8 @@ class UIMixin:
             self.io.say(f"Equipped Weapon: {self.equipped_weapon.name}")
         else:
             self.io.say("Equipped Weapon: None")
-        if self.equipped_armor:
-            self.io.say(f"Equipped Armor: {self.equipped_armor.name}")
-        else:
-            self.io.say("Equipped Armor: None")
+        for slot, piece in self.equipped_armor.items():
+            self.io.say(f"Equipped Armor ({slot}): {piece.name if piece else 'None'}")
 
     def _map_command_to_action(self, command):
         if command in ('eat', 'ea'): return 'eat'

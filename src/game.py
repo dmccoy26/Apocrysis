@@ -7,7 +7,7 @@ from src.constants import (
     BASE_MAP_SIZE, MAP_GROWTH_PER_LEVEL, MAX_MAP_SIZE, DAY_COMPRESSION_SCALE,
 )
 from src.io_console import ConsoleIO
-from src.items import Backpack
+from src.items import Backpack, ARMOR_SLOTS
 from src.objectives import Goal
 
 from src.mixins.actions_mixin import ActionsMixin
@@ -74,7 +74,10 @@ class Apocrysis(
         self.max_health = 100  # Maximum health at the start
         self.backpack = Backpack()
         self.equipped_weapon = None
-        self.equipped_armor = None  # equipment-slot investigation
+        # Equipment-slot investigation, multi-piece follow-up: one
+        # independently-equippable piece per ARMOR_SLOTS entry, not a
+        # single slot - see items.py's Armor.
+        self.equipped_armor = {slot: None for slot in ARMOR_SLOTS}
         self.initialize_player()
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)

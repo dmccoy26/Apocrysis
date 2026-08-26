@@ -169,12 +169,17 @@ class ActionsMixin:
         self.io.say(f"You drop the {target.name}.{salvage_note}")
 
     def equip_armor(self, armor_name):
+        # Multi-piece follow-up: which slot to touch comes from the
+        # piece's OWN .slot (items.py's ARMOR_SLOTS), not a slot the
+        # player names separately - only the piece already occupying
+        # that same slot gets swapped back to the backpack.
         for armor in self.backpack.armor:
             if armor.name.lower() == armor_name.lower():
-                if self.equipped_armor:
-                    self.backpack.armor.append(self.equipped_armor)
-                    self.io.say(f"The {self.equipped_armor.name} has been returned to the backpack.")
-                self.equipped_armor = armor
+                previous = self.equipped_armor[armor.slot]
+                if previous:
+                    self.backpack.armor.append(previous)
+                    self.io.say(f"The {previous.name} has been returned to the backpack.")
+                self.equipped_armor[armor.slot] = armor
                 self.backpack.armor.remove(armor)
                 self.io.say(f"You have equipped the {armor.name}.")
                 return
@@ -188,8 +193,11 @@ class ActionsMixin:
                 target = armor
                 in_backpack = True
                 break
-        if target is None and self.equipped_armor and self.equipped_armor.name.lower() == armor_name.lower():
-            target = self.equipped_armor
+        if target is None:
+            for slot, armor in self.equipped_armor.items():
+                if armor and armor.name.lower() == armor_name.lower():
+                    target = armor
+                    break
 
         if target is None:
             self.io.say(f"Armor named '{armor_name}' not found in inventory.")
@@ -198,7 +206,7 @@ class ActionsMixin:
         if in_backpack:
             self.backpack.armor.remove(target)
         else:
-            self.equipped_armor = None
+            self.equipped_armor[target.slot] = None
 
         self.io.say(f"You drop the {target.name}.")
 

@@ -116,12 +116,20 @@ LOOT_WEAPON_TABLE = {
     "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45, "min_expedition": 2},
 }
 
-# Equipment-slot investigation: a single body-armor slot, banded by
-# expeditions_completed the same way LOOT_WEAPON_TABLE is - stronger
-# armor only starts appearing on later expeditions.
+# Equipment-slot investigation, multi-piece follow-up: four slots
+# (head/body/hands/feet), each banded by expeditions_completed the
+# same way LOOT_WEAPON_TABLE is. Per-slot reductions are kept modest
+# (a full head+body+hands+feet loadout at max expedition sums to 13)
+# so gearing out doesn't dwarf the old single-slot design's max of 10
+# - more pieces to find/maintain, not a flat power multiplier.
 ARMOR_TABLE = {
-    "Padded Vest": {"reduction": 2, "durability": 30, "min_expedition": 0},
-    "Leather Jacket": {"reduction": 4, "durability": 50, "min_expedition": 0},
-    "Kevlar Vest": {"reduction": 7, "durability": 70, "min_expedition": 3},
-    "Riot Armor": {"reduction": 10, "durability": 100, "min_expedition": 6},
+    "Bandana": {"slot": "head", "reduction": 1, "durability": 20, "min_expedition": 0},
+    "Combat Helmet": {"slot": "head", "reduction": 3, "durability": 50, "min_expedition": 4},
+    "Padded Vest": {"slot": "body", "reduction": 2, "durability": 30, "min_expedition": 0},
+    "Kevlar Vest": {"slot": "body", "reduction": 4, "durability": 70, "min_expedition": 3},
+    "Riot Armor": {"slot": "body", "reduction": 6, "durability": 100, "min_expedition": 6},
+    "Work Gloves": {"slot": "hands", "reduction": 1, "durability": 25, "min_expedition": 0},
+    "Reinforced Gauntlets": {"slot": "hands", "reduction": 2, "durability": 50, "min_expedition": 3},
+    "Sneakers": {"slot": "feet", "reduction": 1, "durability": 25, "min_expedition": 0},
+    "Steel-Toe Boots": {"slot": "feet", "reduction": 2, "durability": 50, "min_expedition": 3},
 }

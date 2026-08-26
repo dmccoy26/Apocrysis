@@ -441,7 +441,7 @@ class WorldMixin:
                 }
                 new_armor_name = self.rng.choice(list(eligible_armor.keys()))
                 spec = eligible_armor[new_armor_name]
-                new_armor = Armor(new_armor_name, spec["reduction"], spec["durability"])
+                new_armor = Armor(new_armor_name, spec["reduction"], spec["durability"], spec["slot"])
                 if self.backpack.add_armor(new_armor):
                     self.io.say(f"You obtained {new_armor.name}.")
                 else:

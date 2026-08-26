@@ -62,6 +62,7 @@ def _serialize_armor(a):
         "damage_reduction": a.damage_reduction,
         "durability": a.durability,
         "max_durability": a.max_durability,
+        "slot": a.slot,
     }
 
 
@@ -69,9 +70,34 @@ def _deserialize_armor(a_data):
     armor = Armor(
         a_data.get("name"), a_data.get("damage_reduction"),
         a_data.get("max_durability", 10),
+        # Falls back to "body" for a save written before the multi-
+        # piece follow-up (single equipped_armor object, no slot
+        # field) - matches that design's implicit single body slot.
+        a_data.get("slot", "body"),
     )
     armor.durability = a_data.get("durability", armor.max_durability)
     return armor
+
+
+def _restore_equipped_armor(player, eq_a_data):
+    """
+    Shared by load_game() and apply_profile(). Handles both the
+    current shape (a dict of slot -> serialized piece or {}) and the
+    legacy single-slot shape (a save/profile written before the
+    multi-piece follow-up, where "equipped_armor" was either None or
+    one serialized piece directly, with no per-slot keys).
+    """
+    if not eq_a_data:
+        return
+    if "name" in eq_a_data:
+        # Legacy single-piece shape - _deserialize_armor() already
+        # falls back to the "body" slot when no "slot" key is present.
+        piece = _deserialize_armor(eq_a_data)
+        player.equipped_armor[piece.slot] = piece
+        return
+    for slot, piece_data in eq_a_data.items():
+        if piece_data and piece_data.get("name") and slot in player.equipped_armor:
+            player.equipped_armor[slot] = _deserialize_armor(piece_data)
 
 
 class PersistenceMixin:
@@ -155,7 +181,7 @@ class PersistenceMixin:
             "weapons": [],
             "equipped_weapon": None,
             "armor": [],
-            "equipped_armor": None,
+            "equipped_armor": {},
             "goals": [{"title": g.title, "description": g.description, "completed": g.completed, "reward_type": g.reward_type, "reward_amount": g.reward_amount, "goal_type": getattr(g, 'goal_type', "")} for g in self.goals],
             "tasks": [{"title": t.title, "description": t.description, "completed": t.completed, "reward_type": t.reward_type, "reward_amount": t.reward_amount, "task_type": getattr(t, 'task_type', "")} for t in self.tasks],
             "status_effects": self.status_effects,
@@ -172,8 +198,11 @@ class PersistenceMixin:
         for a in self.backpack.armor:
             data["armor"].append(_serialize_armor(a))
 
-        if self.equipped_armor:
-            data["equipped_armor"] = _serialize_armor(self.equipped_armor)
+        data["equipped_armor"] = {
+            slot: _serialize_armor(piece)
+            for slot, piece in self.equipped_armor.items()
+            if piece
+        }
 
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
@@ -282,9 +311,7 @@ class PersistenceMixin:
         for a_data in data.get("armor", []):
             player.backpack.armor.append(_deserialize_armor(a_data))
 
-        eq_a_data = data.get("equipped_armor")
-        if eq_a_data and eq_a_data.get("name"):
-            player.equipped_armor = _deserialize_armor(eq_a_data)
+        _restore_equipped_armor(player, data.get("equipped_armor"))
 
 
         # Real bug found live: this used to APPEND the save's goals
@@ -367,11 +394,11 @@ class PersistenceMixin:
                 else None
             ),
             "armor": [_serialize_armor(a) for a in self.backpack.armor],
-            "equipped_armor": (
-                _serialize_armor(self.equipped_armor)
-                if self.equipped_armor
-                else None
-            ),
+            "equipped_armor": {
+                slot: _serialize_armor(piece)
+                for slot, piece in self.equipped_armor.items()
+                if piece
+            },
             "hardcore": getattr(self, "hardcore", False),
             "expeditions_completed": self.expeditions_completed,
             "has_flashlight": getattr(self, "has_flashlight", False),
@@ -489,6 +516,4 @@ class PersistenceMixin:
         for a_data in profile.get("armor", []):
             self.backpack.armor.append(_deserialize_armor(a_data))
 
-        eq_a_data = profile.get("equipped_armor")
-        if eq_a_data and eq_a_data.get("name"):
-            self.equipped_armor = _deserialize_armor(eq_a_data)
+        _restore_equipped_armor(self, profile.get("equipped_armor"))

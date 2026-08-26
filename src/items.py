@@ -184,20 +184,24 @@ class RangedWeapon(Weapon):
         )
 
 
+ARMOR_SLOTS = ("head", "body", "hands", "feet")
+
+
 class Armor(Item):
     """
-    Equipment-slot investigation: a single body-armor slot
-    (equipped_armor on Apocrysis), not the full head/body/hands/feet
-    set the original todo sketched - starting with one slot keeps the
-    inventory/save-format/TUI surface area proportionate; more slots
-    can follow the same pattern later if wanted.
+    Equipment-slot investigation, multi-piece follow-up: one Armor
+    instance occupies exactly one of ARMOR_SLOTS (equipped_armor on
+    Apocrysis is now a dict of all four, not a single object/None).
     """
 
-    def __init__(self, name, damage_reduction, durability):
+    def __init__(self, name, damage_reduction, durability, slot):
         super().__init__(name)
+        if slot not in ARMOR_SLOTS:
+            raise ValueError(f"Unknown armor slot: {slot!r}")
         self.damage_reduction = damage_reduction
         self.durability = durability
         self.max_durability = durability
+        self.slot = slot
 
     def absorb(self, incoming_damage):
         """
@@ -212,7 +216,7 @@ class Armor(Item):
         return max(0, incoming_damage - self.damage_reduction)
 
     def __str__(self):
-        return f"{self.name} - Reduction: {self.damage_reduction}, Durability: {self.durability}/{self.max_durability}"
+        return f"{self.name} [{self.slot}] - Reduction: {self.damage_reduction}, Durability: {self.durability}/{self.max_durability}"
 
 
 

@@ -112,7 +112,11 @@ class TestWeapons(unittest.TestCase):
 
 
 class TestArmor(unittest.TestCase):
-    """Equipment-slot investigation: a single equipped_armor slot."""
+    """
+    Equipment-slot investigation, multi-piece follow-up: four
+    independently-equippable slots (equipped_armor is now a dict of
+    ARMOR_SLOTS, not a single object/None).
+    """
 
     def setUp(self):
         with patch("builtins.print"):
@@ -128,17 +132,29 @@ class TestArmor(unittest.TestCase):
             os.remove(f)
 
     def test_armor_absorbs_damage_and_degrades_durability(self):
-        self.game.equipped_armor = Armor("Padded Vest", 3, durability=2)
+        self.game.equipped_armor["body"] = Armor("Padded Vest", 3, 2, "body")
         self.game.health = 100
 
         with patch("builtins.print"):
             self.game.take_damage(10)
 
         self.assertEqual(self.game.health, 93)  # 10 - 3 reduction
-        self.assertEqual(self.game.equipped_armor.durability, 1)
+        self.assertEqual(self.game.equipped_armor["body"].durability, 1)
+
+    def test_multiple_equipped_pieces_stack_reduction_and_all_degrade(self):
+        self.game.equipped_armor["head"] = Armor("Bandana", 1, 5, "head")
+        self.game.equipped_armor["body"] = Armor("Padded Vest", 3, 5, "body")
+        self.game.health = 100
+
+        with patch("builtins.print"):
+            self.game.take_damage(10)
+
+        self.assertEqual(self.game.health, 94)  # 10 - 1 - 3
+        self.assertEqual(self.game.equipped_armor["head"].durability, 4)
+        self.assertEqual(self.game.equipped_armor["body"].durability, 4)
 
     def test_broken_armor_absorbs_nothing(self):
-        self.game.equipped_armor = Armor("Padded Vest", 3, durability=0)
+        self.game.equipped_armor["body"] = Armor("Padded Vest", 3, 0, "body")
         self.game.health = 100
 
         with patch("builtins.print"):
@@ -147,7 +163,6 @@ class TestArmor(unittest.TestCase):
         self.assertEqual(self.game.health, 90)  # full damage, armor broken
 
     def test_no_armor_equipped_takes_full_damage(self):
-        self.game.equipped_armor = None
         self.game.health = 100
 
         with patch("builtins.print"):
@@ -155,33 +170,36 @@ class TestArmor(unittest.TestCase):
 
         self.assertEqual(self.game.health, 90)
 
-    def test_equip_armor_swaps_and_returns_previous(self):
-        a1 = Armor("Padded Vest", 2, 30)
-        a2 = Armor("Kevlar Vest", 7, 70)
-        self.game.equipped_armor = a1
+    def test_equip_armor_swaps_only_the_matching_slot(self):
+        a1 = Armor("Padded Vest", 2, 30, "body")  # body
+        a2 = Armor("Kevlar Vest", 4, 70, "body")   # also body - should swap a1 out
+        a3 = Armor("Bandana", 1, 20, "head")       # different slot - unaffected
+        self.game.equipped_armor["body"] = a1
+        self.game.equipped_armor["head"] = a3
         self.game.backpack.armor.append(a2)
 
         with patch("builtins.print"):
             self.game.equip_armor("kevlar vest")
 
-        self.assertEqual(self.game.equipped_armor.name, "Kevlar Vest")
+        self.assertEqual(self.game.equipped_armor["body"].name, "Kevlar Vest")
+        self.assertIs(self.game.equipped_armor["head"], a3)  # untouched
         self.assertIn(a1, self.game.backpack.armor)
         self.assertNotIn(a2, self.game.backpack.armor)
 
     def test_drop_armor_removes_equipped_or_backpack_piece(self):
-        a1 = Armor("Padded Vest", 2, 30)
-        self.game.equipped_armor = a1
+        a1 = Armor("Padded Vest", 2, 30, "body")
+        self.game.equipped_armor["body"] = a1
 
         with patch("builtins.print"):
             self.game.drop_armor("padded vest")
 
-        self.assertIsNone(self.game.equipped_armor)
+        self.assertIsNone(self.game.equipped_armor["body"])
 
     def test_find_loot_respects_armor_carry_cap(self):
         x, y = self.game.current_position
         self.game.map[y][x]["terrain"] = "building"
         for _ in range(self.game.backpack.MAX_ARMOR):
-            self.game.backpack.armor.append(Armor("Filler", 1, 1))
+            self.game.backpack.armor.append(Armor("Filler", 1, 1, "body"))
 
         with patch.object(self.game.rng, "random", return_value=0.0), \
              patch.object(self.game.rng, "choice", side_effect=["armor", "Padded Vest"]), \
@@ -215,7 +233,8 @@ class TestArmor(unittest.TestCase):
     def test_apply_profile_restores_equipped_armor_across_expeditions(self):
         with patch("builtins.print"):
             source = Apocrysis("ArmorProfileTest", map_size=8, seed=1)
-        source.equipped_armor = Armor("Kevlar Vest", 7, 70)
+        source.equipped_armor["body"] = Armor("Kevlar Vest", 4, 70, "body")
+        source.equipped_armor["head"] = Armor("Bandana", 1, 20, "head")
         filename = profile_filename_for_name(source.name)
         source.save_profile(filename)
         profile = Apocrysis.load_profile(filename)
@@ -224,9 +243,11 @@ class TestArmor(unittest.TestCase):
             fresh = Apocrysis("ArmorProfileTest", map_size=8, seed=2)
         fresh.apply_profile(profile)
 
-        self.assertIsNotNone(fresh.equipped_armor)
-        self.assertEqual(fresh.equipped_armor.name, "Kevlar Vest")
-        self.assertEqual(fresh.equipped_armor.damage_reduction, 7)
+        self.assertEqual(fresh.equipped_armor["body"].name, "Kevlar Vest")
+        self.assertEqual(fresh.equipped_armor["body"].damage_reduction, 4)
+        self.assertEqual(fresh.equipped_armor["head"].name, "Bandana")
+        self.assertIsNone(fresh.equipped_armor["hands"])
+        self.assertIsNone(fresh.equipped_armor["feet"])
 
 
 class TestLootWeapons(unittest.TestCase):

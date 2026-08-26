@@ -402,7 +402,10 @@ class ApocrysisApp(App):
         # what's equipped without typing "i". str(weapon) already
         # carries damage/durability (items.py) - use it here too.
         equipped = str(p.equipped_weapon) if p.equipped_weapon else "None"
-        equipped_armor = str(p.equipped_armor) if p.equipped_armor else "None"
+        equipped_armor = "\n  ".join(
+            f"{slot}: {piece.name if piece else 'None'}"
+            for slot, piece in p.equipped_armor.items()
+        )
         backpack_weapons = (
             "\n  ".join(format_weapon_list(p.backpack.weapons))
             if p.backpack.weapons
@@ -419,7 +422,7 @@ class ApocrysisApp(App):
             f"XP: {p.xp}/{p.max_xp}\n"
             f"Day {p.day} - {day_phase}\n"
             f"Equipped: {equipped}\n"
-            f"Armor: {equipped_armor}\n"
+            f"Armor:\n  {equipped_armor}\n"
             f"Backpack weapons:\n  {backpack_weapons}\n"
             f"Backpack armor:\n  {backpack_armor}\n"
             f"Food {p.backpack.food}  Water {p.backpack.water}  "

@@ -125,7 +125,9 @@ class PersistenceMixin:
             "time_of_day": self.time_of_day,
             "day": self.day,
             "is_night": self.is_night,
+            "day_phase": self.day_phase,
             "visibility_radius": self.visibility_radius,
+            "has_flashlight": self.has_flashlight,
             "last_action": self.last_action,
             "visited": [list(pos) for pos in self.visited],
             "backpack_food": self.backpack.food,
@@ -210,7 +212,9 @@ class PersistenceMixin:
         player.max_xp = data.get("max_xp", 100)
         player.day = data.get("day", 1)
         player.is_night = data.get("is_night", False)
+        player.day_phase = data.get("day_phase", "day")
         player.visibility_radius = data.get("visibility_radius", 3)
+        player.has_flashlight = data.get("has_flashlight", False)
         player.last_action = data.get("last_action", "")
         player.town_known = data.get("town_known", False)
 
@@ -331,6 +335,7 @@ class PersistenceMixin:
             ),
             "hardcore": getattr(self, "hardcore", False),
             "expeditions_completed": self.expeditions_completed,
+            "has_flashlight": getattr(self, "has_flashlight", False),
         }
 
         with open(filename, 'w') as f:
@@ -420,6 +425,8 @@ class PersistenceMixin:
         self.player_class = profile.get("player_class", self.player_class)
         self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
         self.expeditions_completed = profile.get("expeditions_completed", self.expeditions_completed)
+        self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
+        self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time
         self.level = profile.get("level", self.level)
         self.xp = profile.get("xp", self.xp)
         self.max_xp = profile.get("max_xp", self.max_xp)

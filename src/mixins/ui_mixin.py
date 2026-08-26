@@ -121,7 +121,7 @@ class UIMixin:
                 hour = self.time_of_day // 60
                 minute = self.time_of_day % 60
                 time_str = f"{hour:02d}:{minute:02d}"
-                day_night = "Night" if self.is_night else "Day"
+                day_night = getattr(self, "day_phase", "night" if self.is_night else "day").title()
 
                 right_lines.append(f"Time: {time_str} ({day_night})")
                 right_lines.append("--- Player Stats ---")

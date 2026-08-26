@@ -98,7 +98,16 @@ class Apocrysis(
         self.time_of_day = 480  # Start at 08:00 (minutes from midnight)
         self.visibility_radius = 3
         self.is_night = False
+        self.day_phase = "day"
         self.day = 1
+
+        # Found via find_loot() (world_mixin.py, one-time like the
+        # town-revealing map) - persists across expeditions once found
+        # (save_profile()/apply_profile()), same as a carried weapon.
+        # Substantially restores visibility during dawn/dusk/night
+        # instead of a static, unavoidable penalty.
+        self.has_flashlight = False
+
         self._update_time()
 
         # generate_map() sets self.current_position (spawn) itself -
@@ -139,14 +148,35 @@ class Apocrysis(
         # Day increments when transitioning from night (<6) to day (>=6)
         if prev_hour < 6 and hour >= 6:
             self.day += 1
-            
-        # Night is from 20:00 to 06:00
+
+        # Day/night phase granularity + flashlight investigation:
+        # dawn/day/dusk/night instead of a single binary split, with
+        # visibility_radius stepping down gradually rather than
+        # jumping straight from 3 to 1. is_night stays derived exactly
+        # as before (True only 20:00-06:00) so hunger/thirst decay
+        # (_apply_decay()) and encounter_chance (world_mixin.py's
+        # move_and_search()) are unaffected by this change.
         if hour >= 20 or hour < 6:
-            self.is_night = True
-            self.visibility_radius = 1
+            self.day_phase = "night"
+            base_visibility = 1
+        elif hour < 8:
+            self.day_phase = "dawn"
+            base_visibility = 2
+        elif hour < 18:
+            self.day_phase = "day"
+            base_visibility = 3
         else:
-            self.is_night = False
-            self.visibility_radius = 3
+            self.day_phase = "dusk"
+            base_visibility = 2
+
+        self.is_night = self.day_phase == "night"
+
+        # A found flashlight substantially restores visibility at any
+        # non-day phase (dawn/dusk/night) rather than being purely a
+        # static penalty - capped at 3 so it can't exceed full daytime
+        # visibility.
+        flashlight_bonus = 1 if (self.has_flashlight and self.day_phase != "day") else 0
+        self.visibility_radius = min(3, base_visibility + flashlight_bonus)
 
     def _apply_decay(self):
         # Hunger and thirst decay faster at night

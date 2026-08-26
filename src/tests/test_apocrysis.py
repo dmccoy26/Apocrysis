@@ -477,6 +477,62 @@ class TestTimeAndDecay(unittest.TestCase):
             "a 12-move trek never crossed a day/night transition",
         )
 
+    def test_dawn_and_dusk_are_intermediate_phases(self):
+        # Day/night granularity investigation: visibility now steps
+        # gradually (night=1, dawn/dusk=2, day=3) instead of jumping
+        # straight between 1 and 3.
+        self.game.time_of_day = 7 * 60  # 07:00 - dawn window (06:00-08:00)
+        self.game._update_time(0)
+        self.assertEqual(self.game.day_phase, "dawn")
+        self.assertEqual(self.game.visibility_radius, 2)
+        self.assertFalse(self.game.is_night)
+
+        self.game.time_of_day = 19 * 60  # 19:00 - dusk window (18:00-20:00)
+        self.game._update_time(0)
+        self.assertEqual(self.game.day_phase, "dusk")
+        self.assertEqual(self.game.visibility_radius, 2)
+        self.assertFalse(self.game.is_night)
+
+    def test_flashlight_boosts_visibility_at_night_not_during_day(self):
+        self.game.has_flashlight = True
+
+        self.game.time_of_day = 22 * 60  # night
+        self.game._update_time(0)
+        self.assertEqual(self.game.day_phase, "night")
+        self.assertEqual(self.game.visibility_radius, 2)  # 1 base + 1 flashlight
+
+        self.game.time_of_day = 12 * 60  # noon - already full visibility
+        self.game._update_time(0)
+        self.assertEqual(self.game.day_phase, "day")
+        self.assertEqual(self.game.visibility_radius, 3)  # capped, no change
+
+    def test_find_loot_flashlight_is_one_time_and_takes_effect_immediately(self):
+        x, y = self.game.current_position
+        self.game.map[y][x]["terrain"] = "building"
+        self.game.time_of_day = 22 * 60  # night, so the effect is visible right away
+        self.game._update_time(0)
+        self.assertFalse(self.game.has_flashlight)
+        self.assertEqual(self.game.visibility_radius, 1)
+
+        with patch.object(self.game.rng, "random", return_value=0.0), \
+             patch.object(self.game.rng, "choice", return_value="flashlight"), \
+             patch("builtins.print"):
+            self.game.find_loot()
+
+        self.assertTrue(self.game.has_flashlight)
+        self.assertEqual(self.game.visibility_radius, 2)
+
+        # Once owned, "flashlight" must drop out of the loot pool -
+        # nothing left to find, so re-rolling it would be wasted.
+        def _choice_excludes_flashlight(options):
+            self.assertNotIn("flashlight", options)
+            return options[0]
+
+        with patch.object(self.game.rng, "random", return_value=0.0), \
+             patch.object(self.game.rng, "choice", side_effect=_choice_excludes_flashlight), \
+             patch("builtins.print"):
+            self.game.find_loot()
+
 
 class TestCrafting(unittest.TestCase):
     def setUp(self):
@@ -832,6 +888,22 @@ class TestHardcoreProfiles(unittest.TestCase):
         fresh.apply_profile(profile)
 
         self.assertTrue(fresh.hardcore)
+
+    def test_apply_profile_restores_flashlight_across_expeditions(self):
+        # Found once, carried forward like a weapon - not reset each
+        # fresh expedition the way town_known is.
+        with patch("builtins.print"):
+            source = Apocrysis("FlashlightTest", map_size=8, seed=1)
+        source.has_flashlight = True
+        filename = profile_filename_for_name(source.name)
+        source.save_profile(filename)
+        profile = Apocrysis.load_profile(filename)
+
+        with patch("builtins.print"):
+            fresh = Apocrysis("FlashlightTest", map_size=8, seed=2)
+        fresh.apply_profile(profile)
+
+        self.assertTrue(fresh.has_flashlight)
 
     def test_list_and_load_profile_by_name_round_trip(self):
         with patch("builtins.print"):

@@ -394,8 +394,12 @@ class WorldMixin:
             # Only a live possibility until it's actually been found -
             # once town_known is True there's nothing left to reveal,
             # so it drops out of the pool instead of wasting a roll.
+            # Same pattern for the flashlight (day/night granularity
+            # investigation) - once owned, it drops out too.
             if not self.town_known:
                 loot_types.append("map")
+            if not self.has_flashlight:
+                loot_types.append("flashlight")
             loot_type = self.rng.choice(loot_types)
 
             # Higher intelligence increases chance of finding weapons over consumables
@@ -449,4 +453,11 @@ class WorldMixin:
                 self.io.say(
                     "You found a weathered survivor's map! The Town "
                     "Center's location is now revealed."
+                )
+            elif loot_type == "flashlight":
+                self.has_flashlight = True
+                self._update_time(0)  # refresh visibility_radius immediately, without advancing time
+                self.io.say(
+                    "You found a working flashlight! Visibility at "
+                    "dawn, dusk, and night is now much better."
                 )

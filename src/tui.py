@@ -356,6 +356,23 @@ class ApocrysisApp(App):
 
     def request_input(self, prompt):
         input_widget = self.query_one("#command_input", Input)
+        # Real bug found live: this only ever updated .placeholder
+        # (shown when the field is empty) - text a player had already
+        # TYPED but not yet submitted stayed sitting in .value,
+        # untouched, when the prompt underneath it changed (e.g. a
+        # move triggers a zombie encounter's "Do you want to fight?"
+        # while the player had already typed their next intended move
+        # and just hadn't hit Enter yet). Pressing Enter then silently
+        # submitted that stale text as the answer to whatever's
+        # actually being asked NOW, not what was on screen when it was
+        # typed - a fast typist could end up "answering" a fight
+        # prompt with a movement letter (which, since 'n' also means
+        # "no", could decline to fight, or on any other stray text,
+        # re-prompt) with no visible error, just an unintended outcome
+        # that looked like "random" movement/combat to the player.
+        # Clearing .value here forces a conscious re-type of whatever
+        # the CURRENT prompt is actually asking.
+        input_widget.value = ""
         input_widget.placeholder = prompt
         # Arrow-key movement (action_move_direction above) only
         # submits when the game is actually waiting at its main "> "

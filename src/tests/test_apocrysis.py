@@ -1766,5 +1766,60 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(app.player.won)
 
 
+class TestTuiStaleInputCleared(unittest.IsolatedAsyncioTestCase):
+    """
+    Real bug found live: entering commands fast could get the player
+    killed by what looked like "random" movement/combat. request_input()
+    only ever updated the command box's .placeholder (shown when the
+    field is empty) - text a player had already TYPED but not yet
+    submitted stayed sitting in .value untouched when the prompt
+    underneath it changed (e.g. a move triggers a zombie encounter's
+    "Do you want to fight?" while the player had already typed their
+    next intended move and just hadn't hit Enter yet). Submitting then
+    silently answered whatever's being asked NOW with stale text typed
+    for a different, no-longer-current prompt - answering a fight
+    prompt with a movement letter (which, since 'n' also means "no",
+    could decline to fight) with no visible error.
+    """
+
+    async def asyncSetUp(self):
+        self._profile_file = profile_filename_for_name("StaleInputTest")
+        if os.path.exists(self._profile_file):
+            os.remove(self._profile_file)
+
+    async def asyncTearDown(self):
+        # Same race as TestTuiWinContinuation above: _game_thread's
+        # AppClosed-triggered save_profile() can still be in flight
+        # briefly after run_test()'s `async with` block has returned.
+        await asyncio.sleep(0.3)
+        if os.path.exists(self._profile_file):
+            os.remove(self._profile_file)
+
+    async def test_request_input_clears_stale_unsent_text(self):
+        app = ApocrysisApp(name="StaleInputTest", level=1, seed=1)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+
+            inp = app.query_one("#command_input")
+            inp.focus()
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+
+            # Player typed "n" meaning "move north" but hasn't hit
+            # Enter yet.
+            inp.value = "n"
+
+            # The prompt changes underneath them - e.g. a zombie
+            # encounter's fight decision.
+            app.request_input("Do you want to fight? (y/n)")
+
+            self.assertEqual(
+                inp.value, "",
+                "stale unsent text survived a prompt change - it would "
+                "be submitted as the answer to the NEW prompt, not the "
+                "one the player actually typed it for",
+            )
+            self.assertEqual(inp.placeholder, "Do you want to fight? (y/n)")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

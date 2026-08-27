@@ -1370,7 +1370,7 @@ class TestObjectiveDrivenWin(unittest.TestCase):
             "explored": True, "district": "residential",
         }
 
-        with patch("builtins.print"):
+        with patch("builtins.print"), patch("builtins.input", return_value="n"):
             game.move_and_search("e")
 
         self.assertTrue(game.settlement_explored)

@@ -94,6 +94,7 @@ _SORTED_CLASS_NAMES = sorted(
     key=lambda name: _power_score(PLAYER_CLASSES[name]),
 )
 
+# AUDIT FINDING (level 9->10 tier transition): Simulating level_up() calls 1->20 reveals that the level-10 tier blend is the only one of the 5 tier crossings with any negative raw-stat delta. The level 9->10 transition nets strength -2 and dexterity -2 even after normal per-level +1/+1 growth (level 9: str 20/dex 21 -> level 10: str 18/dex 19), because the level-10 tier representative ('teacher') has lower strength/dexterity than level-5's ('mechanic'). However, the FULL capability impact is milder than the raw stat delta suggests: melee damage bonus (strength // 3) is UNCHANGED (20//3 == 18//3 == 6), dodge chance drops from 0.140 to 0.127 and crit chance from 0.105 to 0.095 (both dex/divisor-based, real but small), while max_health (+5), fatigue recovery, and rest recovery all improve at the same transition. Net verdict: real but narrow regression (dodge/crit only, ~1 percentage point each), not the across-the-board power loss the raw -3/-3 representative-class delta implied. This audit is what should inform any fix to the level-10 tier blend, rather than fixing it blind.
 CLASS_TIERS = _split_into_tiers(_SORTED_CLASS_NAMES)
 
 TIER_LEVEL_THRESHOLDS = [1, 5, 10, 15, 20]

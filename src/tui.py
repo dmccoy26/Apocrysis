@@ -142,6 +142,7 @@ class ApocrysisApp(App):
     }
     #map_scroll {
         overflow: auto auto;
+        align: center middle;
     }
     #map_panel {
         width: auto;

@@ -26,10 +26,11 @@ TERRAIN_SYMBOLS = {
     'plain': '.',
     'mountain': '^',
     'river': '=',
+    'swamp': 's',
 }
 
 TERRAIN_LEGEND = (
-    "  f = forest   ~ = water   b = building   . = plain\n"
+    "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
     "  ^ = mountain (impassable)   = = river (impassable)\n"
     "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
     "  P = you   Z = zombie (only shown once you've been there)"
@@ -112,6 +113,7 @@ TERRAIN_MOVE_MINUTES = {
     'water': 30,
     'mountain': 40,
     'river': 40,
+    'swamp': 35,
 }
 
 # Real bug found live: world_mixin.py's find_loot() used to build

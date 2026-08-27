@@ -17,6 +17,7 @@ class ActionsMixin:
     # resource types, so Backpack needs no changes).
     crafting_recipes = {
         "steel_sword": {"ingredients": {"weapon": 1, "food": 2}, "min_level": 1, "result_name": "Steel Sword", "result": lambda: MeleeWeapon("Steel Sword", 20, 50)},
+        "repair_kit": {"ingredients": {"medicine": 2, "food": 1}, "min_level": 8, "result_name": "Repair Kit", "result": None},
         "heavy_bow": {"ingredients": {"weapon": 1, "ammo": 3}, "min_level": 1, "result_name": "Heavy Bow", "result": lambda: RangedWeapon("Heavy Bow", 25, 10)},
         "combat_knife": {"ingredients": {"weapon": 1, "medicine": 1}, "min_level": 1, "result_name": "Combat Knife", "result": lambda: MeleeWeapon("Combat Knife", 15, 40)},
         "reinforced_blade": {"ingredients": {"weapon": 1, "medicine": 1, "food": 1}, "min_level": 4, "result_name": "Reinforced Blade", "result": lambda: MeleeWeapon("Reinforced Blade", 28, 60)},
@@ -57,6 +58,9 @@ class ActionsMixin:
         # tui.py's _game_thread()) that rolls the same class, for the
         # rest of the process's lifetime.
         self.equipped_weapon = copy.deepcopy(attrs.equipped_weapon)
+        if self.equipped_weapon.name == 'Kitchen Knife':
+            variant_name = self.rng.choice(['Kitchen Knife', 'Rolling Pin', 'Frying Pan', 'Screwdriver'])
+            self.equipped_weapon.name = variant_name
         # RangedWeapon.__init__ already starts ammo at max_ammo - no
         # separate top-up needed here.
 
@@ -119,6 +123,11 @@ class ActionsMixin:
             return
         
         recovery_rate = max(5, self.wisdom // 2)
+        current_tile = self.map[self.current_position[1]][self.current_position[0]]
+        current_terrain = current_tile.get('terrain') if isinstance(current_tile, dict) else None
+        if current_terrain == 'building':
+            recovery_rate *= 2
+            self.io.say("You rest safely in a building, recovering fatigue faster.")
         recovered = min(self.fatigue, recovery_rate)
         self.fatigue -= recovered
         self.io.say(f"You rest and recover {recovered} fatigue. Current fatigue: {self.fatigue}")
@@ -281,6 +290,16 @@ class ActionsMixin:
                 for _ in range(count):
                     removed = self.backpack.weapons.pop(0)
                     self.io.say(f"Used {removed.name} for crafting.")
+
+        if recipe_key == 'repair_kit':
+            if self.equipped_weapon:
+                self.equipped_weapon.durability = self.equipped_weapon.max_durability
+            for piece in self.equipped_armor.values():
+                if piece:
+                    piece.durability = piece.max_durability
+            self.io.say('You use the repair kit to service your equipped weapon and armor - durability fully restored.')
+            self._check_and_complete_goals('craft')
+            return
 
         # Add result
         new_item = recipe["result"]()

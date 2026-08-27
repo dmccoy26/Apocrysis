@@ -43,6 +43,74 @@ dependency-free path.
 - **A day/night cycle that actually completes** within a normal trek,
   instead of a 24-hour clock a short walk barely dented.
 
+## Game systems
+
+**Character & progression.** Every game starts as the baseline tier's
+representative class (stats + starter weapon; see `src/player.py`'s
+22 flavor classes, split into 5 power tiers). XP comes from kills
+(25), loot finds (10), and goal/task rewards; leveling up
+(`award_xp()`/`level_up()`, `src/mixins/combat_mixin.py`) adds +1 to
+all four stats and +5 max health every level, and at levels 5/10/15/20
+blends in the next tier's stats on top (never a reset). Strength adds
+melee damage; dexterity drives dodge/crit chance; intelligence
+improves loot quantity/quality; wisdom speeds fatigue recovery.
+
+**Combat.** Turn-based exchanges against six zombie types (Fresh,
+Regular, Heavy, Swift, Toxic, Armored - each with its own stats and
+loot table, `src/zombies.py`), plus an "Elite" variant (1.5x stats)
+that can appear once `expeditions_completed >= 3`. Status effects
+(Bleeding, Stun, guaranteed Poison from Toxic zombies) tick each turn;
+low health/hunger/thirst/high fatigue reduce your own damage output.
+Declining a fight is a 50/50 flee chance, plus a 10% desperation flee
+below 10% health.
+
+**Equipment.** One equipped weapon (melee or ranged, both with
+durability; ranged also tracks ammo) plus four independent armor slots
+(head/body/hands/feet, `src/items.py`), each reducing incoming damage
+and wearing down with use. Crafting (`cr`, 8 recipes gated by player
+level 1-18) turns backpack materials into upgraded gear, with a
+dexterity-scaled chance of a "Fine"/"Masterwork" quality bonus.
+
+**Survival resources.** Food/water/medicine/ammo live in a shared,
+capped backpack. Eating/drinking/medicine restore health and
+hunger/thirst; hunger/thirst decay passively every move (faster at
+night) but only degrade combat effectiveness, not health directly.
+Fatigue rises with movement/combat and recovers by resting or entering
+a building.
+
+**World generation.** Map size, obstacle density, and Town Center
+distance all scale with `expeditions_completed` (not player level -
+these are independent axes, see `src/constants.py`). Terrain
+generates in contiguous chunks, not per-tile, and from
+`expeditions_completed >= 4` mountains/rivers appear as real
+obstacles. 1-3 settlements are placed per map; exactly one holds the
+real, win-triggering Town Center, the rest are decoys. A generated map
+is always solvable - the real Town Center's reachability is
+guaranteed by construction.
+
+**Day/night & visibility.** A compressed clock cycles through
+dawn/day/dusk/night, each with its own visibility radius; a one-time
+flashlight pickup partially restores visibility at night. Fog-of-war
+hides unvisited tiles and, unless a "map" item is found, the Town
+Center's location.
+
+**Win condition & objectives.** Reaching the Town Center only wins
+after you've already set foot in some settlement (reaching it early
+just gets you a warning). A win advances `expeditions_completed`;
+reaching `CAMPAIGN_LENGTH` (10) completes the campaign with a bonus
+stash. Two lighter systems ride alongside this: fixed **Goals** (`go`/
+`goals`, e.g. "Find Food," "Reach the Town Center") that
+auto-complete on matching actions, and dynamically generated **Tasks**
+(`ts`/`ct`, exploration/combat/survival milestones) that only complete
+via the manual `ct` command.
+
+**Persistence.** Two separate systems: named **save slots** (`sv`/
+`ds`) capture an exact in-progress game for a precise resume, while
+the automatic **profile** (`save_profile`/`apply_profile`) carries
+level/stats/gear/flashlight/map-knowledge between expeditions in a
+campaign - a win keeps `expeditions_completed`, a death or timeout
+retries the same tier.
+
 ## Controls
 
 Movement is `n`/`s`/`e`/`w`. In-game, `h` (or `?`) prints the full

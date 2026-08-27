@@ -116,12 +116,12 @@ class MeleeWeapon(Weapon):
         self.durability = durability
         self.max_durability = durability
 
-    def use(self):
+    def use(self, io=None):
         if self.durability > 0:
             self.durability -= 1
             return self.damage
         else:
-            print(f"{self.name} is broken and cannot be used.")
+            (io.say(f"{self.name} is broken and cannot be used.") if io is not None else None)
             return 0  # Return 0 damage if the weapon is broken
 
     def __str__(self):
@@ -141,26 +141,26 @@ class RangedWeapon(Weapon):
         self.durability = durability
         self.max_durability = durability
 
-    def fire(self):
+    def fire(self, io=None):
         if self.ammo > 0 and self.durability > 0:
             self.ammo -= 1
             self.durability -= 1
-            print(f"You fire your {self.name}. Ammo remaining: {self.ammo}/{self.max_ammo}")
+            (io.say(f"You fire your {self.name}. Ammo remaining: {self.ammo}/{self.max_ammo}") if io is not None else None)
             return self.damage
         else:
             if self.ammo <= 0:
-                print("Out of ammo! You need to reload.")
+                (io.say("Out of ammo! You need to reload.") if io is not None else None)
             else:
-                print(f"{self.name} is broken and cannot be used.")
+                (io.say(f"{self.name} is broken and cannot be used.") if io is not None else None)
             return 0
 
-    def use(self):
+    def use(self, io=None):
         if self.ammo > 0 and self.durability > 0:
             self.ammo -= 1
             self.durability -= 1
             return self.damage
         else:
-            print("Out of ammo or weapon is broken!")
+            (io.say("Out of ammo or weapon is broken!") if io is not None else None)
             return 0
 
     def reload(self, available_ammo):

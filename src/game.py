@@ -79,6 +79,9 @@ class Apocrysis(
         # single slot - see items.py's Armor.
         self.equipped_armor = {slot: None for slot in ARMOR_SLOTS}
         self.initialize_player()
+        self.hunger = self.rng.randint(85, 95)
+        self.thirst = self.rng.randint(85, 95)
+        self.fatigue = self.rng.randint(0, 10)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
         self.goals = [
@@ -106,7 +109,7 @@ class Apocrysis(
         self.settlement_explored = False
 
         # Day/Night Cycle Initialization
-        self.time_of_day = 480  # Start at 08:00 (minutes from midnight)
+        self.time_of_day = self.rng.randint(420, 540)  # Start between 07:00-09:00 (minutes from midnight)
         self.visibility_radius = 3
         self.is_night = False
         self.day_phase = "day"
@@ -118,6 +121,9 @@ class Apocrysis(
         # Substantially restores visibility during dawn/dusk/night
         # instead of a static, unavoidable penalty.
         self.has_flashlight = False
+
+        # One-time discoverable item: waders that reduce water movement cost / prevent drowning (to be wired up in world_mixin.py)
+        self.has_waders = False
 
         self._update_time()
 

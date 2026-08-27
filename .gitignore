@@ -9,3 +9,6 @@ __pycache__/
 memory/
 .atlas/
 .atlasignore
+
+# Local balance-test output, not source
+balance_sweep_out/

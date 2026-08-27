@@ -9,6 +9,17 @@ from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representativ
 from src.zombies import Zombie, ToxicZombie
 
 
+# Auto-extracted from the original monolithic apocrysis.py during
+# the src/ restructuring - see README.md for the project layout.
+
+import random
+
+from src.constants import BOLD, GREEN, RESET, STATUS_EFFECT_DAMAGE
+from src.items import MeleeWeapon, RangedWeapon
+from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representative
+from src.zombies import Zombie, ToxicZombie
+
+
 class CombatMixin:
 
     def _condition_penalty(self):
@@ -111,7 +122,7 @@ class CombatMixin:
                 self.io.say(f"You are stunned! Turn skipped.")
                 self.status_effects["Stun"] -= 1
             elif self.equipped_weapon:
-                damage = round((self.equipped_weapon.use() + max(0, self.strength // 3)) * self._condition_penalty())
+                damage = round((self.equipped_weapon.use(self.io) + max(0, self.strength // 3)) * self._condition_penalty())
                 
                 # Critical hit chance scaled by dexterity
                 crit_chance = min(0.25, self.dexterity / 200)
@@ -234,10 +245,14 @@ class CombatMixin:
         prev_rep = PLAYER_CLASSES[tier_representative(tier_index - 1)]
 
         # Additive, never a reset - equipped weapon untouched.
-        self.strength += new_rep.strength - prev_rep.strength
-        self.dexterity += new_rep.dexterity - prev_rep.dexterity
-        self.intelligence += new_rep.intelligence - prev_rep.intelligence
-        self.wisdom += new_rep.wisdom - prev_rep.wisdom
+        strength_delta = max(0, new_rep.strength - prev_rep.strength)
+        dexterity_delta = max(0, new_rep.dexterity - prev_rep.dexterity)
+        intelligence_delta = max(0, new_rep.intelligence - prev_rep.intelligence)
+        wisdom_delta = max(0, new_rep.wisdom - prev_rep.wisdom)
+        self.strength += strength_delta
+        self.dexterity += dexterity_delta
+        self.intelligence += intelligence_delta
+        self.wisdom += wisdom_delta
         self.max_health += new_rep.health - prev_rep.health
         self.health = min(self.max_health, self.health)
 
@@ -290,4 +305,3 @@ class CombatMixin:
             elif item == "ammo":
                 self.backpack.ammo += random.randint(1, 10)
                 self.io.say("You found some ammo!")
-

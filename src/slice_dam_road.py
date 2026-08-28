@@ -282,6 +282,16 @@ SLICE_IRRELEVANT = {
 }
 
 
+# A little placed loot so searching a location has a material beat,
+# not only an evidence beat - location -> (consumable, amount, text).
+# Delivered once, on the first `search` of that location.
+SLICE_SUPPLIES = {
+    'utility_shed': ('water', 4, "There's a case of bottled water under the bench."),
+    'control_room': ('food', 3, "Someone's ration stash is still in the footlocker by the cot."),
+    'farmhouse': ('medicine', 2, "The bathroom cabinet still has a first-aid tin."),
+}
+
+
 def evidence_by_id(eid):
     for e in SLICE_EVIDENCE:
         if e['id'] == eid:

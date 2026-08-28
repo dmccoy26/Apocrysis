@@ -433,14 +433,19 @@ class WorldMixin:
             return
 
         # v4 slice: the locked service gate blocks movement until it
-        # has been opened with the valve key (SliceMixin.slice_bump_gate
-        # records the "gate is locked" observation and the backtrack
-        # flag).
+        # is opened. Walking into it WITH the valve key opens it right
+        # there (the natural "I have the key, I go through" move);
+        # without the key, slice_bump_gate records the locked-gate
+        # observation and the backtrack flag. `open gate` also works
+        # from any adjacent tile - see SliceMixin.
         if getattr(self, 'slice_mode', False):
             from src.slice_dam_road import slice_location_at, SLICE_GATE_LOCATION
             if (slice_location_at(new_x, new_y) == SLICE_GATE_LOCATION
                     and not getattr(self, 'slice_gate_open', False)):
-                self.slice_bump_gate()
+                if self._slice_has_key():
+                    self.slice_open_gate()
+                else:
+                    self.slice_bump_gate()
                 return
 
         # Update the current position
@@ -454,8 +459,11 @@ class WorldMixin:
         self._update_time(move_cost)
         self._apply_decay()
 
-        # Fatigue increases with movement
-        self.fatigue = min(100, self.fatigue + 5)
+        # Fatigue increases with movement - but not in the slice,
+        # where there's no combat for it to matter to and a pegged
+        # 100 just reads as "something is wrong."
+        if not getattr(self, 'slice_mode', False):
+            self.fatigue = min(100, self.fatigue + 5)
 
         self.io.say(f"Moved {direction}.")
 

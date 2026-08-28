@@ -91,6 +91,16 @@ class Apocrysis(
         self.hunger = self.rng.randint(85, 95)
         self.thirst = self.rng.randint(85, 95)
         self.fatigue = self.rng.randint(0, 10)
+
+        # v4 slice: come in already provisioned. Survival is
+        # deliberately not the thing being tested here - the player
+        # should never be managing hunger/thirst during the
+        # investigation. (See _apply_decay's slice branch.)
+        if slice_mode:
+            self.backpack.food = 25
+            self.backpack.water = 25
+            self.backpack.medicine = 5
+            self.fatigue = 0
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
         self.goals = [

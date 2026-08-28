@@ -41,6 +41,7 @@ class SliceMixin:
         self.slice_saw_gate_locked = False  # for the backtrack beat
         self.slice_shed_flooded = False     # physical-destruction demo
         self.slice_escaped = False
+        self.slice_supplies_taken = set()
 
     # ---- knowledge derivations (pure, computed on demand) ------
 
@@ -103,6 +104,12 @@ class SliceMixin:
         if first_time and S.evidence_at(key, method='search'):
             self.io.say("(There may be more here if you `search`.)")
 
+        if (key == S.SLICE_ESCAPE_LOCATION
+                and self.slice_gate_open
+                and not self.slice_escaped
+                and self._slice_hypothesis_state() == 'confirmed'):
+            self.io.say("(Type `escape` to leave the valley.)")
+
     def slice_bump_gate(self):
         """Walked into the locked gate. Records the gate as observed
         evidence (E3) and the backtrack flag, without moving."""
@@ -114,7 +121,9 @@ class SliceMixin:
     def _slice_adjacent_to(self, location_key):
         lx, ly = S.SLICE_LOCATIONS[location_key]['coord']
         px, py = self.current_position
-        return abs(px - lx) + abs(py - ly) <= 1
+        # Chebyshev - counts diagonals, so any of the tiles you can
+        # actually stand on next to the gate work.
+        return max(abs(px - lx), abs(py - ly)) <= 1
 
     # ---- commands --------------------------------------------
 
@@ -124,6 +133,13 @@ class SliceMixin:
             self.io.say("You search the area but find nothing worth noting.")
             return
         loc = S.SLICE_LOCATIONS[key]
+
+        # Placed supplies - a material "found something" beat, once.
+        if key in S.SLICE_SUPPLIES and key not in self.slice_supplies_taken:
+            self.slice_supplies_taken.add(key)
+            kind, amount, text = S.SLICE_SUPPLIES[key]
+            setattr(self.backpack, kind, getattr(self.backpack, kind) + amount)
+            self.io.say(f"{text} (+{amount} {kind})")
 
         # Irrelevant leads: real text, no evidence, no mechanical hook.
         if key in S.SLICE_IRRELEVANT:
@@ -295,6 +311,7 @@ class SliceMixin:
                 "The valve key fits the padlock. The chain drops and the "
                 "gate swings in."
             )
+        self.io.say("The service road is open ahead of you. Head east.")
         # The reservoir is still rising - reaching the gate takes long
         # enough that the shed record is lost behind you.
         self.slice_shed_flooded = True

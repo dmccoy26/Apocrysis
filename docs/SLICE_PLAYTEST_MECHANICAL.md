@@ -100,11 +100,36 @@ the category. **Mechanically, the governing test passes.**
   slice mode. Real-game tuning untouched.
 - 115 existing tests still pass.
 
+## Fixes after the first human playthrough (2026-08-28)
+
+The first real play surfaced four problems; all fixed in the same
+Stage 0 commit range:
+
+1. **Could not open the gate with the key.** `open gate` only worked
+   from exactly one tile `(13,12)`; from `(13,11)`/`(13,13)` — normal
+   approach tiles — it said "there is no gate here to open" *even
+   with the key in hand*. Fixed: `open gate` now works from any tile
+   adjacent to the gate (Chebyshev ≤ 1, diagonals included), **and**
+   walking straight into the gate while carrying the valve key opens
+   it automatically with the narrative beat.
+2. **Fatigue pegged at 100 the whole game.** It climbed +5/move with
+   nothing to spend it on (no combat in the slice) and just read as
+   "something is wrong." Fixed: movement fatigue is disabled in slice
+   mode; the player starts at 0.
+3. **Nothing to find — no food, water, weapons.** The slice had
+   *eliminated* survival rather than *loosened* it. Fixed: the player
+   now starts provisioned (25 food / 25 water / 5 medicine) and three
+   locations yield a small supply cache on `search` (shed → water,
+   control room → food, farmhouse → medicine), so searching has a
+   material beat, not only an evidence beat.
+4. **"Where are the zombies?"** Working as intended — combat and
+   scavenging are deliberately off for this test — but nothing said
+   so. Fixed: the `--slice` intro now states it up front, and adds
+   `(type 'escape' to leave the valley)` once the player is standing
+   past the open gate with a confirmed hypothesis.
+
 ## Known rough edges (deliberately NOT fixed — "observe first")
 
-- Fatigue still climbs +5/move and caps at 100. Harmless in the slice
-  (fatigue only affects combat, of which there is none) but the
-  per-turn "Fatigue +5" is visual noise.
 - Stepping onto the gate tile after opening it triggers the generic
   "You enter a building. It's a safe zone." heal.
 - The classic-mode command panel doesn't list the slice verbs (the

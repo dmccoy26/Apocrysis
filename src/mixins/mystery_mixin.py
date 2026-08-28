@@ -60,12 +60,17 @@ class MysteryMixin:
                     self.io.say("(Type `escape` to leave.)")
             return
 
+        # Arriving at a meaningful location IS the investigation. Both
+        # observed and searched evidence surface now - no separate
+        # `search` step (it was ceremony, not a decision). The require
+        # site also hands over the requirement item.
+        any_new = False
         for eid in m._site_evidence.get(role, []):
-            ev = m.knowledge.evidence.get(eid)
-            if ev and ev.method == 'observe':
-                self._mystery_reveal(eid)
-        if m._has_searchable(role):
-            self.io.say("(There may be more here if you `search`.)")
+            if self._mystery_reveal(eid):
+                any_new = True
+        if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
+            self.backpack.add_item(Item(m.requirement_item))
+            self.io.say(f"You take the {m.requirement_item}.")
 
     def mystery_bump_obstacle(self):
         m = self._mystery()
@@ -74,35 +79,35 @@ class MysteryMixin:
         m.saw_obstacle = True
         revealed = False
         for eid in m._site_evidence.get('obstacle', []):
-            ev = m.knowledge.evidence.get(eid)
-            if ev and ev.method == 'observe':
-                revealed = self._mystery_reveal(eid) or revealed
+            revealed = self._mystery_reveal(eid) or revealed
         if not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
 
     # ---- commands ------------------------------------------
 
     def mystery_search(self):
+        """`search` still exists for a deliberate second look, but at a
+        mystery site everything already surfaced on arrival - so this
+        mostly just confirms there's nothing more, or picks up the
+        requirement item if arrival somehow missed it."""
         m = self._mystery()
         if m is None:
-            self.io.say("You search around, but there's nothing here that means anything.")
+            self.io.say("You look around properly. Nothing here that means anything.")
             return
         role = self._mystery_role_at(*self.current_position)
         if role is None or role == 'escape':
-            self.io.say("You search the area. Nothing that matters.")
+            self.io.say("You look around properly. Nothing here that means anything.")
             return
 
-        found_new = False
+        any_new = False
         for eid in m._site_evidence.get(role, []):
-            ev = m.knowledge.evidence.get(eid)
-            if ev and ev.method == 'search':
-                found_new = self._mystery_reveal(eid) or found_new
-
+            if self._mystery_reveal(eid):
+                any_new = True
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
             self.io.say(f"You take the {m.requirement_item}.")
-        elif not found_new:
-            self.io.say("Nothing else here.")
+        elif not any_new:
+            self.io.say("You've already been over this place. Check `journal` for what you found.")
 
     def mystery_clear_obstacle(self):
         m = self._mystery()

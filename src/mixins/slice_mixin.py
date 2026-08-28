@@ -81,12 +81,7 @@ class SliceMixin:
             self.io.say("Open ground. Nothing here but the way you're going.")
             return
         self.io.say(S.SLICE_LOCATIONS[key]['blurb'])
-        for ev in S.evidence_at(key, method='observe'):
-            if ev['id'] == S.SLICE_HYPOTHESIS['confirmed_by'] and not self.slice_gate_open:
-                continue
-            self._slice_discover(ev['id'])
-        if S.evidence_at(key, method='search'):
-            self.io.say("(There may be more here if you `search`.)")
+        self._slice_examine(key)
 
     # ---- arrival (called from world_mixin.move_and_search) --
 
@@ -98,19 +93,50 @@ class SliceMixin:
         self.slice_locations_seen.add(key)
         if first_time:
             self.io.say(S.SLICE_LOCATIONS[key]['blurb'])
-
-        for ev in S.evidence_at(key, method='observe'):
-            if ev['id'] == S.SLICE_HYPOTHESIS['confirmed_by'] and not self.slice_gate_open:
-                continue
-            self._slice_discover(ev['id'])
-
-        if first_time and S.evidence_at(key, method='search'):
-            self.io.say("(There may be more here if you `search`.)")
+        self._slice_examine(key)
 
         if (key == S.SLICE_ESCAPE_LOCATION and self.slice_gate_open
                 and not self.slice_escaped
                 and self.knowledge.hypothesis_state() == 'confirmed'):
             self.io.say("(Type `escape` to leave the valley.)")
+
+    def _slice_examine(self, key):
+        """Everything you'd get from being at this location and going
+        through it - observed AND searched evidence, supply caches, the
+        irrelevant-thread text, the physical-destruction beat. Runs on
+        arrival (no separate `search` step) and is idempotent."""
+        # supply cache, once
+        if key in S.SLICE_SUPPLIES and key not in self.slice_supplies_taken:
+            self.slice_supplies_taken.add(key)
+            kind, amount, text = S.SLICE_SUPPLIES[key]
+            setattr(self.backpack, kind, getattr(self.backpack, kind) + amount)
+            self.io.say(f"{text} (+{amount} {kind})")
+
+        # physical-destruction demo: the shed record is gone after the
+        # flood, but the journal keeps what was already read
+        if key == 'utility_shed' and self.slice_shed_flooded:
+            if any(e['id'] in self.knowledge.found for e in S.evidence_at('utility_shed')):
+                self.io.say(
+                    "The shed is under a foot of reservoir water now. The "
+                    "clipboard and the papers are pulp. What you already "
+                    "read here you still know - check `journal` - but "
+                    "there's nothing left to read."
+                )
+                return
+
+        if key in S.SLICE_IRRELEVANT:
+            self.io.say(S.SLICE_IRRELEVANT[key])
+
+        for ev in S.evidence_at(key):
+            if ev['id'] == S.SLICE_HYPOTHESIS['confirmed_by'] and not self.slice_gate_open:
+                continue
+            self._slice_discover(ev['id'])
+
+        if (key == 'control_room'
+                and S.SLICE_KEY_EVIDENCE in self.knowledge.found
+                and not self._slice_has_key()):
+            self.backpack.add_item(Item(S.SLICE_KEY_ITEM))
+            self.io.say(f"You take the {S.SLICE_KEY_ITEM}.")
 
     def slice_bump_gate(self):
         """Walked into the locked gate without the key."""
@@ -122,47 +148,16 @@ class SliceMixin:
     # ---- commands (slice-specific) --------------------------
 
     def slice_search(self):
+        """`search` still works, but you get the same thing just by
+        being here - it's not a required step."""
         key = S.slice_location_at(*self.current_position)
         if key is None:
-            self.io.say("You search the area but find nothing worth noting.")
+            self.io.say("You look around properly. Nothing here worth noting.")
             return
-        loc = S.SLICE_LOCATIONS[key]
-
-        if key in S.SLICE_SUPPLIES and key not in self.slice_supplies_taken:
-            self.slice_supplies_taken.add(key)
-            kind, amount, text = S.SLICE_SUPPLIES[key]
-            setattr(self.backpack, kind, getattr(self.backpack, kind) + amount)
-            self.io.say(f"{text} (+{amount} {kind})")
-
-        if key in S.SLICE_IRRELEVANT:
-            self.io.say(S.SLICE_IRRELEVANT[key])
-
-        searchable = S.evidence_at(key, method='search')
-        if not searchable and key not in S.SLICE_IRRELEVANT:
-            self.io.say(f"You search {loc['name']}. Nothing new.")
-            return
-
-        if key == 'utility_shed' and self.slice_shed_flooded:
-            self.io.say(
-                "The shed floor is under a foot of reservoir water. The "
-                "clipboard and the papers on the wall are pulp. Whatever "
-                "you already read here, you still know - but there is "
-                "nothing left to read."
-            )
-            return
-
-        found_new = False
-        for ev in searchable:
-            if self._slice_discover(ev['id']):
-                found_new = True
-
-        if (key == 'control_room'
-                and S.SLICE_KEY_EVIDENCE in self.knowledge.found
-                and not self._slice_has_key()):
-            self.backpack.add_item(Item(S.SLICE_KEY_ITEM))
-            self.io.say(f"You take the {S.SLICE_KEY_ITEM}.")
-        elif not found_new and key not in S.SLICE_IRRELEVANT:
-            self.io.say("Nothing else here.")
+        before = len(self.knowledge.found)
+        self._slice_examine(key)
+        if len(self.knowledge.found) == before and key not in S.SLICE_IRRELEVANT:
+            self.io.say("You've been over this place. Check `journal` for what you found.")
 
     # ---- gate / escape --------------------------------------
 

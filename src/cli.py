@@ -23,7 +23,7 @@ def _resolve_player_identity():
     existing_names = Apocrysis.list_profile_names()
     if existing_names:
         print("Existing survivors:", ", ".join(existing_names))
-        name = input("Enter your name (existing or new): ").strip()
+        name = input("Continue a survivor by typing their exact name, or type a new name to start fresh: ").strip()
     else:
         name = input("Enter your name: ").strip()
 

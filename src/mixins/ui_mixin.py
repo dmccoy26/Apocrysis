@@ -94,6 +94,16 @@ class UIMixin:
         # unaffected by this split.
         native = getattr(self.io, "renders_natively", False)
 
+        # One-time scene-setter for this expedition's map archetype
+        # (world_mixin.generate_map stores it rather than emitting it -
+        # generation runs on an io-unsafe thread in the TUI). Emitting
+        # here means it lands on the same thread as the rest of the
+        # loop's output, in both modes.
+        _blurb = getattr(self, 'map_archetype_blurb', None)
+        if _blurb and not getattr(self, '_archetype_blurb_shown', False):
+            self._archetype_blurb_shown = True
+            self.io.say(_blurb)
+
         while self.health > 0 and not getattr(self, 'won', False):
             # v3 SPRINT fix: this used to be cached once per turn
             # (self._last_cmd_list) and reused by the TUI's every

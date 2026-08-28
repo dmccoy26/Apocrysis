@@ -322,12 +322,13 @@ class WorldMixin:
                 self.map[y][x] = self._select_zombie_for_encounter()
                 placed_zombies += 1
 
-        # One line of scene-setting for this expedition's archetype -
-        # same inline-io pattern as the next-game prize message in
-        # game.py __init__. Guarded so map-generation unit tests that
-        # construct a bare game don't need a live io.
-        if getattr(self, 'io', None) is not None and not getattr(self, 'slice_mode', False):
-            self.io.say(_arch['blurb'])
+        # One line of scene-setting for this expedition's archetype.
+        # STORED, not emitted here: generate_map() runs inside
+        # Apocrysis.__init__, which in the TUI happens on the app's own
+        # thread - calling self.io.say() (-> Textual call_from_thread)
+        # from there raises. run_game_loop() emits it on its first turn,
+        # on whichever thread is safe for that mode (see ui_mixin).
+        self.map_archetype_blurb = _arch['blurb']
 
         return self.map
 

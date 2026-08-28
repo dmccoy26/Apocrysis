@@ -319,6 +319,8 @@ class UIMixin:
                 'j': self.knowledge_journal,
                 'remember': self.knowledge_remember,
                 'rem': self.knowledge_remember,
+                'think': self.knowledge_remember,
+                't': self.knowledge_remember,
                 'look': self.knowledge_look,
                 'l': self.knowledge_look,
                 # v4 investigation commands - routed to the slice or
@@ -658,13 +660,11 @@ class UIMixin:
         panel afterward; this is just the flare. kind="warn" for bad
         news (red), "info" (cyan) otherwise.
         """
-        glyph, color = ("[!]", f"{BOLD}{RED}") if kind == "warn" else ("***", f"{BOLD}{CYAN}")
+        glyph, color = ("[!]", f"{BOLD}{RED}") if kind == "warn" else ("*", f"{BOLD}{CYAN}")
         rows = [f"{glyph} {title.upper()}"] + [str(b) for b in body_lines]
-        w = max(len(r) for r in rows)
-        top = "╭" + "─" * (w + 2) + "╮"
-        bot = "╰" + "─" * (w + 2) + "╯"
-        body = "\n".join(f"│ {r.ljust(w)} │" for r in rows)
-        self.io.say(f"\n{color}{top}\n{body}\n{bot}{RESET}")
+        rule = "═" * max(30, min(56, max(len(r) for r in rows) + 2))
+        body = "\n".join(rows)
+        self.io.say(f"\n{color}{rule}\n{body}\n{rule}{RESET}")
 
     def print_map(self):
         for line in self._render_map_lines():
@@ -672,59 +672,72 @@ class UIMixin:
         self.io.say(TERRAIN_LEGEND)
 
     def print_help(self):
-        self.io.say("\n--- Help ---")
-        self.io.say("Available commands:")
-        self.io.say("  n (north), s (south), e (east), w (west) - Move")
-        self.io.say("  m (map)                                 - Display the current map")
-        self.io.say("  i (inventory)                           - Show your backpack contents")
-        self.io.say("  st (stats)                              - View player statistics")
-        self.io.say("  look (l)                                - Take stock of where you're standing")
-        self.io.say("  search (sr)                             - Go through this place properly for records and clues")
-        self.io.say("  journal (j)                             - Everything you've found and what it tells you")
-        self.io.say("  remember (rem)                          - Think over where your understanding stands")
-        self.io.say("  inspect [thing]                         - What you know about one thing (try 'inspect the way out')")
-        if getattr(self, 'mystery', None) is not None or getattr(self, 'slice_mode', False):
-            self.io.say("  clear / open                            - Get past the obstacle on the route out")
-            self.io.say("  escape                                  - Leave, once you're sure of the way and it's open")
-        self.io.say("  f (fight)                               - Fight the zombie on your current tile")
-        self.io.say("  p (punch)                               - Attack unarmed, regardless of what's equipped")
-        self.io.say("  eq [name] (equip)                       - Equip a weapon from your inventory")
-        self.io.say("  drop [name]                             - Drop a weapon (salvages any ammo it's holding)")
-        if isinstance(self.equipped_weapon, RangedWeapon):
-            self.io.say("  reload [name]                           - Reload to max, drawing from your ammo pool")
-        self.io.say("  wr [name] (wear)                        - Equip armor from your inventory")
-        self.io.say("  da [name] (dropa)                       - Drop a piece of armor")
-        if self.backpack.food > 0:
-            self.io.say("  ea (eat)                                - Consume food to reduce hunger and restore health")
-        if self.backpack.water > 0:
-            self.io.say("  dr (drink)                              - Consume water to reduce thirst and restore health")
-        if self.backpack.medicine > 0:
-            self.io.say("  med (medicine)                          - Use medicine to restore health")
-        self.io.say("  cr [name] (craft)                       - Combine items into upgraded gear (type 'cr list' for recipes)")
-        self.io.say("  r (rest)                                - Rest to recover fatigue (rate based on Wisdom)")
-        self.io.say("  a (auto)                                - Automatically play for a short duration")
-        self.io.say("  q, x, quit                              - Quit the game")
-        self.io.say("  h, ? (help)                             - Show this message\n")
+        lines = [
+            "",
+            "--- Controls ---",
+            "  arrow keys, or type n / s / e / w        Move",
+            "",
+            "  See & understand",
+            "    m       the map",
+            "    l       look around where you are",
+            "    i       inventory  (pick a number to equip)",
+            "    j       journal - what you've discovered",
+            "    t       think - what you currently believe",
+            "    inspect <thing>   how certain are you? (e.g. 'inspect the way out')",
+            "    ?       this help",
+            "",
+            "  Act",
+            "    take            pick something up off the ground",
+            "    open            open or clear the thing in your way",
+            "    escape          leave the valley, once you're ready",
+            "    search          go over a place again (usually not needed)",
+            "",
+            "  Survive",
+            "    eat / drink / med / rest",
+            "",
+            "  Fight",
+            "    fight           attack a nearby zombie",
+            "    punch           attack unarmed",
+            "    reload          reload your weapon",
+            "",
+            "  Equipment  (mostly done through the inventory - `i`)",
+            "    equip <weapon>   wear <armor>   drop <thing>   craft <recipe>",
+            "",
+            "  q or x            quit",
+            "",
+        ]
+        for ln in lines:
+            self.io.say(ln)
 
     def display_inventory(self):
-        self.io.say("\n--- Inventory ---")
-        self.io.say(f"Food: {self.backpack.food}")
-        self.io.say(f"Water: {self.backpack.water}")
-        self.io.say(f"Medicine: {self.backpack.medicine}")
-        self.io.say(f"Ammo: {self.backpack.ammo}")  # If applicable
-        self.io.say("Weapons:")
-        # Real gap found live: this only ever showed the bare name -
-        # no way to compare two weapons (e.g. a looted Rusty Dagger
-        # vs. the equipped Kitchen Knife) without reading source.
-        # str(weapon) already carries damage/durability (items.py) -
-        # use it here too, matching view_weapon_info()'s existing
-        # behavior (actions_mixin.py).
-        for line in format_weapon_list(self.backpack.weapons):
-            self.io.say(f"- {line}")
-        self.io.say("Armor:")
-        for line in format_armor_list(self.backpack.armor):
-            self.io.say(f"- {line}")
-        # Display other inventory items as needed
+        w = list(self.backpack.weapons)
+        a = list(self.backpack.armor)
+        self.io.say("\n--- INVENTORY ---")
+        if self.equipped_weapon:
+            self.io.say(f"  equipped: {self.equipped_weapon}")
+        self.io.say("WEAPONS")
+        for i, it in enumerate(w, 1):
+            self.io.say(f"  [{i}] {it}")
+        if not w:
+            self.io.say("  (none)")
+        if a:
+            self.io.say("ARMOR")
+            for j, it in enumerate(a, 1):
+                self.io.say(f"  [W{j}] {it}")
+        self.io.say(f"SUPPLIES  food {self.backpack.food} · water {self.backpack.water} "
+                    f"· med {self.backpack.medicine} · ammo {self.backpack.ammo}")
+
+        if not w and not a:
+            return
+        pick = self.io.ask("Equip which? (number, W# for armor, Enter to close): ").strip().lower()
+        if not pick:
+            return
+        if pick.startswith('w') and pick[1:].isdigit() and 1 <= int(pick[1:]) <= len(a):
+            self.equip_armor(a[int(pick[1:]) - 1].name)
+        elif pick.isdigit() and 1 <= int(pick) <= len(w):
+            self.equip_weapon(w[int(pick) - 1].name)
+        else:
+            self.io.say("Nothing selected.")
 
     def stats(self):
         self.io.say("\n--- Player Stats ---")

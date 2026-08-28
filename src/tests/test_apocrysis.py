@@ -1182,26 +1182,17 @@ class TestRendering(unittest.TestCase):
         for terrain in terrains_in_use:
             self.assertIn(terrain, TERRAIN_SYMBOLS)
 
-    def test_print_help_lists_conditional_commands_only_when_available(self):
-        self.game.backpack.food = 0
-        self.game.backpack.water = 0
-        self.game.backpack.medicine = 0
-
+    def test_print_help_is_a_static_player_facing_reference(self):
+        # print_help is now a fixed controls reference (not a
+        # conditional list): it always names the core verbs, teaches
+        # WASD, and does not advertise the v3 debug leftovers.
         with patch("builtins.print") as mock_print:
             self.game.print_help()
         printed = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
-        self.assertNotIn("eat  ", printed.replace("\t", " "))
-
-        self.game.backpack.food = 1
-        self.game.backpack.water = 1
-        self.game.backpack.medicine = 1
-
-        with patch("builtins.print") as mock_print:
-            self.game.print_help()
-        printed = "\n".join(str(c.args[0]) for c in mock_print.call_args_list if c.args)
-        self.assertIn("eat", printed)
-        self.assertIn("drink", printed)
-        self.assertIn("medicine", printed)
+        for verb in ("Move", "eat", "drink", "journal", "think", "escape", "equip"):
+            self.assertIn(verb, printed)
+        for leftover in ("goals", "complete", "auto"):
+            self.assertNotIn(leftover, printed)
 
 
 class TestMapGeneration(unittest.TestCase):

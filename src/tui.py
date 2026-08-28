@@ -203,18 +203,49 @@ def _status_block(p):
     m = getattr(p, "mystery", None)
     if m is not None and k is not None:
         known = k.facts_known()
-        steps = [(fid, _FACT_LABEL[fid], fid in known)
-                 for fid in ("F_CLOSED", "F_ROUTE", "F_OBSTACLE", "F_REQUIRE")]
         has_item = any(getattr(it, "name", None) == m.requirement_item
                        for it in p.backpack.items)
-        steps.append(("item", f"have the {m.requirement_item}", has_item or m.obstacle_open))
-        steps.append(("open", "the way is open", m.obstacle_open))
-        steps.append(("confirm", "escape route confirmed",
-                      k.hypothesis_state() == "confirmed"))
-        lines.append("[b]PROGRESS[/b]")
-        for _id, label, done in steps:
-            lines.append(f"  [green]✓[/green] {label}" if done
-                         else f"  [dim]·[/dim] [dim]{label}[/dim]")
+        confirmed = k.hypothesis_state() == "confirmed"
+        # What the player has WORKED OUT (done) vs the ONE next thing to
+        # do. Deliberately not the whole Escape Proof - that would turn
+        # investigation into a shopping list. Still leaves the reasoning
+        # and the navigating to the player.
+        done = []
+        if "F_CLOSED" in known:
+            done.append("the usual way out is gone")
+        if "F_ROUTE" in known:
+            done.append("there's another route")
+        if "F_OBSTACLE" in known:
+            done.append("found what's blocking it")
+        if "F_REQUIRE" in known:
+            done.append("worked out what gets you past")
+        if has_item or m.obstacle_open:
+            done.append(f"have the {m.requirement_item}")
+        if m.obstacle_open:
+            done.append("cleared the way")
+
+        if m.escaped:
+            nxt = None
+        elif m.obstacle_open and confirmed:
+            nxt = ("[b yellow]★ ESCAPE[/]  — you know the way and it's open", None)
+        elif m.obstacle_open:
+            nxt = ("get to the way out", None)
+        elif has_item:
+            nxt = ("get back to the blockage and clear it", None)
+        elif "F_REQUIRE" in known:
+            nxt = ("find what you need and bring it to the blockage", None)
+        elif "F_OBSTACLE" in known:
+            nxt = ("work out what would get you past", None)
+        elif "F_ROUTE" in known:
+            nxt = ("follow the other route and see what stops you", None)
+        else:
+            nxt = ("look for another way out", None)
+
+        lines.append("[b]ESCAPE THE VALLEY[/b]")
+        for d in done:
+            lines.append(f"  [green]✓[/green] {d}")
+        if nxt:
+            lines.append(f"  [yellow]○[/yellow] {nxt[0]}")
 
     warns = []
     w = p.equipped_weapon
@@ -580,7 +611,7 @@ class ApocrysisApp(App):
             # the log reads as an event feed. Skip it for the boxed
             # ◆/⚠ emphasis blocks and anything multi-line.
             p = self.player
-            if p is not None and "\n" not in text and text.lstrip()[:1] not in "╭│╰◆⚠*":
+            if p is not None and "\n" not in text and text.lstrip()[:1] not in "═╭│╰◆⚠*[":
                 hhmm = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
                 body = Text.assemble((f"{hhmm}  ", "dim"), body)
             self.query_one("#log", RichLog).write(body)
@@ -605,7 +636,7 @@ class ApocrysisApp(App):
         self.query_one("#directions_text", Static).update(
             f"[b]{_location_name(p)}[/b]"
             f"   —   {_PHASE_GLYPH.get(phase_, '·')} {phase_.upper()} · {clock_}"
-            f"\n[dim]↑/↓/←/→ or n/s/e/w to move[/dim]"
+            f"\n[dim]arrow keys or n/s/e/w to move · `i` inventory · `?` help[/dim]"
         )
 
         map_widget = self.query_one("#map_panel", Static)

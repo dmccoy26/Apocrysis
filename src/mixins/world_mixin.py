@@ -409,11 +409,28 @@ class WorldMixin:
         return base_terrain
 
     def _pick_random_walkable_tile(self):
-        while True:
+        # v4: keep the spawn away from the mountain-boundary ring and
+        # off slow/wet terrain where possible, so the opening view has
+        # room to move instead of half a wall. Falls back to the old
+        # any-walkable-tile behaviour if the map is too small/hemmed in
+        # to satisfy the preference.
+        margin = 3 if self.map_size >= 10 else 1
+        lo, hi = margin, self.map_size - 1 - margin
+        good_terrain = ('plain', 'building', 'forest')
+
+        best = None
+        for _ in range(300):
             x = self.rng.randint(0, self.map_size - 1)
             y = self.rng.randint(0, self.map_size - 1)
-            if self.map[y][x]['terrain'] not in IMPASSABLE_TERRAIN:
+            terrain = self.map[y][x]['terrain']
+            if terrain in IMPASSABLE_TERRAIN:
+                continue
+            interior = lo <= x <= hi and lo <= y <= hi
+            if interior and terrain in good_terrain:
                 return (x, y)
+            if best is None or (interior and self.map[best[1]][best[0]]['terrain'] not in good_terrain):
+                best = (x, y)
+        return best if best is not None else (self.map_size // 2, self.map_size // 2)
 
     def _pick_town_position(self, town_size, spawn, min_distance):
         max_start = max(0, self.map_size - town_size)

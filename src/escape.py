@@ -62,6 +62,7 @@ MECHANISMS = {
         "escape_desc": "The service road runs on past the gate, climbing away from the water and out of the valley.",
         "roles": {"closed": "the flooded road", "route": "the dam",
                   "obstacle": "service gate", "require": "the dam control room"},
+        "terrain": "water",
     },
     "boat_crossing": {
         "name": "the boat crossing",
@@ -74,6 +75,7 @@ MECHANISMS = {
         "escape_desc": "The engine catches. You take the boat out past the harbour wall and open water opens up ahead.",
         "roles": {"closed": "the blocked checkpoint", "route": "the marina",
                   "obstacle": "empty boat", "require": "the harbourmaster's shed"},
+        "terrain": "water",
     },
     "evac_corridor": {
         "name": "the evacuation corridor",
@@ -285,6 +287,29 @@ def _carve_escape_pass(game, reachable):
     return (bx, by), (ix, iy)
 
 
+def _paint_terrain_near(game, center, terrain, count, protected):
+    """Set up to `count` walkable, non-boundary, non-protected tiles
+    around `center` to `terrain` - world coherence only (a marina needs
+    water beside it), so `terrain` must stay passable. Skips town tiles
+    and anything already the target terrain."""
+    cx, cy = center
+    n = game.map_size
+    cands = []
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            if (dx, dy) == (0, 0):
+                continue
+            x, y = cx + dx, cy + dy
+            if not (1 <= x < n - 1 and 1 <= y < n - 1) or (x, y) in protected:
+                continue
+            cell = game.map[y][x]
+            if isinstance(cell, dict) and cell.get('terrain') not in ('town', terrain):
+                cands.append((x, y))
+    game.rng.shuffle(cands)
+    for x, y in cands[:count]:
+        game.map[y][x]['terrain'] = terrain
+
+
 def build_mystery(game):
     """Populate game.knowledge and return a Mystery for this expedition.
     Called from world_mixin.generate_map() for non-slice games."""
@@ -346,6 +371,15 @@ def build_mystery(game):
             cell = game.map[sy_][sx_]
             if isinstance(cell, dict):
                 cell['site_label'] = label
+
+    # World coherence (playtest: "a marina in the middle of a forest").
+    # A water-themed mechanism needs water where the boats / dam are and
+    # where the boat launches. Paint a little in if the generator didn't
+    # put it there - never over the boundary ring or a role tile.
+    if spec.get("terrain") == "water":
+        _protected_xy = set(m.sites.values()) | {m.obstacle_tile, m.escape_tile}
+        _paint_terrain_near(game, m.sites['route'], 'water', 3, _protected_xy)
+        _paint_terrain_near(game, m.obstacle_tile, 'water', 2, _protected_xy)
 
     # --- build the Escape Proof ---
     k = m.knowledge

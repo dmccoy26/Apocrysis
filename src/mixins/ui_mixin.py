@@ -33,11 +33,16 @@ class UIMixin:
         # without needing run_game_loop()'s own classic-mode ASCII
         # block at all - see the renders_natively split below.
         cmd_list = ["n (north)", "s (south)", "e (east)", "w (west)", "m (map)", "i (inventory)", "st (stats)", "h (help)", "x (exit game)", "q (quit)", "sv (save)", "ds (delete save)"]
-        cmd_list.append("go [title] (add goal)")
-        cmd_list.append("goals (list goals)")
-        cmd_list.append("complete [idx] (finish goal)")
-        cmd_list.append("ts (tasks)")
-        cmd_list.append("ct [idx] (complete task)")
+
+        # v4 investigation commands - always available.
+        cmd_list.append("look (l)")
+        cmd_list.append("search (sr)")
+        cmd_list.append("journal (j)")
+        cmd_list.append("remember (rem)")
+        cmd_list.append("inspect [thing]")
+        if getattr(self, 'mystery', None) is not None or getattr(self, 'slice_mode', False):
+            cmd_list.append("clear / open")
+            cmd_list.append("escape")
 
         if self.backpack.weapons:
             cmd_list.append("eq [weapon name] (equip)")
@@ -506,9 +511,17 @@ class UIMixin:
         self.io.say("\n--- Help ---")
         self.io.say("Available commands:")
         self.io.say("  n (north), s (south), e (east), w (west) - Move")
-        self.io.say("  m (map)                                 - Display the current map")
+        self.io.say("  m (map)                                 - Display the current map (a1 = top-left, columns across, rows down)")
         self.io.say("  i (inventory)                           - Show your backpack contents")
         self.io.say("  st (stats)                              - View player statistics")
+        self.io.say("  look (l)                                - Take stock of where you're standing")
+        self.io.say("  search (sr)                             - Go through this place properly for records and clues")
+        self.io.say("  journal (j)                             - Everything you've found and what it tells you")
+        self.io.say("  remember (rem)                          - Think over where your understanding stands")
+        self.io.say("  inspect [thing]                         - What you know about one thing (try 'inspect the way out')")
+        if getattr(self, 'mystery', None) is not None or getattr(self, 'slice_mode', False):
+            self.io.say("  clear / open                            - Get past the obstacle on the route out")
+            self.io.say("  escape                                  - Leave, once you're sure of the way and it's open")
         self.io.say("  f (fight)                               - Fight the zombie on your current tile")
         self.io.say("  p (punch)                               - Attack unarmed, regardless of what's equipped")
         self.io.say("  eq [name] (equip)                       - Equip a weapon from your inventory")
@@ -526,8 +539,6 @@ class UIMixin:
         self.io.say("  cr [name] (craft)                       - Combine items into upgraded gear (type 'cr list' for recipes)")
         self.io.say("  r (rest)                                - Rest to recover fatigue (rate based on Wisdom)")
         self.io.say("  a (auto)                                - Automatically play for a short duration")
-        self.io.say("  ts                                      - View active tasks")
-        self.io.say("  ct [idx]                                - Complete a task by index")
         self.io.say("  q, x, quit                              - Quit the game")
         self.io.say("  h, ? (help)                             - Show this message\n")
 

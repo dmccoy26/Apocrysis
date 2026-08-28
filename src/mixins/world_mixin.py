@@ -106,6 +106,19 @@ class WorldMixin:
 
         terrain_types = ['forest', 'building', 'water', 'plain', 'swamp']
 
+        # v4: per-expedition map archetype. Every map used to roll each
+        # chunk's terrain uniformly from terrain_types, so the only
+        # variety between expeditions was the seed - same rough
+        # forest/field/building mix every time. An archetype biases that
+        # roll (weights are positional, matching terrain_types) so a
+        # given expedition reads as deep woods / flooded basin /
+        # suburban sprawl / open country / a plain mix. Picked from the
+        # seeded RNG so it's reproducible per seed. The boundary ring,
+        # settlements, zones and mystery are untouched.
+        from src.constants import MAP_ARCHETYPES
+        self.map_archetype = self.rng.choice(list(MAP_ARCHETYPES))
+        _arch = MAP_ARCHETYPES[self.map_archetype]
+
         obstacle_density = min(
             OBSTACLE_DENSITY_CAP,
             max(0, self.expeditions_completed - OBSTACLE_START_LEVEL) * OBSTACLE_DENSITY_PER_LEVEL,
@@ -133,7 +146,8 @@ class WorldMixin:
                 if neighbor_key is not None and self.rng.random() < 0.6:
                     chunk_terrain[(cx, cy)] = chunk_terrain[neighbor_key]
                 else:
-                    chunk_terrain[(cx, cy)] = self.rng.choice(terrain_types)
+                    chunk_terrain[(cx, cy)] = self.rng.choices(
+                        terrain_types, weights=_arch['weights'])[0]
 
         # v4 (todo 457c93a6): a semantic ZONE tag per chunk, on top of
         # terrain. Terrain answers "what do I walk on"; zone answers
@@ -307,6 +321,13 @@ class WorldMixin:
             ):
                 self.map[y][x] = self._select_zombie_for_encounter()
                 placed_zombies += 1
+
+        # One line of scene-setting for this expedition's archetype -
+        # same inline-io pattern as the next-game prize message in
+        # game.py __init__. Guarded so map-generation unit tests that
+        # construct a bare game don't need a live io.
+        if getattr(self, 'io', None) is not None and not getattr(self, 'slice_mode', False):
+            self.io.say(_arch['blurb'])
 
         return self.map
 

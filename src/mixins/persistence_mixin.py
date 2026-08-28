@@ -188,6 +188,7 @@ class PersistenceMixin:
             "map": self._serialize_map(),
             "town_known": self.town_known,
             "knowledge": self.knowledge.to_dict() if getattr(self, 'knowledge', None) else None,
+            "mystery": self.mystery.to_dict() if getattr(self, 'mystery', None) else None,
             "slice_mode": getattr(self, 'slice_mode', False),
         }
 
@@ -275,11 +276,16 @@ class PersistenceMixin:
         player.last_action = data.get("last_action", "")
         player.town_known = data.get("town_known", False)
 
-        # v4 knowledge model - restored verbatim (catalogue + progress)
-        # since the map is restored, not regenerated. Older saves have
-        # no "knowledge" key: keep whatever __init__ built.
-        if data.get("knowledge") is not None:
+        # v4 knowledge/mystery - restored verbatim (the map is restored,
+        # not regenerated, so the mystery can't be rebuilt). Older saves
+        # have neither key: keep whatever __init__ built.
+        if data.get("mystery") is not None:
+            from src.escape import Mystery
+            player.mystery = Mystery.from_dict(data["mystery"])
+            player.knowledge = player.mystery.knowledge
+        elif data.get("knowledge") is not None:
             from src.knowledge import Knowledge
+            player.mystery = None
             player.knowledge = Knowledge.from_dict(data["knowledge"])
 
         # "won" is deliberately never restored from a save - main()'s

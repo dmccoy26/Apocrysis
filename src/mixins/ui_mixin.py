@@ -266,13 +266,15 @@ class UIMixin:
                 'rem': self.knowledge_remember,
                 'look': self.knowledge_look,
                 'l': self.knowledge_look,
-                # v4 vertical slice commands (SliceMixin) - only
-                # meaningful when slice_mode is on; harmless otherwise.
-                'search': self.slice_search,
-                'sr': self.slice_search,
+                # v4 investigation commands - routed to the slice or
+                # the generated-mystery implementation by mode.
+                'search': self._v4_search,
+                'sr': self._v4_search,
+                'escape': self._v4_escape,
+                'clear': self._v4_clear,
+                'open': self._v4_clear,
                 'open gate': self.slice_open_gate,
                 'og': self.slice_open_gate,
-                'escape': self.slice_try_escape,
             }
 
             if command in ('q', 'quit'):

@@ -1314,6 +1314,7 @@ class TestExpeditionsAndCampaign(unittest.TestCase):
         # satisfy it directly rather than also staging a settlement
         # tile to walk through first.
         game.settlement_explored = True
+        game.mystery = None  # v4: test the no-mystery reach-town fallback
         return game
 
     def test_reaching_town_increments_expeditions_completed(self):
@@ -1359,6 +1360,7 @@ class TestObjectiveDrivenWin(unittest.TestCase):
             game = Apocrysis("ObjectiveTest", map_size=10, seed=1)
         game.current_position = (0, 0)
         game.map[0][1] = {"terrain": "plain", "content": "T", "explored": True}
+        game.mystery = None  # v4: these test the pre-mystery Town-Center gate
         return game
 
     def test_reaching_town_center_before_exploring_does_not_win(self):

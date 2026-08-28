@@ -18,6 +18,7 @@ from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
 from src.mixins.knowledge_mixin import KnowledgeMixin
 from src.mixins.slice_mixin import SliceMixin
+from src.mixins.mystery_mixin import MysteryMixin
 from src.knowledge import Knowledge
 
 
@@ -29,8 +30,14 @@ class Apocrysis(
     UIMixin,
     ActionsMixin,
     KnowledgeMixin,
+    MysteryMixin,
     SliceMixin,
 ):
+
+    # v4 Phase C: escape-mechanism shuffle-bag across a campaign (no
+    # repeat until the pool is exhausted). Class-level, like
+    # prize_for_next_game.
+    _used_mechanisms = []
 
     prize_for_next_game = False
 
@@ -73,6 +80,12 @@ class Apocrysis(
         # generate_map() / slice_setup() repopulate its catalogue;
         # this is just so it always exists.
         self.knowledge = Knowledge()
+
+        # v4 Phase C: the generated escape mystery (src/escape.py).
+        # world_mixin.generate_map() builds it and points
+        # self.knowledge at it. None => fall back to reach-the-Town-
+        # Center (degenerate maps, or slice mode).
+        self.mystery = None
 
         self.xp = 0
         self.level = level

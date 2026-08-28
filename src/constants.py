@@ -42,6 +42,16 @@ TERRAIN_LEGEND = (
 # movement onto these blocks (world_mixin.py's move_and_search()).
 IMPASSABLE_TERRAIN = {'mountain', 'river'}
 
+# v4: survival pressure retuned down so a full generated expedition can
+# carry a 25-35 turn investigation without the player dying to combat
+# first (the architecture conflict the vertical slice isolated). Not
+# eliminated - combat is still the pressure system - just dialled to
+# where it stops overwriting the investigation loop. Tune against
+# tools/mystery_solver.py's solve rate + the balance harness.
+ZOMBIE_MAP_DENSITY = 0.04        # was 0.10
+ENCOUNTER_CHANCE_DAY = 0.10       # was 0.30
+ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
+
 # v3 SPRINT: map size/town-distance/obstacle-density scale with the
 # player's level, not a fixed size chosen at game start. All derived
 # in world_mixin.py's generate_map(); named here so the formulas

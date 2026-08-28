@@ -127,16 +127,60 @@ class KnowledgeMixin:
             else:
                 self.io.say(f"{fact.statement} - Unknown.")
 
+    # ---- v4 command routing (slice vs. generated mystery) ----
+
+    def _v4_search(self):
+        if getattr(self, 'slice_mode', False):
+            self.slice_search()
+        elif getattr(self, 'mystery', None) is not None:
+            self.mystery_search()
+        else:
+            self.io.say("You search around. Nothing here means anything.")
+
+    def _v4_escape(self):
+        if getattr(self, 'slice_mode', False):
+            self.slice_try_escape()
+        elif getattr(self, 'mystery', None) is not None:
+            self.mystery_try_escape()
+        else:
+            self.io.say("There's no way out from here that you know of.")
+
+    def _v4_clear(self):
+        if getattr(self, 'mystery', None) is not None:
+            self.mystery_clear_obstacle()
+        else:
+            self.io.say("There's nothing here to clear or open.")
+
     # ---- look --------------------------------------------
 
     def knowledge_look(self):
-        """Describe the current tile and what's visible from it. In the
-        real game this is where 'observe'-method evidence is surfaced;
-        subclasses/mixins that own location content override or extend
-        _look_here()."""
-        if hasattr(self, '_look_here'):
+        """Describe the current tile and re-surface any 'observe'
+        evidence here."""
+        if getattr(self, 'slice_mode', False) and hasattr(self, '_look_here'):
             self._look_here()
             return
-        tile = self.map[self.current_position[1]][self.current_position[0]]
+
+        x, y = self.current_position
+        tile = self.map[y][x]
         terrain = tile.get('terrain') if isinstance(tile, dict) else None
-        self.io.say(f"You take stock of your surroundings ({terrain or 'open ground'}).")
+        cause = tile.get('abandonment') if isinstance(tile, dict) else None
+
+        m = getattr(self, 'mystery', None)
+        if m is not None:
+            role = self._mystery_role_at(x, y) if hasattr(self, '_mystery_role_at') else None
+            if role:
+                # re-run the arrival observe pass (discover() is
+                # idempotent - only new evidence prints)
+                self.mystery_arrive(x, y)
+                return
+
+        if terrain == 'building':
+            self.io.say("A building. Empty. " + (
+                {'evacuated': "They left in a hurry.", 'barricaded': "Boarded up from inside.",
+                 'burned': "Fire-damaged.", 'looted': "Already stripped.",
+                 'occupied_recently': "Someone was here not long ago.", 'sealed': "Sealed from outside.",
+                 'flooded': "Water damage.", 'quiet': "Just left, undisturbed."}.get(cause, "")))
+        elif terrain == 'town':
+            self.io.say("A settlement street. Quiet.")
+        else:
+            self.io.say(f"Open {terrain or 'ground'}. Nothing here that matters.")

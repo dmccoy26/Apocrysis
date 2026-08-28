@@ -22,6 +22,7 @@ from src.constants import (
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
     CHUNK_SIZE, MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS,
+    ZOMBIE_MAP_DENSITY, ENCOUNTER_CHANCE_DAY, ENCOUNTER_CHANCE_NIGHT,
 )
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import (
@@ -225,6 +226,24 @@ class WorldMixin:
 
         # Re-seal the boundary ring in case a settlement box clipped it.
         self._force_boundary_ring()
+
+        # v4 Phase C: build this expedition's escape mystery onto the
+        # generated map, and point self.knowledge at its catalogue.
+        # (build_mystery may carve one gap in the boundary ring for the
+        # actual escape route - mountain-boundary Phase 3.)
+        from src.escape import build_mystery
+        try:
+            self.mystery = build_mystery(self)
+        except RuntimeError as exc:
+            # A mystery that fails its own validation is a generation
+            # bug - surface it in tests, but never ship a broken map to
+            # a player: fall back to reach-the-Town-Center.
+            if getattr(self, '_strict_mystery', False):
+                raise
+            self.io.say(f"(world generation note: {exc})")
+            self.mystery = None
+        if self.mystery is not None:
+            self.knowledge = self.mystery.knowledge
         if town_center is not None and (
             town_center[0] in (0, self.map_size - 1)
             or town_center[1] in (0, self.map_size - 1)
@@ -256,11 +275,23 @@ class WorldMixin:
         # Zombie placement (10% of tiles) - unchanged shape, now via
         # self.rng and skipping impassable/town/spawn tiles.
         total_tiles = self.map_size ** 2
-        num_zombies = int(total_tiles * 0.10)
+        num_zombies = int(total_tiles * ZOMBIE_MAP_DENSITY)
 
         placed_zombies = 0
         attempts = 0
         max_attempts = max(200, num_zombies * 20)
+
+        # v4: never bury a mystery site / obstacle / escape tile - OR
+        # the route to one - under a zombie. The investigation must
+        # stay physically solvable, not just physically reachable.
+        protected = set()
+        if self.mystery is not None:
+            targets = list(self.mystery.sites.values()) + [self.mystery.escape_tile]
+            protected = set(targets)
+            for t in targets:
+                path = self._mystery_bfs_path(spawn, t)
+                if path:
+                    protected.update(path)
 
         while placed_zombies < num_zombies and attempts < max_attempts:
             attempts += 1
@@ -272,6 +303,7 @@ class WorldMixin:
                 and cell.get('terrain') not in IMPASSABLE_TERRAIN
                 and cell.get('terrain') != 'town'
                 and (x, y) != spawn and abs(x - spawn[0]) + abs(y - spawn[1]) > 1
+                and (x, y) not in protected
             ):
                 self.map[y][x] = self._select_zombie_for_encounter()
                 placed_zombies += 1
@@ -443,6 +475,59 @@ class WorldMixin:
             self.io.say("Rooftops in the distance - there's a settlement out there.")
         else:
             self.io.say("You spot a building standing alone in the distance.")
+
+    def _mystery_bfs_path(self, start, goal):
+        """Shortest path start->goal over non-impassable terrain, as a
+        list of tiles (or None). Used to protect a zombie-free route to
+        every mystery site."""
+        n = self.map_size
+        prev = {start: None}
+        q = deque([start])
+        while q:
+            cur = q.popleft()
+            if cur == goal:
+                path = []
+                while cur is not None:
+                    path.append(cur)
+                    cur = prev[cur]
+                return path
+            x, y = cur
+            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < n and 0 <= ny < n and (nx, ny) not in prev:
+                    c = self.map[ny][nx]
+                    if isinstance(c, dict) and c.get('terrain') not in IMPASSABLE_TERRAIN:
+                        prev[(nx, ny)] = cur
+                        q.append((nx, ny))
+        return None
+
+    def finish_expedition(self, reason="found the way out"):
+        """Shared win finalisation for BOTH v4 win paths - the
+        generated-mystery escape (mystery_try_escape) and the
+        no-mystery fallback (reaching the Town Center). Increments the
+        expedition counter, prints the ordinary/campaign-complete
+        message, and stages the next-game supply prize."""
+        self.won = True
+        self.expeditions_completed += 1
+        self.__class__.prize_for_next_game = True
+        if self.expeditions_completed >= CAMPAIGN_LENGTH:
+            self.io.say(
+                f"\n{BOLD}{GREEN}You {reason} after {self.expeditions_completed} "
+                f"expeditions - the outbreak is finally behind you. "
+                f"CAMPAIGN COMPLETE!{RESET}\n"
+            )
+            self.io.say(f"{BOLD}A hero's stash of supplies awaits your next game.{RESET}\n")
+            self.io.say(f"{BOLD}Your story in this outbreak ends here.{RESET}\n")
+            self.backpack.food += 10
+            self.backpack.water += 10
+            self.backpack.medicine += 5
+            self.backpack.ammo += 20
+        else:
+            self.io.say(
+                f"\n{BOLD}{GREEN}You {reason}. You WIN this expedition!{RESET}\n"
+            )
+            self.io.say(f"{BOLD}A stash of supplies awaits your next game.{RESET}\n")
+        self._check_and_complete_goals("reach_town")
 
     def _force_boundary_ring(self):
         """v4 Phase A: the outer row/column on every side is 'mountain'."""
@@ -674,6 +759,17 @@ class WorldMixin:
                     self.slice_bump_gate()
                 return
 
+        # v4 Phase C: the generated mystery's obstacle blocks the way
+        # to the escape route until it's cleared with the requirement
+        # item. Walking into it with the item clears it in place.
+        m = getattr(self, 'mystery', None)
+        if m is not None and m.obstacle_tile == (new_x, new_y) and not m.obstacle_open:
+            if self._mystery_has_item():
+                self.mystery_clear_obstacle()
+            else:
+                self.mystery_bump_obstacle()
+            return
+
         # Update the current position
         self.current_position = (new_x, new_y)
         self.visited.add(self.current_position)  # Mark the new position as visited
@@ -699,16 +795,19 @@ class WorldMixin:
         # Check tile contents for placed zombies
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
 
+        # v4 Phase C: when there's a generated mystery, the Town Center
+        # is an information-rich location, NOT a win tile - winning is
+        # working out the escape route and taking it (mystery_try_
+        # escape). The reach-the-Town-Center win only applies to the
+        # fallback (no mystery on this map).
+        _mystery = getattr(self, 'mystery', None)
+
         if (
-            isinstance(current_tile, dict)
+            _mystery is None
+            and isinstance(current_tile, dict)
             and current_tile.get('content') == 'T'
             and not self.settlement_explored
         ):
-            # Objective-driven win condition investigation: the Town
-            # Center alone no longer wins - the player must have
-            # already set foot in this (or any) settlement's other
-            # tiles first (below), so reaching it is confirmation of
-            # exploring, not the entire objective.
             self.io.say(
                 "The Town Center looks quiet - too quiet. You should "
                 "search the settlement's buildings and streets before "
@@ -716,27 +815,18 @@ class WorldMixin:
             )
             return
 
-        if isinstance(current_tile, dict) and current_tile.get('content') == 'T':
-            self.won = True
-            self.expeditions_completed += 1
-            if self.expeditions_completed >= CAMPAIGN_LENGTH:
-                self.io.say(f"\n{BOLD}{GREEN}You have reached the Town Center after {self.expeditions_completed} expeditions - the outbreak is finally contained. CAMPAIGN COMPLETE!{RESET}\n")
-                self.io.say(f"{BOLD}A hero's stash of supplies awaits you when you start your next game!{RESET}\n")
-                self.io.say(f"{BOLD}Your story in this outbreak ends here.{RESET}\n")
-                self.__class__.prize_for_next_game = True
-                self.backpack.food += 10
-                self.backpack.water += 10
-                self.backpack.medicine += 5
-                self.backpack.ammo += 20
-            else:
-                self.io.say(f"\n{BOLD}{GREEN}You have reached the Town Center! The survivors welcome you home. You WIN!{RESET}\n")
-                self.io.say(f"{BOLD}A grateful stash of supplies awaits you when you start your next game!{RESET}\n")
-                # self.__class__, not a direct Apocrysis reference -
-                # importing Apocrysis here would be circular (game.py
-                # imports WorldMixin from this module). Equivalent at
-                # runtime since self is always an Apocrysis instance.
-                self.__class__.prize_for_next_game = True
-            self._check_and_complete_goals("reach_town")
+        if _mystery is not None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
+            self.io.say(
+                "The Town Center. Records, notices, a wall of missing-person "
+                "photos - the most information in one place you've found. "
+                "But no one's here, and this isn't the way out."
+            )
+            self.mystery_arrive(*self.current_position)
+            self._maybe_surface_clue()
+            return
+
+        if _mystery is None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
+            self.finish_expedition(reason="reached the Town Center")
             return
 
         # Apply terrain-specific effects
@@ -792,10 +882,15 @@ class WorldMixin:
 
         self._spot_landmarks()
 
+        # v4 Phase C: generated-mystery site arrival (blurb + observe
+        # evidence). Runs alongside normal loot/encounters, not instead.
+        if getattr(self, 'mystery', None) is not None:
+            self.mystery_arrive(*self.current_position)
+
         if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
             return
 
-        encounter_chance = 0.5 if self.is_night else 0.3
+        encounter_chance = ENCOUNTER_CHANCE_NIGHT if self.is_night else ENCOUNTER_CHANCE_DAY
 
         # Forest increases encounter rate
         if isinstance(current_tile, dict) and current_tile.get('terrain') == 'forest':

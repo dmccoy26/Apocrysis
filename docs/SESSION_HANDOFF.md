@@ -114,6 +114,37 @@ baseline; re-run that exact scenario as a regression check).
     sitting unused in the pack (playtester slogged 8 fights with a
     6-dmg tool while carrying a 15-dmg one).
 
+## Third fix batch — 2026-08-28 late (playtest-driven, `c1d1fad`..`e4eaa09`)
+
+Two more `--log` playtests (one death-by-confusion, one win, one death
+to a Heavy zombie). Findings + fixes:
+
+15. **`◆`/`⚠` event emphasis** (`announce_event`) for the 4 state
+    changes + weapon-broken. Map now marks found leads (`!`/`+`).
+16. **Weapon break is loud + auto-swaps** to best usable backpack
+    weapon; "badly worn" threshold line; nudge treats broken = 0 dmg.
+17. **Over-capacity loot drops to the ground** instead of vanishing
+    (was: "drop something then take it" had nothing to take).
+18. **Building cap 22% of chunks** — 3rd "too many buildings" report.
+19. **Revisit text de-dup** — first visit full, revisits terse; "spot
+    a building" stops after 3; district only on change.
+20. **Escape gap has a bearing** — obstacle clue ends "...toward the
+    south-east edge of the valley"; gap shows `!` on a found map.
+    (Playtest: "every clue said north, escape was southwest.")
+21. **Water where water belongs** — boat_crossing / service_route get
+    a `terrain: water` tag; `_paint_terrain_near` puts water by the
+    marina / dam. (Playtest: "a marina in the middle of a forest.")
+
+## v4.1 = a UI/UX pass (queued as Atlas todos, not yet built)
+
+The systems have outrun the interface. 10 TUI todos are in
+`.atlas/todo_list.json` (contextual action bar, bigger map + location
+header, HUD blocks, compact backpack, event-feed log, framed input,
+boxed discovery banners, real victory/defeat screen, day/night glyph,
+persistent objective line). Plus 2 generator-coherence todos
+(`7d6046d3` direction validator, `a4a11df6` non-water terrain
+affinity). Run `atlas todo list` / `atlas todo do <id>`.
+
 ## Open questions for the next playtest (the human's to answer)
 
 **Primary (the whole world-grammar hypothesis):** with only the info a

@@ -64,8 +64,8 @@ ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
 # end of the campaign, capped at 28. See "Physical & information
 # budget" in docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md.
 BASE_MAP_SIZE = 15
-MAP_GROWTH_PER_LEVEL = 1
-MAX_MAP_SIZE = 28
+MAP_GROWTH_PER_LEVEL = 3
+MAX_MAP_SIZE = 34
 CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is considered beaten
 
 BASE_TOWN_MIN_DISTANCE = 6

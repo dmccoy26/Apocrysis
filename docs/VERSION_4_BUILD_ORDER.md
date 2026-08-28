@@ -149,14 +149,19 @@ audit has classified them.
 
 ### 2C — Player information architecture — LOOP-CRITICAL, do first (Phase B), after `182bdc49`
 
-| Order | ID | Item |
-|---|---|---|
-| 2C.1 | `f6d126f9` | Knowledge/discovery core data model — `clue` outcome + persisted fact collection + Observed/Known/Suspected/Confirmed |
-| 2C.2 | `e3a1e201` | Persist the new discovery state in BOTH serialization paths (`save_profile`/`apply_profile` + JSON). Trace **each** of Observed/Known/Suspected/Confirmed through death → serialize → restore; the profile system and the knowledge model must not contradict each other (see Invariants below). |
-| 2C.3 | `478c2cf9` | Discover-before-understand mechanic (significance deferred until later evidence) |
-| 2C.4 | `9c2db876` | `look` and `inspect` commands |
-| 2C.5 | `a6de97c0` | `journal` and `remember` commands (raw evidence vs. current interpretation, kept distinct). `remember` must be provably incapable of surfacing information the player has not already encountered — see Invariants below. |
-| 2C.6 | `1f2c7826` | Map as a knowledge surface — progressive annotation over `print_map()` (pairs with `8f9ec034` / Q3) |
+Status 2026-08-28: **2C.1 / 2C.4 / 2C.5 done** (commit — `src/knowledge.py`,
+`src/mixins/knowledge_mixin.py`, slice migrated onto the shared model,
+10 tests). 2C.2 partial (snapshot API exists, not yet wired to
+save/load). 2C.3 / 2C.6 open.
+
+| Order | ID | Item | Status |
+|---|---|---|---|
+| 2C.1 | `f6d126f9` | Knowledge/discovery core data model — `clue` outcome + persisted fact collection + Observed/Known/Suspected/Confirmed | **done** — `src/knowledge.py`, four-object model, `find_loot()` clue hook |
+| 2C.2 | `e3a1e201` | Persist the new discovery state in BOTH serialization paths (`save_profile`/`apply_profile` + JSON). Trace **each** state through death → serialize → restore. | partial — `Knowledge.progress_snapshot()/restore_progress()` built + tested; not yet called from persistence_mixin |
+| 2C.3 | `478c2cf9` | Discover-before-understand mechanic (significance deferred until later evidence) | open — `observe_fact()` primitive exists, no generator use yet |
+| 2C.4 | `9c2db876` | `look` and `inspect` commands | **done** — `KnowledgeMixin` |
+| 2C.5 | `a6de97c0` | `journal` and `remember` commands | **done** — `KnowledgeMixin`, raw-evidence vs. synthesis kept distinct |
+| 2C.6 | `1f2c7826` | Map as a knowledge surface — progressive annotation over `print_map()` (pairs with `8f9ec034` / Q3). Grid coordinate labels (a1/b2 style) already landed here. | open |
 
 ### 2A — World geometry — world texture, not loop-critical (Phase A)
 

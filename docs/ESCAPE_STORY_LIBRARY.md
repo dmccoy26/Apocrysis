@@ -7,11 +7,80 @@ use item → walk through a gap**. After ~3 expeditions a player learns
 "v4 grammar = find the thing that gets me through the mountain." This
 doc is the backlog for breaking that.
 
-## The goal: not 30 mechanisms, a component matrix
+## The goal: a generator whose REASONING PATTERN changes, not its nouns
 
-Turn escape "mechanisms" into **story archetypes with interchangeable
-components**, and deliberately ensure the generator can produce
-different *kinds of reasoning*:
+Five mechanisms make five stories on paper, but the player learns the
+grammar in one expedition: *find obstacle → find key/item → use it →
+leave*. Killing that is the whole point. "More mechanisms" without a
+reasoning-type axis just makes a bigger version of the same game — a
+generator of differently-coloured keys.
+
+### Story families (the matrix)
+
+| Family | Player's core question | Example |
+|---|---|---|
+| **Spatial** | Where is the route? | logging road |
+| **Directional** | Which way should I investigate? | firebreak |
+| **Corroborative** | Which information can I trust? | survey route |
+| **Infrastructural** | What dependency makes this work? | power station |
+| **Environmental** | What must I change? | dam spillway |
+| **Informational** | What can I learn that I couldn't see before? | radio tower |
+| **Sequential** | How do these pieces connect? | ranger network |
+| **Experimental** | What if my interpretation is wrong? | dam control puzzle |
+| **Transportation** | Can I restore something that carries me out? | helicopter |
+| **Time-pressure** | What stays viable before conditions change? | failing dam |
+
+### Four independent axes every generated mystery declares
+
+1. **Discovery** — how the player first gets a thread: see route directly · find a document · find a named location · observe an environmental anomaly · receive information · discover a physical object
+2. **Reasoning** — the mental operation: locate · connect · corroborate · infer · experiment · revise · sequence
+3. **Resolution** — the act that opens the way: open something · find something · repair something · clear something · operate something · reveal something · follow something · wait/respond to something
+4. **Confirmation** — how the player knows it worked: physical observation · new information · environmental change · successful traversal · external response · multiple independent pieces agreeing
+
+Combinatorial story space without 500 hand-authored mechanisms.
+
+### Hard generator invariants
+
+- **`previous_story_family != current_story_family`.** Two consecutive
+  expeditions must not teach the same escape grammar. (Locked-gate-find-key
+  then boat-find-fuel is *psychologically the same puzzle* even though the
+  nouns differ.) Anti-repetition on the other axes too.
+- **Story logic is coherent BEFORE geography is generated.** Pick premise
+  → family → mechanism → dependency chain → evidence chain → confirmation
+  → decoys → reasoning type *first*; then generate terrain/settlements to
+  make that story physically sensible. This is also the real fix for
+  "a marina in the middle of a forest": the story constrains the world,
+  not the reverse. A marina needs water; a quarry needs a quarry-like
+  region; a firebreak needs forest/fire context.
+- **Meaningful locations are sparse and legible.** A world can have 50
+  buildings as scenery and only 6–10 investigation locations. Once the
+  player learns "the fuel is in the harbourmaster's shed," *finding* the
+  harbourmaster's shed must be a reasonable navigation problem, not a
+  90-building brute-force search. (Bigger principle than the `!` marker.)
+
+### Per-mystery declaration schema (what the generator emits)
+
+```
+story_family            # one of the 10 above
+discovery_pattern
+reasoning_pattern
+resolution_pattern
+confirmation_pattern
+required_locations      # the 6-10 legible investigation sites
+required_evidence       # the fact/clue chain
+required_actions        # e.g. [restore_power, open_gate]
+decoy_count             # irrelevant narratives placed as scenery
+```
+
+### The milestone
+
+**Escape Story Library v1** is not "implement the 23 stories." It is:
+build the data model + generator constraints for **8–10 story families,
+2–3 variants each**, with the declaration schema and the anti-repetition
+invariants enforced. That is the point where v4 becomes the game it was
+meant to be rather than "v3 with an investigation layer."
+
+### The reasoning types (glossary — used as tags on the scenarios below)
 
 - **spatial** — where is it, physically
 - **directional** — which way, relative to spawn / the boundary

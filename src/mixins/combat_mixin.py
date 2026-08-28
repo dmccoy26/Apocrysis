@@ -230,6 +230,26 @@ class CombatMixin:
         Sword broke silently and the player fought on with a dead
         weapon without noticing."""
         w = self.equipped_weapon
+        # A ranged weapon that just ran dry is as useless as a broken
+        # one - swap to a spare rather than "Out of ammo!" every turn.
+        if isinstance(w, RangedWeapon) and w.ammo <= 0:
+            spare = max(
+                (b for b in self.backpack.weapons
+                 if getattr(b, 'durability', 1) > 0
+                 and not (isinstance(b, RangedWeapon) and b.ammo <= 0)),
+                key=lambda b: b.damage, default=None,
+            )
+            if spare is not None:
+                self.backpack.weapons.remove(spare)
+                self.backpack.weapons.append(w)
+                self.equipped_weapon = spare
+                self.announce_event(
+                    "Out of ammo.",
+                    f"Your {w.name} is empty - you switch to your {spare.name} ({spare.damage} dmg).",
+                    kind="warn",
+                )
+            return
+
         dur = getattr(w, 'durability', None) if w is not None else None
         if w is None or dur is None or dur_before is None:
             return

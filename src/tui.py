@@ -146,6 +146,66 @@ def _location_name(p):
     return "THE VALLEY"
 
 
+_FACT_LABEL = {
+    "F_CLOSED": "the usual way out is shut",
+    "F_ROUTE": "there's another route",
+    "F_OBSTACLE": "that route is blocked",
+    "F_REQUIRE": "know what unblocks it",
+}
+
+
+def _status_block(p):
+    """The bottom-right STATUS box: what you've worked out so far
+    (ticked list) and any active warnings. Progress is the durable
+    counterpart to the one-shot ◆ events; warnings are the standing
+    version of the ⚠ events."""
+    lines = []
+
+    k = getattr(p, "knowledge", None)
+    m = getattr(p, "mystery", None)
+    if m is not None and k is not None:
+        known = k.facts_known()
+        steps = [(fid, _FACT_LABEL[fid], fid in known)
+                 for fid in ("F_CLOSED", "F_ROUTE", "F_OBSTACLE", "F_REQUIRE")]
+        has_item = any(getattr(it, "name", None) == m.requirement_item
+                       for it in p.backpack.items)
+        steps.append(("item", f"have the {m.requirement_item}", has_item or m.obstacle_open))
+        steps.append(("open", "the way is open", m.obstacle_open))
+        steps.append(("confirm", "escape route confirmed",
+                      k.hypothesis_state() == "confirmed"))
+        lines.append("[b]PROGRESS[/b]")
+        for _id, label, done in steps:
+            lines.append(f"  [green]✓[/green] {label}" if done
+                         else f"  [dim]·[/dim] [dim]{label}[/dim]")
+
+    warns = []
+    w = p.equipped_weapon
+    from src.items import RangedWeapon
+    spare = [b for b in p.backpack.weapons if getattr(b, "durability", 1) > 0
+             and not (isinstance(b, RangedWeapon) and b.ammo <= 0)]
+    if w is None:
+        warns.append("no weapon equipped")
+    elif getattr(w, "durability", 1) <= 0:
+        warns.append(f"{w.name} is broken" + (" — eq another" if spare else ""))
+    elif isinstance(w, RangedWeapon) and w.ammo <= 0:
+        warns.append(f"{w.name} out of ammo" + (" — eq a blade" if spare else ""))
+    elif 0 < getattr(w, "durability", 99) <= 5:
+        warns.append(f"{w.name} nearly worn out ({w.durability})")
+    if 0 < p.health <= p.max_health * 0.2:
+        warns.append("critically hurt")
+    if p.hunger <= 0:
+        warns.append("starving")
+    if p.thirst <= 0:
+        warns.append("parched")
+    if warns:
+        if lines:
+            lines.append("")
+        lines.append("[b][red]WARNINGS[/red][/b]")
+        lines += [f"  [red]![/red] {x}" for x in warns]
+
+    return "\n".join(lines)
+
+
 def _objective_line(p):
     """The standing objective line - premise + current hypothesis
     state, no quest text. Shared shape with the `remember` command."""
@@ -248,6 +308,11 @@ class ApocrysisApp(App):
         padding-top: 1;
         color: $text-muted;
     }
+    #status_block {
+        height: auto;
+        border-top: solid $accent;
+        padding-top: 1;
+    }
     """
 
     # v3 SPRINT: arrow keys move directly, without needing to type
@@ -310,6 +375,7 @@ class ApocrysisApp(App):
                     yield Static("Fatigue", classes="stat_label")
                     yield ProgressBar(id="fatigue_bar", total=100, show_eta=False, classes="stat_bar")
                 yield Static(id="commands_text")
+                yield Static(id="status_block")
         yield Footer()
 
     def action_move_direction(self, direction):
@@ -566,6 +632,8 @@ class ApocrysisApp(App):
             "[b]ACTIONS[/b]   (type `h` for the full command list)\n"
             + "  ·  ".join(p._action_bar())
         )
+
+        self.query_one("#status_block", Static).update(_status_block(p))
 
     def on_input_submitted(self, event: Input.Submitted):
         text = event.value

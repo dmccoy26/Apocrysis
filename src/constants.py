@@ -33,7 +33,8 @@ TERRAIN_LEGEND = (
     "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
     "  ^ = mountain (impassable)   = = river (impassable)\n"
     "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
-    "  P = you   Z = zombie (only shown once you've been there)"
+    "  P = you   Z = zombie (only shown once you've been there)\n"
+    "  ! = a lead you've found   + = the way out, now open"
 )
 
 # v3 SPRINT: impassable terrain, introduced from generate_map() -
@@ -82,7 +83,7 @@ MAP_ARCHETYPES = {
     'mixed':          {'weights': [0.28, 0.22, 0.15, 0.25, 0.10], 'blurb': 'A patchwork of woods, fields, and scattered buildings.'},
     'deep_woods':     {'weights': [0.46, 0.10, 0.08, 0.28, 0.08], 'blurb': 'Dense old-growth forest closes in on every side.'},
     'flooded_basin':  {'weights': [0.20, 0.07, 0.38, 0.17, 0.18], 'blurb': 'Low, waterlogged ground - half this valley is under water or sinking into it.'},
-    'suburban_sprawl':{'weights': [0.14, 0.42, 0.06, 0.31, 0.07], 'blurb': 'Street after street of empty houses - this was somebody\'s whole town.'},
+    'suburban_sprawl':{'weights': [0.20, 0.24, 0.08, 0.40, 0.08], 'blurb': 'Street after street of empty houses - this was somebody\'s whole town.'},
     'open_country':   {'weights': [0.20, 0.12, 0.09, 0.53, 0.06], 'blurb': 'Wide open farmland and fields, with little cover anywhere.'},
 }
 

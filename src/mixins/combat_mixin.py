@@ -93,13 +93,17 @@ class CombatMixin:
             zombie = self._select_zombie_for_encounter()
             
         self.io.say(f"Encountered a {zombie.name}! What will you do?")
-        _cur_dmg = self.equipped_weapon.damage if self.equipped_weapon else 0
+        _eq_broken = bool(self.equipped_weapon) and getattr(self.equipped_weapon, 'durability', 1) <= 0
+        _cur_dmg = 0 if (not self.equipped_weapon or _eq_broken) else self.equipped_weapon.damage
         _better = max(
-            (w for w in self.backpack.weapons if w.damage > _cur_dmg + 2),
+            (w for w in self.backpack.weapons
+             if w.damage > _cur_dmg + 2 and getattr(w, 'durability', 1) > 0),
             key=lambda w: w.damage, default=None,
         )
         if _better is not None:
-            _held = self.equipped_weapon.name if self.equipped_weapon else 'bare hands'
+            _held = ('bare hands' if not self.equipped_weapon
+                     else f'broken {self.equipped_weapon.name}' if _eq_broken
+                     else self.equipped_weapon.name)
             self.io.say(
                 f"(You're carrying a {_better.name} ({_better.damage} dmg) - "
                 f"stronger than your {_held}. Flee and 'eq {_better.name}' to switch.)"

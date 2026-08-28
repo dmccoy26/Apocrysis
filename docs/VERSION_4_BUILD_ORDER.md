@@ -17,6 +17,14 @@ that assumption soonest. The 63-item list can create the illusion that
 the architecture is settled — it isn't. Stage 0 exists to let the slice
 kill ideas; that is the point of putting it first.
 
+**Execution note (2026-08-28):** the local model driving Atlas
+(`qwen3.6-35b-a3b`) failed every non-trivial generation task on this
+codebase (0/4 — new-file creation and mid-size function rewrites all
+produced unparseable patches). By user direction, Claude now writes
+the code Atlas can't, and Atlas is used for verification and small
+localized diffs. See todo `ad998cd0` and the memory note. Revisit if a
+stronger local coder model becomes available.
+
 ## Branch state (corrects the stale handoff note)
 
 - `version-4` **exists**, locally and on `origin`

@@ -411,11 +411,32 @@ class UIMixin:
         # call site and silently not exist in the other (see the
         # comment at run_game_loop()'s own left-panel block for what
         # that gap actually looked like live).
-        border = '*' * (len(self.map[0]) + 2)
-        lines = [border]
+        width = len(self.map[0])
+
+        # Chess-style grid labels: rows lettered top-to-bottom
+        # (a, b, ... z, aa, ab, ...), columns numbered left-to-right
+        # (1..width). A tile at grid (x, y) is "<row-letter><x+1>" -
+        # top-left is "a1", the tile right of it is "a2", the tile
+        # below "a1" is "b1". Shared by classic mode and the TUI.
+        row_labels = [self._grid_row_label(y) for y in range(len(self.map))]
+        gutter_w = max((len(lbl) for lbl in row_labels), default=1)
+        # Every returned line is exactly (gutter_w + 1) + (width + 2)
+        # visible chars wide. Column digit for tile x sits at index
+        # gutter_w + 2 + x (label + space + opening '*').
+        head_pad = ' ' * (gutter_w + 2)
+
+        def _col_header(digit_of):
+            return head_pad + ''.join(digit_of(x + 1) for x in range(width)) + ' '
+
+        border = ' ' * (gutter_w + 1) + '*' * (width + 2)
+        lines = []
+        if width >= 10:
+            lines.append(_col_header(lambda n: str(n // 10) if n >= 10 else ' '))
+        lines.append(_col_header(lambda n: str(n % 10)))
+        lines.append(border)
 
         for y, row in enumerate(self.map):
-            line = '*'
+            line = row_labels[y].rjust(gutter_w) + ' ' + '*'
             for x, tile in enumerate(row):
                 dist = abs(x - self.current_position[0]) + abs(y - self.current_position[1])
                 in_range = dist <= self.visibility_radius
@@ -463,6 +484,18 @@ class UIMixin:
 
         lines.append(border)
         return lines
+
+    @staticmethod
+    def _grid_row_label(y):
+        """0->'a', 25->'z', 26->'aa', 27->'ab', ... (spreadsheet-style)."""
+        label = ""
+        n = y
+        while True:
+            label = chr(ord('a') + n % 26) + label
+            n = n // 26 - 1
+            if n < 0:
+                break
+        return label
 
     def print_map(self):
         for line in self._render_map_lines():

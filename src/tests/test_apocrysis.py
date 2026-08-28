@@ -1154,14 +1154,21 @@ class TestRendering(unittest.TestCase):
             "test needs a town tile out of spawn's visibility range",
         )
 
+        def _tile_char(lines, tx, ty):
+            # Grid labels (chess-style): N header lines above the map,
+            # a row-letter gutter to the left. Derive both offsets from
+            # the rendered output rather than hard-coding them.
+            top = len(lines) - len(self.game.map) - 1  # minus map rows, minus bottom border
+            left = lines[-1].index('*') + 1            # first tile column, past the '*' border
+            return lines[top + ty][left + tx]
+
         self.game.town_known = False
         lines = self.game._render_map_lines()
-        # +1 for the leading border '*' column.
-        self.assertIn(lines[ty + 1][tx + 1], (" ", "."))
+        self.assertIn(_tile_char(lines, tx, ty), (" ", "."))
 
         self.game.town_known = True
         lines = self.game._render_map_lines()
-        self.assertIn(lines[ty + 1][tx + 1], {"H", "R", "S", "B", "T"})
+        self.assertIn(_tile_char(lines, tx, ty), {"H", "R", "S", "B", "T"})
 
     def test_terrain_symbols_cover_every_generated_terrain_type(self):
         terrains_in_use = {

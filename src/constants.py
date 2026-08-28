@@ -33,7 +33,9 @@ TERRAIN_LEGEND = (
     "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
     "  ^ = mountain (impassable)   = = river (impassable)\n"
     "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
-    "  P = you   Z = zombie (only shown once you've been there)"
+    "  P = you   Z = zombie (only shown once you've been there)\n"
+    "  grid: rows a,b,c... down the side, columns 1,2,3... across the top -\n"
+    "  the top-left tile is a1, one right is a2, one down is b1"
 )
 
 # v3 SPRINT: impassable terrain, introduced from generate_map() -

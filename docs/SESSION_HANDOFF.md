@@ -8,7 +8,7 @@ Last updated 2026-08-28. **Read this first in a fresh session.**
   Atlas repo root). This is the only v4 working copy. Siblings
   `version-1/`..`version-3/` are read-only clones of the old branches.
 - **Branch:** `version-4`, pushed to `github.com/dmccoy26/Apocrysis`.
-  Current HEAD: `62b5f5c` (or later).
+  Current HEAD: `325ed26` (or later).
 - **Run it:** `python3 apocrysis.py` (TUI), `--classic` (plain loop),
   `--slice` (the Dam Service Road tutorial), `--test` (suite),
   `--log` (start a play log).
@@ -84,33 +84,80 @@ escape route and taking it, not by reaching the Town Center.
 7. **Goal/task system removed** (V3_ASSUMPTION_AUDIT #1/#8). `journal`/
    `remember`/`inspect` replace it.
 
+## Second fix batch — 2026-08-28 PM (8 commits, `341ceca`..`325ed26`)
+
+Driven by two `--log` playtests + a 2000-game balance sweep
+(`docs/BALANCE_BASELINE_2026-08-28.md` — the frozen pre-human-test
+baseline; re-run that exact scenario as a regression check).
+
+8. **Playlog crashes fixed** — death/win wrote to a closed file
+   (`I/O operation on closed file`); `--log` in the TUI hit
+   `call_from_thread` on the app thread. Paths are absolute now.
+9. **Map decluttered** — the `*` border and the a1/b2 coordinate ruler
+   are gone (they invited edge-following). `_render_map_lines` returns
+   a bare glyph grid; the `^` mountain ring is still the visible edge.
+10. **Map grows 3 tiles/expedition** (was 1 — imperceptible), cap 34.
+11. **Identity prompt** reworded — "Enter your name (existing or new)"
+    made players type the literal word "existing" and start a junk L1
+    character; now "Continue a survivor by typing their exact name…".
+12. **Terrain archetypes** — `MAP_ARCHETYPES` in constants; each
+    expedition rolls mixed / deep_woods / flooded_basin /
+    suburban_sprawl / open_country (seeded), biasing chunk terrain, one
+    scene-setting line on the first turn. Fixes "every map feels the
+    same".
+13. **Front-loaded mystery fixed** — `E_closed_b` and `E_require_a`
+    moved off the `route` site. The noticeboard used to reveal the
+    whole fact chain in one step; now it gives F_ROUTE + F_OBSTACLE,
+    `suspected` also needs F_CLOSED from the closed site, and you learn
+    where the key is by bumping the gate. Four discovery beats, not one.
+14. **Weapon nudge** — `encounter_zombie` names a stronger weapon
+    sitting unused in the pack (playtester slogged 8 fights with a
+    6-dmg tool while carrying a 15-dmg one).
+
 ## Open questions for the next playtest (the human's to answer)
 
-- Does the mystery feel too front-loaded now that one site can surface
-  most of the fact chain? (The route site often reveals F_CLOSED /
-  F_ROUTE / F_OBSTACLE / F_REQUIRE at once — hypothesis is only
-  "suspected" though, not confirmed.)
-- Can a player, with only the info a new player gets, decide where to
-  go next without visiting every building? Run the boat scenario:
-  find boat → no fuel → what do you do?
+**Primary (the whole world-grammar hypothesis):** with only the info a
+new player gets, when the world hands a *named lead* ("the keys are at
+a ranger station"), do you travel toward it — or revert to searching
+every building? Run a generated mystery (not `--slice`) with `--log`.
+The boat scenario is the sharpest version: find boat → no fuel → what
+do you do?
+
+- Was the combat death (armored zombie) **unavoidable** / a **bad
+  decision** / a **system misunderstanding** / **weapon starvation** /
+  **an appropriate risk**? (Balance sweep: 100% of deaths are combat,
+  clustered early + at level 1; median best weapon = the 6-dmg
+  starter. Five diagnoses → five different fixes. Don't tune until the
+  human read is in.)
 - Does the empty-building texture still read as "slot machine"?
-- Is combat lethality vs. investigation length right for a *human*
-  (the bot solves ~85% solo; a human wanders more)?
 - Should `search` be cut entirely?
+- Is the front-loading actually fixed now (item 13), or does one site
+  still hand over too much?
 
 ## Atlas
 
-**Do not route v4 work through Atlas.** Its generation pipeline
-produced an unparseable patch on all 6 tasks tried this session
-(35B MoE and 32B dense coder models both), including trivial ones.
-This is a pipeline bug, not a model-size problem. Logged in the
-apocrysis `.atlas/todo_list.json` (items `ad998cd0`, `ee762589`,
-`16d98132`). Claude does the programming; Atlas can still be used for
-verification/inspection if wanted.
+**Revised 2026-08-28 PM** (model now `qwen2.5-coder-32b-instruct`, LM
+Studio JIT bug fixed). Atlas now **reliably authors** small, localized,
+single-file edits — value/constant/string changes, short block inserts.
+It authored 6 of the 8 fixes above. It still **cannot touch a large
+method** (`generate_map`, `find_loot`) without rewriting the whole
+region — those two hand-written.
+
+Workflow: `atlas request "<precise spec>" --file <f>` → `atlas review
+<id>` (read the diff every time) → `atlas approve <id>`. **Trust the
+verify gate** — when it rolled two changes back this session it was
+correctly catching a real `call_from_thread` regression, not flaking.
+Reproduce a rollback with `.venv/bin/python -m pytest -q` from the
+workspace root before assuming otherwise. Atlas auto-commits verified
+workflows as "Atlas repair: FEATURE_REQUEST (<id>)".
+
+`apocrysis.py --test` is a unittest runner and misses things pytest
+catches (async-TUI thread-context bugs especially) — verify with both.
 
 ## Design docs
 
 `ESCAPE_WORLD_DESIGN_ASSESSMENT.md` (the full architecture),
 `VERSION_4_BUILD_ORDER.md` (the sequence + status table),
 `PHASE0_KNOWLEDGE_MODEL.md`, `V3_ASSUMPTION_AUDIT.md`,
-`SLICE_PLAYTEST_MECHANICAL.md`.
+`SLICE_PLAYTEST_MECHANICAL.md`,
+`BALANCE_BASELINE_2026-08-28.md` (frozen pre-human-test sweep).

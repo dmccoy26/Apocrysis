@@ -12,20 +12,32 @@
 # ============================================================
 
 import datetime
+import os
 
 
 class PlayLog:
     def __init__(self, path, game):
-        self.path = path
+        # absolute so the "saved to" message points somewhere the
+        # player can actually find, regardless of launch cwd
+        self.path = os.path.abspath(path)
         self.game = game
-        self._f = open(path, "a", encoding="utf-8")
+        self._f = open(self.path, "a", encoding="utf-8")
+        self._closed = False
         self._turns_logged = 0
         self._write_header()
 
     # ---- writing --------------------------------------------
 
     def _w(self, text=""):
-        self._f.write(text + "\n")
+        # a stray write after the game loop has already closed the log
+        # (e.g. the end-of-game "*** YOU DIED ***" banner) must never
+        # take the whole game down with an I/O error
+        if self._closed:
+            return
+        try:
+            self._f.write(text + "\n")
+        except ValueError:
+            self._closed = True
 
     def _flush(self):
         try:
@@ -130,6 +142,7 @@ class PlayLog:
             self._f.close()
         except Exception:
             pass
+        self._closed = True
 
 
 class TeeIO:

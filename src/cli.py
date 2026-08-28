@@ -79,7 +79,7 @@ def main_slice(start_log=False):
     print("inspect <thing>, i inventory, 'open gate', escape, q quit.")
     print()
     if start_log:
-        player.start_playlog()
+        print(f"Play logging on -> {player.start_playlog()}")
     player.run_game_loop()
     if getattr(player, "won", False):
         print("\nYou made it out.")
@@ -156,7 +156,9 @@ def main(start_log=False):
         print(" ")
 
         if start_log:
-            player.start_playlog()
+            _p = player.start_playlog()
+            if _p:
+                print(f"Play logging on -> {_p}")
         player.run_game_loop()
 
         # v3 SPRINT step 1 / hardcore-mode follow-up: save the profile

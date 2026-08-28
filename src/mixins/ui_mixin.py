@@ -415,11 +415,18 @@ class UIMixin:
                 self.playlog.snapshot()
 
         if getattr(self, 'playlog', None) is not None:
+            from src.playlog import TeeIO
             reason = ("won - escaped the valley" if getattr(self, 'won', False)
                       else "died" if self.health <= 0
                       else "quit")
+            log_path = self.playlog.path
             self.playlog.close(reason)
             self.playlog = None
+            # unwrap the tee BEFORE the end-of-game banners below, or
+            # their self.io.say() calls write to the now-closed log
+            if isinstance(self.io, TeeIO):
+                self.io = self.io._inner
+            self.io.say(f"Play log saved to {log_path}")
 
         # v3 SPRINT: the loop above used to just silently end - real
         # gap found live: dying or winning closed the game (in the
@@ -463,14 +470,29 @@ class UIMixin:
             self.io.say(f"Play logging stopped. Saved to {path}")
             return
         try:
-            self.start_playlog()
+            log_path = self.start_playlog()
         except OSError as exc:
             self.io.say(f"Couldn't start the play log: {exc}")
+            return
+        # in-game `log` runs on the worker thread, so self.io.say is safe
+        # here (unlike start_playlog's --log caller - see start_playlog)
+        self.io.say(
+            f"Play logging on -> {log_path}\n"
+            "Everything you type and everything the game says goes to that "
+            "file, plus a per-turn state snapshot. Type `log` again to stop."
+        )
 
     def start_playlog(self, path=None):
-        """Also callable directly (--log). Safe to call once."""
+        """Start the play log and return its absolute path (or None if
+        one is already running). Callable directly for --log.
+
+        Does NOT announce itself: the --log entry points call this from
+        the TUI's main/app thread, where TextualIO.say() -> Textual's
+        call_from_thread() raises. Callers emit their own confirmation
+        by the route that's safe for their thread.
+        """
         if getattr(self, 'playlog', None) is not None:
-            return
+            return None
         import datetime
         from src.playlog import PlayLog, TeeIO
         if path is None:
@@ -478,11 +500,7 @@ class UIMixin:
         self.playlog = PlayLog(path, self)
         if not isinstance(self.io, TeeIO):
             self.io = TeeIO(self.io, self.playlog)
-        self.io.say(
-            f"Play logging on -> {path}\n"
-            "Everything you type and everything the game says goes to that "
-            "file, plus a per-turn state snapshot. Type `log` again to stop."
-        )
+        return self.playlog.path
 
     def _render_map_lines(self):
         # Shared by print_map() (the standalone 'm'/'map' command) and

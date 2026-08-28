@@ -12,3 +12,6 @@ memory/
 
 # Local balance-test output, not source
 balance_sweep_out/
+
+# Human play-session transcripts (src/playlog.py output) - runtime, not source
+apocrysis_playlog_*.txt

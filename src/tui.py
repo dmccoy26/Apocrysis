@@ -316,7 +316,10 @@ class ApocrysisApp(App):
 
         if getattr(self, "_start_log", False):
             try:
-                self.player.start_playlog()
+                # main thread here - start_playlog() does file IO only and
+                # never marshals; announce via log_message() directly.
+                log_path = self.player.start_playlog()
+                self.log_message(f"Play logging on -> {log_path}")
             except OSError as exc:
                 self.log_message(f"Couldn't start the play log: {exc}")
 

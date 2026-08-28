@@ -167,3 +167,49 @@ class Knowledge:
             return
         self.found = set(snapshot.get("found", []))
         self._observed = set(snapshot.get("observed", []))
+
+    def to_dict(self):
+        """Full serialisation - catalogue AND progress - for the
+        named-slot save (save_game), where the map is restored verbatim
+        and generate_map() is not re-run, so the mystery cannot be
+        regenerated."""
+        return {
+            "facts": [{"id": f.id, "statement": f.statement}
+                      for f in self.facts.values()],
+            "evidence": [{"id": e.id, "text": e.text, "supports": e.supports,
+                          "location": e.location, "method": e.method}
+                         for e in self.evidence.values()],
+            "deductions": [{"id": d.id, "text": d.text, "needs": d.needs}
+                           for d in self.deductions.values()],
+            "hypothesis": None if self.hypothesis is None else {
+                "id": self.hypothesis.id, "statement": self.hypothesis.statement,
+                "suspected_when": self.hypothesis.suspected_when,
+                "confirmed_by": self.hypothesis.confirmed_by,
+            },
+            "found": sorted(self.found),
+            "observed": sorted(self._observed),
+            "auto_seq": self._auto_seq,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        k = cls()
+        if not data:
+            return k
+        for f in data.get("facts", []):
+            k.add_fact(Fact(f["id"], f["statement"]))
+        for e in data.get("evidence", []):
+            k.add_evidence(Evidence(e["id"], e["text"], supports=e.get("supports", ()),
+                                    location=e.get("location"),
+                                    method=e.get("method", "observe")))
+        for d in data.get("deductions", []):
+            k.add_deduction(Deduction(d["id"], d["text"], needs=d.get("needs", ())))
+        h = data.get("hypothesis")
+        if h:
+            k.set_hypothesis(Hypothesis(h["id"], h["statement"],
+                                        suspected_when=h.get("suspected_when", ()),
+                                        confirmed_by=h.get("confirmed_by")))
+        k.found = set(data.get("found", []))
+        k._observed = set(data.get("observed", []))
+        k._auto_seq = data.get("auto_seq", 0)
+        return k

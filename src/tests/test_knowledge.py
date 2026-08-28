@@ -95,6 +95,25 @@ class TestKnowledge(unittest.TestCase):
     def test_empty_knowledge(self):
         self.assertTrue(Knowledge().is_empty())
 
+    def test_to_dict_from_dict_full_round_trip(self):
+        k = _mystery()
+        k.discover("E1")
+        k.discover("E2")
+        k.observe_fact("F2")  # already known, so this is a no-op - fine
+        blob = k.to_dict()
+
+        k2 = Knowledge.from_dict(blob)
+        self.assertEqual(set(k2.facts), set(k.facts))
+        self.assertEqual(set(k2.evidence), set(k.evidence))
+        self.assertEqual(k2.facts_known(), k.facts_known())
+        self.assertEqual(k2.hypothesis_state(), k.hypothesis_state())
+        self.assertEqual([d.id for d in k2.deductions_available()],
+                         [d.id for d in k.deductions_available()])
+
+    def test_from_dict_tolerates_none_and_empty(self):
+        self.assertTrue(Knowledge.from_dict(None).is_empty())
+        self.assertTrue(Knowledge.from_dict({}).is_empty())
+
 
 if __name__ == "__main__":
     unittest.main()

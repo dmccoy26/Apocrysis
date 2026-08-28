@@ -187,6 +187,8 @@ class PersistenceMixin:
             "status_effects": self.status_effects,
             "map": self._serialize_map(),
             "town_known": self.town_known,
+            "knowledge": self.knowledge.to_dict() if getattr(self, 'knowledge', None) else None,
+            "slice_mode": getattr(self, 'slice_mode', False),
         }
 
         for w in self.backpack.weapons:
@@ -272,6 +274,13 @@ class PersistenceMixin:
         player.has_flashlight = data.get("has_flashlight", False)
         player.last_action = data.get("last_action", "")
         player.town_known = data.get("town_known", False)
+
+        # v4 knowledge model - restored verbatim (catalogue + progress)
+        # since the map is restored, not regenerated. Older saves have
+        # no "knowledge" key: keep whatever __init__ built.
+        if data.get("knowledge") is not None:
+            from src.knowledge import Knowledge
+            player.knowledge = Knowledge.from_dict(data["knowledge"])
 
         # "won" is deliberately never restored from a save - main()'s
         # own post-game-loop check treats player.won as an immediate

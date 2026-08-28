@@ -46,9 +46,18 @@ IMPASSABLE_TERRAIN = {'mountain', 'river'}
 # player's level, not a fixed size chosen at game start. All derived
 # in world_mixin.py's generate_map(); named here so the formulas
 # aren't buried inline.
+#
+# v4 Phase A (todo aa461cec): a hard gameplay ceiling instead of open
+# growth to 50x50. Map dimensions are bounded by player comprehension,
+# not renderer capability - the world must be small enough to hold a
+# mental model of within one expedition. Later expeditions get
+# *conceptually* harder (richer mystery), not physically larger, so
+# the growth curve is gentle: 15x15 at expedition 0, ~25x25 by the
+# end of the campaign, capped at 28. See "Physical & information
+# budget" in docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md.
 BASE_MAP_SIZE = 15
-MAP_GROWTH_PER_LEVEL = 2
-MAX_MAP_SIZE = 50
+MAP_GROWTH_PER_LEVEL = 1
+MAX_MAP_SIZE = 28
 CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is considered beaten
 
 BASE_TOWN_MIN_DISTANCE = 6

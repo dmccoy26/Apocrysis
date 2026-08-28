@@ -98,6 +98,16 @@ class WorldMixin:
             for y in range(self.map_size)
         ]
 
+        # v4 Phase A (todo 6c9f672a): mountain-boundary Phase 1. The
+        # outer ring of the map is forced 'mountain' - a natural world
+        # edge you can see and bump into, instead of an invisible
+        # rectangular cutoff. Applied here so _pick_random_walkable_tile()
+        # never spawns on it, and again after settlement placement
+        # (below) so a settlement box clipping the edge doesn't punch a
+        # hole in it. move_and_search() gives it a first-hit discovery
+        # beat per direction.
+        self._force_boundary_ring()
+
         # Random player spawn (v3 #6) - was always the map center.
         spawn = self._pick_random_walkable_tile()
         self.current_position = spawn
@@ -142,6 +152,20 @@ class WorldMixin:
             center = self._generate_settlement(top_left, town_size, is_real=(i == real_settlement_index))
             if center is not None:
                 town_center = center
+
+        # Re-seal the boundary ring in case a settlement box clipped it.
+        self._force_boundary_ring()
+        if town_center is not None and (
+            town_center[0] in (0, self.map_size - 1)
+            or town_center[1] in (0, self.map_size - 1)
+        ):
+            # Extremely unlikely (settlement centres are placed well
+            # inside), but a real Town Center buried under the ring
+            # would be unwinnable - nudge it one tile inward.
+            tx = min(max(town_center[0], 1), self.map_size - 2)
+            ty = min(max(town_center[1], 1), self.map_size - 2)
+            self.map[ty][tx] = {'terrain': 'town', 'content': 'T', 'explored': False}
+            town_center = (tx, ty)
 
         # Connectivity guarantee (#7) - a "harder" map with more
         # obstacles must never generate an unreachable REAL Town
@@ -304,6 +328,53 @@ class WorldMixin:
             (0, 0), (0, max_start), (max_start, 0), (max_start, max_start),
         ]
         return max(corners, key=distance_from_spawn)
+
+    def _spot_landmarks(self):
+        """v4 Phase A (todo 7ecd39cc): the first time an unvisited
+        building/settlement tile comes into view, say so once - a
+        distant sighting, distinct from the 'You enter a building'
+        message on actually reaching one. This is also the
+        discover-before-understand beat (2C.3): you see a structure
+        before you know what's in it."""
+        seen = getattr(self, '_landmarks_spotted', None)
+        if seen is None:
+            seen = self._landmarks_spotted = set()
+        px, py = self.current_position
+        r = self.visibility_radius
+        new_here = []
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                x, y = px + dx, py + dy
+                if not (0 <= x < self.map_size and 0 <= y < self.map_size):
+                    continue
+                if abs(dx) + abs(dy) > r or (x, y) in seen or (x, y) in self.visited:
+                    continue
+                cell = self.map[y][x]
+                if not isinstance(cell, dict):
+                    continue
+                is_building = cell.get('terrain') == 'building'
+                is_settlement = cell.get('terrain') == 'town'
+                if is_building or is_settlement:
+                    seen.add((x, y))
+                    new_here.append('settlement' if is_settlement else 'building')
+        if not new_here:
+            return
+        if 'settlement' in new_here:
+            self.io.say("Rooftops in the distance - there's a settlement out there.")
+        else:
+            self.io.say("You spot a building standing alone in the distance.")
+
+    def _force_boundary_ring(self):
+        """v4 Phase A: the outer row/column on every side is 'mountain'."""
+        last = self.map_size - 1
+        for i in range(self.map_size):
+            for (bx, by) in ((i, 0), (i, last), (0, i), (last, i)):
+                cell = self.map[by][bx]
+                if isinstance(cell, dict):
+                    cell['terrain'] = 'mountain'
+                    cell['content'] = '-'
+                else:
+                    self.map[by][bx] = {'terrain': 'mountain', 'content': '-', 'explored': False}
 
     def _bfs_reachable(self, start, goal):
         if start == goal:
@@ -477,8 +548,25 @@ class WorldMixin:
         # Impassable terrain (v3 #7) - blocks movement instead of
         # being walked onto.
         if dest_terrain in ('mountain', 'river'):
-            label = "mountain" if dest_terrain == 'mountain' else "river"
-            self.io.say(f"You can't cross the {label} here.")
+            last = self.map_size - 1
+            on_boundary = new_x in (0, last) or new_y in (0, last)
+            if dest_terrain == 'mountain' and on_boundary:
+                # v4: the edge of the world is a moment, not a wall.
+                seen = getattr(self, '_edge_seen', None)
+                if seen is None:
+                    seen = self._edge_seen = set()
+                if direction not in seen:
+                    seen.add(direction)
+                    self.io.say(
+                        "The mountains rise up sheer and impossibly high. "
+                        "There's no way through here - and looking along "
+                        "them, no obvious way through anywhere."
+                    )
+                else:
+                    self.io.say("The mountains block the way. There's no crossing them.")
+            else:
+                label = "mountain" if dest_terrain == 'mountain' else "river"
+                self.io.say(f"You can't cross the {label} here.")
             return
 
         # v4 slice: the locked service gate blocks movement until it
@@ -604,6 +692,8 @@ class WorldMixin:
         if getattr(self, 'slice_mode', False):
             self.slice_arrive(new_x, new_y)
             return
+
+        self._spot_landmarks()
 
         if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
             return

@@ -11,6 +11,36 @@ stages with their decision gates and dependencies made explicit.
 Read alongside `ESCAPE_WORLD_DESIGN_ASSESSMENT.md` (the "what" and
 "why"); this file is only the "in what order."
 
+---
+
+## STATUS (2026-08-28) — v4 is playable end to end
+
+The premise change is done: `python3 apocrysis.py` now generates an
+investigation mystery every expedition, and you win by working out the
+escape route and taking it, not by reaching the Town Center.
+
+| Stage | State |
+|---|---|
+| 0 — vertical slice | **done**, played, GO given |
+| 1 — decision gates | **done** (`PHASE0_KNOWLEDGE_MODEL.md`, `V3_ASSUMPTION_AUDIT.md`; SLICE-SUCCESS satisfied by the playtest) |
+| 2A — world geometry | map ceiling ✓, mountain boundary ✓, landmarks ✓; **2A.3 organic settlements, 2A.5 player class, 2A.6 loot bands deferred** |
+| 2B — world persistence | **done** (zombie-tile clear, dropped-item persistence, abandonment states) |
+| 2C — knowledge model | **done** (`knowledge.py`, journal/remember/inspect/look, save/load); 2C.3 primitive only, 2C.6 = coord labels only |
+| 2D — zone ecology | **done** (zone layer, contextual zombies + loot) |
+| 3 — investigation harness | **partial** — `tools/mystery_solver.py` covers solvability; the investigation-aware bot policy + budget telemetry not built |
+| 4 — escape generator | **done** — `escape.py` (5 mechanisms, Escape Proof, validation), `mystery_mixin.py`, win-condition change, mountain-pass carve. 40/40 seeds valid+reachable |
+| 5 — campaign | 5.1 chapters ✓, 5.2 retrospective ✓, 5.4 goal-system removal ✓; **5.3 People layer deferred**, balance sweep deferred |
+| 6 — README | **done** — player-facing rewrite |
+| H — harness realism | **not done** (H1 bot bugs, H2 reporting, H3 Q-pass) |
+
+**Top open item: combat lethality vs. investigation length.** Survival
+was retuned down (`ZOMBIE_MAP_DENSITY` 0.10→0.04, encounter 0.30/0.50→
+0.10/0.20) but a mediocre bot (`tools/mystery_solver.py`) still only
+solves ~50% solo. A real player does better; this needs human
+playtesting to tune, not more blind sweeping.
+
+---
+
 **Before starting any stage, answer this first:** *what assumption from
 the design would be most dangerous to discover is wrong?* Build to test
 that assumption soonest. The 63-item list can create the illusion that

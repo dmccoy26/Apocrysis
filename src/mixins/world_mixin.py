@@ -149,6 +149,26 @@ class WorldMixin:
                     chunk_terrain[(cx, cy)] = self.rng.choices(
                         terrain_types, weights=_arch['weights'])[0]
 
+        # Hard ceiling on how much of the map is wilderness 'building'.
+        # Playtest, twice: the 0.6 clustering carry-forward snowballs
+        # whatever terrain wins an early chunk, so ANY archetype could
+        # produce a map that's mostly identical 'b' tiles - and a
+        # mystery site named "the dam control room" is unfindable in a
+        # field of 90 identical buildings. Buildings are landmarks;
+        # past ~a third of the map they stop being landmarks and become
+        # noise. Reassign the excess to this archetype's most likely
+        # NON-building terrain.
+        _bchunks = [k for k, v in chunk_terrain.items() if v == 'building']
+        _cap = max(1, int(len(chunk_terrain) * 0.30))
+        if len(_bchunks) > _cap:
+            _fallback = max(
+                (t for t in terrain_types if t != 'building'),
+                key=lambda t: _arch['weights'][terrain_types.index(t)],
+            )
+            self.rng.shuffle(_bchunks)
+            for k in _bchunks[_cap:]:
+                chunk_terrain[k] = _fallback
+
         # v4 (todo 457c93a6): a semantic ZONE tag per chunk, on top of
         # terrain. Terrain answers "what do I walk on"; zone answers
         # "what kind of place is this" and is what drives contextual

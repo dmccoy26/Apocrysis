@@ -381,6 +381,20 @@ def build_mystery(game):
         Evidence('E_confirm', spec["escape_desc"], supports=['F_ROUTE'],
                  location='escape', method='observe'),
     ]
+    # Playtest: "every clue said north, but the escape was southwest."
+    # The sites cluster near spawn; the gap is deliberately the far
+    # corner. Without a bearing, the evidence points the player the
+    # wrong way. Fold the real gap direction into the obstacle clue so
+    # evidence actually leads where the route is.
+    _gx, _gy = m.escape_tile
+    _dx, _dy = _gx - spawn[0], _gy - spawn[1]
+    _ns = "north" if _dy < -2 else "south" if _dy > 2 else ""
+    _ew = "west" if _dx < -2 else "east" if _dx > 2 else ""
+    _bearing = ("-".join(p for p in (_ns, _ew) if p)) or "far"
+    for e in ev:
+        if e.id == 'E_obstacle_a':
+            e.text = f"{e.text} It's out toward the {_bearing} edge of the valley."
+
     for e in ev:
         k.add_evidence(e)
 

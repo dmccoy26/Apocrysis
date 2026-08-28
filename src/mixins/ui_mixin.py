@@ -600,6 +600,12 @@ class UIMixin:
             return None
         if m.obstacle_tile == (x, y) and getattr(m, 'saw_obstacle', False):
             return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
+        # The gap in the mountain wall - shown once you either have a
+        # map or know there's a blocked route out there to look for.
+        if m.escape_tile == (x, y):
+            knows_route = 'F_OBSTACLE' in m.knowledge.facts_known()
+            if getattr(self, 'map_revealed', False) or knows_route:
+                return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
         for role in getattr(self, '_mystery_named', set()):
             if m.sites.get(role) == (x, y):
                 return f"{BOLD}{YELLOW}!{RESET}"

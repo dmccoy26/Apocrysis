@@ -135,15 +135,26 @@ to a Heavy zombie). Findings + fixes:
     a `terrain: water` tag; `_paint_terrain_near` puts water by the
     marina / dam. (Playtest: "a marina in the middle of a forest.")
 
-## v4.1 = a UI/UX pass (queued as Atlas todos, not yet built)
+## v4.1 UI/UX pass — mostly DONE (`f4d42bc`, `76819c3`)
 
-The systems have outrun the interface. 10 TUI todos are in
-`.atlas/todo_list.json` (contextual action bar, bigger map + location
-header, HUD blocks, compact backpack, event-feed log, framed input,
-boxed discovery banners, real victory/defeat screen, day/night glyph,
-persistent objective line). Plus 2 generator-coherence todos
-(`7d6046d3` direction validator, `a4a11df6` non-water terrain
-affinity). Run `atlas todo list` / `atlas todo do <id>`.
+Built by hand this session:
+- Action bar replaces the ~25-line command dump (`_action_bar()`);
+  `h` still prints the full list.
+- Stats panel = labelled blocks: identity + XP, day-phase glyph
+  (☀/☾/◐/☼) + clock + turn, EQUIPMENT, compact BACKPACK ("n/12
+  weapons", identical items collapsed), one-line supplies.
+- Map location + time header ("FOREST — ☀ DAY · 09:48").
+- Log is an event feed: dim in-game HH:MM on one-line narrative.
+- `announce_event` draws an ASCII box (`***` / `[!]`) — item /
+  hypothesis / weapon-break moments are unmissable, TUI + classic.
+- Boxed victory/defeat screen with an expedition stats block.
+- Objective line persists "you have the {item} - get back to the
+  blocked route" while carried.
+
+Still open: `c359b1bb` (render the map at larger scale — it's a small
+grid in a big panel), `7d6046d3` (evidence-vs-escape direction
+validator), `a4a11df6` (terrain affinity for the non-water
+mechanisms). `atlas todo list` / `atlas todo do <id>`.
 
 ## Open questions for the next playtest (the human's to answer)
 

@@ -41,6 +41,8 @@ class UIMixin:
                 bar.insert(1, "ESCAPE")
             elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_has_item():
                 bar.insert(1, "open (at the gate)")
+        if self.backpack.water == 0 and hasattr(self, '_at_natural_water') and self._at_natural_water():
+            bar.append("drink (from the water)")
         if self.backpack.weapons:
             bar.append("eq <weapon>")
         if isinstance(self.equipped_weapon, RangedWeapon) and self.equipped_weapon.ammo < self.equipped_weapon.max_ammo:

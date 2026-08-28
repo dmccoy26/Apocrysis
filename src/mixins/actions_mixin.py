@@ -139,19 +139,39 @@ class ActionsMixin:
         else:
             self.io.say("You have no food.")
 
+    def _at_natural_water(self):
+        """True if the player is standing on or next to a water tile -
+        the maps have plenty; standing in a lake and dying of thirst
+        made no sense (playtest)."""
+        px, py = self.current_position
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                x, y = px + dx, py + dy
+                if 0 <= x < self.map_size and 0 <= y < self.map_size:
+                    cell = self.map[y][x]
+                    if isinstance(cell, dict) and cell.get('terrain') == 'water':
+                        return True
+        return False
+
     def drink(self):
         if self.backpack.water > 0:
             self.backpack.water -= 1
             self.thirst = min(100, self.thirst + 5)  # Adjust value as per game mechanics
             self.health = min(100, self.health + 5)  # Health increases by 5 when drinking, up to a max of 100
             self.io.say("You drink some water. Thirst increased. Health restored.")
-            
+
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)
             self._check_and_complete_goals("drink")
+        elif self._at_natural_water():
+            # Scoop from the lake/river. Less clean than stored water
+            # (smaller top-up, no heal) but it's always there.
+            self.thirst = min(100, self.thirst + 4)
+            self.io.say("You drink from the water. It's not clean, but it's water.")
+            self._check_and_complete_goals("drink")
         else:
-            self.io.say("You have no water.")
+            self.io.say("You have no water, and there's none to drink here.")
 
     def use_medicine(self):
         if self.backpack.medicine > 0:

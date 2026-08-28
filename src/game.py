@@ -282,3 +282,12 @@ class Apocrysis(
         self.hunger = max(0, self.hunger - hunger_decay)
         self.thirst = max(0, self.thirst - thirst_decay)
 
+        # At zero, hunger/thirst stop being just a combat debuff
+        # (_condition_penalty) and start costing health directly -
+        # playtest: "being thirsty and hungry should have more of an
+        # effect on your health." -2 each, so an empty pack in hostile
+        # terrain is a real clock, not a footnote.
+        starving = (2 if self.hunger <= 0 else 0) + (2 if self.thirst <= 0 else 0)
+        if starving:
+            self.health = max(0, self.health - starving)
+

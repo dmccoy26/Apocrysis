@@ -16,6 +16,7 @@ from src.mixins.objectives_mixin import ObjectivesMixin
 from src.mixins.persistence_mixin import PersistenceMixin
 from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
+from src.mixins.slice_mixin import SliceMixin
 
 
 class Apocrysis(
@@ -25,11 +26,12 @@ class Apocrysis(
     ObjectivesMixin,
     UIMixin,
     ActionsMixin,
+    SliceMixin,
 ):
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, slice_mode=False):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
@@ -56,6 +58,13 @@ class Apocrysis(
         self.hardcore = hardcore
         self.expeditions_completed = expeditions_completed
         self.rng = random.Random(seed)
+
+        # v4 vertical slice: a fixed, hand-authored investigation map
+        # (src/slice_dam_road.py + SliceMixin) instead of procedural
+        # generation, with survival pressure deliberately loosened so
+        # the investigation loop can be evaluated in isolation. This
+        # is throwaway experimental scaffolding, not a game mode.
+        self.slice_mode = slice_mode
 
         self.xp = 0
         self.level = level
@@ -196,10 +205,20 @@ class Apocrysis(
         self.visibility_radius = min(3, base_visibility + flashlight_bonus)
 
     def _apply_decay(self):
+        # v4 slice: survival pressure is deliberately loosened so a
+        # player can spend 30+ turns investigating without dying -
+        # explicitly temporary, not final tuning (see
+        # docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md, "Vertical slice
+        # prototype").
+        if getattr(self, 'slice_mode', False):
+            self.hunger = max(0, self.hunger - 1)
+            self.thirst = max(0, self.thirst - 1)
+            return
+
         # Hunger and thirst decay faster at night
         hunger_decay = 2 + (1 if self.is_night else 0)
         thirst_decay = 2 + (1 if self.is_night else 0)
-        
+
         self.hunger = max(0, self.hunger - hunger_decay)
         self.thirst = max(0, self.thirst - thirst_decay)
 

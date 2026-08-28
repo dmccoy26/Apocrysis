@@ -46,6 +46,12 @@ class WorldMixin:
     Explicitly out of scope for this pass: per-settlement discovery so decoy settlements genuinely differ from the real objective (currently settlement_explored is one global flag set by entering ANY settlement). That remains a separate, not-yet-implemented change.
     """
     def generate_map(self):
+        # v4 vertical slice: a fixed hand-authored map replaces
+        # procedural generation entirely (SliceMixin.slice_setup()).
+        if getattr(self, 'slice_mode', False):
+            self.slice_setup()
+            return self.map
+
         terrain_types = ['forest', 'building', 'water', 'plain', 'swamp']
 
         obstacle_density = min(
@@ -426,6 +432,17 @@ class WorldMixin:
             self.io.say(f"You can't cross the {label} here.")
             return
 
+        # v4 slice: the locked service gate blocks movement until it
+        # has been opened with the valve key (SliceMixin.slice_bump_gate
+        # records the "gate is locked" observation and the backtrack
+        # flag).
+        if getattr(self, 'slice_mode', False):
+            from src.slice_dam_road import slice_location_at, SLICE_GATE_LOCATION
+            if (slice_location_at(new_x, new_y) == SLICE_GATE_LOCATION
+                    and not getattr(self, 'slice_gate_open', False)):
+                self.slice_bump_gate()
+                return
+
         # Update the current position
         self.current_position = (new_x, new_y)
         self.visited.add(self.current_position)  # Mark the new position as visited
@@ -523,6 +540,13 @@ class WorldMixin:
 
             elif terrain == 'forest':
                 self.io.say("You move through dense forest.")
+
+        # v4 slice: authored-location arrival (blurb + auto-revealed
+        # evidence). No procedural encounters or loot rolls in the
+        # slice - the investigation loop is being tested in isolation.
+        if getattr(self, 'slice_mode', False):
+            self.slice_arrive(new_x, new_y)
+            return
 
         if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
             return

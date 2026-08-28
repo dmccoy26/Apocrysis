@@ -59,6 +59,27 @@ def main_tui():
     app.run()
 
 
+def main_slice():
+    """v4 vertical-slice runner: the hand-authored 'Dam Service Road'
+    investigation map, classic print loop, no profiles or story
+    preamble. Throwaway experimental scaffolding - see
+    docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md, 'Vertical slice prototype'."""
+    player = Apocrysis("Surveyor", slice_mode=True)
+    print()
+    print("You came in along the reservoir highway. Then the road went")
+    print("under water and did not come back. You need to find another")
+    print("way out of this valley.")
+    print()
+    print("Commands: n/s/e/w move, m map, search, journal (j), remember,")
+    print("inspect <thing>, i inventory, 'open gate', escape, q quit.")
+    print()
+    player.run_game_loop()
+    if getattr(player, "won", False):
+        print("\nYou made it out.")
+    elif player.health <= 0:
+        print("\nYou didn't make it.")
+
+
 def main():
     # v3 SPRINT step 1: no class prompt (classes are level-based now -
     # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and

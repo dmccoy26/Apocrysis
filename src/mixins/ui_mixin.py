@@ -259,6 +259,17 @@ class UIMixin:
                 'complete': self._prompt_complete_goal,
                 'ts': self.list_tasks,
                 'ct': self._prompt_complete_task,
+                # v4 vertical slice commands (SliceMixin) - only
+                # meaningful when slice_mode is on; harmless otherwise.
+                'search': self.slice_search,
+                'sr': self.slice_search,
+                'journal': self.slice_journal,
+                'j': self.slice_journal,
+                'remember': self.slice_remember,
+                'rem': self.slice_remember,
+                'open gate': self.slice_open_gate,
+                'og': self.slice_open_gate,
+                'escape': self.slice_try_escape,
             }
 
             if command in ('q', 'quit'):
@@ -278,6 +289,11 @@ class UIMixin:
             if action:
                 self.io.say("\n" + "*" * term_width)
                 action()
+            elif command.startswith(('inspect', 'ins ')):
+                # v4 slice: `inspect <thing>` - Observed/Known/
+                # Suspected/Unknown for one thing.
+                parts = command.split(maxsplit=1)
+                self.slice_inspect(parts[1] if len(parts) > 1 else "")
             elif command.startswith(('wear', 'wr')):
                 # Checked before 'equip'/'eq' below - distinct prefix,
                 # no ambiguity risk (equipment-slot investigation).
@@ -348,12 +364,17 @@ class UIMixin:
                 self.io.say(f"Unknown command: '{command}'. Type 'help' for available commands.")
 
             self.print_stat_changes(old_stats)
-            # Automatically check and complete goals based on the performed action
-            self._auto_check_goals()
-            
-            # Generate new dynamic tasks periodically or when conditions change
-            if random.random() < 0.1:  # 10% chance per turn to evaluate task generation
-                self._generate_dynamic_tasks()
+
+            # v4 slice: the goal/task system is part of what the slice
+            # is testing whether to replace - keep it out of the way
+            # so the investigation loop is what's being evaluated.
+            if not getattr(self, 'slice_mode', False):
+                # Automatically check and complete goals based on the performed action
+                self._auto_check_goals()
+
+                # Generate new dynamic tasks periodically or when conditions change
+                if random.random() < 0.1:  # 10% chance per turn to evaluate task generation
+                    self._generate_dynamic_tasks()
 
         # v3 SPRINT: the loop above used to just silently end - real
         # gap found live: dying or winning closed the game (in the
@@ -364,10 +385,15 @@ class UIMixin:
         # TUI closes.
         if getattr(self, 'won', False):
             self.io.say(f"\n{BOLD}{GREEN}*** VICTORY ***{RESET}")
-            self.io.say(
-                f"You made it to the Town Center on day {self.day} "
-                f"as a level {self.level} survivor!"
-            )
+            if getattr(self, 'slice_mode', False):
+                self.io.say(
+                    f"You found your way out of the valley on day {self.day}."
+                )
+            else:
+                self.io.say(
+                    f"You made it to the Town Center on day {self.day} "
+                    f"as a level {self.level} survivor!"
+                )
         elif self.health <= 0:
             self.io.say(f"\n{BOLD}{RED}*** YOU DIED ***{RESET}")
             self.io.say(

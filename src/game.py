@@ -290,4 +290,14 @@ class Apocrysis(
         starving = (2 if self.hunger <= 0 else 0) + (2 if self.thirst <= 0 else 0)
         if starving:
             self.health = max(0, self.health - starving)
+            # Say so - not every turn (noise), but on the turn it
+            # starts and periodically after, so the HP loss isn't a
+            # mystery and the balance harness can attribute the death.
+            self._starve_turns = getattr(self, '_starve_turns', 0) + 1
+            if self._starve_turns == 1 or self._starve_turns % 4 == 0:
+                what = ("hunger and thirst" if starving >= 4
+                        else "hunger" if self.hunger <= 0 else "thirst")
+                self.io.say(f"The {what} is wearing you down. (-{starving} health)")
+        else:
+            self._starve_turns = 0
 

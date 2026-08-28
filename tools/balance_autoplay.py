@@ -86,14 +86,13 @@ _CAMPAIGN_COMPLETE_RE = re.compile(r"CAMPAIGN COMPLETE!")
 # take_damage(), always paired with the "takes N damage..." message
 # _PLAYER_HIT_RE already matches above), a Bleeding/Poison status tick
 # (also only ever applied mid-fight, combat_mixin.py's
-# encounter_zombie()), and a cold-water terrain chance
-# (world_mixin.py's move_and_search()). Hunger/thirst/fatigue never
-# subtract from health anywhere in this engine - there is currently no
-# starvation/dehydration/fatigue death mechanic at all - so this is a
-# real, complete classification of every way health can hit 0 today,
-# not a guess from vibes.
+# encounter_zombie()), a cold-water terrain chance (world_mixin.py's
+# move_and_search()), and - since 2026-08-28 - a hunger/thirst-at-zero
+# drain (game.py's _apply_decay(), 2 HP/turn each, announced with
+# "The ... is wearing you down.").
 _COLD_WATER_RE = re.compile(r"^The cold water chills you\. You lost some health\.$")
 _STATUS_DAMAGE_RE = re.compile(r"^You are affected by (Bleeding|Poison)! Lost \d+ health\.$")
+_STARVE_RE = re.compile(r"^The (hunger|thirst|hunger and thirst) is wearing you down\.")
 _BUILDING_ENTER_RE = re.compile(r"^You enter a building\. It's a safe zone\.$")
 
 
@@ -190,6 +189,10 @@ class Metrics:
 
         if _COLD_WATER_RE.match(text):
             self._last_damage_event = "environmental (cold water)"
+            return
+
+        if _STARVE_RE.match(text):
+            self._last_damage_event = "resource attrition (hunger/thirst)"
             return
 
         if _STATUS_DAMAGE_RE.match(text):
@@ -526,7 +529,8 @@ class BotIO:
             return 'med'
         if p.hunger < 40 and p.backpack.food > 0:
             return 'ea'
-        if p.thirst < 40 and p.backpack.water > 0:
+        if p.thirst < 40 and (p.backpack.water > 0
+                              or (hasattr(p, '_at_natural_water') and p._at_natural_water())):
             return 'dr'
         if p.fatigue > 85:
             return 'r'
@@ -913,22 +917,24 @@ def print_report(all_metrics, games, level, expeditions_completed, max_turns):
     for key in ("won", "died", "timeout"):
         print(f"  {key:8s}: {outcomes.get(key, 0)}/{games}")
 
-    # Death/win reasons (item 1). See _COLD_WATER_RE/_STATUS_DAMAGE_RE/
-    # play_one_game's death_cause assignment for how this is inferred -
-    # it is a real, complete classification of this engine's health-
-    # reduction code paths (grepped), NOT a guess: starvation/
-    # dehydration/fatigue never reduce health anywhere in src/ today,
-    # so those buckets are always 0 by design, not a bug in this
-    # inference.
+    # Death/win reasons (item 1). Inferred from the "last damage event"
+    # the BotIO saw before health hit 0 - a real classification of this
+    # engine's health-reduction code paths (grepped): zombie combat
+    # (+ Bleeding/Poison, always mid-fight), the cold-water terrain
+    # roll, and the hunger/thirst-at-zero drain. `death_cause` is
+    # whichever fired last; a starving player finished off by a zombie
+    # bite shows as "zombie combat" even though attrition set it up -
+    # cross-check with the loot-economy net numbers below. Fatigue
+    # still never reduces health.
     died_metrics = [m for m in all_metrics if m.outcome == "died"]
     if died_metrics:
         death_causes = Counter(m.death_cause for m in died_metrics)
-        print("\nDeath reasons:")
-        for cause in ("zombie combat", "environmental (cold water)", "other (unattributed)"):
+        print("\nDeath reasons (whichever damage source fired last):")
+        for cause in ("zombie combat", "resource attrition (hunger/thirst)",
+                      "environmental (cold water)", "other (unattributed)"):
             if death_causes.get(cause):
-                print(f"  {cause:28s}: {death_causes[cause]}/{len(died_metrics)}")
-        for cause in ("starvation", "dehydration", "fatigue"):
-            print(f"  {cause:28s}: 0/{len(died_metrics)}  (not a death mechanic in this engine - see comment above)")
+                print(f"  {cause:34s}: {death_causes[cause]}/{len(died_metrics)}")
+        print(f"  {'fatigue':34s}: 0/{len(died_metrics)}  (fatigue never reduces health)")
 
     # Win reasons (v4): winning = working out the generated escape
     # mechanism and taking it (mystery_try_escape). "expedition win"

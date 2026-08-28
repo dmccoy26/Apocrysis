@@ -187,6 +187,7 @@ class PersistenceMixin:
             "status_effects": self.status_effects,
             "map": self._serialize_map(),
             "town_known": self.town_known,
+            "map_revealed": getattr(self, 'map_revealed', False),
             "knowledge": self.knowledge.to_dict() if getattr(self, 'knowledge', None) else None,
             "mystery": self.mystery.to_dict() if getattr(self, 'mystery', None) else None,
             "slice_mode": getattr(self, 'slice_mode', False),
@@ -275,6 +276,7 @@ class PersistenceMixin:
         player.has_flashlight = data.get("has_flashlight", False)
         player.last_action = data.get("last_action", "")
         player.town_known = data.get("town_known", False)
+        player.map_revealed = data.get("map_revealed", False)
 
         # v4 knowledge/mystery - restored verbatim (the map is restored,
         # not regenerated, so the mystery can't be rebuilt). Older saves

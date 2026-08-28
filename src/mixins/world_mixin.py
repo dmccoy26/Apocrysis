@@ -948,7 +948,7 @@ class WorldMixin:
             # so it drops out of the pool instead of wasting a roll.
             # Same pattern for the flashlight (day/night granularity
             # investigation) - once owned, it drops out too.
-            if not self.town_known:
+            if not getattr(self, 'map_revealed', False):
                 loot_types.append("map")
             if not self.has_flashlight:
                 loot_types.append("flashlight")
@@ -1034,10 +1034,13 @@ class WorldMixin:
                 self.backpack.ammo += self.rng.randint(1, 3)
                 self.io.say("You found some ammo! Ammo stock increased.")
             elif loot_type == "map":
+                self.map_revealed = True
                 self.town_known = True
                 self.io.say(
-                    "You found a weathered survivor's map! The Town "
-                    "Center's location is now revealed."
+                    "You found a weathered survey map of the whole valley! "
+                    "The lay of the land - roads, buildings, settlements, "
+                    "where the hills close in - is all laid out now. It "
+                    "won't tell you what's moving out there."
                 )
             elif loot_type == "flashlight":
                 self.has_flashlight = True

@@ -415,9 +415,10 @@ class UIMixin:
         # TUI closes.
         if getattr(self, 'won', False):
             self.io.say(f"\n{BOLD}{GREEN}*** VICTORY ***{RESET}")
-            if getattr(self, 'slice_mode', False):
+            if getattr(self, 'slice_mode', False) or getattr(self, 'mystery', None) is not None:
                 self.io.say(
-                    f"You found your way out of the valley on day {self.day}."
+                    f"You found your way out of the valley on day {self.day}, "
+                    f"turn {getattr(self, 'turns', 0)}."
                 )
             else:
                 self.io.say(
@@ -467,9 +468,14 @@ class UIMixin:
 
         for y, row in enumerate(self.map):
             line = row_labels[y].rjust(gutter_w) + ' ' + '*'
+            map_revealed = getattr(self, 'map_revealed', False)
             for x, tile in enumerate(row):
                 dist = abs(x - self.current_position[0]) + abs(y - self.current_position[1])
-                in_range = dist <= self.visibility_radius
+                actually_visible = dist <= self.visibility_radius
+                # A found map reveals the whole terrain/settlement
+                # layout (todo 8f9ec034) - geography, not the dynamic
+                # layer (zombies stay hidden until you've been there).
+                in_range = actually_visible or map_revealed
                 if (x, y) == self.current_position:
                     health_pct = self.health / max(1, self.max_health) * 100
                     if health_pct > 75:
@@ -505,7 +511,10 @@ class UIMixin:
                     else:
                         char = ' '
                 elif isinstance(tile, (FreshZombie, RegularZombie, HeavyZombie)):
-                    char = 'Z' if in_range and (x, y) in self.visited else ' '
+                    if actually_visible and (x, y) in self.visited:
+                        char = 'Z'
+                    else:
+                        char = '.' if map_revealed else ' '
                 else:
                     char = '.' if in_range and (x, y) in self.visited else ' '
                 line += char

@@ -149,10 +149,13 @@ class Apocrysis(
         self.tasks = []
         self.won = False  # Win condition tracker
 
-        # True once the player has found a map item revealing the
-        # Town Center's location (world_mixin.find_loot()) - until
-        # then, town tiles are hidden by fog-of-war exactly like any
-        # other terrain (ui_mixin._render_map_lines()).
+        # v4 (todo 8f9ec034): finding a map item reveals the whole
+        # GEOGRAPHY - terrain and settlement layout across the entire
+        # map (world_mixin.find_loot(), ui_mixin._render_map_lines()).
+        # Not the dynamic layer: zombies stay hidden until you've
+        # actually been somewhere. town_known kept as a subset for
+        # older saves / the town-tile branch.
+        self.map_revealed = False
         self.town_known = False
 
         # Objective-driven win condition investigation: True once the

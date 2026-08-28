@@ -109,21 +109,59 @@ class TextualIO:
 
 
 _PHASE_GLYPH = {"day": "☀", "night": "☾", "dusk": "◐", "dawn": "☼"}
+_PHASE_COLOR = {"day": "yellow", "night": "blue", "dusk": "#d08a3c", "dawn": "#d08a3c"}
+_HDR = "bold grey70"          # section headers
+_DIM = "grey50"
 
 
-def _compact_gear(items):
-    """Group identical weapons/armor into 'Name  Ndmg  dur/max  xK'."""
-    seen = {}
-    order = []
+def _dur_color(cur, mx):
+    if cur is None:
+        return None
+    if cur <= 0:
+        return "red"
+    if mx and cur <= mx * 0.25:
+        return "yellow"
+    return _DIM
+
+
+def _fmt_gear(item):
+    """One coloured line for a weapon or armor piece."""
+    name = getattr(item, "name", "?")
+    parts = [f"{name[:18]:<18}"]
+    dmg = getattr(item, "damage", None)
+    if dmg is not None:
+        parts.append(f"[cyan]{dmg} dmg[/]")
+    red = getattr(item, "damage_reduction", None)
+    if red is not None:
+        parts.append(f"[cyan]-{red}[/]")
+    ammo, mx_ammo = getattr(item, "ammo", None), getattr(item, "max_ammo", None)
+    if mx_ammo:
+        c = "red" if not ammo else _DIM
+        parts.append(f"[{c}]ammo {ammo}/{mx_ammo}[/]")
+    dur = getattr(item, "durability", None)
+    mxd = getattr(item, "max_durability", dur)
+    c = _dur_color(dur, mxd)
+    if c:
+        parts.append(f"[{c}]{dur}/{mxd}[/]")
+    return "  " + "  ".join(parts)
+
+
+def _gear_lines(items):
+    """Grouped, coloured lines - identical items collapse to 'xK'."""
+    order, seen = [], {}
     for it in items:
         key = str(it)
         if key not in seen:
-            seen[key] = 0
+            seen[key] = [it, 0]
             order.append(key)
-        seen[key] += 1
+        seen[key][1] += 1
     out = []
     for key in order:
-        out.append(f"{key}  x{seen[key]}" if seen[key] > 1 else key)
+        it, n = seen[key]
+        line = _fmt_gear(it)
+        if n > 1:
+            line += f"  [{_DIM}]x{n}[/]"
+        out.append(line)
     return out
 
 
@@ -576,34 +614,42 @@ class ApocrysisApp(App):
         stats_widget = self.query_one("#stats_text", Static)
         phase = getattr(p, "day_phase", "night" if p.is_night else "day")
         glyph = _PHASE_GLYPH.get(phase, "·")
+        pcol = _PHASE_COLOR.get(phase, _DIM)
         clock = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
 
-        equipped = str(p.equipped_weapon) if p.equipped_weapon else "bare hands"
-        worn = [f"  {slot:<6} {piece.name}"
-                for slot, piece in p.equipped_armor.items() if piece]
         w_cap = getattr(p.backpack, "MAX_WEAPONS", len(p.backpack.weapons))
-        bp_w = _compact_gear(p.backpack.weapons) or ["  (empty)"]
-        bp_a = _compact_gear(p.backpack.armor)
+        eq = p.equipped_weapon
+        eq_line = _fmt_gear(eq) if eq else f"  [{_DIM}]bare hands[/]"
+        if eq and getattr(eq, "durability", 1) <= 0:
+            eq_line += "  [red]BROKEN[/]"
+
+        def _sup(label, n):
+            c = "red" if n <= 0 else "grey85"
+            return f"[{_DIM}]{label}[/] [{c}]{n}[/]"
 
         lines = [
-            f"[b]{p.name}[/b]   Level {p.level}   XP {p.xp}/{p.max_xp}",
-            f"{glyph} {phase.upper()}   Day {p.day} · {clock} · Turn {getattr(p, 'turns', 0)}",
+            f"[bold]{p.name}[/bold]   [{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
+            f"[{pcol}]{glyph} {phase.upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
+            f"Turn {getattr(p, 'turns', 0)}[/]",
             "",
-            "[b]EQUIPMENT[/b]",
-            f"  {equipped}",
+            f"[{_HDR}]EQUIPMENT[/]",
+            eq_line,
         ]
-        lines += worn or ["  (no armor)"]
+        worn = [_fmt_gear(pc).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)
+                for slot, pc in p.equipped_armor.items() if pc]
+        lines += worn or [f"  [{_DIM}]no armor[/]"]
         lines += [
             "",
-            f"[b]BACKPACK[/b]  {len(p.backpack.weapons)}/{w_cap} weapons",
+            f"[{_HDR}]BACKPACK[/]  [{_DIM}]{len(p.backpack.weapons)}/{w_cap}[/]",
         ]
-        lines += [f"  {x}" for x in bp_w]
-        if bp_a:
-            lines += [f"  {x}" for x in bp_a]
+        lines += _gear_lines(p.backpack.weapons) or [f"  [{_DIM}]empty[/]"]
+        lines += _gear_lines(p.backpack.armor)
         lines += [
             "",
-            f"Food {p.backpack.food} · Water {p.backpack.water} · "
-            f"Med {p.backpack.medicine} · Ammo {p.backpack.ammo}",
+            "  ".join([
+                _sup("food", p.backpack.food), _sup("water", p.backpack.water),
+                _sup("med", p.backpack.medicine), _sup("ammo", p.backpack.ammo),
+            ]),
         ]
         stats_widget.update("\n".join(lines))
 

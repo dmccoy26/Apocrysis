@@ -4,7 +4,23 @@ A zombie-apocalypse survival RPG with a `textual` terminal UI.
 Explore a procedurally generated map that grows and gets harder as
 you level up, manage hunger/thirst/fatigue, fight or flee zombies,
 craft weapons, complete goals and tasks, and try to reach the Town
-Center before your health runs out.
+Center before your health runs out. That's the game as it exists
+today (v3) — see the note below for where it's headed next.
+
+## In active design: a bigger direction (not yet built)
+
+`docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md` specifies a substantial
+redesign — instead of a known "Town Center = win" objective, the
+player wakes up in an unknown region and has to *investigate* their
+way to discovering how to escape it (procedurally generated
+mechanism, evidence, and knowledge system, not a marked exit). Fully
+designed, nothing implemented yet. If you're picking this project back
+up, read that document's "Start here" section first — it links
+straight to the current status and the next concrete build step
+(a hard-coded vertical-slice prototype, tracked as the first 6 items
+in `.atlas/todo_list.json`). Don't start on the rest of this README's
+v3 description as if it's the target design; it describes the current
+build, not the direction in progress.
 
 ## Running it
 

@@ -45,6 +45,44 @@ class WorldMixin:
         'quiet': "Undisturbed. Dust on every surface, nothing out of place. It was just left.",
     }
 
+    # v4 (todo 457c93a6): zone types. rural/suburban/industrial/
+    # downtown are civilisation; wilderness is the untouched land.
+    _ZONE_TYPES = ('rural', 'suburban', 'industrial', 'downtown', 'wilderness')
+
+    # 2D.1: per-zone multipliers on the expedition-scaled zombie weight
+    # vector (order: Fresh, Regular, Heavy, Swift, Toxic, Armored).
+    _ZONE_ZOMBIE_BIAS = {
+        'rural':      (1.3, 1.1, 0.7, 0.8, 0.9, 0.6),
+        'suburban':   (1.1, 1.2, 0.9, 1.4, 0.9, 0.8),
+        'industrial': (0.8, 1.0, 1.4, 0.9, 1.1, 1.6),
+        'downtown':   (0.9, 1.1, 1.2, 1.5, 1.2, 1.1),
+        'wilderness': (1.5, 1.2, 0.8, 1.0, 0.6, 0.5),
+    }
+
+    # 2D.2: contextual loot weights per zone (over the base loot pool
+    # food/water/medicine/ammo/weapon/armor). Identity of what a place
+    # has, not just rarity - a rural building leans food/tools, a
+    # downtown one leans medicine/weapons.
+    _ZONE_LOOT_BIAS = {
+        'rural':      {'food': 2.0, 'water': 1.6, 'medicine': 0.7, 'ammo': 0.6, 'weapon': 0.8, 'armor': 0.5},
+        'suburban':   {'food': 1.3, 'water': 1.3, 'medicine': 1.1, 'ammo': 0.8, 'weapon': 1.0, 'armor': 0.9},
+        'industrial': {'food': 0.7, 'water': 0.8, 'medicine': 0.7, 'ammo': 1.4, 'weapon': 1.5, 'armor': 1.6},
+        'downtown':   {'food': 0.9, 'water': 0.9, 'medicine': 1.6, 'ammo': 1.3, 'weapon': 1.4, 'armor': 1.2},
+        'wilderness': {'food': 1.4, 'water': 1.4, 'medicine': 0.6, 'ammo': 0.9, 'weapon': 0.9, 'armor': 0.5},
+    }
+
+    def _zone_for_terrain(self, terrain):
+        if terrain in ('forest', 'swamp', 'water'):
+            return self.rng.choices(('wilderness', 'rural'), weights=(0.8, 0.2))[0]
+        if terrain == 'building':
+            return self.rng.choices(
+                ('suburban', 'downtown', 'industrial'), weights=(0.45, 0.3, 0.25))[0]
+        return self.rng.choices(('rural', 'suburban', 'wilderness'), weights=(0.55, 0.25, 0.2))[0]
+
+    def _current_zone(self):
+        cell = self.map[self.current_position[1]][self.current_position[0]]
+        return cell.get('zone', 'rural') if isinstance(cell, dict) else 'rural'
+
     # --------------------------------------------------
     # Map Generation
     # --------------------------------------------------
@@ -96,6 +134,24 @@ class WorldMixin:
                 else:
                     chunk_terrain[(cx, cy)] = self.rng.choice(terrain_types)
 
+        # v4 (todo 457c93a6): a semantic ZONE tag per chunk, on top of
+        # terrain. Terrain answers "what do I walk on"; zone answers
+        # "what kind of place is this" and is what drives contextual
+        # zombie composition (2D.1) and loot (2D.2). Clustered the same
+        # way terrain is, and biased by the chunk's own terrain.
+        chunk_zone = {}
+        for cy in range(0, self.map_size, CHUNK_SIZE):
+            for cx in range(0, self.map_size, CHUNK_SIZE):
+                nb = None
+                if (cx, cy - CHUNK_SIZE) in chunk_zone:
+                    nb = (cx, cy - CHUNK_SIZE)
+                elif (cx - CHUNK_SIZE, cy) in chunk_zone:
+                    nb = (cx - CHUNK_SIZE, cy)
+                if nb is not None and self.rng.random() < 0.55:
+                    chunk_zone[(cx, cy)] = chunk_zone[nb]
+                else:
+                    chunk_zone[(cx, cy)] = self._zone_for_terrain(chunk_terrain[(cx, cy)])
+
         self.map = [
             [
                 {
@@ -103,6 +159,7 @@ class WorldMixin:
                         chunk_terrain[(x - x % CHUNK_SIZE, y - y % CHUNK_SIZE)],
                         obstacle_density,
                     ),
+                    'zone': chunk_zone[(x - x % CHUNK_SIZE, y - y % CHUNK_SIZE)],
                     'content': '-',
                     'explored': False,
                 }
@@ -396,8 +453,10 @@ class WorldMixin:
                 if isinstance(cell, dict):
                     cell['terrain'] = 'mountain'
                     cell['content'] = '-'
+                    cell.setdefault('zone', 'wilderness')
                 else:
-                    self.map[by][bx] = {'terrain': 'mountain', 'content': '-', 'explored': False}
+                    self.map[by][bx] = {'terrain': 'mountain', 'content': '-',
+                                        'zone': 'wilderness', 'explored': False}
 
     def _bfs_reachable(self, start, goal):
         if start == goal:
@@ -523,6 +582,13 @@ class WorldMixin:
             early + (late - early) * t
             for early, late in zip(early_weights, late_weights)
         ]
+
+        # 2D.1: bias composition by the player's current zone. Both
+        # axes matter - how far into the campaign, AND what kind of
+        # place this tile is.
+        bias = self._ZONE_ZOMBIE_BIAS.get(self._current_zone())
+        if bias:
+            weights = [w * b for w, b in zip(weights, bias)]
 
         zombie_classes = list(self._ZOMBIE_BASE_STATS.keys())
         zombie_class = self.rng.choices(zombie_classes, weights=weights)[0]
@@ -768,7 +834,20 @@ class WorldMixin:
                 loot_types.append("flashlight")
             if not self.has_waders:
                 loot_types.append('waders')
-            loot_type = self.rng.choice(loot_types)
+
+            # 2D.2: weight the roll by the current zone's loot ecology
+            # (a medicine-heavy downtown vs. a food-heavy farmstead)
+            # rather than a flat uniform pick. Implemented as list
+            # repetition + rng.choice (not rng.choices) so the pick
+            # stays a single choice() call - the loot tests patch
+            # rng.choice directly and assert on the options it sees.
+            # Discoverables not in the bias table (map/flashlight/
+            # waders) keep weight 1.0.
+            zbias = self._ZONE_LOOT_BIAS.get(self._current_zone(), {})
+            weighted_pool = []
+            for lt in loot_types:
+                weighted_pool.extend([lt] * max(1, round(zbias.get(lt, 1.0) * 4)))
+            loot_type = self.rng.choice(weighted_pool)
 
             # Higher intelligence increases chance of finding weapons over consumables
             if self.intelligence > 10 and self.rng.random() < (self.intelligence / 100):

@@ -1451,7 +1451,13 @@ class TestSettlementGeneration(unittest.TestCase):
             min_x, max_x = min(c[0] for c in coords), max(c[0] for c in coords)
             min_y, max_y = min(c[1] for c in coords), max(c[1] for c in coords)
             corners = [(min_x, min_y), (min_x, max_y), (max_x, min_y), (max_x, max_y)]
-            corner_terrains = {game.map[y][x].get("terrain") for x, y in corners}
+            # A corner tile can be a non-dict (e.g. a zombie standing on
+            # it) - that's still "not solid town", which is what we're
+            # checking for.
+            corner_terrains = {
+                game.map[y][x].get("terrain") if isinstance(game.map[y][x], dict) else None
+                for x, y in corners
+            }
             if corner_terrains != {"town"}:
                 found_irregular = True
                 break

@@ -4,7 +4,7 @@
 import random
 import shutil
 
-from src.constants import BOLD, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
+from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
@@ -580,10 +580,44 @@ class UIMixin:
                         char = '.' if map_revealed else ' '
                 else:
                     char = '.' if in_range and (x, y) in self.visited else ' '
+                if (x, y) != self.current_position and ((x, y) in self.visited or map_revealed):
+                    mark = self._mystery_site_mark(x, y)
+                    if mark:
+                        char = mark
                 line += char
             lines.append(line)
 
         return lines
+
+    def _mystery_site_mark(self, x, y):
+        """Map glyph for a mystery location the player has already
+        learned about, so 'the key is in the dam control room' doesn't
+        degrade to walking onto every building again. `!` = a lead
+        you've found (a named site, or the blocked route); `+` = that
+        route once it's open. Returns None for tiles with no marker."""
+        m = getattr(self, 'mystery', None)
+        if m is None:
+            return None
+        if m.obstacle_tile == (x, y) and getattr(m, 'saw_obstacle', False):
+            return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
+        for role in getattr(self, '_mystery_named', set()):
+            if m.sites.get(role) == (x, y):
+                return f"{BOLD}{YELLOW}!{RESET}"
+        return None
+
+    def announce_event(self, title, *body_lines):
+        """One moment of emphasis for a state change worth interrupting
+        the scenery for - a new understanding, an item that matters, an
+        objective shift. Environmental text repeats until the eye tunes
+        it out (playtest: "damn it, I had the key?"), so the things that
+        actually CHANGE have to look different. The durable copy lives
+        in the journal / objective panel afterward; this is just the
+        flare.
+        """
+        block = f"\n{BOLD}{CYAN}◆ {title}{RESET}"
+        for line in body_lines:
+            block += f"\n  {line}"
+        self.io.say(block)
 
     def print_map(self):
         for line in self._render_map_lines():

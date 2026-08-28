@@ -45,6 +45,24 @@ class MysteryMixin:
 
     # ---- arrival (from world_mixin.move_and_search) ----------
 
+    def _mystery_hyp_flare(self, before_state):
+        """Emphasise a hypothesis state change (unknown -> suspected ->
+        confirmed) instead of letting it slide past in the scenery.
+        Call with the state captured BEFORE an evidence-revealing action."""
+        m = self._mystery()
+        if m is None:
+            return
+        now = m.knowledge.hypothesis_state()
+        if now == before_state or m.knowledge.hypothesis is None:
+            return
+        if now == 'suspected':
+            self.announce_event("A new idea about the way out.",
+                                m.knowledge.hypothesis.statement)
+        elif now == 'confirmed':
+            self.announce_event("Escape route confirmed.",
+                                m.knowledge.hypothesis.statement,
+                                "Get to it and type `escape`.")
+
     def mystery_arrive(self, x, y):
         m = self._mystery()
         if m is None:
@@ -52,10 +70,12 @@ class MysteryMixin:
         role = self._mystery_role_at(x, y)
         if role is None:
             return
+        _hyp_before = m.knowledge.hypothesis_state()
 
         if role == 'escape':
             if m.obstacle_open and not m.escaped:
                 self._mystery_reveal('E_confirm')
+                self._mystery_hyp_flare(_hyp_before)
                 if m.knowledge.hypothesis_state() == 'confirmed':
                     self.io.say("(Type `escape` to leave.)")
             return
@@ -82,18 +102,24 @@ class MysteryMixin:
                 any_new = True
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
-            self.io.say(f"You take the {m.requirement_item}.")
+            self.announce_event(
+                f"You have the {m.requirement_item}.",
+                "This is what gets you past the blocked route. Head back to it.",
+            )
+        self._mystery_hyp_flare(_hyp_before)
 
     def mystery_bump_obstacle(self):
         m = self._mystery()
         if m is None:
             return
+        _hyp_before = m.knowledge.hypothesis_state()
         m.saw_obstacle = True
         revealed = False
         for eid in m._site_evidence.get('obstacle', []):
             revealed = self._mystery_reveal(eid) or revealed
         if not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
+        self._mystery_hyp_flare(_hyp_before)
 
     # ---- commands ------------------------------------------
 
@@ -111,15 +137,20 @@ class MysteryMixin:
             self.io.say("You look around properly. Nothing here that means anything.")
             return
 
+        _hyp_before = m.knowledge.hypothesis_state()
         any_new = False
         for eid in m._site_evidence.get(role, []):
             if self._mystery_reveal(eid):
                 any_new = True
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
-            self.io.say(f"You take the {m.requirement_item}.")
+            self.announce_event(
+                f"You have the {m.requirement_item}.",
+                "This is what gets you past the blocked route. Head back to it.",
+            )
         elif not any_new:
             self.io.say("You've already been over this place. Check `journal` for what you found.")
+        self._mystery_hyp_flare(_hyp_before)
 
     def mystery_clear_obstacle(self):
         m = self._mystery()
@@ -143,11 +174,9 @@ class MysteryMixin:
         game_cell = self.map[oy][ox]
         if isinstance(game_cell, dict):
             game_cell['obstacle'] = False
-        if m.saw_obstacle:
-            self.io.say(f"You come back with the {m.requirement_item}. It works. The way is open.")
-        else:
-            self.io.say(f"The {m.requirement_item} does it. The way is open.")
-        self.io.say("The route ahead is clear. Keep going.")
+        _how = (f"You come back with the {m.requirement_item}. It works."
+                if m.saw_obstacle else f"The {m.requirement_item} does it.")
+        self.announce_event("The way is open.", _how, "The route ahead is clear - keep going.")
 
     def mystery_try_escape(self):
         m = self._mystery()

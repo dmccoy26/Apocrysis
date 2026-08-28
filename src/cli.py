@@ -41,7 +41,7 @@ def _resolve_player_identity():
     return name, hardcore, profile
 
 
-def main_tui():
+def main_tui(start_log=False):
     # v3 SPRINT step 6: the TUI (src/tui.py's ApocrysisApp) owns its
     # own profile-loading/game construction in on_mount() - the only
     # thing that must happen HERE, in the plain terminal before
@@ -55,11 +55,11 @@ def main_tui():
 
     name, hardcore, _profile = _resolve_player_identity()
 
-    app = ApocrysisApp(name=name, hardcore=hardcore)
+    app = ApocrysisApp(name=name, hardcore=hardcore, start_log=start_log)
     app.run()
 
 
-def main_slice():
+def main_slice(start_log=False):
     """v4 vertical-slice runner: the hand-authored 'Dam Service Road'
     investigation map, classic print loop, no profiles or story
     preamble. Throwaway experimental scaffolding - see
@@ -78,6 +78,8 @@ def main_slice():
     print("Commands: n/s/e/w move, m map, search, journal (j), remember,")
     print("inspect <thing>, i inventory, 'open gate', escape, q quit.")
     print()
+    if start_log:
+        player.start_playlog()
     player.run_game_loop()
     if getattr(player, "won", False):
         print("\nYou made it out.")
@@ -85,7 +87,7 @@ def main_slice():
         print("\nYou didn't make it.")
 
 
-def main():
+def main(start_log=False):
     # v3 SPRINT step 1: no class prompt (classes are level-based now -
     # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and
     # no re-entering your name/starting-over every launch. A profile
@@ -153,6 +155,8 @@ def main():
         print(chapter_intro(player.expeditions_completed))
         print(" ")
 
+        if start_log:
+            player.start_playlog()
         player.run_game_loop()
 
         # v3 SPRINT step 1 / hardcore-mode follow-up: save the profile

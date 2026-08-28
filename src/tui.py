@@ -210,12 +210,13 @@ class ApocrysisApp(App):
         ("right", "move_direction('e')", "Move east"),
     ]
 
-    def __init__(self, name=None, level=1, seed=None, hardcore=False):
+    def __init__(self, name=None, level=1, seed=None, hardcore=False, start_log=False):
         super().__init__()
         self._name = name
         self._level = level
         self._seed = seed
         self._hardcore = hardcore
+        self._start_log = start_log
         self.player = None
         self.io = None
         self._expecting_command = False
@@ -312,6 +313,12 @@ class ApocrysisApp(App):
             self.log_message(
                 f"Welcome back, {self.player.name} - level {self.player.level}."
             )
+
+        if getattr(self, "_start_log", False):
+            try:
+                self.player.start_playlog()
+            except OSError as exc:
+                self.log_message(f"Couldn't start the play log: {exc}")
 
         self.refresh_panels()
         self.query_one("#command_input", Input).focus()

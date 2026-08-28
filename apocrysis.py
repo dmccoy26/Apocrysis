@@ -23,13 +23,15 @@ if __name__ == "__main__":
     group.add_argument("--test", action="store_true", help="Run tests")
     group.add_argument("--classic", action="store_true", help="Run classic print-loop mode")
     group.add_argument("--slice", action="store_true", help="Run the v4 Dam Service Road vertical slice")
+    parser.add_argument("--log", action="store_true",
+                        help="Write a plain-text play log for this session (also toggleable in game with `log`)")
     args = parser.parse_args()
 
     if args.test:
         run_tests()
     elif args.slice:
-        main_slice()
+        main_slice(start_log=args.log)
     elif args.classic:
-        main()
+        main(start_log=args.log)
     else:
-        main_tui()
+        main_tui(start_log=args.log)

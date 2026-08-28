@@ -209,10 +209,14 @@ class UIMixin:
             direction_aliases = {"north": "n", "south": "s", "east": "e", "west": "w"}
             command = direction_aliases.get(command, command)
 
-            if command and command not in ('m', 'map', 'i', 'inv', 'inventory',
-                                           'st', 'stats', 'h', '?', 'help', 'commands',
-                                           'q', 'quit', 'x', 'exit', 'exit game'):
+            _free = ('m', 'map', 'i', 'inv', 'inventory', 'st', 'stats',
+                     'h', '?', 'help', 'commands', 'q', 'quit', 'x',
+                     'exit', 'exit game', 'log')
+            if command and command not in _free:
                 self.turns = getattr(self, 'turns', 0) + 1
+
+            if getattr(self, 'playlog', None) is not None:
+                self.playlog.command(command)
 
             # Track action for automatic goal completion
             self.last_action = self._map_command_to_action(command)
@@ -290,6 +294,7 @@ class UIMixin:
                 'open': self._v4_clear,
                 'open gate': self.slice_open_gate,
                 'og': self.slice_open_gate,
+                'log': self._toggle_playlog,
             }
 
             if command in ('q', 'quit'):
@@ -406,6 +411,16 @@ class UIMixin:
             # dynamic task generator is gone entirely.
             self._auto_check_goals()
 
+            if getattr(self, 'playlog', None) is not None:
+                self.playlog.snapshot()
+
+        if getattr(self, 'playlog', None) is not None:
+            reason = ("won - escaped the valley" if getattr(self, 'won', False)
+                      else "died" if self.health <= 0
+                      else "quit")
+            self.playlog.close(reason)
+            self.playlog = None
+
         # v3 SPRINT: the loop above used to just silently end - real
         # gap found live: dying or winning closed the game (in the
         # TUI, the whole app) with nothing telling the player which
@@ -434,6 +449,40 @@ class UIMixin:
 
         if getattr(self, 'won', False) or self.health <= 0:
             self.io.ask("Press Enter to continue...")
+
+    def _toggle_playlog(self):
+        """`log` command: start/stop writing a plain-text transcript of
+        this session (src/playlog.py) for handing to an analyst."""
+        from src.playlog import TeeIO
+        if getattr(self, 'playlog', None) is not None:
+            path = self.playlog.path
+            self.playlog.close("logging stopped by player")
+            self.playlog = None
+            if isinstance(self.io, TeeIO):
+                self.io = self.io._inner
+            self.io.say(f"Play logging stopped. Saved to {path}")
+            return
+        try:
+            self.start_playlog()
+        except OSError as exc:
+            self.io.say(f"Couldn't start the play log: {exc}")
+
+    def start_playlog(self, path=None):
+        """Also callable directly (--log). Safe to call once."""
+        if getattr(self, 'playlog', None) is not None:
+            return
+        import datetime
+        from src.playlog import PlayLog, TeeIO
+        if path is None:
+            path = f"apocrysis_playlog_{datetime.datetime.now():%Y%m%d_%H%M%S}.txt"
+        self.playlog = PlayLog(path, self)
+        if not isinstance(self.io, TeeIO):
+            self.io = TeeIO(self.io, self.playlog)
+        self.io.say(
+            f"Play logging on -> {path}\n"
+            "Everything you type and everything the game says goes to that "
+            "file, plus a per-turn state snapshot. Type `log` again to stop."
+        )
 
     def _render_map_lines(self):
         # Shared by print_map() (the standalone 'm'/'map' command) and

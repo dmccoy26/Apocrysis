@@ -201,6 +201,10 @@ class Apocrysis(
         # visible, not something to reverse-engineer from the sun.
         self.turns = 0
 
+        # v4: human play logging (src/playlog.py) - None until the
+        # `log` command or --log turns it on.
+        self.playlog = None
+
         # Recorded so load_game()/apply_profile() can do a clean SET
         # restore and re-add exactly this prize, instead of the fragile
         # "+= and hope it survives" pattern.

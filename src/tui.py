@@ -400,6 +400,22 @@ class ApocrysisApp(App):
         ("right", "move_direction('e')", "Move east"),
     ]
 
+    # Roguelike input: the game has two modes.
+    #   MOVE mode (default): the command box is NOT focused. Single
+    #     keys act - wasd/arrows move, and a handful of high-frequency
+    #     verbs fire directly. Enter or ':' drops into TYPE mode.
+    #   TYPE mode: the box is focused, type any full command (equip
+    #     steel sword, craft ...), Enter runs it and returns to MOVE,
+    #     Esc cancels back to MOVE.
+    # This is what lets wasd move AND "search"/"wear"/"stats" be typed -
+    # they never fight over the same keystrokes because only one mode
+    # is listening at a time.
+    _MOVE_KEYS = {"w": "n", "a": "w", "s": "s", "d": "e"}
+    _ACTION_KEYS = {
+        "i": "i", "m": "m", "l": "l", "j": "j", "t": "t",
+        "g": "take", "f": "fight", "o": "open", "h": "help", "?": "help",
+    }
+
     def __init__(self, name=None, level=1, seed=None, hardcore=False, start_log=False):
         super().__init__()
         self._name = name
@@ -410,6 +426,7 @@ class ApocrysisApp(App):
         self.player = None
         self.io = None
         self._expecting_command = False
+        self._mode = "move"
         # Set by _new_player() each time it's called, so on_mount()
         # (main thread) and _game_thread() (worker thread) can each
         # emit the "Welcome back" greeting through the right channel
@@ -450,6 +467,66 @@ class ApocrysisApp(App):
     def action_move_direction(self, direction):
         if self.io is not None and self._expecting_command:
             self.io.submit_answer(direction)
+
+    # ---- input mode --------------------------------------------------
+
+    def _enter_move_mode(self):
+        self._mode = "move"
+        try:
+            inp = self.query_one("#command_input", Input)
+            inp.value = ""
+            inp.placeholder = "· press Enter or : to type a command ·"
+            inp.blur()
+            self.screen.set_focus(None)
+        except Exception:
+            pass
+        self._refresh_mode_hint()
+
+    def _enter_type_mode(self):
+        self._mode = "type"
+        try:
+            self.query_one("#command_input", Input).focus()
+        except Exception:
+            pass
+        self._refresh_mode_hint()
+
+    def _refresh_mode_hint(self):
+        try:
+            w = self.query_one("#directions_text", Static)
+        except Exception:
+            return
+        if self.player is None:
+            return
+        loc = _location_name(self.player)
+        phase = getattr(self.player, "day_phase", "day")
+        clk = f"{self.player.time_of_day // 60:02d}:{self.player.time_of_day % 60:02d}"
+        if self._mode == "type":
+            tail = "[reverse] TYPE [/]  a command, then Enter · Esc to cancel"
+        else:
+            tail = "[reverse] MOVE [/]  wasd/arrows · i j t m l · Enter to type"
+        w.update(f"[b]{loc}[/b]   [{_PHASE_COLOR.get(phase, _DIM)}]"
+                 f"{_PHASE_GLYPH.get(phase, '·')} {phase.upper()} {clk}[/]\n[dim]{tail}[/dim]")
+
+    def on_key(self, event):
+        if self.io is None or not self._expecting_command:
+            return
+        if self._mode == "type":
+            if event.key == "escape":
+                event.stop()
+                self._enter_move_mode()
+            return
+        # MOVE mode
+        ch = event.character
+        if event.key == "enter" or ch in (":", "/"):
+            event.stop()
+            event.prevent_default()
+            self._enter_type_mode()
+            return
+        cmd = self._MOVE_KEYS.get(ch) or self._ACTION_KEYS.get(ch)
+        if cmd:
+            event.stop()
+            event.prevent_default()
+            self.io.submit_answer(cmd)
 
     def _new_player(self):
         # Shared by on_mount() (first launch, main thread) and
@@ -511,7 +588,7 @@ class ApocrysisApp(App):
                 self.log_message(f"Couldn't start the play log: {exc}")
 
         self.refresh_panels()
-        self.query_one("#command_input", Input).focus()
+        self._enter_move_mode()   # start in MOVE mode, box unfocused
         self.run_worker(self._game_thread, thread=True)
 
     def _game_thread(self):
@@ -593,6 +670,13 @@ class ApocrysisApp(App):
         # title, a y/n prompt), where an arrow press should do
         # nothing rather than submit a stray "n"/"s"/etc. as text.
         self._expecting_command = (prompt == "> ")
+        # At the "> " prompt: MOVE mode (single keys act). Mid-dialog
+        # (y/n, save name, inventory pick): force TYPE mode so the
+        # player can actually answer.
+        if self._expecting_command:
+            self._enter_move_mode()
+        else:
+            self._enter_type_mode()
         # Refresh right before waiting for the next command too, not
         # just after a message - covers a turn where nothing was said
         # but state still changed (defensive; in practice
@@ -631,13 +715,7 @@ class ApocrysisApp(App):
         # an apparently blank map panel and stray artifact characters
         # (the literal, un-parsed escape bytes) - Text.from_ansi()
         # parses the same string into real Rich styling instead.
-        phase_ = getattr(p, "day_phase", "night" if p.is_night else "day")
-        clock_ = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
-        self.query_one("#directions_text", Static).update(
-            f"[b]{_location_name(p)}[/b]"
-            f"   —   {_PHASE_GLYPH.get(phase_, '·')} {phase_.upper()} · {clock_}"
-            f"\n[dim]arrow keys or n/s/e/w to move · `i` inventory · `?` help[/dim]"
-        )
+        self._refresh_mode_hint()
 
         map_widget = self.query_one("#map_panel", Static)
         map_widget.update(Text.from_ansi("\n".join(p._render_map_lines())))
@@ -715,6 +793,8 @@ class ApocrysisApp(App):
     def on_input_submitted(self, event: Input.Submitted):
         text = event.value
         event.input.value = ""
-        event.input.placeholder = "command"
         if self.io is not None:
             self.io.submit_answer(text)
+        # Back to MOVE mode - the next request_input() will re-pick the
+        # mode anyway, but this stops a stray Enter re-submitting "".
+        self._enter_move_mode()

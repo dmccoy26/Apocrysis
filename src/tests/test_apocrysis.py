@@ -1757,8 +1757,10 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
 
             # Re-enter run_game_loop() so it sees won=True and exits
             # the while loop into the victory/continue-prompt path.
-            await asyncio.wait_for(pilot.click("#command_input"), timeout=5)
-            await asyncio.wait_for(pilot.press("enter"), timeout=5)
+            # MOVE mode: 'l' (look) completes the current iteration
+            # without moving (so no chance of a random encounter);
+            # the loop condition then sees won=True.
+            await asyncio.wait_for(pilot.press("l"), timeout=5)
             await asyncio.wait_for(pilot.pause(0.5), timeout=5)
 
             self.assertEqual(
@@ -1766,6 +1768,8 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
                 "Press Enter to continue...",
             )
 
+            # The continue prompt is a dialog -> TYPE mode, box focused;
+            # Enter submits directly.
             await asyncio.wait_for(pilot.press("enter"), timeout=5)
             await asyncio.wait_for(pilot.pause(0.5), timeout=5)
 

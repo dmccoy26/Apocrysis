@@ -1158,12 +1158,11 @@ class TestRendering(unittest.TestCase):
         )
 
         def _tile_char(lines, tx, ty):
-            # Grid labels (chess-style): N header lines above the map,
-            # a row-letter gutter to the left. Derive both offsets from
-            # the rendered output rather than hard-coding them.
-            top = len(lines) - len(self.game.map) - 1  # minus map rows, minus bottom border
-            left = lines[-1].index('*') + 1            # first tile column, past the '*' border
-            return lines[top + ty][left + tx]
+            # The map renders as a bare grid now - no header lines, no
+            # gutter, no border - so line ty is row ty and column tx is
+            # char tx. (The town tile under test is out of the player's
+            # visibility range, so no ANSI-wrapped 'P' shifts this row.)
+            return lines[ty][tx]
 
         self.game.town_known = False
         lines = self.game._render_map_lines()

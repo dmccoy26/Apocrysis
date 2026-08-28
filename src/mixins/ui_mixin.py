@@ -509,32 +509,18 @@ class UIMixin:
         # call site and silently not exist in the other (see the
         # comment at run_game_loop()'s own left-panel block for what
         # that gap actually looked like live).
-        width = len(self.map[0])
-
-        # Chess-style grid labels: rows lettered top-to-bottom
-        # (a, b, ... z, aa, ab, ...), columns numbered left-to-right
-        # (1..width). A tile at grid (x, y) is "<row-letter><x+1>" -
-        # top-left is "a1", the tile right of it is "a2", the tile
-        # below "a1" is "b1". Shared by classic mode and the TUI.
-        row_labels = [self._grid_row_label(y) for y in range(len(self.map))]
-        gutter_w = max((len(lbl) for lbl in row_labels), default=1)
-        # Every returned line is exactly (gutter_w + 1) + (width + 2)
-        # visible chars wide. Column digit for tile x sits at index
-        # gutter_w + 2 + x (label + space + opening '*').
-        head_pad = ' ' * (gutter_w + 2)
-
-        def _col_header(digit_of):
-            return head_pad + ''.join(digit_of(x + 1) for x in range(width)) + ' '
-
-        border = ' ' * (gutter_w + 1) + '*' * (width + 2)
+        # A plain grid of tile glyphs - no frame, no coordinate ruler.
+        # Both were removed on player feedback (2026-08-28): the '*'
+        # border and the a1/b2 row/column labels just invited
+        # edge-following instead of reading the terrain. The map's own
+        # impassable ring - '^' mountains, '=' rivers - is the real
+        # world edge and still renders as terrain below. Every line is
+        # exactly `width` visible chars, so the two-column panel layout
+        # (which measures with _visible_len) still aligns.
         lines = []
-        if width >= 10:
-            lines.append(_col_header(lambda n: str(n // 10) if n >= 10 else ' '))
-        lines.append(_col_header(lambda n: str(n % 10)))
-        lines.append(border)
 
         for y, row in enumerate(self.map):
-            line = row_labels[y].rjust(gutter_w) + ' ' + '*'
+            line = ""
             map_revealed = getattr(self, 'map_revealed', False)
             for x, tile in enumerate(row):
                 dist = abs(x - self.current_position[0]) + abs(y - self.current_position[1])
@@ -585,23 +571,9 @@ class UIMixin:
                 else:
                     char = '.' if in_range and (x, y) in self.visited else ' '
                 line += char
-            line += '*'
             lines.append(line)
 
-        lines.append(border)
         return lines
-
-    @staticmethod
-    def _grid_row_label(y):
-        """0->'a', 25->'z', 26->'aa', 27->'ab', ... (spreadsheet-style)."""
-        label = ""
-        n = y
-        while True:
-            label = chr(ord('a') + n % 26) + label
-            n = n // 26 - 1
-            if n < 0:
-                break
-        return label
 
     def print_map(self):
         for line in self._render_map_lines():
@@ -612,7 +584,7 @@ class UIMixin:
         self.io.say("\n--- Help ---")
         self.io.say("Available commands:")
         self.io.say("  n (north), s (south), e (east), w (west) - Move")
-        self.io.say("  m (map)                                 - Display the current map (a1 = top-left, columns across, rows down)")
+        self.io.say("  m (map)                                 - Display the current map")
         self.io.say("  i (inventory)                           - Show your backpack contents")
         self.io.say("  st (stats)                              - View player statistics")
         self.io.say("  look (l)                                - Take stock of where you're standing")

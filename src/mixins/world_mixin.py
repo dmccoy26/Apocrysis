@@ -159,7 +159,7 @@ class WorldMixin:
         # noise. Reassign the excess to this archetype's most likely
         # NON-building terrain.
         _bchunks = [k for k, v in chunk_terrain.items() if v == 'building']
-        _cap = max(1, int(len(chunk_terrain) * 0.30))
+        _cap = max(1, int(len(chunk_terrain) * 0.22))
         if len(_bchunks) > _cap:
             _fallback = max(
                 (t for t in terrain_types if t != 'building'),
@@ -532,7 +532,11 @@ class WorldMixin:
             return
         if 'settlement' in new_here:
             self.io.say("Rooftops in the distance - there's a settlement out there.")
-        else:
+        elif getattr(self, '_building_sightings', 0) < 3:
+            # After a few, the player has the idea - a building-dense map
+            # would otherwise fire this almost every move (playtest:
+            # reading fatigue). Settlements always announce.
+            self._building_sightings = getattr(self, '_building_sightings', 0) + 1
             self.io.say("You spot a building standing alone in the distance.")
 
     def _mystery_bfs_path(self, start, goal):
@@ -900,6 +904,9 @@ class WorldMixin:
         if isinstance(current_tile, dict):
             terrain = current_tile.get('terrain')
 
+            if terrain != 'town':
+                self._last_district = None  # so re-entering a settlement re-announces
+
             if terrain == 'town' and current_tile.get('content') != 'T':
                 # Objective-driven win condition / organic-settlement
                 # investigations: stepping into any non-Town-Center
@@ -914,31 +921,45 @@ class WorldMixin:
                     self.settlement_explored = True
                     self.io.say("You've found a settlement - it's worth exploring before moving on.")
                 district = current_tile.get('district')
-                if district:
+                # Only when it changes - not on every tile of the same
+                # district (playtest: repeated identical lines).
+                if district and district != getattr(self, '_last_district', None):
+                    self._last_district = district
                     self.io.say(f"You're in the {district} district.")
+
+            _first_visit = not current_tile.get('_seen_desc')
+            current_tile['_seen_desc'] = True
 
             if terrain == 'building':
                 cause = current_tile.get('abandonment')
-                if cause and not current_tile.get('_ab_told'):
+                if _first_visit and cause and not current_tile.get('_ab_told'):
                     current_tile['_ab_told'] = True
                     self.io.say(self._ABANDONMENT_FLAVOUR.get(
                         cause, "You step inside. It's been empty a while."))
-                self.io.say("You enter a building. It's a safe zone.")
                 heal_amount = self.rng.randint(5, 10)
                 self.health = min(100, max(0, self.health + heal_amount))
                 fatigue_recovery = max(0, self.wisdom // 4)
                 self.fatigue = max(0, self.fatigue - fatigue_recovery - 5)
-                self.io.say(f"Restored {heal_amount} health and recovered some fatigue.")
+                # First time here: the full beat. Revisit: one terse line
+                # (playtest: re-reading the same paragraph while pacing
+                # an area is what trains the eye to stop reading).
+                if _first_visit:
+                    self.io.say("You enter a building. It's a safe zone.")
+                    self.io.say(f"Restored {heal_amount} health and recovered some fatigue.")
+                else:
+                    self.io.say(f"Back inside - safe for now. (+{heal_amount} health)")
 
             elif terrain == 'water':
-                self.io.say("You wade through water. Movement is difficult.")
+                self.io.say("You wade through water. Movement is difficult."
+                            if _first_visit else "More water. Slow going.")
                 self.fatigue = min(100, self.fatigue + 10) # Extra fatigue penalty for slow movement
                 if self.rng.random() < 0.2:
                     self.health -= 5
                     self.io.say("The cold water chills you. You lost some health.")
 
             elif terrain == 'forest':
-                self.io.say("You move through dense forest.")
+                if _first_visit:
+                    self.io.say("You move through dense forest.")
 
         # v4 slice: authored-location arrival (blurb + auto-revealed
         # evidence). No procedural encounters or loot rolls in the
@@ -1040,7 +1061,14 @@ class WorldMixin:
                 if self.backpack.add_weapon(new_weapon):
                     self.io.say(f"You obtained a {new_weapon.name}.")
                 else:
-                    self.io.say("You found a weapon but your pack is full - drop something first.")
+                    # Real bug found live: an over-capacity weapon was
+                    # just discarded, so "drop something, then take it"
+                    # had nothing to take. Leave it on the tile.
+                    self._drop_to_ground(new_weapon)
+                    self.io.say(
+                        f"You found a {new_weapon.name}, but your weapon slots are "
+                        f"full. It's on the ground here - drop a weapon, then `take`."
+                    )
             elif loot_type == "armor":
                 # Equipment-slot investigation: same expedition-banding
                 # pattern as weapons above.
@@ -1054,7 +1082,11 @@ class WorldMixin:
                 if self.backpack.add_armor(new_armor):
                     self.io.say(f"You obtained {new_armor.name}.")
                 else:
-                    self.io.say("You found armor but your pack is full - drop something first.")
+                    self._drop_to_ground(new_armor)
+                    self.io.say(
+                        f"You found {new_armor.name}, but your armor slots are full. "
+                        f"It's on the ground here - drop a piece, then `take`."
+                    )
             elif loot_type == "food":
                 # v4: a find is a haul, not a single ration - hunger/
                 # thirst decay ~2-3/turn and a full expedition runs

@@ -74,3 +74,37 @@ different fixes — don't buff/nerf anything until it's clear which.
 A genuinely-exploring investigation bot (Stage 3, `9b336876`) would
 make future sweeps measure navigation. Deferred — not a blocker for
 the human playtest.
+
+---
+
+## Regression re-run — HEAD `5179048` (~20 commits later)
+
+Same 2000-game scenario, after: water/swamp caps, front-loaded-mystery
+fix, terrain archetypes, `escape`-from-anywhere, hunger/thirst-at-0 HP
+drain, drink-from-water, weapon auto-swap, the whole TUI/UX pass,
+harness updated to match.
+
+`balance_autoplay` is **non-deterministic** (bot flee rolls etc.).
+Three back-to-back 2000-game runs: **85.1% / 86.9% / 85.4% won**
+(mean ≈ 85.8%, ±~1pt at n=2000). Baseline was 87.3% (single run).
+
+**Verdict: no meaningful regression.** ~1–1.5pt is within the noise
+band; any real component is the intended headwind from the
+hunger/thirst HP drain, which the bot mostly absorbs and a human
+watching the WARNINGS panel would absorb better. Everything else held:
+
+| | baseline `325ed26` | re-run `5179048` |
+|---|---|---|
+| won | 87.3% | ~85.8% (mean of 3) |
+| deaths | 100% combat | 100% combat |
+| turns to win (median) | 43 | 44 |
+| survival @ L1 | 81% | 79% |
+| ends with food/water | ~14 each | ~14 each |
+| water traversal | 8.3% of steps | 7.9% |
+| swamp traversal | 6.2% | **2.5%** (cap working) |
+| building traversal | 24.2% | **15.3%** (cap working) |
+| median best weapon dmg | 6 | 6 (still the open finding) |
+
+The `expeditions_completed 0 → 0%` line is still telemetry leakage,
+and the exploration-% numbers are still bot-omniscience artifacts —
+both caveats above stand unchanged.

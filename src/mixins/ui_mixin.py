@@ -605,16 +605,18 @@ class UIMixin:
                 return f"{BOLD}{YELLOW}!{RESET}"
         return None
 
-    def announce_event(self, title, *body_lines):
+    def announce_event(self, title, *body_lines, kind="info"):
         """One moment of emphasis for a state change worth interrupting
         the scenery for - a new understanding, an item that matters, an
-        objective shift. Environmental text repeats until the eye tunes
-        it out (playtest: "damn it, I had the key?"), so the things that
-        actually CHANGE have to look different. The durable copy lives
-        in the journal / objective panel afterward; this is just the
-        flare.
+        objective shift, a weapon breaking. Environmental text repeats
+        until the eye tunes it out (playtest: "damn it, I had the
+        key?"), so the things that actually CHANGE have to look
+        different. The durable copy lives in the journal / objective
+        panel afterward; this is just the flare. kind="warn" for bad
+        news (red), "info" (cyan) otherwise.
         """
-        block = f"\n{BOLD}{CYAN}◆ {title}{RESET}"
+        glyph, color = ("⚠", f"{BOLD}{RED}") if kind == "warn" else ("◆", f"{BOLD}{CYAN}")
+        block = f"\n{color}{glyph} {title}{RESET}"
         for line in body_lines:
             block += f"\n  {line}"
         self.io.say(block)

@@ -138,16 +138,18 @@ class CombatMixin:
                 self.io.say(f"You are stunned! Turn skipped.")
                 self.status_effects["Stun"] -= 1
             elif self.equipped_weapon:
+                _dur_before = getattr(self.equipped_weapon, 'durability', None)
                 damage = round((self.equipped_weapon.use(self.io) + max(0, self.strength // 3)) * self._condition_penalty())
-                
+
                 # Critical hit chance scaled by dexterity
                 crit_chance = min(0.25, self.dexterity / 200)
                 if random.random() < crit_chance:
                     damage *= 2
                     self.io.say("Critical Hit!")
-                    
+
                 zombie.take_damage(damage)
                 self.io.say(f"The {zombie.name} takes {damage} damage.")
+                self._weapon_condition_check(_dur_before)
             else:
                 self.io.say("You have no weapon equipped and attempt to fight with your hands!")
                 unarmed_damage = round(2 * self._condition_penalty())
@@ -220,6 +222,41 @@ class CombatMixin:
 
         if self.health <= 0:
             self.io.say("You are critically wounded and unable to continue the fight!")
+
+    def _weapon_condition_check(self, dur_before):
+        """React to the equipped weapon wearing down mid-fight. A worn
+        warning once at the threshold; a loud break + auto-swap to the
+        best usable backpack weapon when it hits 0. Playtest: a Steel
+        Sword broke silently and the player fought on with a dead
+        weapon without noticing."""
+        w = self.equipped_weapon
+        dur = getattr(w, 'durability', None) if w is not None else None
+        if w is None or dur is None or dur_before is None:
+            return
+        if dur <= 0 < dur_before:
+            spare = max(
+                (b for b in self.backpack.weapons if getattr(b, 'durability', 1) > 0),
+                key=lambda b: b.damage, default=None,
+            )
+            if spare is not None:
+                self.backpack.weapons.remove(spare)
+                self.backpack.weapons.append(w)
+                self.equipped_weapon = spare
+                self.announce_event(
+                    "Weapon broken.",
+                    f"Your {w.name} is done - you switch to your {spare.name} ({spare.damage} dmg).",
+                    kind="warn",
+                )
+            else:
+                self.equipped_weapon = None
+                self.announce_event(
+                    "Weapon broken.",
+                    f"Your {w.name} is done and you have nothing else. Fighting with your hands.",
+                    kind="warn",
+                )
+        elif 0 < dur <= 5 and not getattr(w, '_worn_warned', False):
+            w._worn_warned = True
+            self.io.say(f"⚠ Your {w.name} is badly worn - {dur}/{w.max_durability} left.")
 
     def award_xp(self, amount):
         if amount <= 0: return

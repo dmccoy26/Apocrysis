@@ -164,10 +164,27 @@ Built by hand this session:
   600-game sweep: 86.5% win, unchanged envelope (bot manages
   resources; this bites a human who lets the pack hit 0).
 
+**Later same session:**
+- HUD colour hierarchy; numbered `i` inventory (equip by number);
+  `t`=think; static grouped `print_help`; `═` heavy-rule banners.
+- **Roguelike input mode** — MOVE (box unfocused, single keys act:
+  wasd/arrows move, i/m/l/j/t/g/f/o/? act) vs TYPE (Enter/`:` →
+  focused box, Esc cancels). `request_input` picks: `"> "`→MOVE, any
+  dialog→TYPE. Map header shows a MOVE/TYPE chip.
+- Objective removed from the top HUD; the bottom-right OBJECTIVES
+  panel is its only home ("ESCAPE THE VALLEY" + current belief + ✓
+  steps + one ○ next step).
+
+**Escape story library** — `docs/ESCAPE_STORY_LIBRARY.md` rewritten
+around the 10-family reasoning matrix. Atlas todos, continuity-key
+`escape-story-library`: `9ab1b420` (Story Library v1 schema — DO
+FIRST, gates the rest), then `e2850fa5` / `c67cbd25` / `ea1d52be` /
+`e0475adf` / `17f2a0ca` / `5761c63f`.
+
 Still open: `c359b1bb` (render the map at larger scale), `7d6046d3`
 (evidence-vs-escape direction validator), `a4a11df6` (terrain affinity
-for the non-water mechanisms), `45ba6b67` (hunting for food).
-`atlas todo list` / `atlas todo do <id>`.
+for the non-water mechanisms), `45ba6b67` (hunting for food),
+`91161490` (backpack-full [1]/[2] prompt). `atlas todo list`.
 
 ## Open questions for the next playtest (the human's to answer)
 

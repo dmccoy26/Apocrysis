@@ -26,6 +26,30 @@ class UIMixin:
         if changes:
             self.io.say("\n" + " | ".join(changes))
 
+    def _action_bar(self):
+        """A short list of the verbs that matter right now, for the
+        TUI's action bar - not the full reference (that's `help` /
+        `_available_commands`). Movement is always live; the rest is
+        situational."""
+        bar = ["move  n/s/e/w", "look", "map", "journal", "?=help"]
+        m = getattr(self, 'mystery', None)
+        here = self._mystery_role_at(*self.current_position) if hasattr(self, '_mystery_role_at') and m else None
+        if here in ('closed', 'route', 'require', 'obstacle'):
+            bar.insert(1, "search")
+        if m is not None:
+            if here == 'escape' and m.obstacle_open and m.knowledge.hypothesis_state() == 'confirmed':
+                bar.insert(1, "ESCAPE")
+            elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_has_item():
+                bar.insert(1, "open (at the gate)")
+        if self.backpack.weapons:
+            bar.append("eq <weapon>")
+        if isinstance(self.equipped_weapon, RangedWeapon) and self.equipped_weapon.ammo < self.equipped_weapon.max_ammo:
+            bar.append("reload")
+        recipes = [r for r in self.describe_recipes() if not r["locked"]] if hasattr(self, 'describe_recipes') else []
+        if recipes:
+            bar.append("cr <recipe>")
+        return bar
+
     def _available_commands(self):
         # v3 SPRINT step 6: pulled out of run_game_loop() so a native
         # UI (tui.py) can show the same context-sensitive command list
@@ -621,11 +645,13 @@ class UIMixin:
         panel afterward; this is just the flare. kind="warn" for bad
         news (red), "info" (cyan) otherwise.
         """
-        glyph, color = ("⚠", f"{BOLD}{RED}") if kind == "warn" else ("◆", f"{BOLD}{CYAN}")
-        block = f"\n{color}{glyph} {title}{RESET}"
-        for line in body_lines:
-            block += f"\n  {line}"
-        self.io.say(block)
+        glyph, color = ("[!]", f"{BOLD}{RED}") if kind == "warn" else ("***", f"{BOLD}{CYAN}")
+        rows = [f"{glyph} {title.upper()}"] + [str(b) for b in body_lines]
+        w = max(len(r) for r in rows)
+        top = "╭" + "─" * (w + 2) + "╮"
+        bot = "╰" + "─" * (w + 2) + "╯"
+        body = "\n".join(f"│ {r.ljust(w)} │" for r in rows)
+        self.io.say(f"\n{color}{top}\n{body}\n{bot}{RESET}")
 
     def print_map(self):
         for line in self._render_map_lines():

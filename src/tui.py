@@ -23,7 +23,6 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
-from src.items import format_weapon_list, format_armor_list
 from src.mixins.persistence_mixin import profile_filename_for_name
 
 
@@ -109,6 +108,44 @@ class TextualIO:
         self._answers.put(text)
 
 
+_PHASE_GLYPH = {"day": "☀", "night": "☾", "dusk": "◐", "dawn": "☼"}
+
+
+def _compact_gear(items):
+    """Group identical weapons/armor into 'Name  Ndmg  dur/max  xK'."""
+    seen = {}
+    order = []
+    for it in items:
+        key = str(it)
+        if key not in seen:
+            seen[key] = 0
+            order.append(key)
+        seen[key] += 1
+    out = []
+    for key in order:
+        out.append(f"{key}  x{seen[key]}" if seen[key] > 1 else key)
+    return out
+
+
+def _location_name(p):
+    """A short name for where the player is standing - the mystery
+    site label if they're on a named site, otherwise terrain-derived."""
+    x, y = p.current_position
+    cell = p.map[y][x]
+    if isinstance(cell, dict):
+        if cell.get("site_label"):
+            return cell["site_label"].upper()
+        if cell.get("terrain") == "town":
+            d = cell.get("district")
+            return f"{d.upper()} DISTRICT" if d else "SETTLEMENT"
+        t = cell.get("terrain")
+        names = {"forest": "FOREST", "water": "WATER", "swamp": "SWAMP",
+                 "plain": "OPEN GROUND", "building": "A BUILDING",
+                 "mountain": "THE MOUNTAIN WALL"}
+        return names.get(t, "THE VALLEY")
+    return "THE VALLEY"
+
+
 def _objective_line(p):
     """The standing objective line - premise + current hypothesis
     state, no quest text. Shared shape with the `remember` command."""
@@ -116,6 +153,15 @@ def _objective_line(p):
     if k is None or k.is_empty():
         return "Objective: work out the way out of this valley - nothing marks it."
     state = k.hypothesis_state() if getattr(k, "hypothesis", None) else "unknown"
+    m = getattr(p, "mystery", None)
+    # Persistent "you have the key" line - the ◆ event covers the
+    # moment of pickup; this keeps it visible while you carry it.
+    if m is not None and not m.obstacle_open:
+        has_item = any(getattr(it, 'name', None) == m.requirement_item
+                       for it in p.backpack.items)
+        if has_item:
+            return (f"Objective: you have the {m.requirement_item} - "
+                    f"get back to the blocked route and use it.")
     if state == "confirmed":
         return f"Objective: you know the way out - {k.hypothesis.statement}"
     if state == "suspected":
@@ -154,6 +200,7 @@ class ApocrysisApp(App):
     #directions_text {
         color: $text-muted;
         margin-bottom: 1;
+        height: auto;
     }
     #map_scroll {
         overflow: auto auto;
@@ -189,8 +236,17 @@ class ApocrysisApp(App):
         border: none;
     }
     #command_input {
-        border: none;
+        border-top: solid $accent;
         height: 3;
+    }
+    #stats_text {
+        height: auto;
+    }
+    #commands_text {
+        height: auto;
+        border-top: solid $accent;
+        padding-top: 1;
+        color: $text-muted;
     }
     """
 
@@ -232,11 +288,7 @@ class ApocrysisApp(App):
             with Vertical(id="left_col"):
                 with Horizontal(id="main"):
                     with Vertical(id="map_panel_wrap"):
-                        yield Static(
-                            "Directions:  ↑/N  ↓/S  ←/W  →/E   "
-                            "(arrow keys or type n/s/e/w)",
-                            id="directions_text",
-                        )
+                        yield Static("", id="directions_text")
                         with ScrollableContainer(id="map_scroll"):
                             yield Static(id="map_panel")
                 with Vertical(id="console"):
@@ -419,7 +471,15 @@ class ApocrysisApp(App):
         # meant for a real terminal's print(). Text.from_ansi() turns
         # them into real Rich styling instead of literal garbage bytes.
         if text and text.strip():
-            self.query_one("#log", RichLog).write(Text.from_ansi(text))
+            body = Text.from_ansi(text)
+            # Dim in-game timestamp on ordinary one-line narrative, so
+            # the log reads as an event feed. Skip it for the boxed
+            # ◆/⚠ emphasis blocks and anything multi-line.
+            p = self.player
+            if p is not None and "\n" not in text and text.lstrip()[:1] not in "╭│╰◆⚠*":
+                hhmm = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
+                body = Text.assemble((f"{hhmm}  ", "dim"), body)
+            self.query_one("#log", RichLog).write(body)
         self.refresh_panels()
 
     def refresh_panels(self):
@@ -436,42 +496,50 @@ class ApocrysisApp(App):
         # an apparently blank map panel and stray artifact characters
         # (the literal, un-parsed escape bytes) - Text.from_ansi()
         # parses the same string into real Rich styling instead.
+        phase_ = getattr(p, "day_phase", "night" if p.is_night else "day")
+        clock_ = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
+        self.query_one("#directions_text", Static).update(
+            f"[b]{_location_name(p)}[/b]"
+            f"   —   {_PHASE_GLYPH.get(phase_, '·')} {phase_.upper()} · {clock_}"
+            f"\n[dim]↑/↓/←/→ or n/s/e/w to move[/dim]"
+        )
+
         map_widget = self.query_one("#map_panel", Static)
         map_widget.update(Text.from_ansi("\n".join(p._render_map_lines())))
 
         stats_widget = self.query_one("#stats_text", Static)
-        # v3 SPRINT: showed only the bare weapon name (equipped and
-        # backpack both) - no way to compare a looted weapon against
-        # what's equipped without typing "i". str(weapon) already
-        # carries damage/durability (items.py) - use it here too.
-        equipped = str(p.equipped_weapon) if p.equipped_weapon else "None"
-        equipped_armor = "\n  ".join(
-            f"{slot}: {piece.name if piece else 'None'}"
-            for slot, piece in p.equipped_armor.items()
-        )
-        backpack_weapons = (
-            "\n  ".join(format_weapon_list(p.backpack.weapons))
-            if p.backpack.weapons
-            else "(none)"
-        )
-        backpack_armor = (
-            "\n  ".join(format_armor_list(p.backpack.armor))
-            if p.backpack.armor
-            else "(none)"
-        )
-        day_phase = getattr(p, "day_phase", "night" if p.is_night else "day").title()
+        phase = getattr(p, "day_phase", "night" if p.is_night else "day")
+        glyph = _PHASE_GLYPH.get(phase, "·")
         clock = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
-        stats_widget.update(
-            f"{p.name} - Level {p.level}\n"
-            f"XP: {p.xp}/{p.max_xp}\n"
-            f"Day {p.day}  {clock}  {day_phase}   Turn {getattr(p, 'turns', 0)}\n"
-            f"Equipped: {equipped}\n"
-            f"Armor:\n  {equipped_armor}\n"
-            f"Backpack weapons:\n  {backpack_weapons}\n"
-            f"Backpack armor:\n  {backpack_armor}\n"
-            f"Food {p.backpack.food}  Water {p.backpack.water}  "
-            f"Medicine {p.backpack.medicine}  Ammo {p.backpack.ammo}\n"
-        )
+
+        equipped = str(p.equipped_weapon) if p.equipped_weapon else "bare hands"
+        worn = [f"  {slot:<6} {piece.name}"
+                for slot, piece in p.equipped_armor.items() if piece]
+        w_cap = getattr(p.backpack, "MAX_WEAPONS", len(p.backpack.weapons))
+        bp_w = _compact_gear(p.backpack.weapons) or ["  (empty)"]
+        bp_a = _compact_gear(p.backpack.armor)
+
+        lines = [
+            f"[b]{p.name}[/b]   Level {p.level}   XP {p.xp}/{p.max_xp}",
+            f"{glyph} {phase.upper()}   Day {p.day} · {clock} · Turn {getattr(p, 'turns', 0)}",
+            "",
+            "[b]EQUIPMENT[/b]",
+            f"  {equipped}",
+        ]
+        lines += worn or ["  (no armor)"]
+        lines += [
+            "",
+            f"[b]BACKPACK[/b]  {len(p.backpack.weapons)}/{w_cap} weapons",
+        ]
+        lines += [f"  {x}" for x in bp_w]
+        if bp_a:
+            lines += [f"  {x}" for x in bp_a]
+        lines += [
+            "",
+            f"Food {p.backpack.food} · Water {p.backpack.water} · "
+            f"Med {p.backpack.medicine} · Ammo {p.backpack.ammo}",
+        ]
+        stats_widget.update("\n".join(lines))
 
         self.query_one("#health_bar", ProgressBar).update(progress=max(0, min(100, p.health)))
         self.query_one("#hunger_bar", ProgressBar).update(progress=max(0, min(100, p.hunger)))
@@ -495,8 +563,8 @@ class ApocrysisApp(App):
         # the player submitted another command).
         commands_widget = self.query_one("#commands_text", Static)
         commands_widget.update(
-            "Commands:\n"
-            + "\n".join(f"  {c}" for c in p._available_commands())
+            "[b]ACTIONS[/b]   (type `h` for the full command list)\n"
+            + "  ·  ".join(p._action_bar())
         )
 
     def on_input_submitted(self, event: Input.Submitted):

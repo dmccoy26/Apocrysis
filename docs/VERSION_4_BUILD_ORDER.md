@@ -27,17 +27,26 @@ escape route and taking it, not by reaching the Town Center.
 | 2B — world persistence | **done** (zombie-tile clear, dropped-item persistence, abandonment states) |
 | 2C — knowledge model | **done** (`knowledge.py`, journal/remember/inspect/look, save/load); 2C.3 primitive only, 2C.6 = coord labels only |
 | 2D — zone ecology | **done** (zone layer, contextual zombies + loot) |
-| 3 — investigation harness | **partial** — `tools/mystery_solver.py` covers solvability; the investigation-aware bot policy + budget telemetry not built |
-| 4 — escape generator | **done** — `escape.py` (5 mechanisms, Escape Proof, validation), `mystery_mixin.py`, win-condition change, mountain-pass carve. 40/40 seeds valid+reachable |
+| 3 — investigation harness | `tools/balance_autoplay.py` is v4-aware (Stage 3.1 bot). **Not done: investigation-aware bot using only player-visible info (`9b336876`), B½ budget telemetry** |
+| 4 — escape generator | **done** — `escape.py` (5 mechanisms, Escape Proof, validation, named sites), `mystery_mixin.py` (arrival auto-discovers evidence, no `search` step), win-condition change, mountain-pass carve. 40/40 seeds valid+reachable |
 | 5 — campaign | 5.1 chapters ✓, 5.2 retrospective ✓, 5.4 goal-system removal ✓; **5.3 People layer deferred**, balance sweep deferred |
 | 6 — README | **done** — player-facing rewrite |
 | H — harness realism | **not done** (H1 bot bugs, H2 reporting, H3 Q-pass) |
 
-**Top open item: combat lethality vs. investigation length.** Survival
-was retuned down (`ZOMBIE_MAP_DENSITY` 0.10→0.04, encounter 0.30/0.50→
-0.10/0.20) but a mediocre bot (`tools/mystery_solver.py`) still only
-solves ~50% solo. A real player does better; this needs human
-playtesting to tune, not more blind sweeping.
+Also added this session (not in the original build order): grid
+coordinate labels; a found map reveals the whole valley
+(`map_revealed`); `search` demoted to optional replay; named mystery
+sites; `rest` costs time; `Day/HH:MM/Phase/Turn` in the UI; a `log`
+command / `--log` play transcript (`src/playlog.py`); spawn kept off
+the boundary; food/water rebalanced.
+
+**Top open items — need HUMAN playtesting, not more automated runs:**
+`tools/balance_autoplay.py` (competent bot) solves ~85% solo, median
+~38 turns. Open: is the mystery too front-loaded now (one site can
+surface most of the fact chain)? can a human decide where to go
+without visiting every building (run the boat scenario)? does the
+empty-building texture still feel like a slot machine? Use `--log` and
+hand the transcript over. See `SESSION_HANDOFF.md`.
 
 ---
 

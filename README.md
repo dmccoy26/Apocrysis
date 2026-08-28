@@ -24,6 +24,7 @@ pip install -r requirements.txt
 python3 apocrysis.py             # play (textual UI)
 python3 apocrysis.py --classic   # play (plain terminal, no textual dependency)
 python3 apocrysis.py --slice     # the fixed "Dam Service Road" tutorial mystery
+python3 apocrysis.py --log       # play, writing a transcript for later analysis
 python3 apocrysis.py --test      # built-in smoke test suite
 ```
 

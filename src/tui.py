@@ -242,6 +242,11 @@ def _status_block(p):
             nxt = ("look for another way out", None)
 
         lines.append("[b]ESCAPE THE VALLEY[/b]")
+        hyp = getattr(k, "hypothesis", None)
+        hstate = k.hypothesis_state() if hyp else "unknown"
+        if hyp and hstate in ("suspected", "confirmed"):
+            tag = "you think" if hstate == "suspected" else "you know"
+            lines.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
         for d in done:
             lines.append(f"  [green]✓[/green] {d}")
         if nxt:
@@ -273,30 +278,6 @@ def _status_block(p):
         lines += [f"  [red]![/red] {x}" for x in warns]
 
     return "\n".join(lines)
-
-
-def _objective_line(p):
-    """The standing objective line - premise + current hypothesis
-    state, no quest text. Shared shape with the `remember` command."""
-    k = getattr(p, "knowledge", None)
-    if k is None or k.is_empty():
-        return "Objective: work out the way out of this valley - nothing marks it."
-    state = k.hypothesis_state() if getattr(k, "hypothesis", None) else "unknown"
-    m = getattr(p, "mystery", None)
-    # Persistent "you have the key" line - the ◆ event covers the
-    # moment of pickup; this keeps it visible while you carry it.
-    if m is not None and not m.obstacle_open:
-        has_item = any(getattr(it, 'name', None) == m.requirement_item
-                       for it in p.backpack.items)
-        if has_item:
-            return (f"Objective: you have the {m.requirement_item} - "
-                    f"get back to the blocked route and use it.")
-    if state == "confirmed":
-        return f"Objective: you know the way out - {k.hypothesis.statement}"
-    if state == "suspected":
-        return f"Objective: you're starting to think - {k.hypothesis.statement}"
-    facts = len(k.facts_known())
-    return f"Objective: still working it out ({facts} thing(s) established). Try `remember`."
 
 
 class ApocrysisApp(App):
@@ -447,7 +428,6 @@ class ApocrysisApp(App):
                     yield Input(placeholder="command", id="command_input")
             with Vertical(id="stats_panel"):
                 yield Static(id="stats_text")
-                yield Static(id="objective_text")
                 with Horizontal(classes="stat_row"):
                     yield Static("Health", classes="stat_label")
                     yield ProgressBar(id="health_bar", total=100, show_eta=False, classes="stat_bar")
@@ -767,11 +747,8 @@ class ApocrysisApp(App):
         self.query_one("#thirst_bar", ProgressBar).update(progress=max(0, min(100, p.thirst)))
         self.query_one("#fatigue_bar", ProgressBar).update(progress=max(0, min(100, p.fatigue)))
 
-        # v4: the standing objective line. No quest text - just the
-        # premise and the current state of the hypothesis, the same
-        # thing `remember` would tell you.
-        objective_widget = self.query_one("#objective_text", Static)
-        objective_widget.update(_objective_line(p))
+        # (The objective lives only in the bottom-right OBJECTIVES
+        # panel now - _status_block - not duplicated up here.)
 
         # Context-sensitive available commands (ui_mixin.py's
         # _available_commands()) - the same list the classic ASCII

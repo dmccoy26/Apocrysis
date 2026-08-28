@@ -1,13 +1,6 @@
 # Apocrysis — In-Game Commands
 
-This documents the **current (v3) command set**. A new investigation-
-focused set (`look`/`inspect`/`search`/`journal`/`remember`/`map`
-sub-views) is designed but not yet built — see
-`docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md`'s "Player cognition &
-information architecture" section. This file will need updating once
-that lands; don't treat it as describing the target design.
-
-Every command below is typed at the `>` prompt during a game (or, in
+The v4 command set. Every command below is typed at the `>` prompt during a game (or, in
 the textual UI, triggered by the arrow keys / clicking, which just
 submit the same commands under the hood). Commands are case-insensitive.
 The list you actually see in-game is context-sensitive — e.g. `eat`
@@ -33,10 +26,22 @@ water, and swamp are slower; mountains and rivers are impassable).
 
 | Command | Aliases | Effect |
 |---|---|---|
-| `m` | `map` | Show the full map (same view as the side panel, plus the terrain legend) |
+| `m` | `map` | Show the full map. Rows are lettered down the side, columns numbered across the top — the top-left tile is `a1`, one right `a2`, one down `b1` |
 | `i` | `inventory` | List backpack contents: food, water, medicine, ammo, weapons, armor |
 | `st` | `stats` | Show health, hunger, thirst, fatigue, core stats, equipped weapon/armor |
 | `h` | `?` | Show the in-game help/command list |
+
+## Investigation (v4)
+
+| Command | Aliases | Effect |
+|---|---|---|
+| `look` | `l` | Take stock of where you're standing. Some things you notice just by being there |
+| `search` | `sr` | Go through the place properly — records, notes, the things that aren't obvious |
+| `journal` | `j` | Everything you've found, and what it tells you. Your memory, not a quest list |
+| `remember` | `rem` | Think it over — a synthesis of where your understanding stands right now |
+| `inspect <thing>` | `ins <thing>` | What you actually know about one thing: *Observed* / *Known* / *Suspected* / nothing yet. Try `inspect the way out` |
+| `clear` | `open` | Get past the obstacle on the escape route, once you have what it takes (walking into it with the item also works) |
+| `escape` | | Leave. Only works once your hypothesis is *confirmed* and the way is open — and only from the actual route out |
 
 ## Survival
 
@@ -96,13 +101,10 @@ Crafted weapons have a chance to come out as a higher-quality
 
 ## Goals & tasks
 
-| Command | Effect |
-|---|---|
-| `go` | Add a new goal (prompts for a title and type: `eat`/`drink`/`medicine`/`craft`/`kill`/`reach_town`) |
-| `goals` | List your active and completed goals, with rewards |
-| `complete` | Manually mark a goal complete by index (goals also auto-complete when you perform the matching action) |
-| `ts` | List active tasks (dynamically generated exploration/combat/survival milestones) |
-| `ct [idx]` | Complete a task by its listed index — tasks never auto-complete, this is the only way to claim their reward |
+Removed in v4. The goal/task checklist is replaced by the investigation
+interface (`journal` / `remember` / `inspect`). The `go` / `goals` /
+`complete` / `ts` / `ct` commands still parse but operate on an empty
+list.
 
 ## Save & quit
 
@@ -119,8 +121,17 @@ no separate save step needed to keep campaign progress.
 
 ## Winning
 
-Reach the Town Center *after* you've already set foot in a settlement
-(any of its tiles) — arriving at the Town Center before that just
-prints a warning that it's worth exploring first. A win advances your
-campaign toward `CAMPAIGN_LENGTH` (10 expeditions); reaching it
-triggers a distinct campaign-complete ending.
+Work out this expedition's way out of the valley and take it. Concretely:
+find enough evidence that your hypothesis about the route becomes
+*confirmed* (check with `remember` or `inspect the way out`), get past
+whatever blocks that route (`clear` / `open`, with the item the
+evidence pointed you to), reach the route itself, and `escape`.
+
+The Town Center is *not* the way out — under a generated mystery it's
+just the most information-dense location on the map. (On the rare
+degenerate map with no mystery, reaching the Town Center after
+exploring a settlement still wins, as a fallback.)
+
+A win advances your campaign toward `CAMPAIGN_LENGTH` (10 expeditions);
+the final one triggers a campaign-complete retrospective of the routes
+you found.

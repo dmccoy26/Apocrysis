@@ -233,10 +233,16 @@ class UIMixin:
                 'e': lambda: self.move_and_search('e'),
                 'w': lambda: self.move_and_search('w'),
                 'm': self.print_map,
+                'map': self.print_map,
                 'i': self.display_inventory,
+                'inv': self.display_inventory,
+                'inventory': self.display_inventory,
                 'st': self.stats,
+                'stats': self.stats,
                 'h': self.print_help,
                 '?': self.print_help,
+                'help': self.print_help,
+                'commands': self.print_help,
                 'q': lambda: self.io.say("Exiting game..."),
                 'quit': lambda: self.io.say("Exiting game..."),
                 'x': lambda: self.io.say("Exiting game..."),
@@ -304,6 +310,21 @@ class UIMixin:
                 # Suspected/Unknown for one thing.
                 parts = command.split(maxsplit=1)
                 self.knowledge_inspect(parts[1] if len(parts) > 1 else "")
+            elif (command.split() or [''])[0] in ('take', 'get', 'grab', 'pickup') or command.startswith('pick up'):
+                # v4: a player who finds a note/record and types
+                # "take note". Evidence isn't carried - what you learn
+                # goes to the journal automatically. But do pick up any
+                # dropped gear on this tile, which IS takeable.
+                x, y = self.current_position
+                cell = self.map[y][x]
+                had_ground = isinstance(cell, dict) and bool(cell.get('ground'))
+                self.pick_up_ground_items()
+                if not had_ground:
+                    self.io.say(
+                        "Nothing to pick up. Notes, records, signs - you don't "
+                        "carry those. What you learn from them is written down "
+                        "for you; check `journal` any time."
+                    )
             elif command.startswith(('wear', 'wr')):
                 # Checked before 'equip'/'eq' below - distinct prefix,
                 # no ambiguity risk (equipment-slot investigation).

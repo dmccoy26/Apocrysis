@@ -9,8 +9,10 @@ io.ask()/ask_yes_no() the same way a real player would decide: eat/
 drink/medicine when low, equip the strongest working weapon, reload
 before it runs dry, drop excess duplicate weapons (the feature added
 alongside this tool), occasionally craft, always fight (never flee),
-and otherwise walk a precomputed shortest path toward the Town
-Center.
+and otherwise run the v4 investigation: walk to each generated
+mystery site, `search` it, pick up the requirement item, clear the
+obstacle, reach the escape route and `escape`. (On a rare degenerate
+map with no mystery it falls back to walking to the Town Center.)
 
 Run:
     python3 tools/balance_autoplay.py
@@ -133,7 +135,9 @@ class Metrics:
         self.visibility_samples = []
         self.has_flashlight_at_end = False
         self.reached_night = False
-        self.spawn_to_objective_distance = None   # shortest-path steps from spawn to town center at game end
+        self.mechanism = None                    # v4: this expedition's escape mechanism
+        self.searches_issued = 0                 # v4: `search` commands the bot issued
+        self.spawn_to_objective_distance = None   # shortest-path steps from spawn to the escape tile (or town center) at game end
         self.tiles_moved = 0                    # count of turns where current_position actually changed
         self.terrain_counts = Counter()         # terrain type of each tile moved onto during the game
         self.final_visited_count = 0
@@ -359,6 +363,13 @@ class BotIO:
         self._path_index = 0
         self._town_center = None
 
+        # v4: investigation-aware bot state. Which mystery sites the
+        # bot has already searched, and its current navigation target.
+        self._m_searched = set()
+        self._m_target = None
+        self._m_path = None
+        self._m_path_i = 0
+
         # Tier 1 telemetry state - see the sampling block at the top
         # of _choose_command() for what each of these feeds.
         self._spawn = None
@@ -556,7 +567,60 @@ class BotIO:
                     return f"cr {recipe['key']}"
 
         # 6. Otherwise, make progress toward the win condition.
+        #    v4: run the investigation when there's a generated mystery;
+        #    otherwise fall back to the old walk-to-Town-Center.
+        if getattr(p, 'mystery', None) is not None and not getattr(p, 'won', False):
+            return self._next_mystery_move()
         return self._next_move()
+
+    def _next_mystery_move(self):
+        """One command toward solving the generated mystery: visit and
+        `search` the closed/route/require sites, step onto the obstacle
+        (auto-clears once the requirement item is carried), reach the
+        escape tile, `escape`."""
+        p = self.player
+        m = p.mystery
+
+        # what's the current objective tile?
+        target = None
+        do_here = None
+        for role in ("closed", "route", "require"):
+            if role not in self._m_searched:
+                target = m.sites[role]
+                if p.current_position == target:
+                    self._m_searched.add(role)
+                    self.metrics.searches_issued = getattr(self.metrics, 'searches_issued', 0) + 1
+                    return "search"
+                break
+        else:
+            if not m.obstacle_open:
+                target = m.obstacle_tile  # stepping onto it clears it with the item
+            elif p.current_position != m.escape_tile:
+                target = m.escape_tile
+            else:
+                return "escape"
+
+        if target is None:
+            return self._random_legal_step()
+
+        # (re)compute a path to the target when needed
+        if (self._m_target != target or not self._m_path
+                or self._m_path_i >= len(self._m_path)):
+            self._m_target = target
+            self._m_path = _bfs_path(p, p.current_position, target)
+            self._m_path_i = 0
+        if self._m_path:
+            while self._m_path_i < len(self._m_path):
+                d = self._m_path[self._m_path_i]
+                self._m_path_i += 1
+                if self._step_is_legal(d) or self._one_ahead_is(d, target):
+                    return d
+        return self._random_legal_step()
+
+    def _one_ahead_is(self, direction, target):
+        p = self.player
+        dx, dy = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "w": (-1, 0)}[direction]
+        return (p.current_position[0] + dx, p.current_position[1] + dy) == target
 
     def _next_move(self):
         p = self.player
@@ -620,10 +684,17 @@ def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False):
 
     player.run_game_loop()
 
+    if getattr(player, 'mystery', None) is not None:
+        io.metrics.mechanism = player.mystery.mechanism
+
     # Compute spawn-to-objective distance after the game loop finishes.
-    tc_pos = _find_town_center(player)
-    if io._spawn is not None and tc_pos is not None:
-        path = _bfs_path(player, io._spawn, tc_pos)
+    # v4: the objective is the escape tile; fall back to the Town
+    # Center on a no-mystery map.
+    objective = (player.mystery.escape_tile
+                 if getattr(player, 'mystery', None) is not None
+                 else _find_town_center(player))
+    if io._spawn is not None and objective is not None:
+        path = _bfs_path(player, io._spawn, objective)
         io.metrics.spawn_to_objective_distance = len(path) if path else 0
 
     if player.won:
@@ -701,6 +772,11 @@ def play_campaign(seed, max_turns, max_attempts_per_tier, verbose=False):
     at, or None if it completed).
     """
     import tempfile
+
+    # v4: fresh escape-mechanism shuffle-bag per campaign so each
+    # simulated campaign sees the same no-repeat-until-exhausted
+    # rotation a real player would.
+    Apocrysis._used_mechanisms = []
 
     profile = None
     level = 1
@@ -854,18 +930,18 @@ def print_report(all_metrics, games, level, expeditions_completed, max_turns):
         for cause in ("starvation", "dehydration", "fatigue"):
             print(f"  {cause:28s}: 0/{len(died_metrics)}  (not a death mechanic in this engine - see comment above)")
 
-    # Win reasons: there is exactly one win condition in this engine
-    # (reach the Town Center after having explored a settlement -
-    # world_mixin.py's move_and_search()) - "regular win" vs "campaign
-    # complete" is the same win tile, just different flavor text/prize
-    # depending on whether expeditions_completed has hit CAMPAIGN_LENGTH,
-    # not a second distinct way to win.
+    # Win reasons (v4): winning = working out the generated escape
+    # mechanism and taking it (mystery_try_escape). "expedition win"
+    # vs "CAMPAIGN COMPLETE" is the same act at CAMPAIGN_LENGTH.
     won_metrics = [m for m in all_metrics if m.outcome == "won"]
     if won_metrics:
         campaign_wins = sum(1 for m in won_metrics if m.campaign_completions > 0)
-        print("\nWin reasons (only one win condition exists - reach the Town Center after exploring a settlement):")
-        print(f"  reached Town Center (expedition win)  : {len(won_metrics) - campaign_wins}/{len(won_metrics)}")
-        print(f"  reached Town Center (CAMPAIGN COMPLETE): {campaign_wins}/{len(won_metrics)}")
+        print("\nWin reasons (v4: found and took this expedition's escape route):")
+        print(f"  escaped (expedition win)     : {len(won_metrics) - campaign_wins}/{len(won_metrics)}")
+        print(f"  escaped (CAMPAIGN COMPLETE)  : {campaign_wins}/{len(won_metrics)}")
+        mechs = Counter(m.mechanism for m in won_metrics if getattr(m, 'mechanism', None))
+        if mechs:
+            print("  by mechanism: " + ", ".join(f"{k} {v}" for k, v in mechs.most_common()))
 
     turns = [m.turns for m in all_metrics]
     levels = [m.final_level for m in all_metrics]

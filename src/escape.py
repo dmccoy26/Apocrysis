@@ -36,8 +36,8 @@ MECHANISMS = {
         "item": "forestry gate key",
         "obstacle_desc": "A locked forestry service gate blocks the trail up to the pass.",
         "escape_desc": "The foot pass switchbacks up over the ridge and down the far side. This is the way out.",
-        "roles": {"closed": "clogged highway", "route": "ranger station",
-                  "obstacle": "forestry gate", "require": "ranger station"},
+        "roles": {"closed": "the clogged highway", "route": "a trailhead noticeboard",
+                  "obstacle": "forestry gate", "require": "the ranger station"},
     },
     "rail_tunnel": {
         "name": "the railway tunnel",
@@ -48,8 +48,8 @@ MECHANISMS = {
         "item": "rail clearing charge",
         "obstacle_desc": "The railway tunnel entrance is half-collapsed. You'd need something to clear the fall.",
         "escape_desc": "Past the fall the tunnel runs straight and level, a cold draught coming the other way. Daylight, far ahead.",
-        "roles": {"closed": "wrecked bridge", "route": "rail yard",
-                  "obstacle": "collapsed tunnel", "require": "maintenance depot"},
+        "roles": {"closed": "the wrecked bridge", "route": "the rail yard",
+                  "obstacle": "collapsed tunnel", "require": "the rail maintenance depot"},
     },
     "service_route": {
         "name": "the dam service road",
@@ -60,8 +60,8 @@ MECHANISMS = {
         "item": "service gate key",
         "obstacle_desc": "A chained and padlocked service gate blocks the road along the dam.",
         "escape_desc": "The service road runs on past the gate, climbing away from the water and out of the valley.",
-        "roles": {"closed": "flooded road", "route": "dam",
-                  "obstacle": "service gate", "require": "control room"},
+        "roles": {"closed": "the flooded road", "route": "the dam",
+                  "obstacle": "service gate", "require": "the dam control room"},
     },
     "boat_crossing": {
         "name": "the boat crossing",
@@ -72,8 +72,8 @@ MECHANISMS = {
         "item": "jerrycan of fuel",
         "obstacle_desc": "A serviceable boat sits ready at the dock, but the fuel gauge reads empty.",
         "escape_desc": "The engine catches. You take the boat out past the harbour wall and open water opens up ahead.",
-        "roles": {"closed": "blocked checkpoint", "route": "marina",
-                  "obstacle": "empty boat", "require": "harbourmaster's shed"},
+        "roles": {"closed": "the blocked checkpoint", "route": "the marina",
+                  "obstacle": "empty boat", "require": "the harbourmaster's shed"},
     },
     "evac_corridor": {
         "name": "the evacuation corridor",
@@ -84,8 +84,8 @@ MECHANISMS = {
         "item": "barricade key",
         "obstacle_desc": "A military barricade closes the evacuation corridor - concrete, wire, and a locked vehicle gate.",
         "escape_desc": "Past the barricade the corridor runs clear and straight, the evac signs still up, pointing you out.",
-        "roles": {"closed": "collapsed overpass", "route": "evacuation sign",
-                  "obstacle": "barricade", "require": "police station"},
+        "roles": {"closed": "a collapsed overpass", "route": "an evacuation-route sign",
+                  "obstacle": "barricade", "require": "the police station"},
     },
 }
 
@@ -107,6 +107,7 @@ class Mystery:
         self.mechanism = None
         self.knowledge = Knowledge()
         self.sites = {}            # role -> (x, y)
+        self.site_labels = {}      # role -> "the harbourmaster's shed"
         self.obstacle_tile = None  # (x, y) - blocked until cleared
         self.obstacle_open = False
         self.escape_tile = None    # (x, y) - reaching it (cleared + confirmed) wins
@@ -159,6 +160,7 @@ class Mystery:
             "mechanism": self.mechanism,
             "knowledge": self.knowledge.to_dict(),
             "sites": {r: list(xy) for r, xy in self.sites.items()},
+            "site_labels": dict(self.site_labels),
             "obstacle_tile": list(self.obstacle_tile) if self.obstacle_tile else None,
             "obstacle_open": self.obstacle_open,
             "escape_tile": list(self.escape_tile) if self.escape_tile else None,
@@ -176,6 +178,7 @@ class Mystery:
         m.mechanism = d.get("mechanism")
         m.knowledge = Knowledge.from_dict(d.get("knowledge"))
         m.sites = {r: tuple(xy) for r, xy in d.get("sites", {}).items()}
+        m.site_labels = dict(d.get("site_labels", {}))
         m.obstacle_tile = tuple(d["obstacle_tile"]) if d.get("obstacle_tile") else None
         m.obstacle_open = d.get("obstacle_open", False)
         m.escape_tile = tuple(d["escape_tile"]) if d.get("escape_tile") else None
@@ -326,6 +329,23 @@ def build_mystery(game):
         'require': role_require,
     }
     m.requirement_item = spec["item"]
+
+    # World grammar: each role-site is a NAMED place, not a generic
+    # building. The evidence chain references these same names ("the
+    # fuel is in the harbourmaster's shed"), so once the player reads
+    # that they can recognise the place when they reach it - the boat
+    # -> fuel inference the design wants, instead of "search every
+    # building". Tagged on the tile; mystery_arrive leads with it.
+    roles = spec.get("roles", {})
+    m.site_labels = {}
+    for role in ('closed', 'route', 'require'):
+        label = roles.get(role)
+        if label:
+            m.site_labels[role] = label
+            sx_, sy_ = m.sites[role]
+            cell = game.map[sy_][sx_]
+            if isinstance(cell, dict):
+                cell['site_label'] = label
 
     # --- build the Escape Proof ---
     k = m.knowledge

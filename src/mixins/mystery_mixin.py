@@ -60,6 +60,18 @@ class MysteryMixin:
                     self.io.say("(Type `escape` to leave.)")
             return
 
+        # Name the place - the evidence chain refers to these names
+        # ("the fuel is in the harbourmaster's shed"), so recognising
+        # one on arrival is how the player connects a clue to a
+        # destination without searching every building.
+        label = m.site_labels.get(role)
+        if label and role not in getattr(self, '_mystery_named', set()):
+            named = getattr(self, '_mystery_named', None)
+            if named is None:
+                named = self._mystery_named = set()
+            named.add(role)
+            self.io.say(f"This is {label}.")
+
         # Arriving at a meaningful location IS the investigation. Both
         # observed and searched evidence surface now - no separate
         # `search` step (it was ceremony, not a decision). The require

@@ -37,7 +37,7 @@ class UIMixin:
         if here in ('closed', 'route', 'require', 'obstacle'):
             bar.insert(1, "search")
         if m is not None:
-            if here == 'escape' and m.obstacle_open and m.knowledge.hypothesis_state() == 'confirmed':
+            if m.obstacle_open and m.knowledge.hypothesis_state() == 'confirmed' and not m.escaped:
                 bar.insert(1, "ESCAPE")
             elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_has_item():
                 bar.insert(1, "open (at the gate)")

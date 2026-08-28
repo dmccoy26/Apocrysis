@@ -149,25 +149,28 @@ class WorldMixin:
                     chunk_terrain[(cx, cy)] = self.rng.choices(
                         terrain_types, weights=_arch['weights'])[0]
 
-        # Hard ceiling on how much of the map is wilderness 'building'.
-        # Playtest, twice: the 0.6 clustering carry-forward snowballs
-        # whatever terrain wins an early chunk, so ANY archetype could
-        # produce a map that's mostly identical 'b' tiles - and a
-        # mystery site named "the dam control room" is unfindable in a
-        # field of 90 identical buildings. Buildings are landmarks;
-        # past ~a third of the map they stop being landmarks and become
-        # noise. Reassign the excess to this archetype's most likely
-        # NON-building terrain.
-        _bchunks = [k for k, v in chunk_terrain.items() if v == 'building']
-        _cap = max(1, int(len(chunk_terrain) * 0.22))
-        if len(_bchunks) > _cap:
-            _fallback = max(
-                (t for t in terrain_types if t != 'building'),
-                key=lambda t: _arch['weights'][terrain_types.index(t)],
-            )
-            self.rng.shuffle(_bchunks)
-            for k in _bchunks[_cap:]:
-                chunk_terrain[k] = _fallback
+        # Hard ceilings on the two terrains that make a map miserable to
+        # cross or read. The 0.6 clustering carry-forward snowballs
+        # whatever wins an early chunk, so ANY archetype could end up
+        # mostly 'b' (a named site is unfindable in a field of identical
+        # buildings - playtest, x3) or mostly '~' (water is slow +
+        # fatiguing + a health-loss roll, and now zombie-free but still
+        # a trek-killer - playtest: solved the mystery, starved before
+        # reaching the exit). Excess chunks fall back to the archetype's
+        # most likely OTHER terrain.
+        for _terr, _frac in (('building', 0.22), ('water', 0.25), ('swamp', 0.15)):
+            _chunks = [k for k, v in chunk_terrain.items() if v == _terr]
+            _cap = max(1, int(len(chunk_terrain) * _frac))
+            if len(_chunks) > _cap:
+                # spill into a plain/forest terrain (never another
+                # capped, movement-punishing one)
+                _fallback = max(
+                    ('forest', 'plain'),
+                    key=lambda t: _arch['weights'][terrain_types.index(t)],
+                )
+                self.rng.shuffle(_chunks)
+                for k in _chunks[_cap:]:
+                    chunk_terrain[k] = _fallback
 
         # v4 (todo 457c93a6): a semantic ZONE tag per chunk, on top of
         # terrain. Terrain answers "what do I walk on"; zone answers
@@ -335,7 +338,7 @@ class WorldMixin:
             if (
                 isinstance(cell, dict)
                 and cell.get('terrain') not in IMPASSABLE_TERRAIN
-                and cell.get('terrain') != 'town'
+                and cell.get('terrain') not in ('town', 'water')
                 and (x, y) != spawn and abs(x - spawn[0]) + abs(y - spawn[1]) > 1
                 and (x, y) not in protected
             ):

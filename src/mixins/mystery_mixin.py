@@ -186,7 +186,14 @@ class MysteryMixin:
         if m.escaped:
             self.io.say("You're already out.")
             return
-        if self.current_position != m.escape_tile:
+        confirmed = m.knowledge.hypothesis_state() == 'confirmed'
+        on_tile = self.current_position == m.escape_tile
+        # Once you've stood at the way out and it's open, you don't have
+        # to be standing on it to leave - `escape` means "go there and
+        # go." Playtest: solved the whole mystery, then starved on the
+        # trek back to the exit tile. The investigation is the game;
+        # the walk back is not.
+        if not on_tile and not (confirmed and m.obstacle_open):
             self.io.say(
                 "You're not anywhere you could leave from. If there's a "
                 "way out you haven't reached it yet."
@@ -195,12 +202,15 @@ class MysteryMixin:
         if not m.obstacle_open:
             self.io.say("The way is still blocked behind you.")
             return
-        if m.knowledge.hypothesis_state() != 'confirmed':
+        if not confirmed:
             self.io.say(
                 "You could start walking. But you're not certain this "
                 "goes anywhere - better to be sure first."
             )
             return
+        if not on_tile:
+            self.io.say("You make your way back to the pass and start walking.")
+            self._update_time(90)
         m.escaped = True
         used = getattr(self.__class__, '_used_mechanisms', None)
         if used is None:

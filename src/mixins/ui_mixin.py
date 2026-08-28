@@ -259,14 +259,17 @@ class UIMixin:
                 'complete': self._prompt_complete_goal,
                 'ts': self.list_tasks,
                 'ct': self._prompt_complete_task,
+                # v4 Phase B knowledge interface (KnowledgeMixin).
+                'journal': self.knowledge_journal,
+                'j': self.knowledge_journal,
+                'remember': self.knowledge_remember,
+                'rem': self.knowledge_remember,
+                'look': self.knowledge_look,
+                'l': self.knowledge_look,
                 # v4 vertical slice commands (SliceMixin) - only
                 # meaningful when slice_mode is on; harmless otherwise.
                 'search': self.slice_search,
                 'sr': self.slice_search,
-                'journal': self.slice_journal,
-                'j': self.slice_journal,
-                'remember': self.slice_remember,
-                'rem': self.slice_remember,
                 'open gate': self.slice_open_gate,
                 'og': self.slice_open_gate,
                 'escape': self.slice_try_escape,
@@ -290,10 +293,10 @@ class UIMixin:
                 self.io.say("\n" + "*" * term_width)
                 action()
             elif command.startswith(('inspect', 'ins ')):
-                # v4 slice: `inspect <thing>` - Observed/Known/
+                # v4 Phase B: `inspect <thing>` - Observed/Known/
                 # Suspected/Unknown for one thing.
                 parts = command.split(maxsplit=1)
-                self.slice_inspect(parts[1] if len(parts) > 1 else "")
+                self.knowledge_inspect(parts[1] if len(parts) > 1 else "")
             elif command.startswith(('wear', 'wr')):
                 # Checked before 'equip'/'eq' below - distinct prefix,
                 # no ambiguity risk (equipment-slot investigation).

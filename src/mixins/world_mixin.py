@@ -174,6 +174,55 @@ class WorldMixin:
 
         return self.map
 
+    # v4 Phase B stopgap: until Stage 4's generator produces real
+    # Escape Proofs, this surfaces occasional flavour "clues" in
+    # buildings so the journal/remember/inspect interface (KnowledgeMixin)
+    # has real content to render. These are standalone Known facts with
+    # no deduction chain - NOT loot, they route to self.knowledge, never
+    # the backpack (design doc: evidence must not be "just another loot
+    # roll"). Replaced wholesale by contextual evidence generation later.
+    _PHASE_B_CLUES = [
+        ("Someone scratched a tally of days into the doorframe - it stops at 46.",
+         "A tally of days scratched by the door stops at 46."),
+        ("A child's drawing is taped to the wall: stick figures walking toward mountains.",
+         "A child's drawing shows people walking toward the mountains."),
+        ("A note on the fridge: 'Gone to the muster point. Back by dark. - R'",
+         "A fridge note mentions a 'muster point'."),
+        ("The calendar is turned to a month with one date circled hard enough to tear it.",
+         "A calendar has a single date circled hard enough to tear the paper."),
+        ("Boot prints in the dried mud all lead the same way - out the back, north.",
+         "Boot prints here all lead north."),
+    ]
+
+    def _maybe_surface_clue(self):
+        if getattr(self, 'slice_mode', False):
+            return
+        seen = getattr(self, '_clue_tiles', None)
+        if seen is None:
+            seen = self._clue_tiles = set()
+        pos = self.current_position
+        if pos in seen:
+            return
+        seen.add(pos)
+        # A dedicated per-tile RNG, NOT self.rng - cosmetic flavour
+        # must not perturb the seeded map-generation / loot sequence
+        # tests depend on, and must not flake tests that assert on
+        # find_loot output. Deterministic given (game, tile).
+        clue_rng = random.Random(hash(('phase-b-clue', self.name, pos)))
+        if clue_rng.random() >= 0.18:
+            return
+        available = [c for c in self._PHASE_B_CLUES
+                     if c[0] not in getattr(self, '_clue_texts_used', set())]
+        if not available:
+            return
+        blurb, statement = clue_rng.choice(available)
+        used = getattr(self, '_clue_texts_used', None)
+        if used is None:
+            used = self._clue_texts_used = set()
+        used.add(blurb)
+        self.io.say(blurb)
+        self.knowledge.add_clue(statement, evidence_text=blurb)
+
     def _generate_settlement(self, top_left, size, is_real):
         """
         Organic-settlement investigation: fills a size x size bounding
@@ -580,6 +629,8 @@ class WorldMixin:
         content = current_tile.get('content') if isinstance(current_tile, dict) else None
         if terrain != 'building' and content not in ('H', 'R', 'S', 'B', 'T'):
             return
+
+        self._maybe_surface_clue()
 
         # Intelligence increases chance of finding loot and better items
         find_chance = min(1.0, 0.2 + self.intelligence / 250)

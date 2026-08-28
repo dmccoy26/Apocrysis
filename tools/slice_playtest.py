@@ -62,9 +62,9 @@ def show(title, commands):
         if line.strip():
             print("  " + line)
     print("-" * 68)
-    print(f"  facts known:      {sorted(game._slice_facts_known())}")
-    print(f"  evidence found:   {sorted(game.slice_evidence_found)}")
-    print(f"  hypothesis:       {game._slice_hypothesis_state()}")
+    print(f"  facts known:      {sorted(game.knowledge.facts_known())}")
+    print(f"  evidence found:   {sorted(game.knowledge.found)}")
+    print(f"  hypothesis:       {game.knowledge.hypothesis_state()}")
     print(f"  gate open:        {game.slice_gate_open}")
     print(f"  escaped / won:    {game.slice_escaped} / {getattr(game, 'won', False)}")
     return game

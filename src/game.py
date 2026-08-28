@@ -16,7 +16,9 @@ from src.mixins.objectives_mixin import ObjectivesMixin
 from src.mixins.persistence_mixin import PersistenceMixin
 from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
+from src.mixins.knowledge_mixin import KnowledgeMixin
 from src.mixins.slice_mixin import SliceMixin
+from src.knowledge import Knowledge
 
 
 class Apocrysis(
@@ -26,6 +28,7 @@ class Apocrysis(
     ObjectivesMixin,
     UIMixin,
     ActionsMixin,
+    KnowledgeMixin,
     SliceMixin,
 ):
 
@@ -65,6 +68,11 @@ class Apocrysis(
         # the investigation loop can be evaluated in isolation. This
         # is throwaway experimental scaffolding, not a game mode.
         self.slice_mode = slice_mode
+
+        # v4 Phase B: the player knowledge model (src/knowledge.py).
+        # generate_map() / slice_setup() repopulate its catalogue;
+        # this is just so it always exists.
+        self.knowledge = Knowledge()
 
         self.xp = 0
         self.level = level

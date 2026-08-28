@@ -32,6 +32,19 @@ from src.zombies import (
 
 class WorldMixin:
 
+    # v4 (todo 7db3c4b5): why a place is empty, and what that looks
+    # like on the way in. One line, said once per building.
+    _ABANDONMENT_FLAVOUR = {
+        'evacuated': "Chairs pushed back, a meal half-eaten, a door left standing open. People left here fast.",
+        'barricaded': "The windows are boarded from the inside. Whoever did it isn't here now.",
+        'burned': "The ceiling is black and sagging. Something burned here, a while ago.",
+        'looted': "Cupboards open, drawers pulled out and dropped. Someone stripped this place.",
+        'occupied_recently': "A camp stove, still-greasy tins, a bedroll. Someone was here more recently than the dust says.",
+        'sealed': "The door was nailed shut from the outside. Someone made a decision about this room.",
+        'flooded': "Standing water on the floor, a tide line up the wall. It drains and fills with the reservoir.",
+        'quiet': "Undisturbed. Dust on every surface, nothing out of place. It was just left.",
+    }
+
     # --------------------------------------------------
     # Map Generation
     # --------------------------------------------------
@@ -166,6 +179,16 @@ class WorldMixin:
             ty = min(max(town_center[1], 1), self.map_size - 2)
             self.map[ty][tx] = {'terrain': 'town', 'content': 'T', 'explored': False}
             town_center = (tx, ty)
+
+        # v4 (todo 7db3c4b5): variable abandonment. Every building /
+        # settlement tile gets a generated CAUSE for being empty -
+        # different placed flavour for the same tile type. Cheap way to
+        # multiply perceived detail without more location types.
+        causes = list(self._ABANDONMENT_FLAVOUR)
+        for row in self.map:
+            for cell in row:
+                if isinstance(cell, dict) and cell.get('terrain') in ('building', 'town'):
+                    cell['abandonment'] = self.rng.choice(causes)
 
         # Connectivity guarantee (#7) - a "harder" map with more
         # obstacles must never generate an unreachable REAL Town
@@ -589,6 +612,9 @@ class WorldMixin:
         self.current_position = (new_x, new_y)
         self.visited.add(self.current_position)  # Mark the new position as visited
 
+        # v4 (todo 6c9a4ca6): anything dropped here earlier is still here.
+        self.pick_up_ground_items()
+
         # Per-move time cost is now terrain-dependent (v3 #11) rather
         # than a flat 15 minutes - see constants.py's
         # TERRAIN_MOVE_MINUTES.
@@ -669,6 +695,11 @@ class WorldMixin:
                     self.io.say(f"You're in the {district} district.")
 
             if terrain == 'building':
+                cause = current_tile.get('abandonment')
+                if cause and not current_tile.get('_ab_told'):
+                    current_tile['_ab_told'] = True
+                    self.io.say(self._ABANDONMENT_FLAVOUR.get(
+                        cause, "You step inside. It's been empty a while."))
                 self.io.say("You enter a building. It's a safe zone.")
                 heal_amount = self.rng.randint(5, 10)
                 self.health = min(100, max(0, self.health + heal_amount))

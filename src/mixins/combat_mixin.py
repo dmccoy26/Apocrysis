@@ -53,6 +53,7 @@ class CombatMixin:
                 self.io.say(f"The {zombie.name} has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
+                self._clear_defeated_zombie_tile(zombie)
                 self._check_and_complete_goals("kill")
             else:
                 # Zombie's turn to attack
@@ -161,6 +162,7 @@ class CombatMixin:
                 self.io.say(f"The {zombie.name} has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
+                self._clear_defeated_zombie_tile(zombie)
                 self._check_and_complete_goals("kill")
                 return
 
@@ -277,6 +279,18 @@ class CombatMixin:
         self.io.say(f"The {self.name} takes {damage} damage. Its current health is {self.health}.")
         if self.health <= 0:
             self.io.say(f"The {self.name} has been defeated!")
+
+    def _clear_defeated_zombie_tile(self, zombie):
+        """v4 (todo 93edaf83): a tile-based zombie that's been defeated
+        must leave the world - generate_map() replaces the tile's
+        terrain dict with the Zombie object, and nothing ever restored
+        it, so dead 0-HP zombies sat on the map forever. Reverts the
+        tile to plain ground. No-op for random roaming encounters
+        (no tile)."""
+        x, y = self.current_position
+        if self.map[y][x] is zombie:
+            self.map[y][x] = {'terrain': 'plain', 'content': '-', 'explored': True}
+            self.zombie_positions.discard((x, y))
 
     def handle_loot(self, loot_table):
         # Intelligence increases number of items found from loot tables

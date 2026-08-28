@@ -4,11 +4,61 @@
 import copy
 import random
 
-from src.items import MeleeWeapon, RangedWeapon, format_weapon_list, format_armor_list
+from src.items import MeleeWeapon, RangedWeapon, Armor, format_weapon_list, format_armor_list
 from src.player import PLAYER_CLASSES, STARTER_CLASS_NAME
 
 
 class ActionsMixin:
+
+    # ---- dropped items persist as world objects (v4, todo 6c9a4ca6) ----
+    #
+    # Map cells stay plain dicts; a dropped item goes into the cell's
+    # 'ground' list AS AN ALREADY-SERIALISED dict (so _serialize_map
+    # still works unchanged - the cell is still JSON-safe). Picked back
+    # up on arrival. Same trust principle as knowledge/evidence
+    # persistence: the world remembers what the player did.
+
+    def _drop_to_ground(self, item):
+        from src.mixins.persistence_mixin import _serialize_weapon, _serialize_armor
+        x, y = self.current_position
+        cell = self.map[y][x]
+        if not isinstance(cell, dict):
+            return  # standing on a zombie tile mid-fight - edge case
+        if isinstance(item, Armor):
+            entry = {'kind': 'armor', 'data': _serialize_armor(item)}
+        else:
+            entry = {'kind': 'weapon', 'data': _serialize_weapon(item)}
+        cell.setdefault('ground', []).append(entry)
+
+    def _rebuild_ground_item(self, entry):
+        from src.mixins.persistence_mixin import _deserialize_weapon, _deserialize_armor
+        if entry['kind'] == 'armor':
+            return _deserialize_armor(entry['data'])
+        return _deserialize_weapon(entry['data'])
+
+    def pick_up_ground_items(self):
+        """Called on arrival at a tile. Announces anything on the ground
+        and takes what fits."""
+        x, y = self.current_position
+        cell = self.map[y][x]
+        if not isinstance(cell, dict) or not cell.get('ground'):
+            return
+        remaining = []
+        for entry in cell['ground']:
+            item = self._rebuild_ground_item(entry)
+            if isinstance(item, Armor):
+                took = self.backpack.add_armor(item)
+            else:
+                took = self.backpack.add_weapon(item)
+            if took:
+                self.io.say(f"There's a {item.name} on the ground here. You take it.")
+            else:
+                self.io.say(f"There's a {item.name} on the ground here, but your pack is full.")
+                remaining.append(entry)
+        if remaining:
+            cell['ground'] = remaining
+        else:
+            cell.pop('ground', None)
 
     # v3 SPRINT step 4: min_level gates a real tiered progression -
     # the original 3 recipes stay at level 1 (no regression), several
@@ -175,7 +225,8 @@ class ActionsMixin:
         else:
             self.equipped_weapon = None
 
-        self.io.say(f"You drop the {target.name}.{salvage_note}")
+        self._drop_to_ground(target)
+        self.io.say(f"You drop the {target.name}.{salvage_note} It's on the ground here if you want it back.")
 
     def equip_armor(self, armor_name):
         # Multi-piece follow-up: which slot to touch comes from the
@@ -217,7 +268,8 @@ class ActionsMixin:
         else:
             self.equipped_armor[target.slot] = None
 
-        self.io.say(f"You drop the {target.name}.")
+        self._drop_to_ground(target)
+        self.io.say(f"You drop the {target.name}. It's on the ground here if you want it back.")
 
     def describe_recipes(self):
         """

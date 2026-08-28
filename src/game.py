@@ -39,6 +39,12 @@ class Apocrysis(
     # prize_for_next_game.
     _used_mechanisms = []
 
+    # v4: the fresh-start ration every non-slice game begins with, so
+    # a game doesn't open in a food/water deficit. load_game() and
+    # apply_profile() subtract this back off before their own additive
+    # restore, so a full-state load is exact.
+    STARTING_RATIONS = {"food": 8, "water": 8, "medicine": 2}
+
     prize_for_next_game = False
 
     def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, slice_mode=False):
@@ -122,6 +128,15 @@ class Apocrysis(
             self.backpack.water = 25
             self.backpack.medicine = 5
             self.fatigue = 0
+        else:
+            # v4: come in with a few days' rations instead of nothing.
+            # Starting empty put every game in a food/water deficit from
+            # turn one (balance report: net -0.7 food, -0.4 water per
+            # game) - a starving player fights worse (_condition_penalty)
+            # and dies to zombies, which is what "food and water were
+            # always a problem" was.
+            for _k, _v in self.STARTING_RATIONS.items():
+                setattr(self.backpack, _k, _v)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
         # v4 (V3_ASSUMPTION_AUDIT #1/#8): the hard-coded goal list and
@@ -178,12 +193,15 @@ class Apocrysis(
         # Action tracking for automatic goal completion
         self.last_action = ""
 
+        # Recorded so load_game()/apply_profile() can do a clean SET
+        # restore and re-add exactly this prize, instead of the fragile
+        # "+= and hope it survives" pattern.
+        self._prize_bonus = {}
         if Apocrysis.prize_for_next_game:
             self.io.say("\nYou received a generous prize for your next game!")
-            self.backpack.food += 10
-            self.backpack.water += 10
-            self.backpack.medicine += 5
-            self.backpack.ammo += 20
+            self._prize_bonus = {"food": 10, "water": 10, "medicine": 5, "ammo": 20}
+            for _k, _v in self._prize_bonus.items():
+                setattr(self.backpack, _k, getattr(self.backpack, _k) + _v)
             Apocrysis.prize_for_next_game = False
 
     def _update_time(self, minutes=15):

@@ -303,18 +303,16 @@ class PersistenceMixin:
         player.time_of_day = data.get("time_of_day", 480)
         player.visited = set(tuple(pos) for pos in data.get("visited", []))
         
-        # Real bug found live: this used to overwrite (=) the backpack
-        # with the save file's own values, silently discarding any
-        # win bonus __init__ just granted a moment earlier via
-        # cls(...) above (prize_for_next_game is only checked in
-        # __init__ - a load calls __init__ too, but its bonus was
-        # being thrown away immediately after). Adding (+=) on top of
-        # whatever __init__ already set - 0 for a normal load, or the
-        # bonus amount right after a win - preserves it either way.
-        player.backpack.food += data.get("backpack_food", 0)
-        player.backpack.water += data.get("backpack_water", 0)
-        player.backpack.medicine += data.get("backpack_medicine", 0)
-        player.backpack.ammo += data.get("backpack_ammo", 0)
+        # Full-state restore: SET the backpack to exactly what was
+        # saved, then re-add any win prize __init__ granted this
+        # construction (recorded on player._prize_bonus). This replaces
+        # an older fragile "+=" that assumed __init__ left consumables
+        # at 0 - no longer true with v4's fresh-start ration.
+        _prize = getattr(player, "_prize_bonus", {}) or {}
+        player.backpack.food = data.get("backpack_food", 0) + _prize.get("food", 0)
+        player.backpack.water = data.get("backpack_water", 0) + _prize.get("water", 0)
+        player.backpack.medicine = data.get("backpack_medicine", 0) + _prize.get("medicine", 0)
+        player.backpack.ammo = data.get("backpack_ammo", 0) + _prize.get("ammo", 0)
         
         for w_data in data.get("weapons", []):
             player.backpack.weapons.append(_deserialize_weapon(w_data))
@@ -516,10 +514,14 @@ class PersistenceMixin:
         self.intelligence = profile.get("intelligence", self.intelligence)
         self.wisdom = profile.get("wisdom", self.wisdom)
 
-        self.backpack.food += profile.get("backpack_food", 0)
-        self.backpack.water += profile.get("backpack_water", 0)
-        self.backpack.medicine += profile.get("backpack_medicine", 0)
-        self.backpack.ammo += profile.get("backpack_ammo", 0)
+        # SET from the profile, then re-add any win prize __init__ just
+        # granted (recorded on self._prize_bonus) - same handling as
+        # load_game(). Replaces the older fragile "+=".
+        _prize = getattr(self, "_prize_bonus", {}) or {}
+        self.backpack.food = profile.get("backpack_food", 0) + _prize.get("food", 0)
+        self.backpack.water = profile.get("backpack_water", 0) + _prize.get("water", 0)
+        self.backpack.medicine = profile.get("backpack_medicine", 0) + _prize.get("medicine", 0)
+        self.backpack.ammo = profile.get("backpack_ammo", 0) + _prize.get("ammo", 0)
 
         for w_data in profile.get("weapons", []):
             self.backpack.weapons.append(_deserialize_weapon(w_data))

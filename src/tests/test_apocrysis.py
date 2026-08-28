@@ -949,11 +949,10 @@ class TestProfilePersistence(unittest.TestCase):
         self.assertEqual(profile["strength"], 20)
         self.assertEqual(profile["backpack_food"], 5)
 
-    def test_apply_profile_adds_backpack_onto_fresh_bonus_not_overwrite(self):
-        # Mirrors load_game()'s existing += pattern (not =) for
-        # backpack fields - a prize_for_next_game bonus already
-        # applied by __init__ must survive apply_profile() on top of
-        # it, not be silently overwritten.
+    def test_apply_profile_preserves_win_prize_on_top_of_saved_backpack(self):
+        # A prize_for_next_game bonus applied by __init__ must survive
+        # apply_profile() - v4 records it on self._prize_bonus and
+        # re-adds it after SETting the backpack from the profile.
         with patch("builtins.print"):
             source = Apocrysis("ProfileTest", map_size=8, seed=1)
         source.backpack.food = 9
@@ -961,13 +960,17 @@ class TestProfilePersistence(unittest.TestCase):
         source.save_profile(self.PROFILE_FILE)
         profile = Apocrysis.load_profile(self.PROFILE_FILE)
 
-        with patch("builtins.print"):
-            fresh = Apocrysis("ProfileTest", map_size=8, level=5, seed=2)
-        fresh.backpack.food = 2  # simulates a prize_for_next_game bonus already applied
+        Apocrysis.prize_for_next_game = True
+        try:
+            with patch("builtins.print"):
+                fresh = Apocrysis("ProfileTest", map_size=8, level=5, seed=2)
+        finally:
+            Apocrysis.prize_for_next_game = False
 
         fresh.apply_profile(profile)
 
-        self.assertEqual(fresh.backpack.food, 11)
+        # 9 saved + 10 prize
+        self.assertEqual(fresh.backpack.food, 19)
         self.assertEqual(fresh.level, 5)
 
 

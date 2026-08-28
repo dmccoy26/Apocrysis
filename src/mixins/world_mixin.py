@@ -1008,13 +1008,17 @@ class WorldMixin:
                 else:
                     self.io.say("You found armor but your pack is full - drop something first.")
             elif loot_type == "food":
-                # Increase food in the backpack
-                self.backpack.food += 1
-                self.io.say("You found some food. Food stock increased.")
+                # v4: a find is a haul, not a single ration - hunger/
+                # thirst decay ~2-3/turn and a full expedition runs
+                # 30-50 turns, so +1 never kept up (balance report:
+                # food/water were net-negative every game).
+                amount = self.rng.randint(2, 4)
+                self.backpack.food += amount
+                self.io.say(f"You found food - enough for a while. (+{amount})")
             elif loot_type == "water":
-                # Increase water in the backpack
-                self.backpack.water += 1
-                self.io.say("You found some water. Water stock increased.")
+                amount = self.rng.randint(2, 4)
+                self.backpack.water += amount
+                self.io.say(f"You found water - enough for a while. (+{amount})")
             elif loot_type == "medicine":
                 # Increase medicine in the backpack
                 self.backpack.medicine += 1

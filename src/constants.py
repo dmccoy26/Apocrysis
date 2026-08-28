@@ -60,9 +60,9 @@ ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
 # not renderer capability - the world must be small enough to hold a
 # mental model of within one expedition. Later expeditions get
 # *conceptually* harder (richer mystery), not physically larger, so
-# the growth curve is gentle: 15x15 at expedition 0, ~25x25 by the
-# end of the campaign, capped at 28. See "Physical & information
-# budget" in docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md.
+# the growth curve is still bounded: 15x15 at expedition 0, growing
+# 3/expedition and hard-capped at MAX_MAP_SIZE. See "Physical &
+# information budget" in docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md.
 BASE_MAP_SIZE = 15
 MAP_GROWTH_PER_LEVEL = 3
 MAX_MAP_SIZE = 34
@@ -77,6 +77,14 @@ TOWN_DISTANCE_GROWTH_PER_LEVEL = 2
 # checkerboard. Obstacle terrain (mountain/river) still rolls per-tile
 # as an overlay inside any chunk - see generate_map().
 CHUNK_SIZE = 4
+
+MAP_ARCHETYPES = {
+    'mixed':          {'weights': [0.28, 0.22, 0.15, 0.25, 0.10], 'blurb': 'A patchwork of woods, fields, and scattered buildings.'},
+    'deep_woods':     {'weights': [0.55, 0.08, 0.07, 0.20, 0.10], 'blurb': 'Dense old-growth forest closes in on every side.'},
+    'flooded_basin':  {'weights': [0.15, 0.05, 0.40, 0.10, 0.30], 'blurb': 'Low, waterlogged ground - half this valley is under water or sinking into it.'},
+    'suburban_sprawl':{'weights': [0.12, 0.45, 0.05, 0.30, 0.08], 'blurb': 'Street after street of empty houses - this was somebody whole town.'},
+    'open_country':   {'weights': [0.20, 0.10, 0.08, 0.55, 0.07], 'blurb': 'Wide open farmland and fields, with little cover anywhere.'},
+}
 
 # Multiple-settlements investigation: how many populated areas a map
 # can contain, scaling with expeditions_completed (1 early, up to 3

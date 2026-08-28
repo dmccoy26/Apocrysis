@@ -11,8 +11,9 @@ discussion — this version replaces the earlier draft rather than
 stacking further "REFINEMENT" notes onto it.
 
 Corresponding implementation todos are filed in this project's own
-todo list — `projects/apocrysis/.atlas/todo_list.json` (relative to
-the Atlas repo root), NOT Atlas's own top-level `.atlas/todo_list.json`,
+todo list — `projects/apocrysis/version-4/.atlas/todo_list.json`
+(relative to the Atlas repo root), NOT Atlas's own top-level
+`.atlas/todo_list.json`,
 which is a separate list for Atlas's own self-repair work. Todos are
 ordered to match the phases in this document.
 
@@ -46,7 +47,7 @@ contents).
   generator. See "Vertical slice prototype" immediately below for the
   full scope. **Do not start on Phase 0 or the generator work** until
   the slice has been played and evaluated.
-- **Where the work is queued:** `projects/apocrysis/.atlas/todo_list.json`
+- **Where the work is queued:** `projects/apocrysis/version-4/.atlas/todo_list.json`
   — 63 pending items, the first 6 are the vertical slice build (in
   order: hard-coded map → Escape Proof as real state → minimal
   journal/remember/inspect → temporarily loosened survival pressure →
@@ -54,11 +55,13 @@ contents).
   the actual go/no-go gate for building the generator at all). The
   playtest todo carries a full behavioral-signal checklist — read it
   before running the playtest, not after.
-- **Repo:** work has been pushing to the `version-3` branch of
-  `github.com/dmccoy26/Apocrysis` (most recent commit `9c835aa`). A
-  `v4`/`version-4` branch was discussed as the intended home for this
-  direction but does **not** currently exist on the remote — confirm/
-  create it before pushing slice work, don't assume it's there.
+- **Repo:** this direction lives on the `version-4` branch of
+  `github.com/dmccoy26/Apocrysis` (branch HEAD `5c4912a`; forked from
+  `version-3` at `9c835aa`). The working tree is checked out at
+  `projects/apocrysis/version-4/` (relative to the Atlas repo root);
+  sibling `version-1/`..`version-3/` directories hold read-only clones
+  of the older branches. All slice and generator work commits to
+  `version-4`.
 - **The one test that matters most**, if you only remember one thing:
   can a player tell "I haven't solved this yet" apart from "this isn't
   important," using only what the interface gives them? Everything
@@ -311,7 +314,7 @@ built with nowhere to land. This supersedes the build order in earlier
 drafts of this document; the phase letters below are the current
 ones — todo items filed earlier still carry their original `[Phase X]`
 label text and may not match this lettering exactly. Ordering in
-`.atlas/todo_list.json` is what's authoritative, not the label text on
+`version-4/.atlas/todo_list.json` is what's authoritative, not the label text on
 any individual item.
 
 **Phase A — world geometry, no premise change, ships independently:**

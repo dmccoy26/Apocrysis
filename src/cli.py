@@ -146,6 +146,13 @@ def main():
         print(f"dwindled, {player.name}'s journey through this dystopian world became a testament to the indomitable spirit of those who ")
         print("refuse to be extinguished, even in the darkest of times.")
         print(" ")
+
+        # v4 (todo 55df661d): campaign-as-chapters. A short framing line
+        # for this expedition, keyed to how far in you are.
+        from src.campaign import chapter_intro
+        print(chapter_intro(player.expeditions_completed))
+        print(" ")
+
         player.run_game_loop()
 
         # v3 SPRINT step 1 / hardcore-mode follow-up: save the profile

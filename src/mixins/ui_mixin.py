@@ -370,16 +370,11 @@ class UIMixin:
 
             self.print_stat_changes(old_stats)
 
-            # v4 slice: the goal/task system is part of what the slice
-            # is testing whether to replace - keep it out of the way
-            # so the investigation loop is what's being evaluated.
-            if not getattr(self, 'slice_mode', False):
-                # Automatically check and complete goals based on the performed action
-                self._auto_check_goals()
-
-                # Generate new dynamic tasks periodically or when conditions change
-                if random.random() < 0.1:  # 10% chance per turn to evaluate task generation
-                    self._generate_dynamic_tasks()
+            # v4 (V3_ASSUMPTION_AUDIT #1/#8): the goal/task system is
+            # replaced by the investigation interface. _auto_check_goals
+            # is a harmless no-op on the now-empty goal list; the
+            # dynamic task generator is gone entirely.
+            self._auto_check_goals()
 
         # v3 SPRINT: the loop above used to just silently end - real
         # gap found live: dying or winning closed the game (in the

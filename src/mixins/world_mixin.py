@@ -516,7 +516,9 @@ class WorldMixin:
                 f"expeditions - the outbreak is finally behind you. "
                 f"CAMPAIGN COMPLETE!{RESET}\n"
             )
-            self.io.say(f"{BOLD}A hero's stash of supplies awaits your next game.{RESET}\n")
+            from src.campaign import campaign_retrospective
+            self.io.say(campaign_retrospective(getattr(self.__class__, '_used_mechanisms', [])))
+            self.io.say(f"\n{BOLD}A hero's stash of supplies awaits your next game.{RESET}\n")
             self.io.say(f"{BOLD}Your story in this outbreak ends here.{RESET}\n")
             self.backpack.food += 10
             self.backpack.water += 10

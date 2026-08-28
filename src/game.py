@@ -124,15 +124,14 @@ class Apocrysis(
             self.fatigue = 0
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
-        self.goals = [
-            Goal(title="Find Food", description="Locate some food to sustain yourself.", goal_type="eat"),
-            Goal(title="Stay Hydrated", description="Find a source of clean water.", goal_type="drink"),
-            Goal(title="Gather Supplies", description="Collect medicine for emergencies.", goal_type="medicine"),
-            Goal(title="Clear the Area", description="Defeat any nearby threats.", goal_type="kill"),
-            Goal(title="Explore", description="Venture into uncharted territory.", goal_type=""),
-            Goal(title="Reach the Town Center", description="Find your way to the Town Center to win.", goal_type="reach_town")
-        ]  # Track player goals/objectives
-        self.tasks = []  # Dynamic task system for side objectives and progression milestones
+        # v4 (V3_ASSUMPTION_AUDIT #1/#8): the hard-coded goal list and
+        # the dynamic task system are gone - player intent in v4 is
+        # expressed through investigation (journal / remember /
+        # inspect), not a checklist. The lists stay (empty) for
+        # save-file compatibility and the harmless no-op goal/task
+        # methods.
+        self.goals = []
+        self.tasks = []
         self.won = False  # Win condition tracker
 
         # True once the player has found a map item revealing the

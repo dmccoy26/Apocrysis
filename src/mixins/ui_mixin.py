@@ -469,27 +469,38 @@ class UIMixin:
         # acknowledged in BOTH modes - a real pause to read the
         # result, not just a scrollback line that vanishes when the
         # TUI closes.
-        if getattr(self, 'won', False):
-            self.io.say(f"\n{BOLD}{GREEN}*** VICTORY ***{RESET}")
-            if getattr(self, 'slice_mode', False) or getattr(self, 'mystery', None) is not None:
-                self.io.say(
-                    f"You found your way out of the valley on day {self.day}, "
-                    f"turn {getattr(self, 'turns', 0)}."
-                )
-            else:
-                self.io.say(
-                    f"You made it to the Town Center on day {self.day} "
-                    f"as a level {self.level} survivor!"
-                )
-        elif self.health <= 0:
-            self.io.say(f"\n{BOLD}{RED}*** YOU DIED ***{RESET}")
-            self.io.say(
-                f"{self.name} succumbed on day {self.day}, "
-                f"level {self.level}."
-            )
-
         if getattr(self, 'won', False) or self.health <= 0:
+            self._render_end_screen()
             self.io.ask("Press Enter to continue...")
+
+    def _render_end_screen(self):
+        won = getattr(self, 'won', False)
+        k = getattr(self, 'knowledge', None)
+        stats = [
+            f"turns survived      {getattr(self, 'turns', 0)}",
+            f"days survived       {self.day}",
+            f"final level         {self.level}",
+            f"tiles visited       {len(getattr(self, 'visited', []))}",
+        ]
+        if k is not None and not k.is_empty():
+            stats.append(f"facts established   {len(k.facts_known())}")
+        if won:
+            headline = "YOU ESCAPED" if (getattr(self, 'slice_mode', False)
+                                         or getattr(self, 'mystery', None) is not None) \
+                       else "YOU MADE IT"
+            title_color = f"{BOLD}{GREEN}"
+            closing = "A stash of supplies is waiting for your next run."
+        else:
+            headline = "YOU DIED"
+            title_color = f"{BOLD}{RED}"
+            closing = f"{self.name} did not make it out of the valley."
+        rows = [headline, f"THE VALLEY  ·  DAY {self.day}", ""] + stats + ["", closing]
+        w = max(len(r) for r in rows)
+        pad = lambda r: r.center(w) if r in (headline, rows[1], closing) else r.ljust(w)
+        box = ["╔" + "═" * (w + 2) + "╗"]
+        box += [f"║ {pad(r)} ║" for r in rows]
+        box += ["╚" + "═" * (w + 2) + "╝"]
+        self.io.say("\n" + title_color + "\n".join(box) + RESET)
 
     def _toggle_playlog(self):
         """`log` command: start/stop writing a plain-text transcript of

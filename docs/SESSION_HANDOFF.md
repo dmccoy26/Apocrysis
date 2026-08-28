@@ -151,10 +151,23 @@ Built by hand this session:
 - Objective line persists "you have the {item} - get back to the
   blocked route" while carried.
 
-Still open: `c359b1bb` (render the map at larger scale — it's a small
-grid in a big panel), `7d6046d3` (evidence-vs-escape direction
-validator), `a4a11df6` (terrain affinity for the non-water
-mechanisms). `atlas todo list` / `atlas todo do <id>`.
+**Later same session** (`5329af2`..`d47ac3a`):
+- Bottom-right STATUS block: PROGRESS checklist (fact chain ticked) +
+  WARNINGS (weapon / HP / starving / parched).
+- Dry ranged weapon auto-swaps to a spare mid-fight.
+- Water+swamp capped (was up to 63% of a map → 34%); zombies no longer
+  spawn on water; `flooded_basin` reweighted.
+- `escape` works from anywhere once the route is confirmed AND open
+  (playtest: solved the mystery, starved on the trek back).
+- `drink` from an adjacent water tile when the pack is empty.
+- Hunger or thirst at 0 now drains 2 HP/turn each (was combat-only).
+  600-game sweep: 86.5% win, unchanged envelope (bot manages
+  resources; this bites a human who lets the pack hit 0).
+
+Still open: `c359b1bb` (render the map at larger scale), `7d6046d3`
+(evidence-vs-escape direction validator), `a4a11df6` (terrain affinity
+for the non-water mechanisms), `45ba6b67` (hunting for food).
+`atlas todo list` / `atlas todo do <id>`.
 
 ## Open questions for the next playtest (the human's to answer)
 

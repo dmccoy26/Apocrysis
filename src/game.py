@@ -193,6 +193,11 @@ class Apocrysis(
         # Action tracking for automatic goal completion
         self.last_action = ""
 
+        # v4: expedition turn counter (every command the player issues
+        # in run_game_loop). Shown in the stats panel so time cost is
+        # visible, not something to reverse-engineer from the sun.
+        self.turns = 0
+
         # Recorded so load_game()/apply_profile() can do a clean SET
         # restore and re-add exactly this prize, instead of the fragile
         # "+= and hope it survives" pattern.

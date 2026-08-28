@@ -132,10 +132,9 @@ class UIMixin:
                 time_str = f"{hour:02d}:{minute:02d}"
                 day_night = getattr(self, "day_phase", "night" if self.is_night else "day").title()
 
-                right_lines.append(f"Time: {time_str} ({day_night})")
+                right_lines.append(f"Day {self.day}  {time_str}  {day_night}   Turn {getattr(self, 'turns', 0)}")
                 right_lines.append("--- Player Stats ---")
                 stats_list = [
-                    ("Day", self.day),
                     ("Health", f"{self.health}/{self.max_health}"),
                     ("Hunger", self.hunger),
                     ("Thirst", self.thirst),
@@ -206,9 +205,14 @@ class UIMixin:
                     self.io.say(f"{_display_ljust(left_line, left_col_width)} | {_display_ljust(right_line, right_col_width)}")
 
             command = self.io.ask("> ").lower()
-            
+
             direction_aliases = {"north": "n", "south": "s", "east": "e", "west": "w"}
             command = direction_aliases.get(command, command)
+
+            if command and command not in ('m', 'map', 'i', 'inv', 'inventory',
+                                           'st', 'stats', 'h', '?', 'help', 'commands',
+                                           'q', 'quit', 'x', 'exit', 'exit game'):
+                self.turns = getattr(self, 'turns', 0) + 1
 
             # Track action for automatic goal completion
             self.last_action = self._map_command_to_action(command)

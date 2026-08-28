@@ -680,7 +680,13 @@ class WorldMixin:
         # campaign-simulation finding above for why a hard jump was a
         # real problem, not just a style preference.
         t = min(1.0, self.expeditions_completed / CAMPAIGN_LENGTH)
-        early_weights = [0.55, 0.20, 0.03, 0.15, 0.05, 0.02]
+        # Order: Fresh, Regular, Heavy, Swift, Toxic, Armored.
+        # v4: Heavy (100 HP) and Armored (120 HP) start at ZERO -
+        # meeting one on expedition 0 with a 6-damage starter weapon
+        # was an unavoidable death (player-reported: died to an
+        # armored zombie on day 5 of map 1). They phase in as the
+        # campaign progresses.
+        early_weights = [0.62, 0.26, 0.00, 0.10, 0.02, 0.00]
         late_weights = [0.10, 0.15, 0.25, 0.15, 0.15, 0.20]
         weights = [
             early + (late - early) * t

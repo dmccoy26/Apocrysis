@@ -182,6 +182,12 @@ class ActionsMixin:
         self.fatigue -= recovered
         self.io.say(f"You rest and recover {recovered} fatigue. Current fatigue: {self.fatigue}")
 
+        # v4: resting costs expedition time (and lets hunger/thirst
+        # decay) - it was a free action, which made fatigue not a
+        # time-pressure mechanic at all. A short rest, not a whole day.
+        self._update_time(45)
+        self._apply_decay()
+
     def equip_weapon(self, weapon_name):
         # Search for the weapon in the backpack's weapons list
         for weapon in self.backpack.weapons:

@@ -109,6 +109,21 @@ class TextualIO:
         self._answers.put(text)
 
 
+def _objective_line(p):
+    """The standing objective line - premise + current hypothesis
+    state, no quest text. Shared shape with the `remember` command."""
+    k = getattr(p, "knowledge", None)
+    if k is None or k.is_empty():
+        return "Objective: work out the way out of this valley - nothing marks it."
+    state = k.hypothesis_state() if getattr(k, "hypothesis", None) else "unknown"
+    if state == "confirmed":
+        return f"Objective: you know the way out - {k.hypothesis.statement}"
+    if state == "suspected":
+        return f"Objective: you're starting to think - {k.hypothesis.statement}"
+    facts = len(k.facts_known())
+    return f"Objective: still working it out ({facts} thing(s) established). Try `remember`."
+
+
 class ApocrysisApp(App):
 
     # v3 SPRINT: exactly 3 bordered panels - map, stats, and one
@@ -435,10 +450,11 @@ class ApocrysisApp(App):
             else "(none)"
         )
         day_phase = getattr(p, "day_phase", "night" if p.is_night else "day").title()
+        clock = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
         stats_widget.update(
             f"{p.name} - Level {p.level}\n"
             f"XP: {p.xp}/{p.max_xp}\n"
-            f"Day {p.day} - {day_phase}\n"
+            f"Day {p.day}  {clock}  {day_phase}   Turn {getattr(p, 'turns', 0)}\n"
             f"Equipped: {equipped}\n"
             f"Armor:\n  {equipped_armor}\n"
             f"Backpack weapons:\n  {backpack_weapons}\n"
@@ -452,17 +468,11 @@ class ApocrysisApp(App):
         self.query_one("#thirst_bar", ProgressBar).update(progress=max(0, min(100, p.thirst)))
         self.query_one("#fatigue_bar", ProgressBar).update(progress=max(0, min(100, p.fatigue)))
 
-        # v3 SPRINT: real gap found live - nothing on screen told the
-        # player what they were actually supposed to DO (move to the
-        # town center to win). Surface the first incomplete goal as a
-        # standing objective line, not just buried in a "goals" list
-        # command the player has to know to type.
+        # v4: the standing objective line. No quest text - just the
+        # premise and the current state of the hypothesis, the same
+        # thing `remember` would tell you.
         objective_widget = self.query_one("#objective_text", Static)
-        next_goal = next((g for g in p.goals if not g.completed), None)
-        if next_goal is not None:
-            objective_widget.update(f"Objective: {next_goal.title}\n{next_goal.description}")
-        else:
-            objective_widget.update("Objective: all goals complete")
+        objective_widget.update(_objective_line(p))
 
         # Context-sensitive available commands (ui_mixin.py's
         # _available_commands()) - the same list the classic ASCII

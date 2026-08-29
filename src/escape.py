@@ -93,6 +93,24 @@ MECHANISMS = {
 
 _MECH_ORDER = list(MECHANISMS)
 
+STORY_FAMILIES = (
+    'spatial', 'directional', 'corroborative', 'infrastructural',
+    'environmental', 'informational', 'sequential', 'experimental',
+    'transportation', 'time_pressure',
+)
+DISCOVERY_PATTERNS = (
+    'see_route', 'find_document', 'find_named_place', 'observe_anomaly',
+    'receive_information', 'find_object',
+)
+REASONING_PATTERNS = (
+    'locate', 'connect', 'corroborate', 'infer', 'experiment', 'revise', 'sequence',
+)
+RESOLUTION_PATTERNS = (
+    'open', 'find', 'repair', 'clear', 'operate', 'reveal', 'follow', 'respond',
+)
+CONFIRMATION_PATTERNS = (
+    'traversal', 'new_information', 'environmental', 'external_response', 'corroboration',
+)
 
 def choose_mechanism(rng, already_used):
     """Shuffle-bag: no repeat until the pool is exhausted."""

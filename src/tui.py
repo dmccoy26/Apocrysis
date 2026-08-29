@@ -127,8 +127,10 @@ def _dur_color(cur, mx):
     return _DIM
 
 
-def _fmt_gear(item):
-    """One coloured line for a weapon or armor piece."""
+def _fmt_gear(item, equipped=False):
+    """One coloured line for a weapon or armor piece. `equipped` gates
+    the alert colours: an empty magazine is a problem for the weapon in
+    your hand, not for a spare sitting in the pack (a `reload` away)."""
     name = getattr(item, "name", "?")
     parts = [f"{name[:18]:<18}"]
     dmg = getattr(item, "damage", None)
@@ -139,7 +141,7 @@ def _fmt_gear(item):
         parts.append(f"[cyan]-{red}[/]")
     ammo, mx_ammo = getattr(item, "ammo", None), getattr(item, "max_ammo", None)
     if mx_ammo:
-        c = "red" if not ammo else _DIM
+        c = "red" if (not ammo and equipped) else _DIM
         parts.append(f"[{c}]ammo {ammo}/{mx_ammo}[/]")
     dur = getattr(item, "durability", None)
     mxd = getattr(item, "max_durability", dur)
@@ -911,7 +913,7 @@ class ApocrysisApp(App):
 
         w_cap = getattr(p.backpack, "MAX_WEAPONS", len(p.backpack.weapons))
         eq = p.equipped_weapon
-        eq_line = _fmt_gear(eq) if eq else f"  [{_DIM}]bare hands[/]"
+        eq_line = _fmt_gear(eq, equipped=True) if eq else f"  [{_DIM}]bare hands[/]"
         if eq and getattr(eq, "durability", 1) <= 0:
             eq_line += "  [red]BROKEN[/]"
 
@@ -929,7 +931,7 @@ class ApocrysisApp(App):
             f"[{_HDR}]EQUIPMENT[/]",
             eq_line,
         ]
-        worn = [_fmt_gear(pc).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)
+        worn = [_fmt_gear(pc, equipped=True).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)
                 for slot, pc in p.equipped_armor.items() if pc]
         lines += worn or [f"  [{_DIM}]no armor[/]"]
         lines += [

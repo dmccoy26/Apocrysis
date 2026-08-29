@@ -105,6 +105,17 @@ class TestRendering(unittest.TestCase):
         for terrain in terrains_in_use:
             self.assertIn(terrain, TERRAIN_SYMBOLS)
 
+    def test_empty_ammo_alarms_only_for_the_equipped_weapon(self):
+        # bug: a benched Gun at 0 rounds rendered its "ammo 0/5" in red,
+        # reading as a warning about a weapon you aren't holding.
+        from src.tui import _fmt_gear
+        gun = RangedWeapon("Gun", 20, 5)
+        gun.ammo = 0
+        self.assertIn("[red]ammo 0/5[/]", _fmt_gear(gun, equipped=True))
+        self.assertNotIn("[red]", _fmt_gear(gun))          # in the pack
+        gun.ammo = 3
+        self.assertNotIn("[red]", _fmt_gear(gun, equipped=True))
+
     def test_print_help_is_a_static_player_facing_reference(self):
         # print_help is now a fixed controls reference (not a
         # conditional list): it always names the core verbs, teaches

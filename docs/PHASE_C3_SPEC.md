@@ -138,23 +138,137 @@ The base map is now regenerated until `build_mystery` succeeds, for
 rate noise-equal, min-health p10 tail now v1≈v2. The five-expedition
 feel-test should be run on this build.
 
-## The accept/reject gate
+## The accept/reject gate — VERDICT (2026-08-29)
 
-C.3 v2 is **within the measured gameplay envelope** and violates none
-of the `PHASE_C_FOUNDATION.md` §7 prohibitions. The remaining question
-is the one only a human can answer:
+> **C.3 v2 — REJECTED AS CURRENTLY DESIGNED. C.3 architecture kept.
+> `_default_mapgen` stays `"v1"`.**
 
-> Play ~5 v2 expeditions (`Apocrysis(mapgen="v2")` / a debug flag).
-> Does the irregular valley feel more like a real place — a valley you
-> navigate — than the old rectangular board? Is the shorter trek an
-> improvement or a loss? Do the dead-ends read as texture or as
-> annoyance?
+The automated envelope held (win 51 %≈49 %, combat exposure equal, no
+contract violated). The human feel-test found the problem the metrics
+could not see.
 
-- **Accept** → flip `_default_mapgen` to `"v2"`, delete the v1 branch
-  (or keep it one more phase as a fallback), freeze, then consider the
-  fully-inverted pipeline as C.3.2.
-- **Reject** → the default stays `"v1"`; v2 is either deleted or kept
-  parked. No architecture was polluted to find out. That is a
-  successful negative result.
-- **Accept with changes** → tune the target size / dead-end rate /
-  the no-mystery floor, re-measure, re-playtest.
+### What the feel-test showed (owner, 1 expedition, `--mapgen v2`, `mountain_pass`)
+
+The full run: `apocrysis_playlog_20260829_152820.txt`.
+
+| phase | turns | what happened |
+|---|---|---|
+| wander | 1–20 | straight lines through undifferentiated forest, no information |
+| obstacle found, unused | 21 | reached the forestry gate with `facts_known: ['F_OBSTACLE']`, hypothesis `unknown` |
+| perimeter bounce | 21–62 | ~40 turns colliding with the irregular mountain boundary ("The mountains rise up sheer…" ×3, "You can't cross the mountain here" ×2) with **no new information the whole time** |
+| first real lead | 70 | stumbled into the only settlement — **64 % into the expedition** |
+| death-march back | 80–107 | starving + parched, −4 HP/turn, 59 → 26 HP |
+| escape | 109 | won at **26/105 HP** |
+
+`facts_known` sat at `['F_OBSTACLE']` / hypothesis `unknown` from turn
+21 to turn 70.
+
+### Why it failed — the actual finding
+
+**Irregularity alone does not create meaningful exploration.** v2 made
+the geometry more interesting *without giving the player more
+information with which to navigate it.* The strongest evidence is not
+the wall-bounces — it is that the player *found something meaningful at
+turn 21* (an obstacle) and the world gave them no chain from
+"I found an obstacle" → "there is something beyond it" → "where do I
+look next". So: obstacle → wander → mountain → wander → mountain →
+wander → settlement. That is spatial punishment for lacking
+information, not exploration. The irregular boundary functioned as
+**friction, not texture.**
+
+Two things that are NOT the finding:
+- *"the valley is too small"* — widening treats the symptom; the
+  player wasn't short on square footage, they were short on a reason to
+  pick a direction. A wider empty valley is worse.
+- *"the player should have used `look`"* — if the intended experience
+  needs a special command just to learn there is something nearby,
+  that's a UX gap, not a player failure. And they *did* encounter
+  `F_OBSTACLE` — the game had the information and failed to make it a
+  navigational affordance.
+
+### What was learned (the experiment succeeded as an experiment)
+
+- The irregular geometry is **perceptually real** — the player noticed
+  it immediately and named it. That's the good half.
+- The failure is that the rest of the world doesn't give that geometry
+  meaning. The next experiment's job is **navigational information
+  density**, not a less-complicated boundary and not more square
+  footage.
+- The C.3 architecture (both generators behind one `MapGenerator` API,
+  reversible by a one-line default) did its job: a negative result
+  cost one `_default_mapgen` line, not a phase.
+
+### Actions
+
+1. `_default_mapgen` stays `"v1"`. v2 kept parked (not deleted) —
+   the boundary-growth code is the substrate for C.3.2.
+2. **Do not** revert the C.3 architecture or the tag
+   `v5-phase-c-foundation`.
+3. The "fully-inverted pipeline" idea (old C.3.2) is **superseded** —
+   there's no point inverting a pipeline whose geography doesn't yet
+   earn navigation.
+4. Next: **C.3.2 — navigational affordances** (below).
+5. **Blocking C.3.2:** fix mechanism variety first (see
+   `## Contamination: mechanism variety` below). Three `mountain_pass`
+   runs in a row were contaminating the geography read.
+
+## C.3.2 — navigational affordances (next experiment, SPEC PENDING)
+
+Premise: *give the player reasons to navigate the irregular space*,
+not "make the space less confusing".
+
+Target loop the world should support as the player moves:
+
+```
+terrain → landmark → direction / implication → decision → destination
+```
+
+instead of the observed:
+
+```
+terrain → terrain → mountain → mountain → terrain
+```
+
+Candidate generator-level invariant (story-agnostic — the generator
+guarantees *geography*, never knows what it *means*):
+
+> **Every expedition must expose at least one meaningful navigational
+> lead within the early exploration window.**
+
+A lead is anything that turns "wander" into "head that way": a
+settlement, a distinctive terrain transition, a road/trail, a visible
+structure on the skyline, a mystery site, a signal — the list stays
+open. The generator only has to guarantee the player *encounters
+meaningful geography early*; the story layer decides what any given
+lead means. This is compatible with the `MapGraph` + `worlds/` split
+already in place.
+
+Do NOT bake "settlement within N tiles" into the generator — that
+freezes today's gameplay assumptions into geometry.
+
+Spec to be authored, owner-reviewed, then implemented — same discipline
+as every C phase.
+
+## Contamination: mechanism variety (fix before C.3.2)
+
+`DIS_FEW_REMAINS` (the first CH1 WorldFact, and the one every fresh
+campaign targets on expedition 1) has exactly one DiscoveryTemplate
+route: `mountain_pass` (`worlds/silence/discovery.py`). So **every
+brand-new campaign's first expedition is `mountain_pass`,
+deterministically.** The three repeats in the feel-test came from the
+survivor-name bug (fixed, `d6e03de`) preventing the campaign from
+saving — each launch restarted at expedition 1.
+
+With saving fixed, the Balthus campaign now progresses
+(`DIS_FEW_REMAINS: known` already), so expedition 2 targets
+`DIS_MOVED_TOGETHER` → `rail_tunnel` / `boat_crossing`, etc. But for
+deliberately feel-testing geography *across* mechanisms, either:
+- play the existing campaign forward (mechanisms vary run to run), or
+- add a debug way to force the mechanism (the balance harness already
+  has `--force-mechanism`; nothing player-facing yet), or
+- give `DIS_FEW_REMAINS` a 2nd non-spatial route so even expedition 1
+  varies.
+
+Pick one when C.3.2's spec is written. The geography experiment should
+run across `mountain_pass / radio_tower / evac_corridor / service_route
+/ dam_valves`-shaped runs, not five near-identical ones.

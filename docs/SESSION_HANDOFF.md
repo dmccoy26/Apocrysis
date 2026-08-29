@@ -1,16 +1,17 @@
 # Session handoff — Apocrysis v5
 
 Last updated **2026-08-29** — Phases A + B complete and frozen; Phase C
-foundation frozen; the C.3 geography experiment is built and awaiting a
-human feel-test. **Read this whole DIRECTION block first in a fresh
-session, then the doc map below it.**
+foundation frozen; **C.3 v2 geography rejected as currently designed by
+the human feel-test; C.3 architecture kept; default stays `v1`.**
+**Read this whole DIRECTION block first in a fresh session, then the
+doc map below it.**
 
 ---
 
-## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION FROZEN, C.3 EXPERIMENT AWAITS FEEL-TEST
+## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION FROZEN, C.3 v2 REJECTED-AS-DESIGNED
 
 - Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
-  `v5-phase-c-foundation`, `v5-phase-c3-experiment`. **251 + 100 green.**
+  `v5-phase-c-foundation`, `v5-phase-c3-experiment`. **252 + 100 green.**
 - **A** (frozen): World seam -> WorldFact DAG -> WorldInvestigation ->
   targeted mysteries -> milestones -> profile-persistent knowledge.
 - **B** (frozen): roguelite inheritance. Profile {campaign, survivor};
@@ -18,28 +19,46 @@ session, then the doc map below it.**
 - **C foundation** (frozen): `src/worldgen/` (`MapGenerator` moved
   verbatim, byte-identical; `MapGraph` connectivity guarantee). C.4
   deterministic structural suite.
-- **C.3 experiment** (`v5-phase-c3-experiment`): `Apocrysis(mapgen=
-  "v1"|"v2")`, default **"v1"** (frozen). v2 grows ONE irregular valley
-  instead of a rectangular board. **Reversible** - flip the default or
-  checkout `v5-phase-c-foundation`. Measured: balance envelope held
-  (win 51%≈49%, treks ~29% shorter, combat equal). **NEEDS the owner's
-  human feel-test** to accept/reject. See `PHASE_C3_SPEC.md` § accept
-  gate. `tools/geo_compare.py --games N --variants v1,v2 [--gameplay]`.
-- **C.3.1 DONE (2026-08-29):** the ~1.3% no-mystery v2 maps are
-  eliminated - `generate_map()` now regenerates the base map (≤12×,
-  v2 only) until `build_mystery` succeeds. Measured 0/1500. v1 loop
-  runs once, byte-identity intact. Both suites green. **Run the
-  feel-test on THIS build**, not the pre-fix one.
+- **C.3 experiment — VERDICT IN.** `Apocrysis(mapgen="v1"|"v2")`,
+  default **`"v1"`** (unchanged). **v2 irregular geography = REJECTED
+  AS CURRENTLY DESIGNED** by the owner's feel-test (1 expedition,
+  `apocrysis_playlog_20260829_152820.txt`). The automated envelope
+  held; the human found what it couldn't: **irregularity alone doesn't
+  create meaningful navigation.** Player found an obstacle at turn 21,
+  then spent ~50 turns with no actionable information, bouncing off the
+  irregular boundary, reaching the only landmark at 64 % of the run,
+  arriving resource-depleted. The boundary was **friction, not
+  texture.** Full reasoning + verdict text: `PHASE_C3_SPEC.md`
+  § "The accept/reject gate — VERDICT".
+- **C.3 architecture KEPT.** Negative result cost one `_default_mapgen`
+  line, not a phase. Do NOT revert `v5-phase-c-foundation`; v2 code
+  stays parked as C.3.2's substrate. The old "fully-inverted pipeline"
+  C.3.2 is **superseded**.
+- **C.3.1 DONE (2026-08-29):** the ~1.3% no-mystery v2 maps eliminated
+  (`generate_map()` regenerates until `build_mystery` succeeds, v2
+  only; 0/1500; v1 byte-identical).
+- **Two bugs found+fixed during the feel-test:** survivor name not
+  sanitised → stray `\`/`[` corrupted the Rich HUD, play log and
+  profile slug (`d6e03de`, `clean_display_name`); play log didn't
+  auto-start and the TUI only ever logged expedition 1 (`aeca5c7`,
+  logging on by default, one transcript per session, `--no-log` opts
+  out).
 - **Invariants** (all phases): world investigation is campaign-level;
   death never mutates the campaign record; SurvivorLore ids are the
   interface; WorldFact never aware of the generator; worlds/* and
   worldgen/* never import the engine; balance FROZEN.
-- **Atlas**: 9 of ~70 files across A+B+C, all leaf files. 13 `atlas-self`
+- **Atlas**: 9 of ~69 files across A+B+C, all leaf files. 13 `atlas-self`
   capability todos; `atlas scan` crash fixed (`zork`).
-- **Next**: owner plays ~5 v2 expeditions (`python3 apocrysis.py
-  --mapgen v2`) -> accept / reject / tune C.3. Then: C.3.2
-  (fully-inverted pipeline, only if accepted) / A.0.1 (parked
-  encounters) / roadmap B.3 (valley file) / native modal wi screen.
+- **Next**: **C.3.2 — navigational affordances.** Premise: *give the
+  player reasons to navigate the irregular space*, not "make it less
+  confusing" and not "make it wider". Candidate story-agnostic
+  invariant: every expedition exposes ≥1 meaningful navigational lead
+  in the early window. **Blocking C.3.2:** fix mechanism variety —
+  `DIS_FEW_REMAINS` has one route (`mountain_pass`) so every fresh
+  campaign's expedition 1 is identical; contaminated this feel-test.
+  Then: author the C.3.2 spec → owner review → implement. Parked
+  alternatives: A.0.1 (encounters), roadmap B.3 (valley file), native
+  modal `wi` screen.
 
 ---
 
@@ -53,13 +72,15 @@ session, then the doc map below it.**
    byte-identity evidence, C.2 `MapGraph` semantics, C.4 suite, the
    **v1 baseline metrics envelope**, C.3 freedoms/prohibitions,
    rollback point. **Frozen.**
-4. `PHASE_C3_SPEC.md` — the irregular-valley experiment: the
-   preserve/change/measure matrix, what v2 does, the measured v1-vs-v2
-   result, the **C.3.1 no-mystery guarantee** (done, commit `42efb63`),
-   the accept/reject gate. **Awaiting the owner's feel-test — run it on
-   HEAD (post-C.3.1), not the `v5-phase-c3-experiment` tag.**
+4. `PHASE_C3_SPEC.md` — the irregular-valley experiment + **the
+   feel-test verdict**: v2 geography REJECTED-AS-DESIGNED, C.3
+   architecture kept, the "irregularity ≠ navigation" finding, and the
+   **C.3.2 — navigational affordances** premise (spec pending). Also
+   the C.3.1 no-mystery guarantee (`42efb63`) and the mechanism-variety
+   contamination note.
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
-   architecture principle. §5 is the full map-v2 vision (C.3.2 target).
+   architecture principle. §5 is the old fully-inverted-pipeline vision
+   — **superseded** by C.3.2's navigational-affordance framing.
 6. `ATLAS_CAPABILITY_LOG.md` — every `atlas request` this project,
    cumulative tally, the stable capability boundary.
 7. Per-phase specs (`PHASE_A0_SEAM.md` … `PHASE_A5_COHERENCE.md`,

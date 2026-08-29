@@ -402,6 +402,18 @@ by the World Investigation screen (§8).
 
 ## 5. Map generation v2 — the inverted pipeline
 
+> **Status 2026-08-29 — partially superseded.** Phase C shipped the
+> `worldgen/` extraction + `MapGraph` (C foundation, frozen) and a
+> reversible irregular-boundary experiment (C.3 v2). The human feel-test
+> **rejected v2 geography as currently designed**: irregular geometry
+> without navigational information is friction, not exploration (see
+> `PHASE_C3_SPEC.md`). The next experiment, **C.3.2 — navigational
+> affordances**, reframes the goal from "invert the pipeline / grow a
+> prettier valley" to "give the player reasons to navigate the space"
+> (candidate invariant: every expedition exposes ≥1 meaningful
+> navigational lead early). The inverted-pipeline sketch below is kept
+> as background, not a committed plan.
+
 The current pipeline:
 
 ```

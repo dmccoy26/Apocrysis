@@ -456,5 +456,62 @@ class TestLegibilityNotPower(_Base):
         self._assert_mechanically_identical(a, b)
 
 
+class TestPhaseBExitCondition(_Base):
+    """A survivor dies. The next one starts weak, with a new name - but
+    knows what the last one figured out, carries a concrete survival
+    lesson, and is dropped at the depth the campaign reached."""
+
+    def test_the_whole_loop(self):
+        from src.worlds.silence.truth import WORLD_FACTS
+
+        # a founder who has got somewhere: depth 6, half the CH1 chain
+        # understood, and who solved an evac_corridor (BLUE_SIGNS).
+        Apocrysis._survivor_knowledge = []
+        Apocrysis._world_investigation = {}
+        founder = Apocrysis("Founder", seed=2, io=_IO())
+        founder.level, founder.xp = 5, 80
+        founder.expeditions_completed = 6
+        founder.world_investigation.mark_known("DIS_FEW_REMAINS")
+        founder.world_investigation.mark_known("DIS_MOVED_TOGETHER")
+        Apocrysis._world_investigation = founder.world_investigation.snapshot()["status"]
+        _solve(founder, "evac_corridor")   # teaches BLUE_SIGNS
+        # _solve marks every fact known - roll the campaign back to the
+        # founder's real progress + keep the lore it just taught
+        Apocrysis._world_investigation = {
+            "DIS_FEW_REMAINS": "known", "DIS_MOVED_TOGETHER": "known"}
+        self.assertTrue(founder.survivor_knowledge.has("BLUE_SIGNS"))
+        Apocrysis._survivor_knowledge = founder.survivor_knowledge.snapshot()
+
+        # --- the founder dies at depth 6 ---
+        from src.cli import _next_survivor_name
+        Apocrysis._survivors_lost = 1
+        heir = Apocrysis.persist_new_survivor(
+            self._pf, _next_survivor_name(1), hardcore=False, depth=6)
+
+        # weak, new name
+        self.assertEqual(heir.level, 1)
+        self.assertEqual(heir.xp, 0)
+        self.assertNotEqual(heir.name, "Founder")
+        self.assertEqual(heir.health, heir.max_health)
+        # knows the campaign
+        self.assertTrue(heir.world_investigation.is_known("DIS_FEW_REMAINS"))
+        self.assertTrue(heir.world_investigation.is_known("DIS_MOVED_TOGETHER"))
+        # carries the lesson
+        self.assertTrue(heir.survivor_knowledge.has("BLUE_SIGNS"))
+        # dropped at the campaign's depth
+        self.assertEqual(heir.expeditions_completed, 6)
+        # and the campaign record on disk is intact
+        flat = _profile_flat(Apocrysis.load_profile(self._pf))
+        self.assertEqual(flat["expeditions_completed"], 6)
+        self.assertIn("BLUE_SIGNS", flat["survivor_knowledge"])
+        self.assertEqual(flat["world_investigation"],
+                         {"DIS_FEW_REMAINS": "known", "DIS_MOVED_TOGETHER": "known"})
+        self.assertEqual(flat["survivors_lost"], 1)
+
+        # heir's next expedition picks up the investigation where it stands
+        self.assertEqual(heir.world_investigation.next_target(), "DIS_ROUTES_PREPARED")
+        self.assertEqual(heir.mystery.world_fact_id, "DIS_ROUTES_PREPARED")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

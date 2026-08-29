@@ -152,12 +152,17 @@ Clean. Got the key, objective panel tracked it, walked to the gate →
 opened → confirmed → escaped. No mechanic confusion. 120 turns is a
 big 18×18 map + wandering, not stuck-ness. **Gate passed.**
 
+### Input rework (`893d0e1`)
+
+MOVE/TYPE modes removed. The command box is always focused; arrow keys
+move (priority bindings), everything else is typed + Enter. No more
+wasd remap, no mode toggle/hint, `on_key` gone. Bare Enter at `>` is a
+silent no-op. Numbered equip restored: `1`..`N` = weapon from `i`,
+`W1`/`W2` = armor, straight from the `>` prompt.
+
 **Still open (all minor / post-gate):** (a) cosmetic: power site keeps
 its `!` after `power_restored` (`_mystery_site_mark`, should clear);
-(b) papercuts: `equip <n>` fails from the command line (only works
-inside `i`); empty-Enter → "Unknown command: ''" (folds into the
-MOVE/TYPE input rework the user wants — arrows move, box always
-typeable); (c) start Tier-2 families. Balance stays FROZEN.
+(b) start Tier-2 families. Balance stays FROZEN.
 
 ## Design rules (settled — don't relitigate)
 

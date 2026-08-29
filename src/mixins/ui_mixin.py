@@ -366,6 +366,10 @@ class UIMixin:
                 # experimental family: `pull <control>` at the control room
                 parts = command.split(maxsplit=1)
                 self.mystery_pull_control(parts[1] if len(parts) > 1 else "")
+            elif (command.split(maxsplit=1) or [''])[0] in ('use', 'fill', 'refuel', 'pour', 'apply'):
+                # infrastructural family: `use fuel` / `fill generator` at the power site
+                parts = command.split(maxsplit=1)
+                self.mystery_apply_fix(parts[1] if len(parts) > 1 else "")
             elif (command.split() or [''])[0] in ('take', 'get', 'grab', 'pickup') or command.startswith('pick up'):
                 # v4: a player who finds a note/record and types
                 # "take note". Evidence isn't carried - what you learn

@@ -310,6 +310,39 @@ class MysteryMixin:
                    else 'control_wrong_other')
             self.io.say(spec[key])
 
+    def mystery_apply_fix(self, arg):
+        """Infrastructural family: an explicit verb (`use fuel` / `fill
+        generator` / `refuel`) for applying the requirement item at the
+        power site. Arriving there with the item already does this
+        automatically (mystery_arrive); this is the same effect for a
+        player who reaches for a verb instead, and a forward pointer if
+        it's already done."""
+        m = self._mystery()
+        if m is None or not getattr(m, 'power_role', None):
+            self.io.say("Nothing here to do that with.")
+            return
+        role = self._mystery_role_at(*self.current_position)
+        if m.power_restored:
+            self.io.say("The generator is already running. The way out "
+                        "has power - now reach the route.")
+            return
+        if role != m.power_role:
+            self.io.say("Nowhere to use that here. It goes to "
+                        + m.site_labels.get('power', 'the power source') + ".")
+            return
+        if not self._mystery_has_item():
+            self.io.say("You have nothing to run it on.")
+            return
+        self.backpack.items = [it for it in self.backpack.items
+                               if getattr(it, 'name', None) != m.requirement_item]
+        m.power_restored = True
+        self.announce_event(
+            "the generator is running",
+            MECHANISMS[m.mechanism].get(
+                'power_restored_desc', "The way out has power now."),
+            kind="objective",
+        )
+
     def mystery_try_escape(self):
         m = self._mystery()
         if m is None:

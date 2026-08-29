@@ -14,6 +14,18 @@ class DiscoveryTemplate:
 
 
 @dataclass(frozen=True)
+class SurvivorLore:
+    """One concrete thing survivors of this campaign have figured out.
+    ALL FOUR FIELDS ARE DATA. The engine reads exactly one thing:
+    survivor_knowledge.has(<id>). `effect` is player-facing / doc text
+    with no runtime meaning. See PHASE_B_SPEC.md invariant 3."""
+    id: str
+    learned_when: str      # doc-only description of the trigger
+    blurb: str             # player-facing: what you now know
+    effect: str            # player-facing / doc text ONLY - never parsed
+
+
+@dataclass(frozen=True)
 class World:
     id: str
     name: str

@@ -190,7 +190,6 @@ class PersistenceMixin:
             "map_revealed": getattr(self, 'map_revealed', False),
             "knowledge": self.knowledge.to_dict() if getattr(self, 'knowledge', None) else None,
             "mystery": self.mystery.to_dict() if getattr(self, 'mystery', None) else None,
-            "slice_mode": getattr(self, 'slice_mode', False),
         }
 
         for w in self.backpack.weapons:

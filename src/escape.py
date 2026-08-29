@@ -614,7 +614,7 @@ def _paint_terrain_near(game, center, terrain, count, protected):
 
 def build_mystery(game):
     """Populate game.knowledge and return a Mystery for this expedition.
-    Called from world_mixin.generate_map() for non-slice games."""
+    Called from world_mixin.generate_map()."""
     rng = game.rng
     m = Mystery()
     m.mechanism = choose_mechanism(

@@ -140,20 +140,16 @@ class KnowledgeMixin:
             else:
                 self.io.say(f"{fact.statement} - Unknown.")
 
-    # ---- v4 command routing (slice vs. generated mystery) ----
+    # ---- v4 command routing (generated mystery) ----
 
     def _v4_search(self):
-        if getattr(self, 'slice_mode', False):
-            self.slice_search()
-        elif getattr(self, 'mystery', None) is not None:
+        if getattr(self, 'mystery', None) is not None:
             self.mystery_search()
         else:
             self.io.say("You search around. Nothing here means anything.")
 
     def _v4_escape(self):
-        if getattr(self, 'slice_mode', False):
-            self.slice_try_escape()
-        elif getattr(self, 'mystery', None) is not None:
+        if getattr(self, 'mystery', None) is not None:
             self.mystery_try_escape()
         else:
             self.io.say("There's no way out from here that you know of.")
@@ -169,10 +165,6 @@ class KnowledgeMixin:
     def knowledge_look(self):
         """Describe the current tile and re-surface any 'observe'
         evidence here."""
-        if getattr(self, 'slice_mode', False) and hasattr(self, '_look_here'):
-            self._look_here()
-            return
-
         x, y = self.current_position
         tile = self.map[y][x]
         terrain = tile.get('terrain') if isinstance(tile, dict) else None

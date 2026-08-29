@@ -98,12 +98,6 @@ class WorldMixin:
     Explicitly out of scope for this pass: per-settlement discovery so decoy settlements genuinely differ from the real objective (currently settlement_explored is one global flag set by entering ANY settlement). That remains a separate, not-yet-implemented change.
     """
     def generate_map(self):
-        # v4 vertical slice: a fixed hand-authored map replaces
-        # procedural generation entirely (SliceMixin.slice_setup()).
-        if getattr(self, 'slice_mode', False):
-            self.slice_setup()
-            return self.map
-
         terrain_types = ['forest', 'building', 'water', 'plain', 'swamp']
 
         # v4: per-expedition map archetype. Every map used to roll each
@@ -376,8 +370,6 @@ class WorldMixin:
     ]
 
     def _maybe_surface_clue(self):
-        if getattr(self, 'slice_mode', False):
-            return
         seen = getattr(self, '_clue_tiles', None)
         if seen is None:
             seen = self._clue_tiles = set()
@@ -817,22 +809,6 @@ class WorldMixin:
                 self.io.say(f"You can't cross the {label} here.")
             return
 
-        # v4 slice: the locked service gate blocks movement until it
-        # is opened. Walking into it WITH the valve key opens it right
-        # there (the natural "I have the key, I go through" move);
-        # without the key, slice_bump_gate records the locked-gate
-        # observation and the backtrack flag. `open gate` also works
-        # from any adjacent tile - see SliceMixin.
-        if getattr(self, 'slice_mode', False):
-            from src.slice_dam_road import slice_location_at, SLICE_GATE_LOCATION
-            if (slice_location_at(new_x, new_y) == SLICE_GATE_LOCATION
-                    and not getattr(self, 'slice_gate_open', False)):
-                if self._slice_has_key():
-                    self.slice_open_gate()
-                else:
-                    self.slice_bump_gate()
-                return
-
         # v4 Phase C: the generated mystery's obstacle blocks the way
         # to the escape route until it's cleared with the requirement
         # item. Walking into it with the item clears it in place.
@@ -862,11 +838,8 @@ class WorldMixin:
         if getattr(self, 'mystery', None) is not None:
             self._mystery_tide_tick()
 
-        # Fatigue increases with movement - but not in the slice,
-        # where there's no combat for it to matter to and a pegged
-        # 100 just reads as "something is wrong."
-        if not getattr(self, 'slice_mode', False):
-            self.fatigue = min(100, self.fatigue + 5)
+        # Fatigue increases with movement.
+        self.fatigue = min(100, self.fatigue + 5)
 
         self.io.say(f"Moved {direction}.")
 
@@ -967,13 +940,6 @@ class WorldMixin:
             elif terrain == 'forest':
                 if _first_visit:
                     self.io.say("You move through dense forest.")
-
-        # v4 slice: authored-location arrival (blurb + auto-revealed
-        # evidence). No procedural encounters or loot rolls in the
-        # slice - the investigation loop is being tested in isolation.
-        if getattr(self, 'slice_mode', False):
-            self.slice_arrive(new_x, new_y)
-            return
 
         self._spot_landmarks()
 

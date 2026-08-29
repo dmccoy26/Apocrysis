@@ -57,9 +57,7 @@ class PlayLog:
         self._w(f"expedition  : {p.expeditions_completed + 1} of "
                 f"{getattr(p, 'CAMPAIGN_LENGTH', 10) if hasattr(p, 'CAMPAIGN_LENGTH') else 10}")
         mystery = getattr(p, "mystery", None)
-        if getattr(p, "slice_mode", False):
-            self._w("mode        : vertical slice (Dam Service Road tutorial)")
-        elif mystery is not None:
+        if mystery is not None:
             self._w(f"escape mech : {mystery.mechanism}")
             self._w(f"  (this line is here so an analyst knows the intended answer -")
             self._w(f"   the player does NOT see it in game)")

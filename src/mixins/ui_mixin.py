@@ -71,7 +71,7 @@ class UIMixin:
         cmd_list.append("journal (j)")
         cmd_list.append("remember (rem)")
         cmd_list.append("inspect [thing]")
-        if getattr(self, 'mystery', None) is not None or getattr(self, 'slice_mode', False):
+        if getattr(self, 'mystery', None) is not None:
             cmd_list.append("clear / open")
             cmd_list.append("escape")
 
@@ -328,15 +328,13 @@ class UIMixin:
                 't': self.knowledge_remember,
                 'look': self.knowledge_look,
                 'l': self.knowledge_look,
-                # v4 investigation commands - routed to the slice or
-                # the generated-mystery implementation by mode.
+                # v4 investigation commands - the generated-mystery
+                # implementation (KnowledgeMixin / MysteryMixin).
                 'search': self._v4_search,
                 'sr': self._v4_search,
                 'escape': self._v4_escape,
                 'clear': self._v4_clear,
                 'open': self._v4_clear,
-                'open gate': self.slice_open_gate,
-                'og': self.slice_open_gate,
                 'log': self._toggle_playlog,
             }
 
@@ -524,9 +522,8 @@ class UIMixin:
         if k is not None and not k.is_empty():
             stats.append(f"facts established   {len(k.facts_known())}")
         if won:
-            headline = "YOU ESCAPED" if (getattr(self, 'slice_mode', False)
-                                         or getattr(self, 'mystery', None) is not None) \
-                       else "YOU MADE IT"
+            headline = ("YOU ESCAPED" if getattr(self, 'mystery', None) is not None
+                        else "YOU MADE IT")
             title_color = f"{BOLD}{GREEN}"
             closing = "A stash of supplies is waiting for your next run."
         else:

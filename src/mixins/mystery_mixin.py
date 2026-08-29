@@ -3,9 +3,9 @@
 # mysteries (v4 Phase C / Stage 4)
 # File: src/mixins/mystery_mixin.py
 #
-# The engine glue for src/escape.py's generated mysteries - the
-# non-slice equivalent of SliceMixin. Site arrival surfaces 'observe'
-# evidence; `search` surfaces 'search' evidence and hands over the
+# The engine glue for src/escape.py's generated mysteries. Site
+# arrival surfaces 'observe' evidence; `search` surfaces 'search'
+# evidence and hands over the
 # requirement item; `clear` opens the obstacle; `escape` wins if the
 # hypothesis is confirmed and the obstacle is open.
 # ============================================================

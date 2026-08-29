@@ -17,7 +17,6 @@ from src.mixins.persistence_mixin import PersistenceMixin
 from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
 from src.mixins.knowledge_mixin import KnowledgeMixin
-from src.mixins.slice_mixin import SliceMixin
 from src.mixins.mystery_mixin import MysteryMixin
 from src.knowledge import Knowledge
 
@@ -31,7 +30,6 @@ class Apocrysis(
     ActionsMixin,
     KnowledgeMixin,
     MysteryMixin,
-    SliceMixin,
 ):
 
     # v4 Phase C: escape-mechanism shuffle-bag across a campaign (no
@@ -44,15 +42,15 @@ class Apocrysis(
     _recent_mechanisms = []
     _recent_signatures = []
 
-    # v4: the fresh-start ration every non-slice game begins with, so
-    # a game doesn't open in a food/water deficit. load_game() and
+    # v4: the fresh-start ration every game begins with, so a game
+    # doesn't open in a food/water deficit. load_game() and
     # apply_profile() subtract this back off before their own additive
     # restore, so a full-state load is exact.
     STARTING_RATIONS = {"food": 8, "water": 8, "medicine": 2}
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, slice_mode=False):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
@@ -80,22 +78,15 @@ class Apocrysis(
         self.expeditions_completed = expeditions_completed
         self.rng = random.Random(seed)
 
-        # v4 vertical slice: a fixed, hand-authored investigation map
-        # (src/slice_dam_road.py + SliceMixin) instead of procedural
-        # generation, with survival pressure deliberately loosened so
-        # the investigation loop can be evaluated in isolation. This
-        # is throwaway experimental scaffolding, not a game mode.
-        self.slice_mode = slice_mode
-
         # v4 Phase B: the player knowledge model (src/knowledge.py).
-        # generate_map() / slice_setup() repopulate its catalogue;
-        # this is just so it always exists.
+        # generate_map() repopulates its catalogue; this is just so it
+        # always exists.
         self.knowledge = Knowledge()
 
         # v4 Phase C: the generated escape mystery (src/escape.py).
         # world_mixin.generate_map() builds it and points
         # self.knowledge at it. None => fall back to reach-the-Town-
-        # Center (degenerate maps, or slice mode).
+        # Center (degenerate maps only).
         self.mystery = None
 
         self.xp = 0
@@ -124,24 +115,14 @@ class Apocrysis(
         self.thirst = self.rng.randint(85, 95)
         self.fatigue = self.rng.randint(0, 10)
 
-        # v4 slice: come in already provisioned. Survival is
-        # deliberately not the thing being tested here - the player
-        # should never be managing hunger/thirst during the
-        # investigation. (See _apply_decay's slice branch.)
-        if slice_mode:
-            self.backpack.food = 25
-            self.backpack.water = 25
-            self.backpack.medicine = 5
-            self.fatigue = 0
-        else:
-            # v4: come in with a few days' rations instead of nothing.
-            # Starting empty put every game in a food/water deficit from
-            # turn one (balance report: net -0.7 food, -0.4 water per
-            # game) - a starving player fights worse (_condition_penalty)
-            # and dies to zombies, which is what "food and water were
-            # always a problem" was.
-            for _k, _v in self.STARTING_RATIONS.items():
-                setattr(self.backpack, _k, _v)
+        # v4: come in with a few days' rations instead of nothing.
+        # Starting empty put every game in a food/water deficit from
+        # turn one (balance report: net -0.7 food, -0.4 water per
+        # game) - a starving player fights worse (_condition_penalty)
+        # and dies to zombies, which is what "food and water were
+        # always a problem" was.
+        for _k, _v in self.STARTING_RATIONS.items():
+            setattr(self.backpack, _k, _v)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
         # v4 (V3_ASSUMPTION_AUDIT #1/#8): the hard-coded goal list and
@@ -270,16 +251,6 @@ class Apocrysis(
         self.visibility_radius = min(3, base_visibility + flashlight_bonus)
 
     def _apply_decay(self):
-        # v4 slice: survival pressure is deliberately loosened so a
-        # player can spend 30+ turns investigating without dying -
-        # explicitly temporary, not final tuning (see
-        # docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md, "Vertical slice
-        # prototype").
-        if getattr(self, 'slice_mode', False):
-            self.hunger = max(0, self.hunger - 1)
-            self.thirst = max(0, self.thirst - 1)
-            return
-
         # Hunger and thirst decay faster at night
         hunger_decay = 2 + (1 if self.is_night else 0)
         thirst_decay = 2 + (1 if self.is_night else 0)

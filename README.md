@@ -23,7 +23,6 @@ pip install -r requirements.txt
 
 python3 apocrysis.py             # play (textual UI)
 python3 apocrysis.py --classic   # play (plain terminal, no textual dependency)
-python3 apocrysis.py --slice     # the fixed "Dam Service Road" tutorial mystery
 python3 apocrysis.py --log       # play, writing a transcript for later analysis
 python3 apocrysis.py --test      # built-in smoke test suite
 ```
@@ -88,13 +87,12 @@ there's no command to "confirm" anything.
 - **Layout**: `src/` — `game.py` composes the mixins; `world_mixin`
   generates the map; `escape.py` + `mystery_mixin` are the generated
   mystery; `knowledge.py` + `knowledge_mixin` are the four-state
-  player knowledge model; `slice_dam_road.py` + `slice_mixin` are the
-  hand-authored tutorial. `src/tests/` is the suite (`python3
+  player knowledge model. `src/tests/` is the suite (`python3
   apocrysis.py --test`, or `pytest src/tests/`).
 - **Harnesses**: `tools/mystery_solver.py` drives generated maps to a
   win with BFS and reports the solo solve rate;
-  `tools/slice_playtest.py` runs the tutorial's three-situation test;
-  `tools/balance_autoplay.py` is the survival-balance simulator.
+  `tools/playtest_three.py` runs a blind three-mystery comprehension
+  test; `tools/balance_autoplay.py` is the survival-balance simulator.
 - **Known open item**: combat lethality vs. investigation length is
   still being tuned — see the build order's Stage 4 notes.
 - Full v1→v3 development history is in the git log and on the

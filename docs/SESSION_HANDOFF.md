@@ -203,7 +203,7 @@ objective + banners say WHAT STATE / WHY, never HOW.
 
 NEXT — Tier-2 mechanisms, ordered by how much they expand the
 player's mental model:
-1. **`c67cbd25` infrastructural (power_station) — IN PROGRESS.**
+1. **`c67cbd25` infrastructural (power_station) — DONE (`39a2140`).**
    `docs/MECHANISM_INFRASTRUCTURAL.md` = full design. Done:
    `Mystery.power_role`/`power_restored` (`ce54c4a`). TODO: the
    `power_station` MECHANISMS entry, `build_mystery` 5th-role wiring,

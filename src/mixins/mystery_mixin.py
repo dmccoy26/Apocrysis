@@ -129,9 +129,15 @@ class MysteryMixin:
                 self.announce_event("a new idea about the way out",
                                     k.hypothesis.statement, kind="objective")
             elif now == 'confirmed':
-                self.announce_event("escape route confirmed",
-                                    k.hypothesis.statement,
-                                    "Get to it and type `escape`.", kind="objective")
+                if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+                    self.announce_event("you know the way out",
+                                        k.hypothesis.statement,
+                                        "The voice gave you a clear road. Type `escape` to take it.",
+                                        kind="objective")
+                else:
+                    self.announce_event("escape route confirmed",
+                                        k.hypothesis.statement,
+                                        "Get to it and type `escape`.", kind="objective")
 
     def mystery_arrive(self, x, y):
         m = self._mystery()
@@ -431,7 +437,10 @@ class MysteryMixin:
             )
             return
         if not on_tile:
-            self.io.say("You make your way back to the pass and start walking.")
+            self.io.say(
+                "You follow the directions off the ridge and keep going."
+                if MECHANISMS.get(m.mechanism, {}).get('reveals_route')
+                else "You make your way back to the pass and start walking.")
             self._update_time(90)
         m.escaped = True
         used = getattr(self.__class__, '_used_mechanisms', None)
@@ -441,9 +450,15 @@ class MysteryMixin:
             used.append(m.mechanism)
         # schema invariant 3a: the next expedition avoids this family
         self.__class__._last_family = m.family
-        self.io.say(
-            f"\nYou found the way out - {m.knowledge.hypothesis.statement.rstrip('.')}. "
-            "Not because anything told you, but because you worked out "
-            "what this place was and where it had to give.\n"
-        )
+        _stmt = m.knowledge.hypothesis.statement.rstrip('.')
+        if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+            self.io.say(
+                f"\nYou found the way out - {_stmt}. You worked out that "
+                "someone was still listening, brought the tower back, and "
+                "the voice on the other end brought you a road.\n")
+        else:
+            self.io.say(
+                f"\nYou found the way out - {_stmt}. "
+                "Not because anything told you, but because you worked out "
+                "what this place was and where it had to give.\n")
         self.finish_expedition(reason="found the way out")

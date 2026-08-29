@@ -638,8 +638,16 @@ def build_mystery(game):
                               spec.get('d_route',
                                        f"{spec['name'].capitalize()} is that other way - and it's only blocked, not gone."),
                               needs=['F_CLOSED', 'F_ROUTE', 'F_OBSTACLE']))
-    k.set_hypothesis(Hypothesis('H_escape', f"{spec['name'].capitalize()} is the way out.",
-                                suspected_when=['D_the_route'], confirmed_by='E_confirm'))
+    # informational (reveals_route): the RESPONSE is the confirmation -
+    # `confirmation: external_response`. A voice reading you a clear
+    # road IS knowing the way out; don't then make the player march to
+    # a far corner just to "see it for themselves" (pacing invariant:
+    # mystery-to-exit continuity - the resolution must not require an
+    # unrelated post-solution trek).
+    k.set_hypothesis(Hypothesis(
+        'H_escape', f"{spec['name'].capitalize()} is the way out.",
+        suspected_when=['D_the_route'],
+        confirmed_by='E_route_reveal' if _reveal else 'E_confirm'))
 
     # index evidence by site role for arrival/search
     for e in ev:

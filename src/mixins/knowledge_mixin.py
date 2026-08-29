@@ -80,6 +80,16 @@ class KnowledgeMixin:
             self.io.say("You go over what you know:")
             for fid in known:
                 self.io.say(f"  {k.facts[fid].statement}")
+            m = getattr(self, 'mystery', None)
+            if m and getattr(m, 'controls', None) and 'F_REQUIRE' in known and not m.obstacle_open:
+                self.io.say('The controls at ' + m.site_labels.get('require', 'the control room') + ' are the way through - you will have to try them one at a time.')
+                return
+            elif m and getattr(m, 'power_role', None) and not m.power_restored and self._mystery_has_item() and 'F_POWER' in known:
+                self.io.say('You have got the ' + str(m.requirement_item) + '. The power for the way out comes from ' + m.site_labels.get('power', 'the power source') + ' - that is where it goes.')
+                return
+            elif m and getattr(m, 'power_role', None) and not m.power_restored and not self._mystery_has_item() and 'F_POWER' in known and 'F_REQUIRE' in known:
+                self.io.say('The way out is dead without power from ' + m.site_labels.get('power', 'the power source') + ', and that needs the ' + str(m.requirement_item or 'part') + ' from ' + m.site_labels.get('require', 'the store') + '.')
+                return
             self.io.say("It's real, but it doesn't point anywhere yet.")
             return
 

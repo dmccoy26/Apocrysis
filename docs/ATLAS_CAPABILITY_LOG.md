@@ -36,7 +36,7 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 12 | 3 (`base.py`, `worlds/__init__.py`, `game.py` param) | 7 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`) | 3 |
+| 14 | 4 (`base.py`, `worlds/__init__.py`, `game.py` param, `truth.py`) | 8 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`, `test_world_truth.py`) | 4 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -117,6 +117,22 @@ Net A.0: **2 of ~9 files by Atlas** (`base.py`, `worlds/__init__.py`,
 experiment answered its question: Atlas moved its boundary a little
 (#2 is real progress) but "decompose and execute a constrained
 multi-file architectural change" is still out of reach.
+
+## Phase A.1 (2026-08-29) — the `WorldFact` DAG
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 13 | create `src/worlds/silence/truth.py` — self-contained, ~57 lines, `WorldFact` dataclass + 9 `WorldFact(...)` constructor calls with multi-line string args | `atlas request --file … --create --force` | `49e4da00` | **SHIPPED** ✓ | Near-verbatim. **Biggest self-contained new file Atlas has produced correctly here** — and it *improved* the spec: dropped the unused `field` from `from dataclasses import …`. Auto-committed `6331d4c`. |
+| 14 | create `src/tests/test_world_truth.py` — ~70 lines, 9 test methods incl. a 3-colour DFS cycle detector | `atlas request --file … --create --force` | — | **REJECTED** ("generate fewer files at once") | The DFS logic + 9 methods exceeded what the model emits in one file. Hand-written. |
+
+### Boundary, updated
+
+Self-contained new file: Atlas now handles **~60 lines including a
+repetitive constructor-call block** (`truth.py`), not just a bare
+dataclass. But a new file that's ~70 lines of **non-repetitive
+procedural logic** (`test_world_truth.py`) still fails. Roughly:
+Atlas can type out *structured data* it's given; it can't yet author
+*algorithm* at that length. Appended to `atlas-self` `dbc93715`.
 
 ## Original blocker writeup (for the record)
 

@@ -151,22 +151,26 @@ def _fmt_gear(item, equipped=False):
     return "  " + "  ".join(parts)
 
 
-def _gear_lines(items):
-    """Grouped, coloured lines - identical items collapse to 'xK'."""
-    order, seen = [], {}
-    for it in items:
-        key = str(it)
-        if key not in seen:
-            seen[key] = [it, 0]
-            order.append(key)
-        seen[key][1] += 1
+def _gear_lines(items, slot_tag=""):
+    """Grouped, coloured lines - a contiguous run of identical items
+    collapses to 'xK'. Each line is prefixed with the 1-based slot
+    number(s) it covers ([3] / [3-5]), so `eq 3` / `wr W2` matches
+    what's shown. Runs must be contiguous or the numbers would lie."""
+    items = list(items)
     out = []
-    for key in order:
-        it, n = seen[key]
-        line = _fmt_gear(it)
+    i = 0
+    while i < len(items):
+        key = str(items[i])
+        j = i
+        while j < len(items) and str(items[j]) == key:
+            j += 1
+        n = j - i
+        tag = f"{slot_tag}{i + 1}" if n == 1 else f"{slot_tag}{i + 1}-{slot_tag}{j}"
+        line = f"  [{_DIM}][{tag}][/]" + _fmt_gear(items[i])
         if n > 1:
             line += f"  [{_DIM}]x{n}[/]"
         out.append(line)
+        i = j
     return out
 
 
@@ -939,7 +943,7 @@ class ApocrysisApp(App):
             f"[{_HDR}]BACKPACK[/]  [{_DIM}]{len(p.backpack.weapons)}/{w_cap}[/]",
         ]
         lines += _gear_lines(p.backpack.weapons) or [f"  [{_DIM}]empty[/]"]
-        lines += _gear_lines(p.backpack.armor)
+        lines += _gear_lines(p.backpack.armor, slot_tag="W")
         lines += [
             "",
             "  ".join([

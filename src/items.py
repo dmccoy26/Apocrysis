@@ -5,28 +5,40 @@ import enum
 from collections import Counter
 
 
-def _format_item_list(items):
-    """Group identical items (same display string) onto one line with
+def _format_item_list(items, slot_tag=None):
+    """Collapse a *contiguous run* of identical items onto one line with
     an "xN" suffix - a long haul of looted duplicates would otherwise
-    repeat the same line once per item and swamp the inventory
-    display."""
-    counts = {}
-    order = []
-    for item in items:
-        key = str(item)
-        if key not in counts:
-            counts[key] = 0
-            order.append(key)
-        counts[key] += 1
-    return [f"{key} x{counts[key]}" if counts[key] > 1 else key for key in order]
+    repeat the same line once per item and swamp the inventory display.
+    Runs must be contiguous so the slot numbers stay honest.
+
+    `slot_tag` ("" for weapons, "W" for armor) prefixes each line with
+    the 1-based slot number(s) the run covers, so a player can `eq 3` /
+    `wr W2` exactly what they see."""
+    items = list(items)
+    lines = []
+    i = 0
+    while i < len(items):
+        key = str(items[i])
+        j = i
+        while j < len(items) and str(items[j]) == key:
+            j += 1
+        n = j - i
+        body = f"{key} x{n}" if n > 1 else key
+        if slot_tag is not None:
+            tag = (f"{slot_tag}{i + 1}" if n == 1
+                   else f"{slot_tag}{i + 1}-{slot_tag}{j}")
+            body = f"[{tag}] {body}"
+        lines.append(body)
+        i = j
+    return lines
 
 
 def format_weapon_list(weapons):
-    return _format_item_list(weapons)
+    return _format_item_list(weapons, slot_tag="")
 
 
 def format_armor_list(armor_pieces):
-    return _format_item_list(armor_pieces)
+    return _format_item_list(armor_pieces, slot_tag="W")
 
 
 class ConsumableType(enum.Enum):

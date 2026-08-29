@@ -74,11 +74,14 @@ if you're critically wounded mid-fight).
 
 | Command | Aliases | Effect |
 |---|---|---|
-| `eq [name]` | `equip [name]` | Equip a weapon from your backpack by name |
-| `drop [name]` | | Drop a weapon (salvages any remaining ammo back into your backpack) |
+| `eq [name/N]` | `equip [name/N]` | Equip a weapon by name **or by the slot number shown in the pack list** (`eq 3`). A bare `3` at the prompt also works |
+| `drop [name/N]` | | Drop a weapon by name or slot number (salvages any remaining ammo back into your backpack) |
 | `reload [name]` | `rl [name]` | Reload a ranged weapon to full, drawing from your backpack's ammo pool. Omit the name to reload your currently equipped weapon |
-| `wr [name]` | `wear [name]` | Equip a piece of armor from your backpack by name (head/body/hands/feet — each slot is independent) |
-| `da [name]` | `dropa [name]` | Drop a piece of armor |
+| `wr [name/N]` | `wear [name/N]` | Equip armor by name or slot number (`wr W2`; a bare `W2` also works). head/body/hands/feet — each slot is independent |
+| `da [name/N]` | `dropa [name/N]` | Drop a piece of armor by name or slot number |
+
+The pack list numbers each line — `[3]` for one weapon, `[5-7]` for a
+run of three identical ones (any of them answers `eq 5`).
 
 ## Crafting
 

@@ -406,32 +406,41 @@ class UIMixin:
             elif command.startswith(('wear', 'wr')):
                 # Checked before 'equip'/'eq' below - distinct prefix,
                 # no ambiguity risk (equipment-slot investigation).
+                # Accepts a name or a pack slot number ('wr 2' / 'wr W2').
                 parts = command.split()
                 if len(parts) > 1:
-                    self.equip_armor(' '.join(parts[1:]))
+                    name = self._gear_arg(' '.join(parts[1:]), 'armor')
+                    if name:
+                        self.equip_armor(name)
                 else:
-                    self.io.say("Missing armor name for wear.")
+                    self.io.say("Missing armor name or number for wear.")
             elif command.startswith(('dropa', 'da')):
                 # Checked before the generic 'drop' below - 'dropa'
                 # itself starts with 'drop', so this must come first
                 # or the weapon-drop branch would swallow it.
                 parts = command.split()
                 if len(parts) > 1:
-                    self.drop_armor(' '.join(parts[1:]))
+                    name = self._gear_arg(' '.join(parts[1:]), 'armor')
+                    if name:
+                        self.drop_armor(name)
                 else:
-                    self.io.say("Missing armor name for dropa.")
+                    self.io.say("Missing armor name or number for dropa.")
             elif command.startswith(('equip', 'eq')):
                 parts = command.split()
                 if len(parts) > 1:
-                    self.equip_weapon(' '.join(parts[1:]))
+                    name = self._gear_arg(' '.join(parts[1:]), 'weapon')
+                    if name:
+                        self.equip_weapon(name)
                 else:
-                    self.io.say("Missing weapon name for equip.")
+                    self.io.say("Missing weapon name or number for equip.")
             elif command.startswith('drop'):
                 parts = command.split()
                 if len(parts) > 1:
-                    self.drop_weapon(' '.join(parts[1:]))
+                    name = self._gear_arg(' '.join(parts[1:]), 'weapon')
+                    if name:
+                        self.drop_weapon(name)
                 else:
-                    self.io.say("Missing weapon name for drop.")
+                    self.io.say("Missing weapon name or number for drop.")
             elif command.startswith(('reload', 'rl')):
                 parts = command.split()
                 weapon_name = ' '.join(parts[1:]) if len(parts) > 1 else None

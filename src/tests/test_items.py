@@ -112,6 +112,37 @@ class TestWeapons(unittest.TestCase):
         self.assertIn("Durability: 15/15", text)
 
 
+class TestNumberedGear(unittest.TestCase):
+    def test_slot_numbers_track_contiguous_runs(self):
+        from src.items import format_weapon_list
+        ws = [MeleeWeapon("Knife", 6, 40), MeleeWeapon("Sword", 15, 40),
+              RangedWeapon("Gun", 20, 5), MeleeWeapon("Sword", 15, 40),
+              RangedWeapon("Gun", 20, 5), RangedWeapon("Gun", 20, 5)]
+        lines = format_weapon_list(ws)
+        self.assertTrue(lines[0].startswith("[1] "))
+        self.assertTrue(lines[1].startswith("[2] "))
+        self.assertTrue(lines[2].startswith("[3] "))    # a Gun, on its own
+        self.assertTrue(lines[3].startswith("[4] "))
+        self.assertTrue(lines[4].startswith("[5-6] "))   # the last two Guns
+        self.assertIn("x2", lines[4])
+
+    def test_gear_arg_resolves_number_or_name(self):
+        io_log = []
+        fake_io = type("_", (), {
+            "say": lambda s, *a: io_log.append(" ".join(map(str, a))),
+            "renders_natively": True})()
+        with patch("builtins.print"):
+            g = Apocrysis("N", map_size=8, seed=1, io=fake_io)
+        g.backpack.weapons = [MeleeWeapon("Axe", 8, 40),
+                              RangedWeapon("Gun", 20, 5),
+                              MeleeWeapon("Machete", 12, 40)]
+        self.assertEqual(g._gear_arg("2", "weapon"), "Gun")
+        self.assertEqual(g._gear_arg("Machete", "weapon"), "Machete")
+        io_log.clear()
+        self.assertIsNone(g._gear_arg("9", "weapon"))
+        self.assertTrue(any("No weapon [9]" in m for m in io_log))
+
+
 class TestEmptyRangedWeaponInCombat(unittest.TestCase):
     """Playtest: the game recommended switching to a gun with no ammo,
     and an empty Broken Rifle still 'fired' for a few points of

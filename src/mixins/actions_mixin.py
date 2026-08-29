@@ -224,6 +224,22 @@ class ActionsMixin:
         self._update_time(45)
         self._apply_decay()
 
+    def _gear_arg(self, raw, kind):
+        """Resolve a gear-command argument that may be a slot number
+        ('3', 'W2' - the numbers shown in the pack list) or a name.
+        Returns a name to hand to equip_/drop_; or None (with a message
+        already said) if a number is out of range."""
+        items = self.backpack.weapons if kind == "weapon" else self.backpack.armor
+        s = raw.strip()
+        digits = s[1:] if s[:1].lower() == "w" else s
+        if digits.isdigit():
+            n = int(digits)
+            if 1 <= n <= len(items):
+                return items[n - 1].name
+            self.io.say(f"No {kind} [{s}]. Type `i` to see what you're carrying.")
+            return None
+        return raw
+
     def equip_weapon(self, weapon_name):
         # Search for the weapon in the backpack's weapons list
         for weapon in self.backpack.weapons:

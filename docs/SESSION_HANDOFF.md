@@ -98,6 +98,36 @@ blind mystery; do it 3×. `A`/`B`/`C` force spatial/infrastructural/
 experimental. Answer sheet + facilitator key:
 `docs/PLAYTEST_three_mystery_ANSWERS.md`.
 
+### Playtest round 1 (2026-08-28) — 2 of 3 runs, both non-spatial
+
+Runs: B `power_station` (infra), C `dam_valves` (experimental). Both
+players could *name the kind of problem* (comprehension ~passing) but
+**could not execute the resolution action**, and died of attrition
+while confused. One root cause: the two non-spatial families are the
+only ones needing an explicit player action at a site (walk fuel back
+to the power site / `pull` a control), and the game never signalled
+that — every other interaction is passive (arrive = discovered).
+Compounded by: revisiting a mystery site printed **nothing** (place
+already named, evidence already revealed → dead silence, reads as
+"empty"); and `t`/think hit a dead-end "doesn't point anywhere yet"
+even with the next step fully determined.
+
+**Fixes landed (all pushed, 145 tests + 40 subtests green):**
+- `ae1a812` — revisiting a mystery site now reprints a terse recap
+  (label + found evidence + action hint: `pull <name>` at the control
+  room, "generator needs the {item} from {place}" at the hydro site).
+- `8353a0d` — `t` synthesises the next step for infra/experimental
+  instead of the dead-end line.
+- `a4a9e8c` — objective panel `▸` hot line reads as an instruction
+  (`▸ get the jerrycan of fuel to the hydro station`, `▸ try the
+  controls one at a time - pull each`) not a past-tense achievement.
+
+**Still open:** (a) re-run B and C blind to confirm the fixes land;
+(b) run **A (spatial)** — never tested yet; (c) cosmetic: the power
+site keeps its `!` after `power_restored` (`_mystery_site_mark`,
+should clear). Balance stays FROZEN — the deaths were confusion, not
+tuning.
+
 ## Design rules (settled — don't relitigate)
 
 1. **Four panels answer four questions:** Map=WHERE · Journal=WHAT I

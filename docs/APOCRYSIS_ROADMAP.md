@@ -6,8 +6,8 @@ Written 2026-08-29. Supersedes `NIGHT_BUILD_PLAN.md` as the top-level
 grammar); `SESSION_HANDOFF.md` stays the per-session state.
 
 > **SPOILER WARNING.** §2 contains a draft of the world's designed
-> truth (not locked — see §10). §1B and §1C are open design brainstorm
-> and reference it. If you want to play blind, stop after §1.
+> truth (not locked — see §10). §1B–§1E are open design brainstorm and
+> reference it. If you want to play blind, stop after §1.
 
 ---
 
@@ -592,7 +592,360 @@ multiple bodies.
 
 ---
 
-## 2. The world spine — world 1: "The Silence" (draft — see §10 and §1B before building)
+## 1D. The death model — brainstorm, but close to decidable
+
+*The least speculative part of this whole conversation. It largely
+answers §10's "what carries forward on death, exactly" and should
+probably be promoted to a Phase B design spec.*
+
+### 1D.1 The rule that gives the two modes a real difference
+
+> **Normal: the world remembers your knowledge.**
+> **Hardcore: the world remembers your actions.**
+
+Not "Normal = easier, Hardcore = harder." A philosophical difference:
+*Normal is a continuing investigation through successive survivors;
+Hardcore is a single deteriorating world experienced through multiple
+lives.*
+
+### 1D.2 Three tiers of persistence
+
+| tier | what | Normal | Hardcore |
+|---|---|---|---|
+| **Knowledge** | WorldFacts, deductions, hypotheses, discovered frequencies, known routes, investigation % | **always persists** | always persists |
+| **Narrative** | survivor bodies, journals, markings, caches, memorials, opened shortcuts, established outposts, world changes (a drained building, a moved truck, an opened floodgate) | **selected** traces persist (the Ledger picks a handful — never all, that's clutter) | **all** of it persists |
+| **Mechanical** | XP, level, weapons, armor, inventory, consumables, buffs | never | never |
+
+Hardcore is *Narrative-tier promoted to Knowledge-tier* — everything
+that happened stays.
+
+### 1D.3 Neither mode restarts the campaign
+
+**This is the load-bearing insight.** On death you lose your *position
+in the timeline*, not the investigation. A player can spend 20 hours
+solving the mystery and lose a survivor without losing progress. In
+Normal the physical region can regenerate around the persistent
+knowledge; in Hardcore it doesn't. Either way: **new survivor, from an
+established outpost, at the current World depth** — not Expedition 1,
+not the death tile.
+
+### 1D.4 The Survivor Network — where you respawn
+
+Not the death tile (death becomes meaningless — brute-force by throwing
+bodies at a hazard). Not Expedition 1. Instead: **established
+outposts**, which the player *discovers and deliberately establishes*
+(costs resources) from candidate buildings — ranger stations, fire
+stations, churches, shelters, maintenance buildings.
+
+Exploration gains a second purpose: not just "where's the evidence?"
+but "where can I make my next life safer?" — a genuine interaction
+between the two games.
+
+**Difficulty-curve risk (my note):** a deep outpost network + cheap
+frontier survivors trivialises late-campaign survival. Needs a counter
+— outposts degrade, get overrun, or the frontier outpaces them, or
+establishing cost escalates. Otherwise the roguelite tension
+evaporates once the network is built.
+
+### 1D.5 The Survivor Network is also evidence
+
+You establish four outposts for survival. Later you discover all four
+sit along the old evacuation corridor. A survival decision
+retroactively becomes evidence — exactly the §1C-class collision the
+game wants.
+
+### 1D.6 Death generates a question, not just a record
+
+The Ledger infers **Last Known Intent**, not just cause of death:
+
+> *RENNER — believed the hospital held evacuation records; attempted to
+> reach the north wing; discovered emergency frequency 91.7; died 300m
+> short. Unresolved: who was transmitting?*
+
+The next survivor now has a *personal* reason to continue — "Renner
+died trying to get there, I need to finish this" — not "the game says
+my next objective is Hospital."
+
+### 1D.7 The Expedition Board — one screen, not three
+
+Between expeditions: unresolved investigation threads **+** dead
+survivors' open questions (the "unfinished business" system — inherited
+as *open questions, not mandatory quests*). The player **chooses** what
+to pursue — maybe they ignore Renner entirely; maybe Renner was wrong;
+maybe the hospital is a death trap. **Player-authored investigative
+priorities**, and the point where investigation and survival openly
+compete.
+
+This screen is the same object as the World Investigation screen (§8)
+and the theory board (§1C.8) — build one between-expeditions view, not
+three overlapping ones.
+
+### 1D.8 The death screen matters as much as any screen in the game
+
+Not `YOU DIED / CAUSE: INFECTED / TURNS: 47`. Instead:
+
+```
+                    RENNER
+                 DID NOT RETURN
+
+     8 expeditions survived
+     3 discoveries recovered
+     1 theory abandoned
+     2 outposts established
+
+     Last known location:  north of the hospital
+     Last known objective: determine who operated
+                           emergency frequency 91.7
+
+     The investigation continues.
+                  [ CONTINUE ]
+
+                    VAUGHN
+           Someone has to finish this.
+```
+
+### 1D.9 Don't turn it into an XP spreadsheet
+
+*"Renner is gone. But the things Renner learned aren't. The
+investigation continues."* is enough. The player should understand the
+rules but the experience should feel like **continuity**, not
+`+7% Investigation · +1 Memorial`.
+
+### 1D.10 The payoff
+
+Late in the campaign the player reaches the final area and sees **17
+names** — their own survivors. They realise: they were never playing
+one hero. They were playing an investigation conducted by *a
+succession of people who kept trying*, and the cast was generated by
+their own failures. No author writes Renner — the player creates
+Renner by playing desperately, cleverly, recklessly, or just getting
+unlucky.
+
+### 1D.11 Smaller mechanics on the pile
+
+- **Survivor rumours** — after enough deaths the campaign generates
+  folk knowledge ("three people have vanished near the dam"). Some
+  true, some misleading. The player develops folk knowledge about
+  their *own* world.
+- **Memorial geography** — enough deaths at one place and it acquires a
+  name: *Renner's Crossing*. "The road ahead has been marked with
+  names." The player realises: *I named this place.*
+- **Survivor-to-survivor notes** (rare) — *"IF YOU FIND THIS — DON'T GO
+  THROUGH THE EAST TUNNEL."* But Mora may have been wrong, or the
+  danger changed. Your own history becomes evidence that needs
+  interpretation.
+
+### 1D.12 Where it fits
+
+Normal-tier persistence + the Survivor Network → **Phase B** (it *is*
+the roguelite loop). Hardcore's full-timeline persistence → after
+Phase D (needs the world-state persistence layer and a decay model,
+per §1C.13). The death screen and Last Known Intent → Phase B, they're
+Ledger read-outs.
+
+---
+
+## 1E. World generated from events — brainstorm, the "Trace" principle
+
+*Adapted from the Trace game's design as source material. Not a
+mechanic, not a mode — a principle that changes §3 and §5.*
+
+### 1E.1 The principle
+
+> **The world is generated from things that happened, and the
+> expedition puzzle is a problem caused by one of those things
+> happening.**
+
+The level story and the world story stop being two layers beside each
+other. They become **the same story at two scales**: *how do I deal
+with what happened here?* / *why did it happen?* Death adds a third:
+*what did all my survivors do trying to find out?*
+
+### 1E.2 The generation order gains a layer
+
+```
+WORLD TRUTH                (authored — §2)
+     ↓
+CAUSAL MODEL               (authored — events, actors, cause→effect edges)
+     ↓
+EVENTS + ACTORS
+     ↓
+CONSEQUENCES               (how an event manifests: a flood, a barricade, a burnt-out convoy)
+     ↓
+TRACES                     (generated — what a consequence leaves on a map)
+     ↓
+EXPEDITION PUZZLE          (generated — one consequence, framed as the player's problem)
+     ↓
+PLAYER INTERPRETATION → THEORY → WORLD INVESTIGATION
+```
+
+The authored `WorldFact` DAG (§3.1) still defines what is *true*; it is
+now authored **against the causal model**, and the player never sees
+either — they see the traces the truth left behind.
+
+### 1E.3 Traces, not clues
+
+A **clue** is placed for the player. A **trace** exists because
+something happened. Subtle, enormous difference. If the truth says
+*"Emergency Command redirected Convoy 7 north,"* the generator doesn't
+place "Convoy 7 went north" — it creates consequences: abandoned
+vehicles and a turned sign at the highway; inspection records and fuel
+logs at the checkpoint; discarded equipment and damaged vehicles along
+the northern route. The player reconstructs *something moved through
+here → it was Convoy 7 → it was redirected → someone ordered it.*
+
+### 1E.4 Every trace has provenance
+
+Hidden metadata: created **when / where / by whom / why**, and *could
+the author have known what they claim?* This is what makes
+contradictions meaningful — and (my note) it is the **safety mechanism
+for 1E.5**: a lie is only fair if it's detectable, and it's detectable
+when two provenanced records disagree.
+
+### 1E.5 Evidence needn't tell the truth
+
+The world truth is true. Individual traces can be incomplete, outdated,
+written before or after an event, based on bad information, or
+accurate-but-misleading-in-context. The player concludes *"everyone
+evacuated,"* then finds a hospital census: *143 patients remained.*
+They don't feel cheated — they think *"I had incomplete evidence."*
+
+**Solvability guardrail (my note):** every `WorldFact` needs at least
+one *reliable* path, or its unreliable evidence must be detectable via
+provenance contradiction. Otherwise a generated mystery can be
+genuinely unsolvable and §7's solver has to know it. Unreliable
+evidence is not free.
+
+### 1E.6 Causal chains, walked backward
+
+```
+Protocol Seven → evacuation → consolidation → hospital transfers →
+power redirected → generator overload → cold storage fails →
+medication spoils
+```
+
+The player finds the **spoiled medication** first and walks back up the
+chain. Detective work, not a scavenger hunt.
+
+### 1E.7 Multiple causal *surfaces* per fact
+
+Not just multiple clue locations. *"The evacuation was deliberately
+terminated"* is provable from: a closure order · a bridge dropped
+**after** the last convoy passed · a gate programmed to close at a set
+time · a guard's journal · a recorded command · two records with
+matching timestamps · evidence people were still trying to cross after
+closure. Each is a different `DiscoveryTemplate`.
+
+### 1E.8 The generator hides links — gaps
+
+A perfect chain is boring. `EVENT → TRACE → TRACE → ??? → TRACE →
+FACT`. The missing edge **is** the mystery; the expedition puzzle is
+one way to recover a missing link. This is the cleanest new generator
+primitive in the whole brainstorm: **build a causal chain, remove one
+or more edges, the puzzle recovers one.** Prototype this first.
+
+### 1E.9 The expedition puzzle is generated *from* a consequence
+
+```
+FACT       the corridor was intentionally flooded
+EVENT      the reservoir gate opened
+CONSEQ     the road flooded
+PUZZLE     the player can't cross
+INVESTIG.  why was the gate opened?
+SOLUTION   reach the control station
+DISCOVERY  the gate activation was scheduled before the evacuation
+FACT ↑     the closure was planned
+```
+
+The puzzle exists *because of* the world story. That is the whole
+point.
+
+### 1E.10 Retroactive meaning → revisit
+
+Discover a blue sign in Expedition 3 (unremarkable). Learn in
+Expedition 7 that blue signs mark evacuation routes. Expedition 3
+acquires meaning. Learn the hospital had an emergency generator; later
+learn generators kept the evac comms alive; the hospital is worth
+**revisiting**.
+
+```
+DISCOVER → LEARN → REINTERPRET → REVISIT → DISCOVER SOMETHING NEW
+```
+
+Knowledge increases the value of *old* discoveries — the world feels
+deeper than its physical size, which matters enormously for procgen.
+
+**Reconciliation with §1D (my note):** this loop needs the region to
+be **stable for the length of a campaign** — it only regenerates when
+you start a new campaign / new world. Otherwise "revisit the hospital
+knowing what I know now" hits a different hospital. Pin this.
+
+### 1E.11 Knowledge unlocks actions, not just text
+
+Learn *"Emergency Command recognises signal flares."* The flare stops
+being a light source and becomes a **communications device the player
+can choose to use** — and using it might attract the infected, reveal
+their position, trigger a response, open a route, or produce a new
+transmission.
+
+```
+KNOWLEDGE → NEW AFFORDANCE → PLAYER CHOICE → CONSEQUENCE → NEW EVIDENCE
+```
+
+This is where investigation and survival become **one system** (same
+target as §1C.6).
+
+### 1E.12 The full architecture
+
+```
+              AUTHORED WORLD TRUTH
+                      │
+                 CAUSAL MODEL
+              ┌───────┴───────┐
+           EVENTS           ACTORS
+              └───────┬───────┘
+                 CONSEQUENCES
+                      │
+                    TRACES
+                      │
+             PROCEDURAL EXPEDITION
+              ┌───────┴───────┐
+          SURVIVAL         DISCOVERY
+              │                │
+              │          INTERPRETATION → THEORY
+              └───────┬────────┘
+                    ACTION
+                 ┌────┴────┐
+              SURVIVE     DIE
+                 │         │
+                 │   NEW SURVIVOR
+                 └────┬────┘
+                 MORE TRACES
+                      │
+                 DEEPER TRUTH
+```
+
+### 1E.13 What this changes about §3 and §5
+
+- **§3.1** gains a layer *beneath* the `WorldFact` DAG: a **causal
+  model** (events / actors / cause→effect edges) the DAG is authored
+  against, and from which the generator derives consequences → traces →
+  the expedition puzzle. `DiscoveryTemplate` becomes *"a way of
+  recovering a hidden link in a causal chain."*
+- **§5's** inverted pipeline (`story → geography → graph → terrain →
+  mystery`) becomes `story → causal model → consequences → (traces +
+  the puzzle) → geography → graph → terrain`.
+- **Authoring cost goes up a lot (my note).** A 28-node fact DAG is a
+  data file; a causal model that generates traces is a *content
+  pipeline* — events, edges, and consequence templates ("how does 'gate
+  opened' manifest as traces on a generated map?"). This is the
+  difference between a 3-month and a 12-month project. Mitigation:
+  author the causal model **shallow** for world 1 (one or two
+  consequence-hops per fact), deepen later.
+
+---
+
+## 2. The world spine — world 1: "The Silence" (draft — see §10 and §1B–§1E before building)
 
 ### 2.1 The premise: The Silence
 
@@ -701,6 +1054,12 @@ across the campaign (§3, §4).
 ## 3. Architecture: fixed truth + procedural discovery
 
 ### 3.1 World truth = a DAG of `WorldFact`s
+
+> **§1E revises this.** The brainstorm argues the DAG should be authored
+> *against a causal model* (events → consequences → traces), and the
+> generator should derive the expedition puzzle from a consequence with
+> a hidden causal link. Treat what follows as the minimum shape; §1E is
+> the richer target.
 
 A new authored data structure (location depends on the §1B.14 seam
 decision — `src/world_truth.py` or `worlds/silence/truth.py`):
@@ -824,12 +1183,17 @@ The target pipeline:
 
 ```
 targeted WorldFact + chosen discovery template
-        -> required geography (the template declares it)
+        -> [§1E: causal model -> a consequence with a hidden link -> the expedition puzzle]
+        -> required geography (the template / consequence declares it)
         -> connectivity graph  (nodes: spawn, exit, sites; edges: distance, chokepoint, encounter-risk)
         -> critical-path budget check  (does the story fit the chapter's travel budget?)
         -> terrain realisation  (realise the graph as an irregular valley on a 34x34 array)
-        -> mystery embedding  (build_mystery places evidence onto the realised graph)
+        -> mystery embedding  (place traces + the puzzle onto the realised graph)
 ```
+
+The `[§1E: ...]` step is the brainstorm target; without it the
+pipeline still works with `DiscoveryTemplate` as a flat "family +
+roles + evidence" recipe.
 
 ### Key points
 
@@ -1054,7 +1418,9 @@ after Phase E.
 | the exact truth (§2) — ratify or rewrite | Phase A | the DAG can't be authored until the ending is chosen |
 | the ending shape (§2.6) — empty / staffed / settlement / choice | Phase A (structure), Phase E (content) | leaning: truth at command centre + settlement as the final act |
 | chapter count and maps-per-chapter | Phase A | draft: 5 chapters + finale, ~4–5 maps each, ~25 total |
-| what carries forward on death, exactly | Phase B | draft: World Investigation + Survivor Knowledge + story fragments; **not** level/gear/chapter-map |
+| what carries forward on death, exactly | Phase B | **§1D has a strong candidate answer** — three persistence tiers (Knowledge always / Narrative selected / Mechanical never) + Survivor-Network respawn. Promote §1D to a Phase B spec; ratify or amend |
+| the region's stability window (§1E.10) | Phase A/B | draft: the region is stable for a whole campaign, regenerates only on a new campaign — needed so retroactive-meaning / revisit works |
+| does the causal model (§1E) land in world 1, or is world 1 fact-DAG-only? | Phase A step 1 | shallow causal model (1–2 hops) vs deferring it entirely; big scope lever |
 | does a wrong hypothesis commitment cost a whole expedition, or just a correction beat? | Phase E | affects how punishing the mid-game feels |
 | is the wider world's cordon a background fact or does the player get to act on it (broadcast outward)? | Phase E | changes whether the ending is discovery or decision |
 | Survivor Knowledge effects — how many, how strong (must not become power creep) | Phase B | hard cap; each must be *legibility*, not *strength* |

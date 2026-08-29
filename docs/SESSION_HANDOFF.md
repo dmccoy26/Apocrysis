@@ -65,12 +65,23 @@ a fresh session.**
 - **Atlas**: 0/5 A.2 files (botched the one it could do — `discovery.py`
   perfect dict, stubbed the import; `escape.py` hit the >800-line wall).
   6 `atlas-self` gap todos filed total.
-- **Next**: PAUSED for owner review. Then **Phase A.3** — the World
-  Investigation persistent state: `WorldInvestigation` (per-fact
-  KNOWN/SUSPECTED/UNKNOWN, per-thread %), the class-var + profile
-  round-trip pattern, "solving a mystery with a `world_fact_id` flips
-  that fact KNOWN and it survives save/load", next-target = first
-  UNKNOWN fact whose `needs` are all KNOWN.
+- **Phase A.3 DONE** (`docs/PHASE_A3_INVESTIGATION.md`; `96c9580` /
+  `115c365`). `src/world_investigation.py` — `WorldInvestigation`
+  (per-fact status, `next_target()`, `thread_progress()`,
+  snapshot/restore). `World.world_facts`; `game._world_investigation`
+  class-var + `self.world_investigation`; `mystery_try_escape` 2-line
+  hook (tagged mystery solved → `mark_known`); `world_investigation` in
+  the profile round-trip. `test_world_investigation.py` = 10 tests
+  (DAG ordering, cross-chapter, profile round-trip, resolution hook).
+  **206 + 100 green.**
+- **Atlas**: shipped `world_investigation.py` verbatim (its most
+  procedural file here); wiring hand-written. 5 leaf files by Atlas
+  across A.0–A.3, all architecture Claude's. 7 `atlas-self` gap todos.
+- **Next**: PAUSED for owner review. Then **A.4** — the World
+  Investigation screen (§8), then wire `generate_map` →
+  `build_mystery(target_fact=world_investigation.next_target())`, then
+  `campaign.py` intros keyed to investigation progress, then the
+  milestone banner. (A.0.1 encounter extraction still parked.)
 
 ---
 

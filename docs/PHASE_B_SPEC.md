@@ -1,7 +1,36 @@
-# Phase B — the roguelite inheritance loop (spec, for review)
+# Phase B — the roguelite inheritance loop (spec)
 
-**Draft — review before implementation.** Builds on the frozen Phase A
-spine (`PHASE_A_COMPLETE.md`). Does not modify it.
+**Reviewed and locked 2026-08-29.** Builds on the frozen Phase A spine
+(`PHASE_A_COMPLETE.md`). Does not modify it.
+
+## The one sentence
+
+> **Survivor Knowledge describes persistent *understanding*, not
+> persistent *capability*.** A new survivor does not inherit the
+> previous survivor's physical competence, equipment, resources,
+> statistics, or progression. They inherit what the campaign has
+> learned and the ability to recognise situations the campaign has
+> already encountered.
+
+## Load-bearing invariants (write into every relevant test)
+
+1. **Death may replace the survivor record, but must never reconstruct
+   or mutate the campaign record.**
+2. `expeditions_completed` **is campaign depth, not survivor progress.**
+   A survivor dies at depth 8 → the campaign is still at depth 8 → the
+   next survivor begins at depth 8, at level 1.
+3. **`SurvivorLore.effect` is documentation / UI text only.** It is
+   never parsed or interpreted by the engine. **The learned *id* is the
+   only executable interface** — engine systems do `if
+   survivor_knowledge.has("BLUE_SIGNS"):`, nothing more. No `effect`
+   vocabulary, no mini rules engine.
+4. **Nothing in Survivor Knowledge may modify** survivor stats,
+   equipment, XP, health, damage, durability, loot quantity, or
+   encounter probabilities. It only changes what information is
+   *surfaced* and *when*.
+5. Persistence *serialises* state. The **game lifecycle** decides when a
+   survivor is replaced — `save_profile()` never contains
+   death-detection logic.
 
 ## The player question Phase B answers
 
@@ -42,43 +71,58 @@ it all back — death is a soft "knocked out". On a hardcore death,
 
 Neither is the roguelite loop the roadmap wants.
 
-### Phase B
+### Phase B — the lifecycle
 
-A death (in the campaign mode — see "modes" below):
+The **game lifecycle** (`cli.py` / `tui.py`'s loop), not `save_profile`,
+owns the replacement:
 
-1. **The survivor is gone.** Framing: `EXPEDITION ENDED — <name> did not
-   make it back.` (the A.5 retrospective already leads with this) →
-   then `A NEW SURVIVOR TAKES UP THE SEARCH.`
-2. **The campaign stands.** World Investigation, Survivor Knowledge,
-   depth, and variety rings all persist.
-3. **The new survivor** starts at level 1 with starter gear, a new
-   generated name (or a short pool / "the next survivor"), full health.
-   `expeditions_completed` (depth) is **kept** — the new survivor is
-   dropped at the chapter the campaign has reached, not back at map 1.
-4. The next expedition targets `next_target()` exactly as before —
-   nothing about the investigation changed.
+```
+current survivor dies
+        ↓
+capture campaign state   (read the campaign record off the dying game)
+        ↓
+discard survivor state
+        ↓
+construct new survivor   (level 1, starter gear, new identity)
+        ↓
+combine campaign + new survivor
+        ↓
+persist                  (save_profile just serialises the combined state)
+        ↓
+start next expedition    (at campaign depth, targeting next_target())
+```
 
-### Persistence change
+Framing (the A.5 retrospective already leads with `EXPEDITION ENDED —
+<name> did not make it back.`) → then `A NEW SURVIVOR TAKES UP THE
+SEARCH.`
 
-Split the single profile file into two logical records inside the same
-file (no new file, no new abstraction):
+### Persistence — one file, two logical records
 
 ```json
 {
   "campaign": { "world_investigation": {...}, "survivor_knowledge": [...],
-                "expeditions_completed": 7, "used_mechanisms": [...], ... },
-  "survivor": { "name": "...", "level": 3, "xp": ..., "stats": {...},
-                "weapons": [...], "armor": [...], ... }
+                "expeditions_completed": 8, "used_mechanisms": [...],
+                "last_family": ..., "recent_mechanisms": [...],
+                "recent_signatures": [...], "hardcore": false },
+  "survivor": { "name": "...", "player_class": "...", "level": 3,
+                "xp": ..., "max_xp": ..., "strength": ..., ...,
+                "weapons": [...], "equipped_weapon": ...,
+                "armor": [...], "equipped_armor": {...},
+                "backpack_food": ..., ..., "has_flashlight": ... }
 }
 ```
 
-- `save_profile` writes both. `apply_profile` restores both.
-- **On death**: `save_profile` writes `campaign` as-is and writes a
-  **fresh** `survivor` block (level 1, starter gear, new name).
-- Back-compat: a flat legacy profile (Phase A shape) loads as
-  `campaign` + `survivor` by field. One migration branch in
-  `load_profile`, same pattern as the existing legacy-single-slot
-  handling.
+- `save_profile` writes both records from current state. `apply_profile`
+  restores both.
+- **`save_profile` has no death logic.** The lifecycle constructs a
+  fresh survivor before the save; `save_profile` just serialises
+  whatever survivor is on the game object.
+- Back-compat: a flat legacy profile (Phase A shape — all keys at top
+  level) is loaded into the campaign/survivor records by field name.
+  One migration branch in `load_profile`, mirroring the existing
+  legacy-single-slot handling.
+- **`campaign` is written verbatim from what was read** — no field of
+  it is recomputed on a death (invariant 1).
 
 ### Modes
 
@@ -97,32 +141,47 @@ file (no new file, no new abstraction):
 @dataclass(frozen=True)
 class SurvivorLore:
     id: str
-    learned_when: str      # human-readable trigger, for the docs only
-    blurb: str             # player-facing, one line - what you now know
-    effect: str            # player-facing, one line - what it changes
+    learned_when: str      # doc-only: human-readable trigger description
+    blurb: str             # player-facing: what you now know (one line)
+    effect: str            # DOC/UI TEXT ONLY - never parsed by the engine
 ```
 
-A small authored list in `worlds/silence/` (like `truth.py` /
+`id`, `learned_when`, `blurb`, `effect` are all **data**. The engine
+reads exactly one thing: `survivor_knowledge.has(<id>)`. `effect` is a
+string shown to the player and written in this doc; it has no runtime
+meaning. (Invariant 3.)
+
+A small authored list in `worlds/silence/lore.py` (like `truth.py` /
 `discovery.py`). The **campaign** tracks which ids are learned (a set,
-profile-persisted). `SurvivorKnowledge` (engine, like
-`WorldInvestigation`) interprets it.
+profile-persisted). `SurvivorKnowledge` (engine, sibling of
+`WorldInvestigation`) holds the learned set and answers `has()`.
 
-### The 3–5 for "The Cordon"
+### The 3 shipped for "The Cordon"
 
-Each must be **legibility, not power** (hard rule — roadmap §10):
+Every entry is **legibility, not power** (invariant 4). Two more
+(`INFECTED_AND_NOISE`, `CORRIDOR_CHECKPOINTS`) were considered and
+**held** — they cross from "I figured something out about this world"
+into altering the simulation's rules or a mystery's state machine; a
+later balance pass can revisit them.
 
-| id | learned when | what you know | what it changes |
+| id | learned when | blurb (what you know) | effect (surfaced info) |
 |---|---|---|---|
-| `BLUE_SIGNS` | solve an `evac_corridor` mystery | Protocol Seven marked its routes with blue signs | evacuation-corridor / signed-route sites show on the map from the start of an expedition (you still have to reach them) |
-| `INFECTED_AND_NOISE` | survive an encounter triggered near a running machine | the infected come toward sustained noise | a one-line warning when you start an action that makes noise near unexplored ground |
-| `COMMAND_FREQUENCY` | solve a `radio_tower` mystery | regional command held one emergency frequency | a `radio_tower` mystery skips the "find the frequency" search step — the transmitter briefing names it |
-| `RESERVOIR_CONTROLS` | solve a `dam_valves` mystery | the valley reservoir is set from the control room, never the sluice | a `dam_valves` mystery's control-room evidence rules out the obvious-wrong control up front |
-| `CORRIDOR_CHECKPOINTS` | solve any mystery whose `closed` fact is a checkpoint | the corridors out were all checkpointed the same way | the "the usual way out is closed" beat is pre-known — F_CLOSED starts as observed, one less thing to establish |
+| `BLUE_SIGNS` | solve an `evac_corridor` mystery | Protocol Seven marked its routes with blue signs | the signed-route / corridor site is shown on the map from the start of an expedition — you still have to reach it |
+| `COMMAND_FREQUENCY` | solve a `radio_tower` mystery | regional command held one emergency frequency | in a `radio_tower` mystery the transmitter briefing names the frequency up front, instead of it being a `search` step |
+| `RESERVOIR_CONTROLS` | solve a `dam_valves` mystery | the valley reservoir is governed from the control room, not the sluice | in a `dam_valves` mystery the control-room evidence **identifies which control governs the reservoir** — you still operate it yourself, revise as normal; you're just not told which one blind |
 
-Pick **3** to ship first (`BLUE_SIGNS`, `COMMAND_FREQUENCY`,
-`RESERVOIR_CONTROLS` — all "skip a step you've done before"), hold 2 in
-reserve. Hard cap at 5; every entry reviewed for power creep against
-`balance_autoplay.py` before it ships.
+**`RESERVOIR_CONTROLS` is informational** (per review): it surfaces
+*which control* earlier, it does **not** reduce the number of actions or
+evidence items required, and it must not touch `dam_valves`'s revise
+loop. Test asserts the same control count / obstacle-open condition.
+
+**`COMMAND_FREQUENCY`** does remove one `search` evidence item from the
+`radio_tower` chain — an explicit, mystery-specific shortcut. Test
+asserts it changes *only* the radio-tower evidence set and nothing
+about combat / resources / completion probability.
+
+Hard cap at 5; every entry power-checked against `balance_autoplay.py`
+before it ships.
 
 ### Earning
 
@@ -154,17 +213,29 @@ new survivor has it.
 
 ## Tests
 
-- death → new survivor: level resets to 1, gear resets to starter,
-  name changes, **investigation + survivor knowledge + depth persist**
-- a legacy (Phase A flat) profile migrates to campaign/survivor split
-- earning a `SurvivorLore` id: the trigger fires it once, it persists
-  through a death, `announce_event(kind="lore")` fires once
-- each lore effect does what it says (blue signs visible from turn 1;
-  `COMMAND_FREQUENCY` removes the frequency-search step; etc.) — one
-  test per shipped entry
-- **power check**: a lore-loaded campaign's bot win-rate is within the
-  frozen-balance band (extend `balance_autoplay.py` or a targeted test)
-- hardcore death still wipes everything (unchanged)
+- **death → new survivor**: level → 1, xp → 0, gear → starter, health →
+  max, name changes; **investigation + survivor knowledge + depth +
+  variety rings persist unchanged**
+- **campaign record is byte-identical across a death** (invariant 1) —
+  serialise campaign before + after, `assertEqual`
+- **depth ≠ survivor** (invariant 2) — die at depth N, new survivor's
+  first expedition is depth N and level 1
+- a legacy (Phase A flat) profile migrates to the campaign/survivor
+  split and round-trips
+- earning a `SurvivorLore` id: trigger fires it once, persists through
+  a death, `announce_event(kind="lore")` fires once
+- one behavioural test per shipped entry (blue-sign site visible from
+  turn 1; `COMMAND_FREQUENCY` drops exactly one radio-tower `search`
+  item; `RESERVOIR_CONTROLS` surfaces the correct control and leaves
+  the control count + open condition unchanged)
+- **the negative / "legibility not power" test** (invariant 4): for
+  each shipped id, build two otherwise-identical games (same seed, same
+  mechanism) — one with the id learned, one without — and assert
+  **equal**: starting stats, starting gear, `max_health`, per-hit
+  damage for the starter weapon, loot-table identity, and
+  `_select_zombie_for_encounter`'s output over a fixed RNG. Only the
+  mystery's evidence/site presentation may differ.
+- hardcore death still `delete_profile()`s everything (unchanged)
 
 ## Build order
 

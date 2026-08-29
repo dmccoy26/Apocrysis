@@ -139,6 +139,31 @@ MECHANISMS = {
         "control_wrong_other": "The gate grinds open. The reservoir drops a hand's width, then holds. This one only takes part of it.",
         "control_correct": "The gate opens and stays open. Behind the dam the reservoir starts falling in earnest - and out on the lower road, the water pulls back off the tarmac.",
     },
+    "radio_tower": {
+        "name": "the emergency access road",
+        "family": "informational", "discovery": "receive_information",
+        "reasoning": "infer", "resolution": "repair", "confirmation": "external_response",
+        "closed": "Every road out ends the same way - a checkpoint, a slide, a bridge dropped in the river. Nothing is driving out.",
+        "route": "An emergency broadcast log, left open on the desk. The valley's channel is still monitored from the regional station - the last entry reads: 'if the tower comes back up, we can talk someone out.'",
+        "obstacle": "The broadcast tower stands on the ridge, and the transmitter is dark. The control panel is dead - no power to it at all.",
+        "require": "A fuel cache is kept at the ranger depot.",
+        "item": "jerrycan of fuel",
+        "obstacle_desc": "The transmitter housing at the tower base is silent, its panel unlit.",
+        "escape_desc": "The emergency access road climbs the ridge exactly where the voice said it would, and drops away down the far side. This is the way out.",
+        "roles": {"closed": "a dropped bridge", "route": "the broadcast log",
+                  "obstacle": "the broadcast tower", "require": "the ranger depot",
+                  "power": "the generator shed"},
+        "power_role": "power",
+        "power_fact": "The valley can still be reached from outside - but only if the broadcast tower is transmitting.",
+        "power_obstacle_ev": "The transmitter is dead. A conduit runs from it down the slope toward a shed - the power comes from there, and nothing is coming through.",
+        "power_site_ev": "A generator sits in the shed, cabled up the slope to the tower. This is what drives the transmitter.",
+        "generator_ev": "The generator's tank is bone dry. It will not turn over without fuel.",
+        "power_restored_desc": "The generator catches. Up on the ridge the transmitter's panel lights, and the channel opens with a hiss of static.",
+        "reveals_route": True,
+        "f_obstacle": "There is no way out to be seen - not until the tower is transmitting and someone on the outside answers.",
+        "d_route": "The way out isn't a road you can find on your own - it's whatever the people on the other end of that channel tell you.",
+        "route_reveal_ev": "The channel crackles, then a voice - clear, close. They read you an emergency access road up the {bearing} ridge, a track that was never on any map. It's marked for you now.",
+    },
 }
 
 _MECH_ORDER = list(MECHANISMS)
@@ -523,12 +548,18 @@ def build_mystery(game):
     _req_line = (f"The thing needed to get past it exists - a {spec['item']}, "
                  f"and you know where." if spec.get('item')
                  else "What clears it is something you have to work out on the spot.")
+    _reveal = bool(spec.get('reveals_route'))
     F = {
         'F_CLOSED': "The usual way out is closed.",
         'F_ROUTE': f"There is another route out: {spec['name']}.",
-        'F_OBSTACLE': "That route is blocked by something that can be cleared or opened.",
+        'F_OBSTACLE': spec.get('f_obstacle',
+                               "That route is blocked by something that can be cleared or opened."),
         'F_REQUIRE': _req_line,
     }
+    if spec.get('power_role'):
+        # F_POWER used to be added inside the power block below; hoisted
+        # here so evidence built in the main list can support it.
+        F['F_POWER'] = spec['power_fact']
     for fid, s in F.items():
         k.add_fact(Fact(fid, s))
 
@@ -539,12 +570,18 @@ def build_mystery(game):
         Evidence('E_closed_b',
                  "Everyone who left went the same way, and none of it worked - you can see that from here.",
                  supports=['F_CLOSED'], location='closed', method='observe'),
-        Evidence('E_route_a', spec["route"], supports=['F_ROUTE'],
+        # informational (reveals_route): F_ROUTE is NOT known from any
+        # early site - it only lands via E_route_reveal after the
+        # system comes back up. The route site's own evidence (the
+        # broadcast log) instead carries F_POWER + F_OBSTACLE.
+        Evidence('E_route_a', spec["route"],
+                 supports=['F_POWER', 'F_OBSTACLE'] if _reveal else ['F_ROUTE'],
                  location='route', method='search'),
         Evidence('E_route_b',
                  f"A hand-drawn note, more than one place: 'try {spec['name']}'.",
                  supports=['F_ROUTE', 'F_REQUIRE'], location='closed', method='search'),
-        Evidence('E_obstacle_a', spec["obstacle"], supports=['F_ROUTE', 'F_OBSTACLE'],
+        Evidence('E_obstacle_a', spec["obstacle"],
+                 supports=['F_OBSTACLE'] if _reveal else ['F_ROUTE', 'F_OBSTACLE'],
                  location='route', method='search'),
         Evidence('E_obstacle_b', spec["obstacle_desc"], supports=['F_OBSTACLE'],
                  location='obstacle', method='observe'),
@@ -564,26 +601,42 @@ def build_mystery(game):
         Evidence('E_confirm', spec["escape_desc"], supports=['F_ROUTE'],
                  location='escape', method='observe'),
     ]
+    if _reveal:
+        # E_route_b names the route ("try the emergency access road") -
+        # a leak before radio contact. Drop it; F_ROUTE is carried by
+        # E_route_reveal + E_confirm, F_REQUIRE by E_require_a/b + the
+        # generator evidence.
+        ev = [e for e in ev if e.id != 'E_route_b']
+        ev.append(Evidence(
+            'E_route_reveal',
+            spec.get('route_reveal_ev',
+                     "A voice on the channel reads you a way out. It's marked on your map now."),
+            supports=['F_ROUTE'], location='_deferred', method='observe'))
     # Playtest: "every clue said north, but the escape was southwest."
     # The sites cluster near spawn; the gap is deliberately the far
     # corner. Without a bearing, the evidence points the player the
     # wrong way. Fold the real gap direction into the obstacle clue so
-    # evidence actually leads where the route is.
+    # evidence actually leads where the route is - or, for a
+    # reveals_route mystery, into the response that first names it.
     _gx, _gy = m.escape_tile
     _dx, _dy = _gx - spawn[0], _gy - spawn[1]
     _ns = "north" if _dy < -2 else "south" if _dy > 2 else ""
     _ew = "west" if _dx < -2 else "east" if _dx > 2 else ""
     _bearing = ("-".join(p for p in (_ns, _ew) if p)) or "far"
     for e in ev:
-        if e.id == 'E_obstacle_a':
+        if e.id == 'E_obstacle_a' and not _reveal:
             e.text = f"{e.text} It's out toward the {_bearing} edge of the valley."
+        elif e.id == 'E_route_reveal':
+            e.text = e.text.replace('{bearing}', _bearing)
 
     for e in ev:
         k.add_evidence(e)
 
     k.add_deduction(Deduction('D_need_other', "The way you came in is closed. You need another way out.",
                               needs=['F_CLOSED']))
-    k.add_deduction(Deduction('D_the_route', f"{spec['name'].capitalize()} is that other way - and it's only blocked, not gone.",
+    k.add_deduction(Deduction('D_the_route',
+                              spec.get('d_route',
+                                       f"{spec['name'].capitalize()} is that other way - and it's only blocked, not gone."),
                               needs=['F_CLOSED', 'F_ROUTE', 'F_OBSTACLE']))
     k.set_hypothesis(Hypothesis('H_escape', f"{spec['name'].capitalize()} is the way out.",
                                 suspected_when=['D_the_route'], confirmed_by='E_confirm'))
@@ -608,7 +661,7 @@ def build_mystery(game):
         pcell = game.map[p_xy[1]][p_xy[0]]
         if isinstance(pcell, dict):
             pcell['site_label'] = plabel
-        k.add_fact(Fact('F_POWER', spec['power_fact']))
+        # F_POWER is added to the fact set earlier now (see F dict).
         for e in (
             Evidence('E_power_a', spec['power_obstacle_ev'],
                      supports=['F_OBSTACLE', 'F_POWER'], location='obstacle', method='observe'),

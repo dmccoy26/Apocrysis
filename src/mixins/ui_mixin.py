@@ -675,9 +675,16 @@ class UIMixin:
             return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
         # The gap in the mountain wall - shown once you either have a
         # map or know there's a blocked route out there to look for.
+        # Informational family: the way out isn't a visible gap you can
+        # spot on a map - it only exists once the response names it, so
+        # it stays hidden until F_ROUTE is known.
         if m.escape_tile == (x, y):
-            knows_route = 'F_OBSTACLE' in m.knowledge.facts_known()
-            if getattr(self, 'map_revealed', False) or knows_route:
+            known = m.knowledge.facts_known()
+            if getattr(m, 'family', None) == 'informational':
+                show = 'F_ROUTE' in known
+            else:
+                show = getattr(self, 'map_revealed', False) or 'F_OBSTACLE' in known
+            if show:
                 return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
         # A site is marked once the player has LEARNED about it - either
         # by visiting it (_mystery_named) or by knowing the fact that

@@ -1468,7 +1468,13 @@ class TestSettlementGeneration(unittest.TestCase):
 class TestChunkBasedTerrain(unittest.TestCase):
     def test_terrain_forms_contiguous_chunks_not_a_checkerboard(self):
         from src.constants import CHUNK_SIZE
-        with patch("builtins.print"):
+        # Force a non-water mechanism: build_mystery's _paint_terrain_near
+        # deliberately drops small water patches for boat/dam mysteries
+        # (world coherence), which is not what this test is about - and
+        # which mechanism a bare seed picks shifts whenever MECHANISMS
+        # grows.
+        with patch("builtins.print"), \
+             patch("src.escape.choose_mechanism", return_value="mountain_pass"):
             game = Apocrysis("ChunkTest", map_size=20, seed=1)
 
         # Every tile within one chunk (excluding town tiles and

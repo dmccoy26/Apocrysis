@@ -52,6 +52,20 @@ class MysteryMixin:
             for it in self.backpack.items
         )
 
+    def _mystery_after_power_restored(self):
+        """Informational family (reveals_route): restoring the system
+        doesn't open a gate - it produces a response that names a route
+        the player could not have found. F_ROUTE lands here, via
+        E_route_reveal; there is no physical obstacle to clear, so
+        obstacle_open flips too. The `★` banner is fired by
+        _mystery_progress_flare seeing F_ROUTE newly known."""
+        m = self._mystery()
+        if m is None:
+            return
+        if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+            self._mystery_reveal('E_route_reveal')
+            m.obstacle_open = True
+
     def _mystery_reveal(self, evidence_id):
         m = self._mystery()
         if m and m.knowledge.discover(evidence_id):
@@ -75,14 +89,29 @@ class MysteryMixin:
             return
         k = m.knowledge
         new_facts = k.facts_known() - set(facts_before)
-        if 'F_ROUTE' in new_facts and m.site_labels.get('route'):
-            self.announce_event(f"the route is at {m.site_labels['route']}",
-                                "It's marked on your map now.", kind="lead")
+        if 'F_ROUTE' in new_facts:
+            if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+                # informational: the response named a route that was
+                # never on the map. It's the way out now - and there is
+                # nothing left to clear.
+                self.announce_event(
+                    "the way out",
+                    "The voice on the channel talked you onto it - it's marked on your map now.",
+                    kind="objective")
+            elif m.site_labels.get('route'):
+                self.announce_event(f"the route is at {m.site_labels['route']}",
+                                    "It's marked on your map now.", kind="lead")
         if 'F_POWER' in new_facts and m.site_labels.get('power'):
-            self.announce_event(
-                f"the way out is powered from {m.site_labels['power']}",
-                "You'll have to sort out what's wrong there. Marked on your map.",
-                kind="lead")
+            if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+                self.announce_event(
+                    f"the transmitter is fed from {m.site_labels['power']}",
+                    "Get it running and the outside can guide you out. Marked on your map.",
+                    kind="lead")
+            else:
+                self.announce_event(
+                    f"the way out is powered from {m.site_labels['power']}",
+                    "You'll have to sort out what's wrong there. Marked on your map.",
+                    kind="lead")
         if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
             if m.controls:
                 self.announce_event(
@@ -165,6 +194,7 @@ class MysteryMixin:
                     'power_restored_desc', "The way out has power now."),
                 kind="objective",
             )
+            self._mystery_after_power_restored()
         self._mystery_progress_flare(_hyp_before, _facts_before)
 
         if not any_new and not power_restore_fired and role in m.sites and role != 'escape':
@@ -189,7 +219,15 @@ class MysteryMixin:
         revealed = False
         for eid in m._site_evidence.get('obstacle', []):
             revealed = self._mystery_reveal(eid) or revealed
-        if m.power_role and not m.power_restored and self._mystery_has_item():
+        _reveals = MECHANISMS.get(m.mechanism, {}).get('reveals_route')
+        if _reveals and not m.power_restored:
+            self.io.say(
+                "There's nothing to force here. No way out of the valley "
+                "comes clear until the transmitter is back up and the "
+                "outside answers."
+                + (f" The {m.requirement_item} goes to {m.site_labels.get('power', 'the generator')}."
+                   if self._mystery_has_item() else ""))
+        elif m.power_role and not m.power_restored and self._mystery_has_item():
             # The failed action teaches the dependency, doesn't just
             # reject: the fuel belongs somewhere else.
             self.io.say(
@@ -322,9 +360,12 @@ class MysteryMixin:
             self.io.say("Nothing here to do that with.")
             return
         role = self._mystery_role_at(*self.current_position)
+        _reveals = MECHANISMS.get(m.mechanism, {}).get('reveals_route')
         if m.power_restored:
-            self.io.say("The generator is already running. The way out "
-                        "has power - now reach the route.")
+            self.io.say("The transmitter's already up - the outside told you where to go. Follow it."
+                        if _reveals
+                        else "The generator is already running. The way out "
+                             "has power - now reach the route.")
             return
         if role != m.power_role:
             self.io.say("Nowhere to use that here. It goes to "
@@ -342,6 +383,10 @@ class MysteryMixin:
                 'power_restored_desc', "The way out has power now."),
             kind="objective",
         )
+        _hyp_before = m.knowledge.hypothesis_state()
+        _facts_before = set(m.knowledge.facts_known())
+        self._mystery_after_power_restored()
+        self._mystery_progress_flare(_hyp_before, _facts_before)
 
     def mystery_try_escape(self):
         m = self._mystery()

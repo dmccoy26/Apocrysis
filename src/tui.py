@@ -202,10 +202,17 @@ def _objective_steps(p, m, k):
     step is highlighted; the journal keeps the detail."""
     try:
         from src.escape import MECHANISMS
-        mech_name = MECHANISMS.get(m.mechanism, {}).get("name", "the way out")
+        _spec = MECHANISMS.get(m.mechanism, {})
+        mech_name = _spec.get("name", "the way out")
     except Exception:
+        _spec = {}
         mech_name = "the way out"
     known = k.facts_known()
+    # informational (reveals_route): the route has no name the player
+    # knows until the response gives it - don't leak it in the header.
+    _info = bool(_spec.get("reveals_route"))
+    if _info and "F_ROUTE" not in known:
+        mech_name = "the way out"
     named = getattr(p, "_mystery_named", set())
     labels = getattr(m, "site_labels", {})
     has_item = (any(getattr(it, "name", None) == m.requirement_item
@@ -253,9 +260,12 @@ def _objective_steps(p, m, k):
                 out.append(f"  [{_DIM}]☐ {label}[/]")
         return out
 
-    # 2b. infrastructural: the dependency
+    # 2b. infrastructural / informational: the dependency
     if m.power_role and ("F_POWER" in known):
-        steps.append((True, f"learned it's powered from {place('power', 'somewhere else')}"))
+        steps.append((True,
+                      f"learned the transmitter runs off {place('power', 'a generator somewhere')}"
+                      if _info else
+                      f"learned it's powered from {place('power', 'somewhere else')}"))
         steps.append(("power" in named or m.power_restored,
                       f"reached {place('power', 'the power source')}"))
     # 3. what you need
@@ -270,12 +280,15 @@ def _objective_steps(p, m, k):
     if "F_REQUIRE" in known or has_item:
         steps.append((has_item, f"got the {item}",
                       f"reach {place('require', 'where it is kept')} and pick up the {item}"))
-    # 5b. infrastructural: apply the fix
+    # 5b. infrastructural / informational: apply the fix
     if m.power_role and ("F_REQUIRE" in known or has_item):
-        steps.append((m.power_restored, f"restored power at {place('power', 'the source')}",
+        steps.append((m.power_restored,
+                      "got the transmitter running" if _info
+                      else f"restored power at {place('power', 'the source')}",
                       f"get the {item} to {place('power', 'the power source')}"))
-    # 6. open the way
-    steps.append((m.obstacle_open, "opened the way through"))
+    # 6. open the way / get the directions
+    steps.append((m.obstacle_open,
+                  "the outside named a way out" if _info else "opened the way through"))
     # 7. escape
     steps.append((m.escaped, f"escaped by {mech_name}"))
 

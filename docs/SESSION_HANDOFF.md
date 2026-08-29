@@ -180,10 +180,32 @@ trip + backtrack, objective panel couldn't warn. `E_require_a` moved
 once (route + obstacle + where the key/item/controls are), both places
 map-marked in the same beat. All 7 mechanisms.
 
-**Still open (all minor / post-gate):** (a) cosmetic: power site keeps
-its `!` after `power_restored` (`_mystery_site_mark`, should clear);
-(b) start Tier-2 families. Balance stays FROZEN (the eat/drink change
-was economy-neutral, verified on the bot — not a difficulty tune).
+### Informational family — `radio_tower` (`ea1d52be`, DONE)
+
+The third genuinely-different grammar. The way out isn't a place you
+find — a broadcast log says the channel is monitored from outside; the
+tower's transmitter is dead; fuel the generator and **a voice answers
+and reads you an emergency access road that was never on the map**.
+Reuses the whole `power_station` machinery + one `reveals_route` flag:
+`F_ROUTE` withheld from every early site, lands only via
+`E_route_reveal` on `power_restored`; escape-tile marker gated on
+`F_ROUTE`; objective-panel header stops leaking the route name until
+then. Doc: `MECHANISM_INFORMATIONAL.md`. Full end-to-end sim passes.
+**Bot: ~82.5% aggregate (4 seeds) vs ~85.8% baseline — ~3pt drop,
+still 100% combat deaths, no new failure mode. `radio_tower` solo
+~77%** (more traversal). Needs a human blind playtest like the other
+three got — `python3 tools/playtest_three.py radio_tower`.
+
+Known v1 limitations: the "broadcast tower" obstacle site sits at the
+escape gap (schema `escape_kind` not built), so a player with the
+found-map could guess the ridge area before the response — but can't
+confirm or use it. Objective step "found what blocks the route" is
+generic (no physical block for informational).
+
+**Still open:** (a) cosmetic: power site keeps its `!` after
+`power_restored`; (b) Tier-2: `17f2a0ca` transportation, `5761c63f`
+time-pressure. Balance FROZEN (radio_tower is new content, not a tune;
+its ~3pt is additive-mechanism cost, flagged not hidden).
 
 ## Design rules (settled — don't relitigate)
 

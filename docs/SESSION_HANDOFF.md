@@ -54,10 +54,23 @@ a fresh session.**
 - **Atlas**: shipped `truth.py` near-verbatim (its biggest
   self-contained new file here); rejected the DFS test file
   (hand-written). 5 `atlas-self` gap todos filed total.
-- **Next**: PAUSED for owner review of the authored A.1 DAG. Then
-  Phase A.2 — `DiscoveryTemplate` binding a `WorldFact` to a MECHANISMS
-  family + `build_mystery(target_fact=…)`; the `MechanismFamily`
-  refactor happens here, only as far as `DiscoveryTemplate` needs.
+- **Phase A.2 DONE** (`docs/PHASE_A2_DISCOVERY.md`; `3ce7e1a` /
+  `133673c`). `DiscoveryTemplate` (frozen: `world_fact_id`, `mechanism`)
+  + `World.discovery_templates`; `worlds/silence/discovery.py` maps all
+  9 CH1/CH2 facts → a mechanism; `escape.build_mystery(game,
+  target_fact=None)` — set & bound ⇒ picks that mechanism + stamps
+  `m.world_fact_id`; else byte-identical random path. No
+  `MechanismFamily` (not needed). `test_discovery.py` — 9 tests incl.
+  anti-injection. **196 + 100 green.**
+- **Atlas**: 0/5 A.2 files (botched the one it could do — `discovery.py`
+  perfect dict, stubbed the import; `escape.py` hit the >800-line wall).
+  6 `atlas-self` gap todos filed total.
+- **Next**: PAUSED for owner review. Then **Phase A.3** — the World
+  Investigation persistent state: `WorldInvestigation` (per-fact
+  KNOWN/SUSPECTED/UNKNOWN, per-thread %), the class-var + profile
+  round-trip pattern, "solving a mystery with a `world_fact_id` flips
+  that fact KNOWN and it survives save/load", next-target = first
+  UNKNOWN fact whose `needs` are all KNOWN.
 
 ---
 

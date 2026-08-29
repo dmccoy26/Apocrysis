@@ -172,7 +172,10 @@ class MysteryMixin:
             if self._mystery_reveal(eid):
                 any_new = True
         if (role == 'require' and m.requirement_item and 'E_require_b' in m.knowledge.found
-                and not self._mystery_has_item()):
+                and not self._mystery_has_item()
+                and not m.obstacle_open and not m.power_restored):
+            # ...but not once the fix is already done - revisiting the
+            # depot shouldn't re-hand a jerrycan you already used.
             self.backpack.add_item(Item(m.requirement_item))
             _pl = m.site_labels.get('power', 'where it is needed')
             _dest = "head back to it" if not m.power_role else f"take it to {_pl}"
@@ -201,9 +204,17 @@ class MysteryMixin:
             label = m.site_labels.get(role)
             if label:
                 self.io.say(f"{label.capitalize()}.")
+            _fix_done = m.obstacle_open or m.power_restored
             for eid in m._site_evidence.get(role, []):
-                if eid in m.knowledge.found:
-                    self.io.say(f"  {m.knowledge.evidence[eid].text}")
+                if eid not in m.knowledge.found:
+                    continue
+                # "You find the jerrycan here" reads wrong once you've
+                # taken it and used it - skip that one line on revisit.
+                if eid == 'E_require_b' and _fix_done and m.requirement_item:
+                    continue
+                self.io.say(f"  {m.knowledge.evidence[eid].text}")
+            if role == 'require' and _fix_done and m.requirement_item:
+                self.io.say("  Nothing more to take here - you've already got what this place had.")
             if m.controls and role == 'require' and not m.obstacle_open:
                 self.io.say("  Work them one at a time - pull <name> and watch the reservoir.")
             elif m.power_role and role == 'power' and not m.power_restored and not self._mystery_has_item():
@@ -264,7 +275,8 @@ class MysteryMixin:
             if self._mystery_reveal(eid):
                 any_new = True
         if (role == 'require' and m.requirement_item and 'E_require_b' in m.knowledge.found
-                and not self._mystery_has_item()):
+                and not self._mystery_has_item()
+                and not m.obstacle_open and not m.power_restored):
             self.backpack.add_item(Item(m.requirement_item))
             self.announce_event(
                 f"you have the {m.requirement_item}",

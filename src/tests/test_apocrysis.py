@@ -111,6 +111,67 @@ class TestWeapons(unittest.TestCase):
         self.assertIn("Durability: 15/15", text)
 
 
+class TestEmptyRangedWeaponInCombat(unittest.TestCase):
+    """Playtest: the game recommended switching to a gun with no ammo,
+    and an empty Broken Rifle still 'fired' for a few points of
+    strength-bonus damage."""
+
+    def setUp(self):
+        with patch("builtins.print"):
+            self.game = Apocrysis("GunTest", map_size=8, seed=1)
+        self.game.strength = 18
+
+    def test_empty_gun_is_not_recommended_over_a_working_melee(self):
+        empty = RangedWeapon("Gun", 20, max_ammo=5)
+        empty.ammo = 0
+        knife = MeleeWeapon("Kitchen Knife", 6, 40)
+        self.game.equipped_weapon = knife
+        self.game.backpack.weapons.clear()
+        self.game.backpack.weapons.append(empty)
+        self.game.backpack.ammo = 0
+        said = []
+        self.game.io = type("IO", (), {
+            "say": lambda s, t: said.append(t),
+            "ask_yes_no": lambda s, *a, **k: True,
+            "__getattr__": lambda s, n: (lambda *a, **k: None),
+        })()
+        from src.zombies import RegularZombie
+        z = RegularZombie()
+        z.health = 1
+        self.game.encounter_zombie(z)
+        joined = " ".join(said)
+        self.assertNotIn("stronger than your Kitchen Knife. Flee and 'eq Gun'", joined)
+
+    def test_firing_an_empty_gun_deals_no_strength_bonus(self):
+        empty = RangedWeapon("Broken Rifle", 10, max_ammo=5)
+        empty.ammo = 0
+        self.game.equipped_weapon = empty
+        self.game.backpack.weapons.clear()  # no spare -> no auto-swap
+        dealt = []
+        self.game.io = type("IO", (), {
+            "say": lambda s, t: dealt.append(t),
+            "ask_yes_no": lambda s, *a, **k: True,
+            "__getattr__": lambda s, n: (lambda *a, **k: None),
+        })()
+        from src.zombies import RegularZombie
+        z = RegularZombie()
+        z.health = 100
+        hp0 = z.health
+        self.game.health = 100
+        # one loop iteration's worth: run the fight, it ends when the
+        # player or zombie dies - with a 2-dmg club vs 100hp the player
+        # will die first, but the zombie should only ever take the
+        # bare-hands 2, never str//3 (~6).
+        self.game.encounter_zombie(z)
+        # every hit the ZOMBIE takes from the empty rifle must be the
+        # bare-hands 2 (~<=4 with condition scaling), never str//3 (~6+)
+        import re
+        for line in dealt:
+            mm = re.search(r"[Zz]ombie takes (\d+) damage", str(line))
+            if mm:
+                self.assertLessEqual(int(mm.group(1)), 4, line)
+
+
 class TestArmor(unittest.TestCase):
     """
     Equipment-slot investigation, multi-piece follow-up: four

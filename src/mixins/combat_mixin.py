@@ -94,11 +94,22 @@ class CombatMixin:
             
         self.io.say(f"Encountered a {zombie.name}! What will you do?")
         _eq_broken = bool(self.equipped_weapon) and getattr(self.equipped_weapon, 'durability', 1) <= 0
-        _cur_dmg = 0 if (not self.equipped_weapon or _eq_broken) else self.equipped_weapon.damage
+
+        def _usable_dmg(w):
+            # A ranged weapon with no rounds loaded is worth nothing in
+            # this fight - don't count it, and never recommend swapping
+            # TO it (playtest: "recommends the gun when you're out of
+            # bullets"). Same rule the mid-fight auto-swap uses.
+            if getattr(w, 'durability', 1) <= 0:
+                return 0
+            if isinstance(w, RangedWeapon) and w.ammo <= 0:
+                return 0
+            return w.damage
+
+        _cur_dmg = _usable_dmg(self.equipped_weapon) if self.equipped_weapon else 0
         _better = max(
-            (w for w in self.backpack.weapons
-             if w.damage > _cur_dmg + 2 and getattr(w, 'durability', 1) > 0),
-            key=lambda w: w.damage, default=None,
+            (w for w in self.backpack.weapons if _usable_dmg(w) > _cur_dmg + 2),
+            key=_usable_dmg, default=None,
         )
         if _better is not None:
             _held = ('bare hands' if not self.equipped_weapon
@@ -108,16 +119,20 @@ class CombatMixin:
                 f"(You're carrying a {_better.name} ({_better.damage} dmg) - "
                 f"stronger than your {_held}. Flee and 'eq {_better.name}' to switch.)"
             )
-        elif (_cur_dmg and _cur_dmg < 10 and not _eq_broken
+        elif (self.equipped_weapon and _cur_dmg < 10
               and not getattr(self, '_weak_weapon_nudged', False)):
-            # Nothing better in the pack and this one barely hurts them -
-            # a kid fought the whole game with a 6-dmg knife and got
-            # worn down (playtest). Once per expedition.
+            # Nothing better in the pack and this one barely hurts them
+            # (or it's an empty gun, _cur_dmg 0) - a kid fought the whole
+            # game with a 6-dmg knife and got worn down (playtest). Once
+            # per expedition.
             self._weak_weapon_nudged = True
-            self.io.say(
-                f"(Your {self.equipped_weapon.name} ({_cur_dmg} dmg) barely "
-                "scratches them - search buildings for a heavier weapon.)"
-            )
+            _n = self.equipped_weapon.name
+            if isinstance(self.equipped_weapon, RangedWeapon) and self.equipped_weapon.ammo <= 0:
+                self.io.say(f"(Your {_n} is out of ammo - `reload` if you have rounds, "
+                            "or find another weapon.)")
+            else:
+                self.io.say(f"(Your {_n} ({_cur_dmg} dmg) barely scratches them - "
+                            "search buildings for a heavier weapon.)")
 
         # v3 SPRINT step 3/6: explicit yes/no, re-prompting on
         # anything else - the original "anything other than the
@@ -149,16 +164,26 @@ class CombatMixin:
                 self.status_effects["Stun"] -= 1
             elif self.equipped_weapon:
                 _dur_before = getattr(self.equipped_weapon, 'durability', None)
-                damage = round((self.equipped_weapon.use(self.io) + max(0, self.strength // 3)) * self._condition_penalty())
-
-                # Critical hit chance scaled by dexterity
-                crit_chance = min(0.25, self.dexterity / 200)
-                if random.random() < crit_chance:
-                    damage *= 2
-                    self.io.say("Critical Hit!")
-
-                zombie.take_damage(damage)
-                self.io.say(f"The {zombie.name} takes {damage} damage.")
+                _wdmg = self.equipped_weapon.use(self.io)
+                if _wdmg > 0:
+                    # strength only helps when the weapon actually
+                    # connected - firing an empty gun / swinging a
+                    # broken blade must NOT deal a phantom str//3 hit
+                    # (playtest: "you can still fire the broken rifle").
+                    damage = round((_wdmg + max(0, self.strength // 3)) * self._condition_penalty())
+                    crit_chance = min(0.25, self.dexterity / 200)
+                    if random.random() < crit_chance:
+                        damage *= 2
+                        self.io.say("Critical Hit!")
+                    zombie.take_damage(damage)
+                    self.io.say(f"The {zombie.name} takes {damage} damage.")
+                else:
+                    # empty / broken - use() already said why. Fall back
+                    # to a bare-hands hit so the turn isn't a pure whiff.
+                    _bare = round(2 * self._condition_penalty())
+                    zombie.take_damage(_bare)
+                    self.io.say(f"You club at it with the {self.equipped_weapon.name} "
+                                f"for {_bare} damage.")
                 self._weapon_condition_check(_dur_before)
             else:
                 self.io.say("You have no weapon equipped and attempt to fight with your hands!")

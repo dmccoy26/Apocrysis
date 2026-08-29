@@ -201,19 +201,20 @@ DONE, `e18264b` — vocabularies, `Mystery` classification fields,
 resource tuning off the bot. `PLAYER_UNDERSTANDING.md` Rule 5:
 objective + banners say WHAT STATE / WHY, never HOW.
 
-NEXT — Tier-2 mechanisms, ordered by how much they expand the
-player's mental model:
-1. **`c67cbd25` infrastructural (power_station) — DONE (`39a2140`).**
-   `docs/MECHANISM_INFRASTRUCTURAL.md` = full design. Done:
-   `Mystery.power_role`/`power_restored` (`ce54c4a`). TODO: the
-   `power_station` MECHANISMS entry, `build_mystery` 5th-role wiring,
-   `mystery_mixin` (apply the fuel at the generator, not the gate;
-   obstacle opens on `power_restored`), tui objective/marker.
-2. `e0475adf` experimental — the other high-value one.
-3. `ea1d52be` informational · `17f2a0ca` transportation ·
+Tier-2 mechanisms, by mental-model expansion:
+1. **`c67cbd25` infrastructural (`power_station`) — DONE** (`39a2140`).
+   `docs/MECHANISM_INFRASTRUCTURAL.md`. Dead electric gate; power ←
+   hydro station ← fuel; fuel applied at the generator not the gate.
+2. **`e0475adf` experimental (`dam_valves`) — DONE** (`b2a5d27`).
+   `docs/MECHANISM_EXPERIMENTAL.md`. Flooded low road; the dam
+   control room's bank of controls; the obvious one is never right
+   and pulling it says why. New `pull <control>` command.
+3. NEXT: `ea1d52be` informational · `17f2a0ca` transportation ·
    `5761c63f` time-pressure.
-Then `69d78812` — the three-mystery blind comprehension playtest
-(the phase gate; needs ≥2 families = spatial + infrastructural).
+
+**>> `69d78812` — the three-mystery blind comprehension playtest is
+now runnable** (three families exist: spatial, infrastructural,
+experimental). This is the phase gate — see `PLAYER_UNDERSTANDING.md`.
 Deferred: `6cffc528` (tier-1 same-family scenarios — scenery only).
 
 Also open: `c359b1bb` (bigger map render), `9779d49f` (NEW DISCOVERY

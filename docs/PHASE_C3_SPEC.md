@@ -83,30 +83,30 @@ change: the board stops being a box.
 
 ## Measured result (v1 vs v2, `tools/geo_compare.py`)
 
-### Geometry (400 games each, exp tiers 0/3/6/9/12)
+### Geometry (1000 games each, exp tiers 0/3/6/9/12)
 
 | metric | v1 mean (p10/p90) | v2 mean (p10/p90) |
 |---|---|---|
-| playable % | 95.8 (88.7 / 100) | **59.6 (50.4 / 69.7)** ← the change |
-| largest region % | 100.0 (100 / 100) | 99.2 (96.9 / 100) |
-| dead-end tiles | 2.6 (0 / 9) | 9.8 (3 / 18) |
+| playable % | 95.7 (88.5 / 100) | **68.8 (56.6 / 88.2)** ← the change |
+| largest region % | 100.0 (100 / 100) | 99.5 (97.4 / 100), min 93.7 |
+| dead-end tiles | 2.7 (0 / 9) | 9.2 (1 / 18) |
 | spawn→exit | 25.3 (12 / 34) | 20.9 (11 / 31) |
 | spawn→site (max) | 24.4 (11 / 33) | 20.3 (10 / 31) |
 | critical-path tiles | 38.8 (20 / 58) | 33.2 (16 / 51.5) |
 | spawn→town | 23.4 (8 / 36) | 22.8 (9 / 34) |
-| maps with no mystery | 0 / 500 | **~6 / 500 (1.2 %)** |
+| maps with no mystery | **0 / 1000** | **13 / 1000 (1.3 %)** |
 
-### Gameplay (scripted bot, 400 games each, exp tiers 1–5)
+### Gameplay (scripted bot, 500 games each, exp tiers 1–5)
 
 | metric | v1 | v2 |
 |---|---|---|
-| **win rate** | **50 %** | **50 %** |
-| turns / expedition | 56.0 | **43.1** (~23 % shorter) |
+| **win rate** | **51 %** | **49 %** (within noise, n=500) |
+| turns / expedition | 57.9 | **41.1** (~29 % shorter) |
 | zombies defeated | 2.9 | 3.0 |
 | fights | 3.4 | 3.5 |
-| min health (mean / p10) | 52.9 / 14 | 51.4 / **10** |
+| min health (mean / p10) | 52.7 / 14 | 50.2 / **12** |
 | buildings entered | 4.5 | 3.9 |
-| settlements discovered | 0.5 | 0.6 |
+| settlements discovered | 0.5 | 0.5 |
 
 ### Reading
 
@@ -115,10 +115,10 @@ change: the board stops being a box.
   feature (less tedious walking, fewer "solved it, died on the trek"
   deaths) or a concern (less exploration). This is the biggest change.
 - **Combat exposure is unchanged** (zombies / fights equal).
-- **v2 is marginally harsher at the p10 min-health tail** (10 vs 14) —
+- **v2 is marginally harsher at the p10 min-health tail** (12 vs 14) —
   the narrow irregular corridors give a zombie fewer places to be
   avoided. Small, worth watching.
-- **~1.2 % of v2 maps produce no mystery** (valley too small for 3
+- **~1.3 % of v2 maps produce no mystery** (valley too small for 3
   building sites) vs 0 % for v1. A real minor regression — a floor was
   added but not fully eliminated.
 

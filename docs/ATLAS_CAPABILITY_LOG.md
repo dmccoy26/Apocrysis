@@ -262,8 +262,11 @@ the lifecycle restructure, the per-lore engine hooks, no.
 | 42 | `src/worldgen/graph.py` — `from src.worldgen.reachable import …` + `MapGraph` class | `atlas request --create --force` | **REJECTED** (import-then-use + length; 5th repro) |
 | 43+ | `worldgen/generator.py` (330-line verbatim move), the `generate_map` rewrite (258→55 lines) + 10 helper deletions, the `MapGraph` wiring, the structural suite | not routed | **HAND** — large-file / multi-file / mechanical-move |
 
-Net Phase C so far: **1 of ~7 files by Atlas** (`reachable.py`).
-C.3 (the inverted pipeline) is deferred — its own reviewed pass.
+| 44 | C.3: `MapGenerator._grow_valley_mask` (irregular-valley v2), `tools/geo_compare.py` (v1-vs-v2 distribution harness), the `mapgen=` plumbing, v2 structural tests | not routed | **HAND** — engine wiring + a generation algorithm + a metrics harness; all past the walls |
+
+Net Phase C: **1 of ~9 files by Atlas** (`reachable.py`). C.3's
+irregular-valley experiment (reversible, behind `mapgen="v1"|"v2"`) is
+hand-written and awaits the owner's human feel-test.
 
 ## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~65 files touched
 

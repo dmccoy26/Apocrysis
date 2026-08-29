@@ -74,6 +74,13 @@ class TestSameSeedSameMap(unittest.TestCase):
             self.assertEqual([[_terrain(c) for c in r] for r in a.map],
                              [[_terrain(c) for c in r] for r in b.map])
 
+    def test_two_games_same_seed_identical_graph(self):
+        for seed in (5, 33, 404):
+            a = Apocrysis("A", seed=seed, io=_IO(), expeditions_completed=4)
+            b = Apocrysis("B", seed=seed, io=_IO(), expeditions_completed=4)
+            self.assertEqual(a._map_graph.nodes, b._map_graph.nodes)
+            self.assertEqual(a._map_graph.adj, b._map_graph.adj)
+
 
 class TestWorldgenIsolation(unittest.TestCase):
     def test_worldgen_never_imports_the_engine(self):
@@ -100,8 +107,8 @@ class TestReachabilitySweep(unittest.TestCase):
     def test_sweep(self):
         from src.worldgen.reachable import is_reachable
 
-        for seed in range(120):
-            exp = (0, 5, 11)[seed % 3]
+        for seed in range(300):
+            exp = (0, 3, 6, 9, 12)[seed % 5]
             g = Apocrysis("S", seed=seed, io=_IO(), expeditions_completed=exp)
             n = g.map_size
             # boundary ring intact except the mystery's single carved

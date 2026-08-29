@@ -548,8 +548,13 @@ def build_mystery(game):
                  location='route', method='search'),
         Evidence('E_obstacle_b', spec["obstacle_desc"], supports=['F_OBSTACLE'],
                  location='obstacle', method='observe'),
+        # At the ROUTE site (the noticeboard / marina / tunnel mouth),
+        # not the obstacle: the player should get the whole briefing -
+        # "there's a route, it's blocked, here's what clears it and
+        # where" - in one place, before trekking to the obstacle only
+        # to be sent back for the key (playtest).
         Evidence('E_require_a', spec["require"], supports=['F_REQUIRE'],
-                 location='obstacle', method='search'),
+                 location='route', method='search'),
         Evidence('E_require_b',
                  (f"A bank of controls: {', '.join(spec['controls'])}. "
                   "One of them sets the valley reservoir - but which?"

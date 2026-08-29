@@ -6,7 +6,7 @@ fair description of where a route actually goes early on?
 """
 import unittest
 
-from src.nav import bearing, heading_is_honest
+from src.nav import bearing, heading_is_honest, honest_bearing
 
 
 def _line(*pts):
@@ -114,6 +114,35 @@ class TestHeadingIsHonest(unittest.TestCase):
         wiggle = _line((5, 5), (2, 5), (15, 5))
         self.assertFalse(heading_is_honest(wiggle, "east", window=3))
         self.assertTrue(heading_is_honest(wiggle, "east", window=20))
+
+
+class TestHonestBearing(unittest.TestCase):
+    def _grid(self, n, mountains=()):
+        ms = set(mountains)
+        return [[{"terrain": "mountain" if (x, y) in ms else "plain"}
+                 for x in range(n)] for y in range(n)]
+
+    def test_open_ground_returns_the_straight_line(self):
+        g = self._grid(12)
+        self.assertEqual(honest_bearing((2, 10), (9, 3), g, 12), "north-east")
+
+    def test_reversal_substitutes_the_honest_early_heading(self):
+        g = self._grid(12, [(7, y) for y in range(0, 9)])
+        # dest is straight-line NE, wall forces the route south-east first
+        self.assertEqual(honest_bearing((6, 5), (10, 1), g, 12), "south-east")
+
+    def test_unreachable_falls_back_to_straight_line(self):
+        g = self._grid(12, [(5, y) for y in range(12)])
+        self.assertEqual(honest_bearing((1, 1), (10, 10), g, 12), "south-east")
+
+    def test_on_top_returns_empty(self):
+        g = self._grid(8)
+        self.assertEqual(honest_bearing((4, 4), (5, 4), g, 8), "")
+
+    def test_non_dict_tile_on_the_line_is_passable(self):
+        g = self._grid(10)
+        g[4][5] = "ZOMBIE"
+        self.assertEqual(honest_bearing((5, 8), (5, 1), g, 10), "north")
 
 
 if __name__ == "__main__":

@@ -10,9 +10,14 @@ matching world_mixin's map and the ASCII render. A "bearing" is one of
 ("north-east") - the same words the two ad-hoc helpers this consolidates
 (`mystery_mixin._mystery_heading`, `tui._compass`) already produced.
 
-C.3.2 build-order step 1 + piece 0: `heading_is_honest` is consumed by
-`tui._route_heading` (the ESCAPE-panel route heading).
+C.3.2: `heading_is_honest` / `honest_bearing` are consumed by
+`tui._route_heading` (the ESCAPE-panel route heading, piece 0) and by
+`knowledge_mixin.knowledge_look` (recoverable orientation, piece 2).
+
+`honest_bearing` reaches into `src.worldgen.reachable` for a
+shortest_path - still no *engine* imports, but no longer standalone.
 """
+from src.worldgen.reachable import shortest_path
 
 
 def bearing(from_xy, to_xy, deadzone=1):
@@ -67,3 +72,30 @@ def heading_is_honest(path, claimed, window=8):
     if not early:
         return True
     return not any(_OPPOSITE[ax] in early for ax in _axes(claimed))
+
+
+def honest_bearing(here, dest, grid, n, window=8):
+    """The graph-honest compass word from `here` toward `dest`.
+
+    The straight-line `bearing` is the claim; the real `shortest_path`
+    over `grid` is the authority. If the early route reverses one of the
+    claim's axes, return the route's honest early heading instead.
+
+      - `here` on / within the deadzone of `dest` -> "" (no direction)
+      - `dest` unreachable                        -> the straight-line
+        claim (the caller decides what to do about unreachable)
+
+    `grid` may contain non-dict tiles (a Zombie object) - those are
+    treated as passable here: a zombie standing on the direct line is
+    not a reason to re-describe where the route goes.
+    """
+    here, dest = tuple(here), tuple(dest)
+    straight = bearing(here, dest)
+    if not straight:
+        return ""
+    terrain = [[c if isinstance(c, dict) else {"terrain": "plain"} for c in row]
+               for row in grid]
+    path = shortest_path(terrain, n, here, dest)
+    if not path or heading_is_honest(path, straight, window):
+        return straight
+    return bearing(path[0], path[min(window, len(path) - 1)])

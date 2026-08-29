@@ -26,8 +26,7 @@ from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
 from src.mixins.persistence_mixin import profile_filename_for_name
-from src.nav import bearing, heading_is_honest
-from src.worldgen.reachable import shortest_path
+from src.nav import honest_bearing
 
 
 class AppClosed(Exception):
@@ -198,35 +197,15 @@ _FACT_LABEL = {
 
 
 def _route_heading(here, dest, grid, n):
-    """C.3.2 piece 0 — a graph-honest compass suffix (" (north-east)")
-    from `here` to `dest`.
-
-    The straight-line bearing is the claim; `MapGraph` topology is the
-    authority (PHASE_C3_2_SPEC.md, Invariant 4). If the real early route
-    demonstrably reverses the claimed direction — the v2 failure, "head
-    north-east" into a ridge that forces you west for six tiles first —
-    substitute the route's honest early heading, or drop the
-    parenthetical if the route commits to no clear direction.
-
-    Unreachable / missing route → the straight-line claim, unchanged
-    (the UI, not this function, decides what to say about those).
+    """C.3.2 piece 0 — the graph-honest compass suffix (" (north-east)")
+    for a checklist "head for …" line. `nav.honest_bearing` does the
+    work (straight-line claim vs the real early route); this just wraps
+    it. "" dest → ""; no committed direction → " (near here)".
     """
     if not dest:
         return ""
-    here = tuple(here)
-    dest = tuple(dest)
-    straight = bearing(here, dest)
-    if not straight:
-        return " (near here)"
-    # topology only — a zombie standing on the direct line is not a
-    # reason to re-describe where the route goes.
-    terrain = [[c if isinstance(c, dict) else {"terrain": "plain"} for c in row]
-               for row in grid]
-    path = shortest_path(terrain, n, here, dest)
-    if not path or heading_is_honest(path, straight):
-        return f" ({straight})"
-    honest = bearing(path[0], path[min(8, len(path) - 1)])
-    return f" ({honest})" if honest else ""
+    d = honest_bearing(here, dest, grid, n)
+    return f" ({d})" if d else " (near here)"
 
 
 def _objective_steps(p, m, k):

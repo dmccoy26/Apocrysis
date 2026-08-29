@@ -36,7 +36,7 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 14 | 4 (`base.py`, `worlds/__init__.py`, `game.py` param, `truth.py`) | 8 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`, `test_world_truth.py`) | 4 |
+| 18 | 4 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`) | ~15 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`, `test_world_truth`, `discovery.py`, `base.py` v2, `escape.py`, `test_discovery`) | 4 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -133,6 +133,34 @@ dataclass. But a new file that's ~70 lines of **non-repetitive
 procedural logic** (`test_world_truth.py`) still fails. Roughly:
 Atlas can type out *structured data* it's given; it can't yet author
 *algorithm* at that length. Appended to `atlas-self` `dbc93715`.
+
+## Phase A.2 (2026-08-29) — `DiscoveryTemplate` + `target_fact`
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 15 | create `src/worlds/silence/discovery.py` — `from src.worlds.base import DiscoveryTemplate` + a 9-entry dict of `DiscoveryTemplate(...)` | `atlas request --file … --create --force` | `333b4b23` | **REJECTED-WRONG** | The `DISCOVERY_TEMPLATES` dict was **perfect**. But Atlas **redefined `DiscoveryTemplate` locally** (plain class, `.name` not `.world_fact_id`) instead of importing it from `base.py`. Exact `dbc93715` failure — the model stubs a cross-module dependency rather than importing it. Hand-written. |
+| 16 | `src/worlds/base.py` — add `DiscoveryTemplate` dataclass + a `discovery_templates` field to `World` (16-line file) | not routed | — | **HAND** | wanted to keep `base.py` + `discovery.py` + `world.py` as one coherent change; #15 showed Atlas can't do the import anyway |
+| 17 | `src/escape.py` — `Mystery.world_fact_id` + `build_mystery(target_fact=…)` branch (917-line file) | `atlas request --file src/escape.py` | — | **KILLED** (did not converge in ~4 min, killed) | 917 lines — same wall as `world_mixin` (#12). Hand-written. |
+| 18 | `src/tests/test_discovery.py` — 9 tests incl. BFS reachability + anti-injection | not routed | — | **HAND** | procedural, past the `test_world_truth` line boundary |
+
+Net A.2: **0 of 5 files by Atlas** — the one it could have done
+(`discovery.py`, structured data) it botched on the import. The rest
+are large-file or procedural, both known walls.
+
+## Running tally after A.0 + A.1 + A.2
+
+**Atlas shipped, no rework:** `worlds/base.py` (v1), `worlds/__init__.py`,
+`game.py` world param, `worlds/silence/truth.py` — **4 files**, all
+either a small self-contained new file or a small precise edit to a
+mid-size file.
+
+**Everything else hand-written** — every large-file edit, every
+multi-file change, every new file needing a cross-module import, every
+piece of procedural logic over ~45 lines, and the `CAMPAIGN_LENGTH`
+rename. ~15 files.
+
+The capability gained since v4 is real but narrow: *small, local,
+self-contained*. The architectural work of Phase A has been Claude's.
 
 ## Original blocker writeup (for the record)
 

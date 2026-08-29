@@ -1,15 +1,13 @@
 # Session handoff — Apocrysis v5
 
-Last updated **2026-08-29** (overnight build complete — all 5 phases
-shipped — then a long roadmap/direction session). **Read this first in
-a fresh session.**
+Last updated **2026-08-29** — Phases A + B complete and frozen; Phase C
+foundation frozen; the C.3 geography experiment is built and awaiting a
+human feel-test. **Read this whole DIRECTION block first in a fresh
+session, then the doc map below it.**
 
 ---
 
 ## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION FROZEN, C.3 EXPERIMENT AWAITS FEEL-TEST
-
-**Read `PHASE_A_COMPLETE.md`, `PHASE_B_COMPLETE.md`,
-`PHASE_C_FOUNDATION.md`, `PHASE_C3_SPEC.md`.**
 
 - Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
   `v5-phase-c-foundation`, `v5-phase-c3-experiment`. **251 + 100 green.**
@@ -33,10 +31,43 @@ a fresh session.**
   worldgen/* never import the engine; balance FROZEN.
 - **Atlas**: 9 of ~70 files across A+B+C, all leaf files. 13 `atlas-self`
   capability todos; `atlas scan` crash fixed (`zork`).
-- **Next**: owner plays ~5 `mapgen="v2"` expeditions -> accept / reject /
-  tune C.3. Then: C.3.2 (fully-inverted pipeline, only if accepted) /
-  A.0.1 (parked encounters) / roadmap B.3 (valley file) / modal wi
-  screen.
+- **Next**: owner plays ~5 v2 expeditions (`python3 apocrysis.py
+  --mapgen v2`) -> accept / reject / tune C.3. Then: C.3.2
+  (fully-inverted pipeline, only if accepted) / A.0.1 (parked
+  encounters) / roadmap B.3 (valley file) / native modal wi screen.
+
+---
+
+## >> DOC MAP (read in this order)
+
+1. `PHASE_A_COMPLETE.md` — the World/Truth/Investigation spine + 8
+   invariants + as-built notes. **Frozen.**
+2. `PHASE_B_COMPLETE.md` — the roguelite inheritance loop
+   (campaign/survivor split, 3 SurvivorLore) + 5 invariants. **Frozen.**
+3. `PHASE_C_FOUNDATION.md` — the geography freeze: C.0 contracts, C.1
+   byte-identity evidence, C.2 `MapGraph` semantics, C.4 suite, the
+   **v1 baseline metrics envelope**, C.3 freedoms/prohibitions,
+   rollback point. **Frozen.**
+4. `PHASE_C3_SPEC.md` — the irregular-valley experiment: the
+   preserve/change/measure matrix, what v2 does, the measured v1-vs-v2
+   result, the accept/reject gate. **Awaiting the owner's feel-test.**
+5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
+   architecture principle. §5 is the full map-v2 vision (C.3.2 target).
+6. `ATLAS_CAPABILITY_LOG.md` — every `atlas request` this project,
+   cumulative tally, the stable capability boundary.
+7. Per-phase specs (`PHASE_A0_SEAM.md` … `PHASE_A5_COHERENCE.md`,
+   `PHASE_A_DECISIONS.md`, `PHASE_C_SPEC.md`) — the authored design for
+   each step; historical record. `PHASE_A_TODO.md` is SUPERSEDED.
+
+Working discipline (every phase): **inspect → author the seam/spec →
+owner reviews → implement → test both suites → commit → freeze.**
+Route small self-contained new files to Atlas first; hand-write
+everything else (see the capability log for why).
+
+Both test suites, every commit:
+`python3 apocrysis.py --test` AND `<atlas-root>/.venv/bin/pytest -q .`
+(they're genuinely different — `--test` is a hand-rolled assert script
+in `cli.run_tests()`, pytest runs the `unittest` classes).
 
 ---
 

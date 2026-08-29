@@ -36,7 +36,7 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 8 | 2 (`base.py`, `worlds/__init__.py`) | 4 (rename ×2 blocked, `world.py`, seam bundle) | 2 |
+| 9 | 2 (`base.py`, `worlds/__init__.py`) | 5 (rename ×2, `world.py`, seam bundle, constants shim) | 2 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -81,6 +81,16 @@ Model: `qwen2.5-coder-32b-instruct`. Index fresh (scan fixed).
 Net Phase A.0: `base.py` + `worlds/__init__.py` by Atlas; the 3 files
 with real wiring by hand. Filed `atlas-self`: `--create` multi-file
 generation + the import-then-construct failure mode.
+
+| 9 | step 3 — turn `constants.py` into a re-export shim (delete 3 table defs + their comment blocks, add one `from … import` line) | `atlas request --file src/constants.py` | — | **TIMED OUT (>2 min)** | `debug.log`: repeated ~90 s full-file regeneration passes, never converged. Same large-data-block failure mode memory flagged in v4 (a `MECHANISMS` dict block "HUNG the model ~30 min"). A localized *edit* that forces the model to re-emit a data table it's deleting still triggers whole-file regeneration. Hand-written. |
+
+### Sharpened once more
+
+Atlas can't yet do a single-file edit whose surrounding context
+contains a large literal (here: `MAP_ARCHETYPES`, ~6 lines of nested
+dict) — it regenerates the whole file and never converges. Even though
+the *edit* only removes lines. Same root cause as the v4 `MECHANISMS`
+hang. Added to `atlas-self` `dbc93715`.
 
 ## Original blocker writeup (for the record)
 

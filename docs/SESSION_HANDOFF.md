@@ -160,9 +160,20 @@ wasd remap, no mode toggle/hint, `on_key` gone. Bare Enter at `>` is a
 silent no-op. Numbered equip restored: `1`..`N` = weapon from `i`,
 `W1`/`W2` = armor, straight from the `>` prompt.
 
+### Eat/drink is a meal now (commit 5e07f2c-ish; see git log)
+
+Playtest: "spent half the game eating." `eat`/`drink` consumed one
+ration (+5) per turn vs −2/turn decay → constant nibbling. Now one
+action eats up to 6 rations (+5 each, capped by the deficit), same
+rations-per-point economy. Lake drink +4 → +15. Balance bot (400
+games, seed 7): survival 85.5%→84.5% (noise; still 100% combat deaths,
+zero starvation), median completion 46→42 turns. Frozen-balance line
+held — economy unchanged, only the action tax removed.
+
 **Still open (all minor / post-gate):** (a) cosmetic: power site keeps
 its `!` after `power_restored` (`_mystery_site_mark`, should clear);
-(b) start Tier-2 families. Balance stays FROZEN.
+(b) start Tier-2 families. Balance stays FROZEN (this eat/drink change
+was economy-neutral, verified on the bot — not a difficulty tune).
 
 ## Design rules (settled — don't relitigate)
 

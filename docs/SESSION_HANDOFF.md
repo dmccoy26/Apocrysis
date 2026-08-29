@@ -1,4 +1,4 @@
-# Session handoff — Apocrysis v4
+# Session handoff — Apocrysis v5
 
 Last updated **2026-08-29** (overnight build complete — all 5 phases
 shipped — then a long roadmap/direction session). **Read this first in
@@ -33,7 +33,7 @@ grammar).
 
 Autonomous build. Goal was *make Apocrysis produce many
 different-feeling escape stories from a small set of mechanisms.*
-**All 5 phases shipped and pushed** to `origin/version-4`. Working tree
+**All 5 phases shipped and pushed** to `origin/version-5`. Working tree
 clean. **164 tests + 100 subtests** green (both runners). 10-mechanism
 bot run at the bottom. `git stash` mined + dropped. Atlas confirmed
 unusable for this repo (two more rejected proposals — see Phase 2).
@@ -148,9 +148,9 @@ none for this repo — hand-write everything.
 
 ## Where things are
 
-- **Working tree:** `projects/apocrysis/version-4/` (only v4 copy;
+- **Working tree:** `projects/apocrysis/version-5/` (only v5 copy;
   `version-1..3/` are read-only clones).
-- **Branch:** `version-4`, pushed to `github.com/dmccoy26/Apocrysis`.
+- **Branch:** `version-5`, pushed to `github.com/dmccoy26/Apocrysis`.
   HEAD: `babc7c3` (2026-08-29 end of session) or later.
 - **Run:** `python3 apocrysis.py` (TUI) · `--classic` · `--slice`
   (tutorial) · `--test` · `--log` (session transcript).
@@ -496,7 +496,7 @@ full schema. Then a long direction session: `APOCRYSIS_ROADMAP.md`
 brainstorm expansion, split into roadmap (plan) + `APOCRYSIS_STORY_ENGINE.md`
 (vision). 5 Atlas-self-improvement todos filed. No Phase-A code yet.
 
-Playtest-driven, 2026-08-28, ~40 commits on `version-4`:
+Playtest-driven, 2026-08-28, ~40 commits on `version-5`:
 `341ceca`..`325ed26` (playlog crashes, map declutter, growth,
 archetypes, front-loaded-mystery fix, weapon nudge) →
 `c1d1fad`..`e4eaa09` (event emphasis, weapon-break auto-swap, loot to

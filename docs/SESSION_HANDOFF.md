@@ -77,11 +77,20 @@ a fresh session.**
 - **Atlas**: shipped `world_investigation.py` verbatim (its most
   procedural file here); wiring hand-written. 5 leaf files by Atlas
   across A.0–A.3, all architecture Claude's. 7 `atlas-self` gap todos.
-- **Next**: PAUSED for owner review. Then **A.4** — the World
-  Investigation screen (§8), then wire `generate_map` →
-  `build_mystery(target_fact=world_investigation.next_target())`, then
-  `campaign.py` intros keyed to investigation progress, then the
-  milestone banner. (A.0.1 encounter extraction still parked.)
+- **Phase A.4 DONE** (`docs/PHASE_A4_SURFACE.md`; commits to `582881f`):
+  `wi`/`investigation` screen (`ui_mixin.world_investigation_screen`),
+  `generate_map` → `build_mystery(target_fact=next_target())` with a
+  variety-aware target pick, `chapter_intro(…, milestones_known)`,
+  `announce_event(kind="milestone")` banner. **214 + 100 green.**
+  **Phase A core loop is complete end to end.**
+- **Atlas**: `campaign.py` milestone keying shipped first-try (2nd
+  clean small-file edit). 6 files by Atlas across A.0–A.4; ~28
+  hand-written; all architecture Claude's. 8 `atlas-self` gap todos.
+- **Next**: PAUSED for owner review. Phase A polish options: campaign
+  retrospective keyed to investigation; a native TUI investigation
+  panel; A.0.1 encounter extraction (still parked). Or move to Phase B
+  (roguelite loop — death → "that survivor didn't make it", Survivor
+  Knowledge) / Phase C (map-v2).
 
 ---
 

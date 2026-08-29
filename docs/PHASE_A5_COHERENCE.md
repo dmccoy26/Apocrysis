@@ -112,3 +112,40 @@ hand-write. Log each; append to `atlas-self`.
 
 Native modal investigation screen · `MechanismFamily` · A.0.1 encounters
 · any `knowledge.py` change · Phase B survivor loop.
+
+---
+
+## As built (2026-08-29) — commits `fc66818` (design) / `af05903` (impl)
+
+All four items landed as specced. 215 tests + 100 subtests green.
+
+- **A.5.1** — `tui._investigation_strip(p)` (new pure function) folded
+  into `_status_block`. Milestone count + per-thread 4-char bar +
+  `known/total`. Omitted entirely when `world.world_facts` is empty.
+- **A.5.2** — `ui_mixin._render_investigation_retrospective(won)`,
+  called at the end of `_render_end_screen`. Win → `WHAT YOU LEARNED`
+  (from `self._expedition_learned`, set in the resolution hook) +
+  thread progress. Death → `THE INVESTIGATION STANDS`. Both →
+  `THE NEXT SURVIVOR CAN LOOK INTO` = `next_target()`'s `statement`.
+- **A.5.3** — `announce_event` gained `kind="solved"` (green `◆`,
+  `MYSTERY SOLVED —`). `mystery_try_escape` now fires, in order:
+  `MYSTERY SOLVED` banner → the "You found the way out …" prose →
+  (if milestone) `A PIECE FALLS INTO PLACE`. The milestone announcement
+  was moved after the prose via a deferred `_milestone_line` local.
+- **A.5.4** — `TestFullLifecycle.test_campaign_lifecycle_through_a_death`
+  in `test_world_investigation.py`.
+
+### The ordering fix (found by A.5.4, not in the original spec)
+
+`generate_map()` calls `build_mystery(target_fact=next_target())` from
+inside `Apocrysis.__init__`. The caller applies the profile *after*
+construction (`cli.py` line ~103, `tui.py` line ~679), so on a fresh
+process a returning survivor's `world_investigation` was still empty
+when the first mystery was targeted → it always picked
+`DIS_FEW_REMAINS` regardless of campaign progress.
+
+**Fix:** `cli.py` and `tui.py` set `Apocrysis._world_investigation =
+profile["world_investigation"]` *before* `Apocrysis(...)`. `apply_profile`
+still restores it afterward (idempotent). `_used_mechanisms` has the
+same shape of quirk but only a cosmetic consequence, so it was left as
+is. Recorded in `PHASE_A_COMPLETE.md` § As-built.

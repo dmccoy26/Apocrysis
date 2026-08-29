@@ -6,98 +6,34 @@ a fresh session.**
 
 ---
 
-## >> DIRECTION (2026-08-29, v5 — clean baseline reached, Phase A.0 next)
+## >> DIRECTION (2026-08-29) — PHASE A COMPLETE, frozen
 
-- Renamed to **v5** (branch + dir). `origin/version-4` kept as a frozen marker.
-- **§10 decision pass LOCKED** — `docs/PHASE_A_DECISIONS.md`. World truth
-  **A "The Cordon"**; build behind a thin **`World` seam** now; **world 1
-  fact-DAG-only**; CH1+CH2 first.
-- **Architectural principle**: `APOCRYSIS_ROADMAP.md` §2B — the seven
-  layers (Truth/History/State/Experience/Evidence/Knowledge/Action/
-  Ledger). This is the architecture of **World 1's transition into** the
-  story engine, not the engine itself. New boundaries are data-oriented
-  (World / Engine / Campaign), not new abstractions.
-- **CLEANUP DONE** (tag `v5-phase-a-baseline`): slice scaffolding
-  removed (`e8e7036`), `test_apocrysis.py` split into 6 files
-  (`6ac9e02`). 164 + 100 green. **This is the clean baseline for
-  Phase A.**
-- **Phase A todo list**: `docs/PHASE_A_TODO.md` (11 items). Cancelled
-  from the Atlas queue — the batch `todo add --file` mis-binds targets;
-  re-add per-file (no batch `--file`) when routing to Atlas.
-- **Atlas capability run**: `docs/ATLAS_CAPABILITY_LOG.md`. Every
-  `atlas request` on this repo tracked vs the v4 0-for-5 baseline.
-  4 attempts logged; fixed an `atlas scan` crash in Atlas itself
-  (`zork` `e749bcd`); `atlas rename` can't do constants.
-- **Structure**: `docs/STRUCTURE_ASSESSMENT.md` (code-level read) — no
-  wholesale restructure. Three seams, each inside the phase that opens
-  it: `worlds/` (A.0), `MechanismFamily` (A.2), `worldgen/` split (C.0).
-- **Phase A.0 CORE DONE** (`docs/PHASE_A0_SEAM.md` steps 2/3/5/6/7/8;
-  commits `bbaa922`→`2f21386`). `src/worlds/base.py` (frozen data-only
-  `World`), `src/worlds/silence/world.py` (`SILENCE`, owns
-  `TERRAIN_SYMBOLS`/`TERRAIN_LEGEND`/`MAP_ARCHETYPES`), `constants.py`
-  is a re-export shim, `Game(world=None)` defaults to `SILENCE`, engine
-  renders off `self.world`. `test_worlds.py` `DUMMY`-world test proves
-  the seam is real (engine renders supplied values, no engine change).
-  **178 + 100 green.**
-- **Deferred**: A.0.1 = encounter roster extraction
-  (`_select_zombie_for_encounter`, balance-sensitive). Later phase: the
-  `cli.py` classic-mode intro narrative → `world` prose.
-- **Atlas**: 3/~9 A.0 files by Atlas (incl. `game.py` param, first-try —
-  new capability). Large-file / multi-file edits still fail. 4 gaps
-  filed in `atlas-self` (`dbc93715`/`f7ee975b`/`c4b89284`/`1ba1bf47`).
-- **Phase A.1 DONE** (`docs/PHASE_A1_TRUTH.md`; commits `9af4a4d` /
-  `6331d4c` / `4b9d851`). `src/worlds/silence/truth.py` — `WorldFact`
-  (own frozen dataclass, NOT a `knowledge.Fact` subclass) +
-  `WORLD_FACTS` = 9 authored facts, CH1 (disappearance) + CH2 (dead),
-  3 milestones (M1/M2/M4). Content only, wired to nothing.
-  `test_world_truth.py` = 9 integrity tests. **187 + 100 green.**
-- **Atlas**: shipped `truth.py` near-verbatim (its biggest
-  self-contained new file here); rejected the DFS test file
-  (hand-written). 5 `atlas-self` gap todos filed total.
-- **Phase A.2 DONE** (`docs/PHASE_A2_DISCOVERY.md`; `3ce7e1a` /
-  `133673c`). `DiscoveryTemplate` (frozen: `world_fact_id`, `mechanism`)
-  + `World.discovery_templates`; `worlds/silence/discovery.py` maps all
-  9 CH1/CH2 facts → a mechanism; `escape.build_mystery(game,
-  target_fact=None)` — set & bound ⇒ picks that mechanism + stamps
-  `m.world_fact_id`; else byte-identical random path. No
-  `MechanismFamily` (not needed). `test_discovery.py` — 9 tests incl.
-  anti-injection. **196 + 100 green.**
-- **Atlas**: 0/5 A.2 files (botched the one it could do — `discovery.py`
-  perfect dict, stubbed the import; `escape.py` hit the >800-line wall).
-  6 `atlas-self` gap todos filed total.
-- **Phase A.3 DONE** (`docs/PHASE_A3_INVESTIGATION.md`; `96c9580` /
-  `115c365`). `src/world_investigation.py` — `WorldInvestigation`
-  (per-fact status, `next_target()`, `thread_progress()`,
-  snapshot/restore). `World.world_facts`; `game._world_investigation`
-  class-var + `self.world_investigation`; `mystery_try_escape` 2-line
-  hook (tagged mystery solved → `mark_known`); `world_investigation` in
-  the profile round-trip. `test_world_investigation.py` = 10 tests
-  (DAG ordering, cross-chapter, profile round-trip, resolution hook).
-  **206 + 100 green.**
-- **Atlas**: shipped `world_investigation.py` verbatim (its most
-  procedural file here); wiring hand-written. 5 leaf files by Atlas
-  across A.0–A.3, all architecture Claude's. 7 `atlas-self` gap todos.
-- **Phase A.4 + A.5 DONE** (`docs/PHASE_A4_SURFACE.md`,
-  `docs/PHASE_A5_COHERENCE.md`; commits to `af05903`). A.4: `wi` screen,
-  investigation-driven mystery targeting (variety-aware),
-  `chapter_intro(…, milestones_known)`, milestone banner. A.5: TUI
-  investigation strip in the OBJECTIVES panel, expedition-end
-  retrospective, 3-tier vocabulary (NEW DISCOVERY / MYSTERY SOLVED /
-  A PIECE FALLS INTO PLACE), one end-to-end lifecycle test, + fixed an
-  A.4.2 ordering bug (profile now seeds `_world_investigation` before
-  construction). **215 + 100 green.**
-- **PHASE A COMPLETE** — spine works end to end (seam → truth →
-  discovery binding → persistent investigation → targeted generation →
-  surfacing, all without schema leakage).
-- **Atlas**: shipped 6 of ~40 files across A.0–A.5 (4 leaf files + 2
-  tiny edits); everything architectural / large-file / multi-file
-  hand-written. 9 `atlas-self` gap todos filed. `docs/ATLAS_CAPABILITY_LOG.md`
-  has the full tally.
-- **Next**: PAUSED for owner review. Options: Phase B (roguelite loop —
-  death → "that survivor didn't make it", Survivor Knowledge tiers) /
-  Phase C (map-v2 + `worldgen/` split) / A.0.1 (parked encounter
-  extraction) / a native modal TUI investigation screen (A.5 did a
-  compact strip only).
+**Read `docs/PHASE_A_COMPLETE.md` first** — it has the full architecture,
+the 8 load-bearing invariants, and the as-built notes.
+
+- Branch `version-5`. Tag `v5-phase-a-complete` = the freeze point.
+  **215 tests + 100 subtests green from a clean tree.**
+- **The Phase A spine is frozen.** World seam -> WorldFact DAG ("The
+  Cordon", CH1+CH2) -> WorldInvestigation -> next_target() -> targeted
+  mystery -> discovery -> milestone -> profile-persistent knowledge ->
+  next expedition. Do not modify it unless a bug appears.
+- **Key invariant:** World investigation is *campaign-level* knowledge,
+  not survivor-level. A survivor dies; their understanding of the world
+  does not. (Profile persistence, never the expedition save.)
+- Design docs, in order: `PHASE_A_DECISIONS.md` (locked) ->
+  `PHASE_A0_SEAM.md` ... `PHASE_A5_COHERENCE.md` (as-built per phase) ->
+  `PHASE_A_COMPLETE.md` (the freeze). `PHASE_A_TODO.md` is SUPERSEDED.
+- Architecture principle: `APOCRYSIS_ROADMAP.md` §2B (seven layers;
+  World 1's transition into the engine, not the engine).
+- **Atlas** (`docs/ATLAS_CAPABILITY_LOG.md`): shipped 6 of ~40 files
+  (4 leaf files + `game.py`/`campaign.py` tiny edits); all architecture
+  + large-file + multi-file work was Claude's. 9 `atlas-self` capability
+  todos filed as the baseline; `atlas scan` crash fixed (`zork` e749bcd).
+- **Next**: write + review the **Phase B** spec (roguelite inheritance
+  loop — 3-5 small legible things a new survivor inherits beyond a %
+  bar), then implement. **NOT** Phase C (geography rewrite). **NOT** the
+  native modal investigation screen (A.5's strip proves the concept).
+  A.0.1 encounter extraction stays parked.
 
 ---
 

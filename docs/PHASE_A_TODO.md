@@ -1,5 +1,15 @@
 # Phase A todo list — Apocrysis v5 (world-investigation spine)
 
+> **SUPERSEDED (2026-08-29).** Phase A is complete — see
+> `PHASE_A_COMPLETE.md`. This list was the initial sketch; the work
+> was actually executed against the per-phase authored specs
+> `PHASE_A0_SEAM.md` … `PHASE_A5_COHERENCE.md`, each written and
+> reviewed before implementation. Kept for historical record only.
+> The `apocrysis-v5-phase-a` Atlas todo-queue items were cancelled
+> (the batch `--file` binding mis-targeted them).
+
+---
+
 Source list for `atlas todo add --file docs/PHASE_A_TODO.md
 --continuity-key apocrysis-v5-phase-a`. Ordered; earlier items gate
 later ones. Each is routed to Atlas first (see

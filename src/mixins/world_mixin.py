@@ -109,9 +109,9 @@ class WorldMixin:
         # suburban sprawl / open country / a plain mix. Picked from the
         # seeded RNG so it's reproducible per seed. The boundary ring,
         # settlements, zones and mystery are untouched.
-        from src.constants import MAP_ARCHETYPES
-        self.map_archetype = self.rng.choice(list(MAP_ARCHETYPES))
-        _arch = MAP_ARCHETYPES[self.map_archetype]
+        _archetypes = self.world.map_archetypes
+        self.map_archetype = self.rng.choice(list(_archetypes))
+        _arch = _archetypes[self.map_archetype]
 
         obstacle_density = min(
             OBSTACLE_DENSITY_CAP,

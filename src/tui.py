@@ -169,6 +169,7 @@ def _gear_lines(items):
 def _location_name(p):
     """A short name for where the player is standing - the mystery
     site label if they're on a named site, otherwise terrain-derived."""
+    fallback = p.world.prose.get("place_name_fallback", "THE VALLEY")
     x, y = p.current_position
     cell = p.map[y][x]
     if isinstance(cell, dict):
@@ -181,8 +182,8 @@ def _location_name(p):
         names = {"forest": "FOREST", "water": "WATER", "swamp": "SWAMP",
                  "plain": "OPEN GROUND", "building": "A BUILDING",
                  "mountain": "THE MOUNTAIN WALL"}
-        return names.get(t, "THE VALLEY")
-    return "THE VALLEY"
+        return names.get(t, fallback)
+    return fallback
 
 
 _FACT_LABEL = {

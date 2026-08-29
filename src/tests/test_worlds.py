@@ -87,5 +87,99 @@ class TestWorldSeam(unittest.TestCase):
         self.assertIsNot(other.map_archetypes, SILENCE.map_archetypes)
 
 
+class _CapturingIO:
+    """Collects say() output; never blocks on ask()."""
+    renders_natively = True  # skip the classic per-turn ASCII block
+
+    def __init__(self):
+        self.lines = []
+
+    def say(self, *args, **kwargs):
+        self.lines.append(" ".join(str(a) for a in args))
+
+    def ask(self, prompt=""):
+        return ""
+
+    def ask_yes_no(self, prompt):
+        return False
+
+    @property
+    def text(self):
+        return "\n".join(self.lines)
+
+
+# The DUMMY world: deliberately weird values in every A.0 slot, so a
+# passing render is proof the engine reads world data at render time
+# rather than a relocated constant.
+DUMMY = World(
+    id="dummy",
+    name="TEST WORLD",
+    description="a deliberately weird fixture world",
+    terrain_symbols={
+        "forest": "F", "building": "H", "water": "W",
+        "plain": "Q", "swamp": "G", "mountain": "M", "river": "R",
+    },
+    terrain_legend="=== DUMMY LEGEND: Q means open ground ===",
+    # weights are positional [forest, building, water, plain, swamp];
+    # force ~all-plain so every rendered in-range tile is 'Q'.
+    map_archetypes={"allplain": {"weights": [0, 0, 0, 1, 0], "blurb": "nothing but Q"}},
+    prose={"place_name_fallback": "DUMMYLAND", "leave_verb": "leave DUMMYLAND"},
+)
+
+
+class TestDummyWorldActuallyRenders(unittest.TestCase):
+    """Change world data -> different world behaviour, no engine change.
+    This is the test that says A.0 extracted a seam, not just moved a
+    constant."""
+
+    def setUp(self):
+        from src.game import Apocrysis
+        self.io = _CapturingIO()
+        self.game = Apocrysis(name="Dummy", seed=1, io=self.io, world=DUMMY)
+
+    def test_generate_map_used_the_dummy_archetypes(self):
+        # generate_map() rolled from DUMMY.map_archetypes, not SILENCE's.
+        self.assertEqual(self.game.map_archetype, "allplain")
+        self.assertEqual(self.game.map_archetype_blurb, "nothing but Q")
+
+    def test_map_renders_dummy_terrain_symbols(self):
+        rendered = "\n".join(self.game._render_map_lines())
+        # 'Q' is DUMMY's plain symbol and does not appear in SILENCE's
+        # vocabulary at all - its presence proves the renderer read
+        # self.world.terrain_symbols.
+        self.assertIn("Q", rendered)
+        self.assertNotIn("f", rendered)  # SILENCE's forest symbol
+
+    def test_print_map_uses_dummy_legend(self):
+        self.io.lines.clear()
+        self.game.print_map()
+        self.assertIn("DUMMY LEGEND", self.io.text)
+
+    def test_location_name_falls_back_to_dummy_prose(self):
+        from src.tui import _location_name
+        # a terrain with no entry in _location_name's own names dict ->
+        # the branch that returns the world's place-name fallback.
+        x, y = self.game.current_position
+        self.game.map[y][x] = {"terrain": "void", "content": "P"}
+        self.assertEqual(_location_name(self.game), "DUMMYLAND")
+
+    def test_end_screen_uses_dummy_place_name(self):
+        self.io.lines.clear()
+        self.game._render_end_screen()
+        self.assertIn("DUMMYLAND", self.io.text)
+
+
+class TestConstructionUnchanged(unittest.TestCase):
+    def test_default_world_is_silence(self):
+        from src.game import Apocrysis
+        g = Apocrysis(name="Jess", seed=1, io=_CapturingIO())
+        self.assertIs(g.world, SILENCE)
+
+    def test_explicit_world_is_honoured(self):
+        from src.game import Apocrysis
+        g = Apocrysis(name="Jess", seed=1, io=_CapturingIO(), world=DUMMY)
+        self.assertIs(g.world, DUMMY)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

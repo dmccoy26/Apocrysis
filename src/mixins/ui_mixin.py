@@ -4,7 +4,7 @@
 import random
 import shutil
 
-from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW, TERRAIN_LEGEND, TERRAIN_SYMBOLS
+from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
@@ -165,7 +165,7 @@ class UIMixin:
                 # explicit 'm'/'map' command. Sharing one method closes
                 # that gap for good, not just for this one fix.
                 left_lines.extend(self._render_map_lines())
-                left_lines.extend(TERRAIN_LEGEND.split("\n"))
+                left_lines.extend(self.world.terrain_legend.split("\n"))
 
                 # Right Panel: Stats & Inventory
                 hour = self.time_of_day // 60
@@ -530,7 +530,8 @@ class UIMixin:
             headline = "YOU DIED"
             title_color = f"{BOLD}{RED}"
             closing = f"{self.name} did not make it out of the valley."
-        rows = [headline, f"THE VALLEY  ·  DAY {self.day}", ""] + stats + ["", closing]
+        _place = self.world.prose.get("place_name_fallback", "THE VALLEY")
+        rows = [headline, f"{_place}  ·  DAY {self.day}", ""] + stats + ["", closing]
         w = max(len(r) for r in rows)
         pad = lambda r: r.center(w) if r in (headline, rows[1], closing) else r.ljust(w)
         box = ["╔" + "═" * (w + 2) + "╗"]
@@ -638,8 +639,8 @@ class UIMixin:
                     elif in_range:
                         # Show real terrain (forest/water/building/
                         # plain), not a blanket '-' - see
-                        # TERRAIN_SYMBOLS above.
-                        char = TERRAIN_SYMBOLS.get(tile.get('terrain'), '.')
+                        # world.terrain_symbols.
+                        char = self.world.terrain_symbols.get(tile.get('terrain'), '.')
                     elif (x, y) in self.visited:
                         char = '.'
                     else:
@@ -733,7 +734,7 @@ class UIMixin:
     def print_map(self):
         for line in self._render_map_lines():
             self.io.say(line)
-        self.io.say(TERRAIN_LEGEND)
+        self.io.say(self.world.terrain_legend)
 
     def print_help(self):
         lines = [

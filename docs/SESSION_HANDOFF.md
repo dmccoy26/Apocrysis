@@ -55,7 +55,9 @@ session, then the doc map below it.**
    rollback point. **Frozen.**
 4. `PHASE_C3_SPEC.md` — the irregular-valley experiment: the
    preserve/change/measure matrix, what v2 does, the measured v1-vs-v2
-   result, the accept/reject gate. **Awaiting the owner's feel-test.**
+   result, the **C.3.1 no-mystery guarantee** (done, commit `42efb63`),
+   the accept/reject gate. **Awaiting the owner's feel-test — run it on
+   HEAD (post-C.3.1), not the `v5-phase-c3-experiment` tag.**
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the full map-v2 vision (C.3.2 target).
 6. `ATLAS_CAPABILITY_LOG.md` — every `atlas request` this project,

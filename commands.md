@@ -1,6 +1,7 @@
 # Apocrysis — In-Game Commands
 
-The v4 command set. Every command below is typed at the `>` prompt during a game (or, in
+The current command set (v4 mechanics + the Phase A world-investigation
+screen). Every command below is typed at the `>` prompt during a game (or, in
 the textual UI, triggered by the arrow keys / clicking, which just
 submit the same commands under the hood). Commands are case-insensitive.
 The list you actually see in-game is context-sensitive — e.g. `eat`
@@ -39,6 +40,7 @@ water, and swamp are slower; mountains and rivers are impassable).
 | `search` | `sr` | Go through the place properly — records, notes, the things that aren't obvious |
 | `journal` | `j` | Everything you've found, and what it tells you. Your memory, not a quest list |
 | `remember` | `rem` | Think it over — a synthesis of where your understanding stands right now |
+| `wi` | `investigation` | The world-investigation screen: what the campaign has worked out about the region so far, thread by thread. Campaign-level — it survives across expeditions and deaths, unlike everything else in a run |
 | `inspect <thing>` | `ins <thing>` | What you actually know about one thing: *Observed* / *Known* / *Suspected* / nothing yet. Try `inspect the way out` |
 | `clear` | `open` | Get past the obstacle on the escape route, once you have what it takes (walking into it with the item also works) |
 | `escape` | | Leave. Only works once your hypothesis is *confirmed* and the way is open — and only from the actual route out |
@@ -129,9 +131,10 @@ whatever blocks that route (`clear` / `open`, with the item the
 evidence pointed you to), reach the route itself, and `escape`.
 
 The Town Center is *not* the way out — under a generated mystery it's
-just the most information-dense location on the map. (On the rare
-degenerate map with no mystery, reaching the Town Center after
-exploring a settlement still wins, as a fallback.)
+just the most information-dense location on the map. (A "reach the
+Town Center after exploring a settlement" fallback still exists for a
+degenerate map with no mystery, but the generator now regenerates the
+map until a mystery fits, so in practice every expedition has one.)
 
 A win advances your campaign toward `CAMPAIGN_LENGTH` (10 expeditions);
 the final one triggers a campaign-complete retrospective of the routes

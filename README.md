@@ -25,7 +25,12 @@ python3 apocrysis.py             # play (textual UI)
 python3 apocrysis.py --classic   # play (plain terminal, no textual dependency)
 python3 apocrysis.py --log       # play, writing a transcript for later analysis
 python3 apocrysis.py --test      # built-in smoke test suite
+python3 apocrysis.py --mapgen v2 # experimental irregular-valley map generator (default: v1)
 ```
+
+`--mapgen v2` is a Phase C.3 experiment — the playable area is one
+grown irregular valley instead of a rectangular board. Reversible and
+off by default; see [`docs/PHASE_C3_SPEC.md`](docs/PHASE_C3_SPEC.md).
 
 Your name and progress carry forward automatically between expeditions
 (a profile: name / level / stats / backpack). Named save slots (`save`
@@ -78,17 +83,25 @@ there's no command to "confirm" anything.
 
 ## For developers
 
+- **Start here**: [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
+  — the current state, the doc map, and the reading order. Phases A
+  (world-investigation spine), B (roguelite inheritance) and the
+  Phase C geography foundation are complete and frozen; C.3 (the
+  `--mapgen v2` experiment) is awaiting a feel-test.
 - **Design**: [`docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md`](docs/ESCAPE_WORLD_DESIGN_ASSESSMENT.md)
-  — the full architecture. [`docs/VERSION_4_BUILD_ORDER.md`](docs/VERSION_4_BUILD_ORDER.md)
-  is the implementation sequence and current status;
-  [`docs/PHASE0_KNOWLEDGE_MODEL.md`](docs/PHASE0_KNOWLEDGE_MODEL.md)
+  — the original architecture. [`docs/PHASE0_KNOWLEDGE_MODEL.md`](docs/PHASE0_KNOWLEDGE_MODEL.md)
   and [`docs/V3_ASSUMPTION_AUDIT.md`](docs/V3_ASSUMPTION_AUDIT.md) are
-  the Stage 1 decision records.
+  the Stage 1 decision records; `docs/PHASE_*_COMPLETE.md` are the
+  frozen as-built specs for each later phase.
 - **Layout**: `src/` — `game.py` composes the mixins; `world_mixin`
-  generates the map; `escape.py` + `mystery_mixin` are the generated
+  orchestrates map generation while `src/worldgen/` (`MapGenerator` +
+  `MapGraph`) owns the pipeline and the connectivity guarantee;
+  `src/worlds/` is the pluggable world seam (truth DAG, discovery
+  bindings, lore); `escape.py` + `mystery_mixin` are the generated
   mystery; `knowledge.py` + `knowledge_mixin` are the four-state
-  player knowledge model. `src/tests/` is the suite (`python3
-  apocrysis.py --test`, or `pytest src/tests/`).
+  player knowledge model. Run **both** suites: `python3 apocrysis.py
+  --test` (hand-rolled asserts) and `pytest -q` (the `unittest`
+  classes) — they catch different bugs.
 - **Harnesses**: `tools/mystery_solver.py` drives generated maps to a
   win with BFS and reports the solo solve rate;
   `tools/playtest_three.py` runs a blind three-mystery comprehension

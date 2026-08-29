@@ -494,11 +494,24 @@ recoverability)**.
 - `test_look_recall.py` — Invariant 5 executable: wander to the
   farthest reachable tile, assert `look` gives a direction matching
   `honest_bearing` with `facts_known` unchanged. 277 + 100 green.
-- **Two BlueNoodle v1 runs after this (23 turns, 48 turns) — clean
-  wins, no regression, and `look` typed zero times.** He navigates by
-  the ESCAPE-panel heading + the survey map. This is why `look` is
-  now ranked #4 and the passive channels #1–2 (see "What this has
-  become" above).
+- **BlueNoodle v1 runs 1–3 (23, 48, 102 turns) — clean wins, no
+  regression, `look` typed zero times.** He navigated by the
+  ESCAPE-panel heading + the survey map. This is why `look` sits at #4.
+- **BlueNoodle run 4 — `look` VALIDATED, then a map-scale death.**
+  Airfield-plane, 24×24 (the map grows with expedition depth). The son
+  — the "never interrogates" archetype — **typed `look` twice
+  unprompted** (turns 48, 50): *"You get your bearings. The way out
+  lies to the east"*, and moved on it. So the "players won't use it"
+  worry is at least partly wrong.
+  **He died anyway** at turn 220 / day 12: settlement not found until
+  ~turn 130, food gone at turn 46, ~170 turns of starvation grind, then
+  an Elite Armored Zombie (25 dmg/hit) at HP 40. **Not a heading
+  failure — he knew "east".** The killer is **map scale**: the
+  wander-to-first-settlement cost scales with map *area*, and an
+  expedition-4 24×24 board breaks even an over-equipped survivor. This
+  is the strongest signal yet for **C.3.2a-5** (early-lead
+  reachability), and it raises a question outside C.3.2's frozen
+  balance: whether `map_size` should keep growing unbounded with depth.
 
 ## The gate — revised after BlueNoodle (2026-08-29)
 

@@ -175,8 +175,22 @@ doc map below it.**
   *player-information* experiment — the map doesn't need to say more,
   the game needs existing info to persist / reinforce / stay
   actionable. Stronger than "prettier irregular maps".
-- **Next: owner runs Step A** (or watches a survivor genuinely get
-  lost). No code until then.
+- **PIECE 2 VALIDATED (BlueNoodle run 4).** The son — the "never
+  interrogates" archetype — typed `look` twice unprompted on a 24×24
+  map, got "the way out lies to the east", acted on it. The
+  "players won't use it" worry is at least partly wrong. **But he
+  died** turn 220: map scale (24×24, grows with depth) + airfield_plane
+  (most spread-out mechanism) + settlement ~turn 130 + 170-turn
+  starvation grind + an Elite Armored Zombie. NOT a heading failure —
+  the killer is **map area scaling the wander-to-settlement cost**.
+  Strongest signal yet for **C.3.2a-5**; also raises whether `map_size`
+  should grow unbounded (balance-FROZEN).
+- **Two QoL bug-fixes shipped** (separate track from C.3.2):
+  `8bec163` empty ammo no longer alarm-red for a benched weapon;
+  `1ce5f3a` `eq N` / `wr W2` / `drop N` by pack slot number + the pack
+  list now numbers each line (`[3]`, `[5-7]` for contiguous runs).
+- **Next: owner runs Step A** (or keeps playing). The map-scale death
+  makes C.3.2a-5 the likely next real change.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug

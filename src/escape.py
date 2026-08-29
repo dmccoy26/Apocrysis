@@ -148,6 +148,8 @@ class Mystery:
         self.reasoning = None       # REASONING_PATTERNS value
         self.resolution = None      # RESOLUTION_PATTERNS value
         self.confirmation = None    # CONFIRMATION_PATTERNS value
+        self.power_role = None       # role of the 'apply the fix here' site (infrastructural family), else None
+        self.power_restored = False  # infrastructural: the dependency chain is satisfied
         self.knowledge = Knowledge()
         self.sites = {}            # role -> (x, y)
         self.site_labels = {}      # role -> "the harbourmaster's shed"
@@ -216,6 +218,8 @@ class Mystery:
             "reasoning": self.reasoning,
             "resolution": self.resolution,
             "confirmation": self.confirmation,
+            "power_role": self.power_role,
+            "power_restored": self.power_restored,
             "knowledge": self.knowledge.to_dict(),
             "sites": {r: list(xy) for r, xy in self.sites.items()},
             "site_labels": dict(self.site_labels),
@@ -239,6 +243,8 @@ class Mystery:
         m.reasoning = d.get("reasoning")
         m.resolution = d.get("resolution")
         m.confirmation = d.get("confirmation")
+        m.power_role = d.get("power_role")
+        m.power_restored = d.get("power_restored", False)
         m.knowledge = Knowledge.from_dict(d.get("knowledge"))
         m.sites = {r: tuple(xy) for r, xy in d.get("sites", {}).items()}
         m.site_labels = dict(d.get("site_labels", {}))

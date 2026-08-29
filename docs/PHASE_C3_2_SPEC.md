@@ -455,9 +455,42 @@ recoverability)**.
   farthest reachable tile, assert `look` gives a direction matching
   `honest_bearing` with `facts_known` unchanged. 277 + 100 green.
 
-**Next: the v1 feel-test** (revised sequence) — does `look` turn the
-99-turn death march into recoverable navigation? Pieces 1 / 4 / C.3.2a-5
-are gated on it.
+## v1 feel-test — PENDING (owner)
+
+**The one question:** *can a player who ignores the initial direction
+recover their way without discovering new information?*
+
+### Protocol (reproduce the bad behaviour, don't play well)
+
+1. Fresh v1 expedition (`python3 apocrysis.py`).
+2. Read the initial ESCAPE direction, then **wander away from it** for
+   ~20–40 turns.
+3. **No `search` / `journal` / `remember` / `inspect`.**
+4. `look` once, thoroughly disoriented.
+5. Follow the recovered direction.
+
+### Record
+
+- Did the direction immediately give a useful sense of where to go?
+- Did you encounter meaningful terrain / a site / a landmark **before
+  resource pressure got dangerous**?
+- Did the heading stay intuitive as you moved?
+- Ever told "north" while the world gave no way to make progress north?
+- **Lost, or merely temporarily off-course?**
+- Does `look` feel like a **diegetic recovery** ("you get your
+  bearings") or a **GPS button**? If you're hammering `look` every few
+  tiles because it's effectively a compass, we've overcorrected —
+  stop and tune `look` before adding anything.
+
+### Decision tree
+
+| outcome | next |
+|---|---|
+| substantially better | **do not add piece 1.** Play another fresh v1 run — is it repeatable? |
+| oriented but still wandering because there's nothing to *encounter* | investigate **C.3.2a-5** (site distribution) |
+| have direction, but terrain/landmarks don't help you understand the destination | **piece 1** (landmark bearings) |
+| ambient clues keep saying useful things you can't connect to the route | **piece 4** (clue reinforcement) |
+| `look` itself feels too gamey | stop, tune `look`, add nothing |
 
 ## Acceptance
 

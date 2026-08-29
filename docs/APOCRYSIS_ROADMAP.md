@@ -5,9 +5,9 @@ Written 2026-08-29. Supersedes `NIGHT_BUILD_PLAN.md` as the top-level
 `SCENARIO_EXPANSION.md` become **inputs** to this plan (the discovery
 grammar); `SESSION_HANDOFF.md` stays the per-session state.
 
-> **SPOILER WARNING.** Section 2 contains a draft of the world's
-> designed truth. It is not locked (see §10). If you want to play blind,
-> stop after §1.
+> **SPOILER WARNING.** §2 contains a draft of the world's designed
+> truth (not locked — see §10). §1B and §1C are open design brainstorm
+> and reference it. If you want to play blind, stop after §1.
 
 ---
 
@@ -370,6 +370,225 @@ plan (§9 Phase A) still holds — *prove the discovery loop is
 compelling on world 1 before building the platform under it*. But build
 it with §1B.14 in mind, so "world 1" and "the engine" are separable
 from the first commit.
+
+---
+
+## 1C. The Story Ledger — brainstorm, the machine for stories that happened to you
+
+*Also a live brainstorm. This one is a single architectural idea with a
+lot of features hanging off it.*
+
+### 1C.0 The thesis
+
+Q10 ("*you won't believe what happened in my game*") does not resolve
+to "the story is really good" or "the procgen is really clever." It
+resolves to:
+
+> **Apocrysis creates stories that could only have happened to you.**
+
+Two players can share the exact same authored truth and have completely
+different stories:
+
+> *"I found the hospital through the kid's drawing. Renner died on the
+> bridge. I spent six expeditions sure the blue signs were traps. Then
+> Mora found the radio."*
+>
+> vs. *"I never found the hospital. My first three survivors died
+> looking for the dam. Vaughn found the evacuation records by accident
+> while hunting for fuel. I blamed the military until the very end."*
+
+The authored truth provides **meaning**; the survival layer provides
+**chaos**; the knowledge system provides **interpretation**. **The
+collisions between those three are the product.**
+
+### 1C.1 The architecture — one new layer
+
+```
+                   AUTHORED TRUTH  (§2)
+                          │
+                   WORLDFACT DAG  (§3.1)
+                          │
+             ┌────────────┴────────────┐
+        DISCOVERY ENGINE          SURVIVAL ENGINE
+         (§3, §5, §6)              (frozen balance)
+             └────────────┬────────────┘
+                     PLAYER ACTIONS
+                          │
+             ┌────────────┴────────────┐
+         WORLD STATE              KNOWLEDGE STATE
+             └────────────┬────────────┘
+                          │
+                  ►  STORY LEDGER  ◄     ← the new layer
+                          │
+             ┌────────────┴────────────┐
+        CAMPAIGN HISTORY          RETELL MOMENTS
+```
+
+The **Story Ledger** (internal name: *Narrative Telemetry* — not
+analytics; the game's own model of *"what happened in this player's
+story"*) sits **downstream** of the engine in §3–§9. Most of what
+follows requires **no change to the core mystery engine** — the Ledger
+observes and records. The exceptions (1C.5–1C.7) feed back upward and
+belong with Phases C/D.
+
+### 1C.2 What the Ledger records
+
+Per survivor: born / died / cause; significant events ("found a child's
+drawing beneath the pharmacy", "followed blue markers north", "became
+convinced the military caused the disappearance", "found evidence
+contradicting the theory", "died 63 tiles from the exit"); what they
+carried at the end; their last discovery; their successor. Per
+campaign: the **discovery path** (`pharmacy → drawing → hospital →
+ambulance log → blue corridor → depot → command`), the theory history,
+the wrong-belief record.
+
+### 1C.3 Emergent-moment detection — "something strange happened"
+
+A post-run pass over **emergent state**, not authored content. Flags:
+`<10% HP while solving a critical clue` · `reached a site turns before
+an environmental change` · `held two contradictory clues at once` ·
+`changed hypothesis immediately after new evidence` · `carried a
+critical item an absurd distance` · `final survivor inherited from
+three dead ones` · `escaped by an unintended-but-valid route` · `spent
+six expeditions on a disproved theory`. Surfaced as an **APOCRYSIS
+EVENT** — *"THE HOSPITAL RUN. You had 7 HP. Night had fallen. The
+eastern road was flooded. You found the frequency in the last building
+you searched. You made it out with 2 HP."* Content generated from
+gameplay.
+
+Plus a rare **"impossible coincidence"** seed class — statistically
+improbable procedural collisions (you find the item you abandoned ten
+expeditions ago; a dead survivor's route becomes the optimal route for
+the next). Players will swear the game did it on purpose. That is the
+goal.
+
+### 1C.4 The cast — your deaths are the protagonists
+
+Survivors accumulate identity through **play, not character creation**:
+*Renner — "the one who found the hospital." Vaughn — "the one who
+proved Renner wrong." Mora — "the one who reached the radio tower."*
+The campaign develops a cast without a single authored character.
+
+Dead survivors leave **geography**. You find a body under a collapsed
+awning; a name is scratched into the radio casing — *Renner* — and the
+game does **not** say "you found Renner." "A familiar name" lands
+harder than a label. The world accumulates **memorials**: eleven
+survivors die at one bridge and it becomes *the Renner Bridge*; names
+carved in concrete that the player slowly realises are *their people*.
+
+### 1C.5 The world scarred by your attempts *(feeds the engine — Phase C/D)*
+
+Previous survivors' actions persist **narratively**, never as power
+creep: a gate Renner opened, a vehicle Mora moved, a building Ellis
+drained, a danger someone marked, a cache someone's been using ("*Thank
+you.*" — no explanation). This is **asynchronous multiplayer without
+multiplayer**; if a shared world ever exists (§1B.10), the same hook
+points at *other people's* Renners.
+
+### 1C.6 Knowledge has a survival cost *(feeds the engine — this is "the two games finally talk")*
+
+Some evidence is not a card in a pocket:
+
+- use frequency 91.7 → something answers → **you've announced your
+  location**
+- fuel the generator for evidence → it **attracts the infected**
+- open the military archive → **triggers a security system**
+- the flood-control schedule isn't lore, it's a **forecast** — the
+  reservoir opens in 30 turns
+
+Investigation *increases* danger; evidence *predicts* the map changing.
+This is the concrete answer to the "two games don't talk" problem from
+the earliest brainstorm.
+
+### 1C.7 The generator responds to what you know *(feeds the engine)*
+
+Procedural **narrative continuity**, not just variety. The generator
+reads `PLAYER_KNOWS: blue markers = evacuation route` and generates a
+**legitimate** contradiction involving blue markers — teaching "*I was
+treating a clue as a rule.*" Latent affordances (the flare that matters
+once you learn command recognises flare signals — reverse Chekhov).
+Early over-discovery: find a Chapter-4 clue in Chapter 1 → **lock the
+interpretation, not the discovery** ("someone ordered this" — but not
+yet *who*). Dramatic irony: the player knows the dam will open; the
+survivor doesn't.
+
+### 1C.8 Being wrong is content
+
+A **theory board** the player pins their *own* interpretations to ("*I
+think command knew the infection was airborne*"), tracked as a player
+hypothesis. Later: **YOUR THEORY WAS WRONG** — archived, dated,
+attributed to the survivor who held it. *"Vaughn believed Protocol
+Seven was a rescue. Disproved on Expedition 18."*
+
+The ending becomes **epistemological**, not just moral: you broadcast
+what you *believe* (*"14 confirmed facts, 3 disputed claims, 2 theories
+later proven false — the world will hear what you believe happened, not
+necessarily what happened"*). And you can finish at **Truth 88% / your
+conclusion 100%** — an investigation, not a puzzle with one gated
+answer.
+
+### 1C.9 Never say "procedural"
+
+The magic is ambiguity. *"Something strange happened,"* never
+*"procedurally generated event."* The player should not be able to tell
+whether a moment was authored or invented. That uncertainty **is**
+part of Apocrysis's identity.
+
+### 1C.10 The genre is itself a mystery *(pushes §1B.8 / §1B.12 harder)*
+
+*"WORLD UNKNOWN. Wake up."* You assume fantasy — ruins, a village,
+inscriptions — then find *"PROPERTY OF ███ RESEARCH, UNIT 04."* The
+rules of the world slowly go **ambiguous**; the player asks *what kind
+of world am I actually in?* World 2 makes World 1 **retroactively
+stranger** — Protocol Seven turns up centuries earlier — and the player
+carries an **unresolved contradiction between worlds**. That's what
+people obsess over.
+
+### 1C.11 The social layer, still no multiplayer *(extends §1B.10)*
+
+**"Compare your investigation."** Same truth, different routes: you
+reached it via `hospital → pharmacy → ambulance` (17/25 WorldFacts),
+they via `drawing → school → teacher's journal` (19/25); 11 shared, 8
+different, 6 different routes to the same fact. Procgen has produced an
+inherently social question: **"how did you figure it out?"**
+
+The endgame terminal reconstructs *your* run against the authored
+timeline — Day 1 Renner wakes, Day 4 Renner dies, Day 4 Vaughn
+inherits, … Day 17 you reach Command — and then a branch appears:
+**there was another survivor.** A parallel thread you may never have
+met, who may have scarred the world you walked through.
+
+### 1C.12 The generated postmortem — "YOUR APOCRYSIS"
+
+Not statistics. A **story**: *25 expeditions, 31 survivors, 8 died
+pursuing the hospital, your first theory was wrong, your second mostly
+right, you never found the northern checkpoint. Renner reached the
+hospital. Vaughn found the transmission. Mora proved it wasn't a
+rescue. You chose to broadcast.* Plus **YOUR MOST UNLIKELY MOMENT**,
+**YOUR BIGGEST MISTAKE**, **YOUR DISCOVERY PATH**. Eventually a
+~60-second generated presentation — *"The Story of Dan's 31
+Survivors."* And *then*: **start another world.** The anthology
+(§1B.9) becomes *collecting stories you lived through*, not collecting
+games.
+
+### 1C.13 Hardcore — one deteriorating timeline
+
+An endgame mode where the world remembers **everything** — every
+corpse, opened door, abandoned vehicle, consumed cache, activated
+generator, death, hypothesis, environmental change — across the whole
+campaign. Not replaying maps: living in one decaying timeline through
+multiple bodies.
+
+### 1C.14 Where this sits in the plan
+
+- **Recording half** — starts as soon as Phase A has state worth
+  recording. Cheap: it observes.
+- **Feedback halves** (1C.5–1C.7) — real engine changes; land with
+  Phase C/D.
+- **Downstream features** (cast, memorials, postmortem, comparison,
+  theory board) — any time after the Ledger exists; pure downstream.
+- **None of it is a rewrite of the mystery engine.** It's a new layer
+  under the one being built in §3–§9.
 
 ---
 

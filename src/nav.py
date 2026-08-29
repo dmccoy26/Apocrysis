@@ -10,10 +10,9 @@ matching world_mixin's map and the ASCII render. A "bearing" is one of
 ("north-east") - the same words the two ad-hoc helpers this consolidates
 (`mystery_mixin._mystery_heading`, `tui._compass`) already produced.
 
-Ships inert (C.3.2 build-order step 1): nothing calls these yet.
+C.3.2 build-order step 1 + piece 0: `heading_is_honest` is consumed by
+`tui._route_heading` (the ESCAPE-panel route heading).
 """
-
-_OPPOSITE = {"north": "south", "south": "north", "east": "west", "west": "east"}
 
 
 def bearing(from_xy, to_xy, deadzone=1):
@@ -36,30 +35,26 @@ def _axes(b):
     return set(b.split("-")) if b else set()
 
 
-def heading_is_honest(path, claimed, window=5):
-    """Is `claimed` a fair description of where `path` actually goes
-    over its first `window` steps?
+_OPPOSITE = {"north": "south", "south": "north", "east": "west", "west": "east"}
 
-    A MONOTONIC-PROGRESS test, not a reachability test. The v2 failure
-    (PHASE_C3_SPEC.md) was a destination that WAS reachable but whose
-    route detoured hard against the advertised heading for the first
-    several tiles - a player following "north-east" hit walls on every
-    early decision. So:
 
-        honest  <=>  `claimed` shares at least one compass axis with the
-                     route's first-`window`-step direction AND
-                     contradicts none of them.
+def heading_is_honest(path, claimed, window=8):
+    """Would a player following `claimed` from the start of `path` be
+    sent *backward* along the real route?
+
+    A CONTRADICTION test, deliberately conservative - it fires only when
+    the route's first-`window`-step net direction actually reverses an
+    axis `claimed` asserts (the v2 case: panel says "north-east" but the
+    route has to run west for a stretch to get around a ridge before it
+    can turn). It does NOT fire when the route is merely L-shaped or the
+    claim is a diagonal and the early route is one cardinal - walking a
+    fine diagonal on open ground makes progress, and a shortest path's
+    exact shape is a BFS tie-break artifact, not terrain.
 
     `path` is a shortest-path list [start, ..., dest].
-      - empty `claimed`            -> True (no assertion to be wrong about)
-      - degenerate/short path      -> True (nothing to contradict)
-      - early route has no clear    -> True (not committed yet is not a lie;
-        direction                          only a demonstrated reversal is)
-
-    The dishonest case is a *contradiction*: the claim asserts a compass
-    axis the early route demonstrably reverses (claim "north", route
-    goes south for the first `window` tiles). Lack of signal is not a
-    contradiction.
+      - empty `claimed`         -> True (no assertion to be wrong about)
+      - degenerate/short path   -> True (nothing to contradict)
+      - early route uncommitted -> True (within the deadzone)
 
     To substitute the honest heading when this returns False, a caller
     computes `bearing(path[0], path[min(window, len(path) - 1)])`.
@@ -68,11 +63,7 @@ def heading_is_honest(path, claimed, window=5):
         return True
     if not path or len(path) < 2:
         return True
-    early_end = path[min(window, len(path) - 1)]
-    real = _axes(bearing(path[0], early_end))
-    if not real:
-        return True  # route hasn't committed to a direction - not a lie
-    claimed_axes = _axes(claimed)
-    if any(_OPPOSITE[ax] in real for ax in claimed_axes):
-        return False  # claim asserts an axis the early route reverses
-    return bool(claimed_axes & real)  # ... and shares at least one axis
+    early = _axes(bearing(path[0], path[min(window, len(path) - 1)]))
+    if not early:
+        return True
+    return not any(_OPPOSITE[ax] in early for ax in _axes(claimed))

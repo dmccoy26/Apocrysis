@@ -168,28 +168,36 @@ claimed: north-east
   E  → wall        ← route actually detours west around a ridge first
 ```
 
-So the test is: **can a player following the claimed heading make
-roughly monotonic progress along the real route, without the early
-decisions repeatedly reversing the claimed axes?** `MapGraph` supplies
-the real route (`shortest_path`); the helper judges whether the claimed
-heading is a fair *description* of that route's early direction.
+So the test is: **would a player following the claimed heading be sent
+*backward* along the real route?** `MapGraph` supplies the real route
+(`shortest_path`); the helper checks whether the route's early net
+direction *reverses* an axis the claim asserts.
 
-**Two shared helpers ship in this step (and only these):**
+**Two shared helpers (as built — the spec's earlier sketch was
+refined during implementation; see "As built" below):**
 
-- `bearing(from_xy, to_xy) -> "north-east" | "" ` — pure geometry, the
-  existing ±1 deadzone, y-down = south. Replaces the two ad-hoc impls
-  (`_mystery_heading`, tui `_compass`) *when their call sites are
-  migrated in later pieces* — this step just adds the helper + tests.
-- `heading_is_honest(path, claimed, window=5) -> bool` — `path` is a
-  `shortest_path` result (`[start, …, dest]`). True iff `claimed`
-  shares at least one axis with the route's first-`window`-step
-  direction and contradicts none of them. Empty `claimed` → True
-  (no directional assertion to be dishonest about). Degenerate/short
-  path → True.
+- `bearing(from_xy, to_xy, deadzone=1) -> "north-east" | "" ` — pure
+  geometry, ±1 deadzone, y-down = south. Consolidates the two ad-hoc
+  impls (`_mystery_heading`, tui `_compass`) *as their call sites are
+  migrated* — piece 0 migrates tui's.
+- `heading_is_honest(path, claimed, window=8) -> bool` — `path` is a
+  `shortest_path` result. **Contradiction test, not a match test:**
+  `True` unless the route's first-`window`-step net direction contains
+  the *opposite* of an axis `claimed` asserts. Empty `claimed` / short
+  path / uncommitted early route → `True`.
 
-Callers that need the honest heading to substitute call
-`bearing(path[0], path[min(window, len(path)-1)])` directly — no third
-helper.
+  *Why a contradiction test and not "claimed axes ⊆ route axes":* a
+  shortest path's exact shape is a BFS tie-break artifact. On open
+  ground the path from A to B is often L-shaped ("all north, then all
+  east"), so a subset test would "correct" a perfectly fine "north-east"
+  claim to "north" ~50% of the time. Only a genuine *reversal* (the
+  route has to run west to get around a ridge before it can head NE)
+  means the player following the claim hits walls. Measured: the
+  contradiction rule fires on **0 % of v1 and ~0.1 % of v2** route-site
+  headings from sampled positions — see "As built".
+
+Callers substitute the honest heading with
+`bearing(path[0], path[min(window, len(path)-1)])`.
 
 ## `look` — the reframe
 
@@ -358,6 +366,46 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
    starves.
 9. Variety fix (one of the three options).
 10. C.3.2b — owner feel-test on v2. Fill the 2×2. Verdict.
+
+## As built — steps 1 + 2 (2026-08-29)
+
+**Step 1 — `src/nav.py`** (`bearing`, `heading_is_honest`), commit
+`2c1cc4d`, 11 tests. `heading_is_honest` refined during piece 0 from
+the spec's "shares an axis / contradicts none" to a pure **contradiction
+test** with `window=8` — the reason is in the helper section above
+(subset tests punish BFS L-shapes).
+
+**Step 2 — piece 0**, commit `<this>`.
+- `tui._route_heading(here, dest, grid, n)` — new module-level, pure,
+  unit-tested (`test_route_heading.py`, 5 tests). `_objective_steps`'s
+  `heading()` delegates to it; the old nested `_compass` is gone.
+- Straight-line `bearing` is the claim; a terrain-only `shortest_path`
+  is the authority. Honest or unreachable → the straight-line claim,
+  unchanged (byte-identical panel output for ~all cases). Contradiction
+  → the route's honest early heading (`bearing(path[0], path[8])`), or
+  nothing if it commits to no direction.
+- Applies to **every** `heading()` call (route / require / power), not
+  just route — same claim shape, same fix. Not special-cased.
+- **Atlas: attempted, REJECTED-UNPARSEABLE** (3 attempts, no parseable
+  patch) — `tui.py` at ~980 lines is past Atlas's whole-file load
+  ceiling even for a ~15-line edit. Hand-written. `atlas-self` todo
+  `9ecc7f2b`. Log entry #49.
+
+### Measured finding (the "few v1/v2 runs" gate before piece 3)
+
+Across ~1840 sampled (position, route-site) pairs per generator: the
+correction fires on **0 % of v1** and **~0.1 % of v2** route headings.
+
+**Interpretation:** the ESCAPE-panel route heading was almost never an
+actual *lie*. The v2 feel-test friction ("NE → wall, N → wall …") was
+the irregular boundary making *greedy movement* annoying while the
+heading stayed directionally sound — an Invariant-3 (texture) problem,
+not an Invariant-2/4 (falsehood) problem, and on v1 not a problem at
+all. Piece 0 is therefore a correct, cheap **guard** that closes the
+Invariant-4 hole for the rare pathological case, but it is **not** the
+fix for what the two expeditions showed. The weight is on **piece 2
+(`look` / persistence)** and **C.3.2a-5 (site clustering / early-lead
+recoverability)**.
 
 ## Acceptance
 

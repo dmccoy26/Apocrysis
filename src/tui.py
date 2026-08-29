@@ -26,6 +26,8 @@ from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
 from src.mixins.persistence_mixin import profile_filename_for_name
+from src.nav import bearing, heading_is_honest
+from src.worldgen.reachable import shortest_path
 
 
 class AppClosed(Exception):
@@ -195,6 +197,38 @@ _FACT_LABEL = {
 }
 
 
+def _route_heading(here, dest, grid, n):
+    """C.3.2 piece 0 — a graph-honest compass suffix (" (north-east)")
+    from `here` to `dest`.
+
+    The straight-line bearing is the claim; `MapGraph` topology is the
+    authority (PHASE_C3_2_SPEC.md, Invariant 4). If the real early route
+    demonstrably reverses the claimed direction — the v2 failure, "head
+    north-east" into a ridge that forces you west for six tiles first —
+    substitute the route's honest early heading, or drop the
+    parenthetical if the route commits to no clear direction.
+
+    Unreachable / missing route → the straight-line claim, unchanged
+    (the UI, not this function, decides what to say about those).
+    """
+    if not dest:
+        return ""
+    here = tuple(here)
+    dest = tuple(dest)
+    straight = bearing(here, dest)
+    if not straight:
+        return " (near here)"
+    # topology only — a zombie standing on the direct line is not a
+    # reason to re-describe where the route goes.
+    terrain = [[c if isinstance(c, dict) else {"terrain": "plain"} for c in row]
+               for row in grid]
+    path = shortest_path(terrain, n, here, dest)
+    if not path or heading_is_honest(path, straight):
+        return f" ({straight})"
+    honest = bearing(path[0], path[min(8, len(path) - 1)])
+    return f" ({honest})" if honest else ""
+
+
 def _objective_steps(p, m, k):
     """The OBJECTIVES checklist, generated from THIS mystery's own
     structure (site labels, mechanism, requirement item) rather than a
@@ -225,21 +259,16 @@ def _objective_steps(p, m, k):
     def place(role, generic):
         return labels.get(role, generic) if role in named else generic
 
-    def _compass(xy):
-        if not xy:
-            return ""
-        px, py = p.current_position
-        dx, dy = xy[0] - px, xy[1] - py
-        ns = "north" if dy < -1 else "south" if dy > 1 else ""
-        ew = "west" if dx < -1 else "east" if dx > 1 else ""
-        d = "-".join(x for x in (ns, ew) if x)
-        return f" ({d})" if d else " (near here)"
-
     def heading(role):
         # compass hint from where the player IS to a known site - a kid
         # had the objective ("fuel at the ranger depot, marked") and
-        # still couldn't find it on the ASCII map (playtest).
-        return _compass(getattr(m, "sites", {}).get(role))
+        # still couldn't find it on the ASCII map (playtest). C.3.2
+        # piece 0: routed through _route_heading so it can't advertise a
+        # direction the terrain immediately contradicts.
+        xy = getattr(m, "sites", {}).get(role)
+        if not xy:
+            return ""
+        return _route_heading(p.current_position, xy, p.map, p.map_size)
 
     item = m.requirement_item
     steps = []

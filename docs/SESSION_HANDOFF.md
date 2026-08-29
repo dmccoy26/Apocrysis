@@ -115,9 +115,27 @@ doc map below it.**
   test: honest unless the early route *demonstrably reverses* a claimed
   axis — the v2 "NE into a wall" case). **Ships inert** — nothing calls
   it yet. `test_nav.py`, 11 tests. 263 + 100 green.
-- **Next: build-order step 2** — piece 0 (validate the ESCAPE-panel
-  route heading via `heading_is_honest`), then pieces 1–3, then tag
-  `v5-phase-c3-2a` and the **owner v1 feel-test**.
+- **BUILT step 2 — piece 0 (commit pending):** `tui._route_heading`
+  makes the ESCAPE-panel `heading()` graph-honest (straight-line claim
+  → `shortest_path` authority → substitute the route's honest early
+  heading on a genuine reversal, else unchanged). Applies to
+  route/require/power headings. `test_route_heading.py`, 5 tests.
+  Atlas attempted → REJECTED-UNPARSEABLE (`tui.py` past its ceiling),
+  `atlas-self` `9ecc7f2b`, hand-written.
+  **`heading_is_honest` refined during implementation**: spec's
+  "shares an axis" → a pure **contradiction test** (`window=8`) —
+  subset tests punish BFS L-shapes. Recorded in `PHASE_C3_2_SPEC.md`
+  § "As built".
+- **MEASURED (the gate before piece 3):** the correction fires on
+  **0 % of v1 / ~0.1 % of v2** route headings across ~1840 sampled
+  positions each. **The panel heading was almost never a lie.** The v2
+  friction was the irregular boundary making *greedy movement* annoying
+  while the heading stayed sound (Invariant-3/texture, not
+  Invariant-2/falsehood). Piece 0 is a correct cheap guard; **the real
+  weight is on piece 2 (`look`/persistence) and C.3.2a-5 (site
+  clustering / early-lead recoverability).**
+- **Next:** owner reviews the piece-0 result + the measured finding,
+  then piece 1 (landmark bearings) → piece 2 (`look`).
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug

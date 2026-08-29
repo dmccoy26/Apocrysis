@@ -47,6 +47,11 @@ class Apocrysis(
     # deaths, same class-var + profile round-trip pattern as the lists
     # above. { world_fact_id: "known" | "suspected" }.
     _world_investigation = {}
+    # B.2: learned SurvivorLore ids - campaign-level, survives death.
+    _survivor_knowledge = []
+    # B.1b: how many survivors this campaign has lost (drives the next
+    # survivor's name). Campaign-level.
+    _survivors_lost = 0
 
     # v4: the fresh-start ration every game begins with, so a game
     # doesn't open in a food/water deficit. load_game() and

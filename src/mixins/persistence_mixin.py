@@ -21,7 +21,7 @@ DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
 _CAMPAIGN_KEYS = (
     "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
     "recent_mechanisms", "recent_signatures", "world_investigation",
-    "survivor_knowledge",
+    "survivor_knowledge", "survivors_lost",
 )
 
 
@@ -477,6 +477,8 @@ class PersistenceMixin:
             "world_investigation": dict(getattr(self.__class__, "_world_investigation", {}) or {}),
             # B.2: Survivor Knowledge - learned SurvivorLore ids.
             "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
+            # B.1b: how many survivors this campaign has lost.
+            "survivors_lost": int(getattr(self.__class__, "_survivors_lost", 0) or 0),
         }
 
         with open(filename, 'w') as f:
@@ -537,6 +539,20 @@ class PersistenceMixin:
 
         return None
 
+    @classmethod
+    def persist_new_survivor(cls, campaign_file, heir_name, hardcore, depth):
+        """Phase B: this survivor died (non-hardcore). The campaign is
+        still held in the class-vars; a fresh level-1 survivor takes it
+        up. Writes {campaign: <verbatim>, survivor: <fresh>} to
+        `campaign_file` and returns the heir game (unstarted).
+
+        This is the game LIFECYCLE replacing the survivor - save_profile
+        itself has no death logic (PHASE_B_SPEC.md invariant 5).
+        """
+        heir = cls(heir_name, hardcore=hardcore, expeditions_completed=depth)
+        heir.save_profile(campaign_file)
+        return heir
+
     def delete_profile(self):
         """
         Removes this player's own profile file - the permadeath path
@@ -570,6 +586,8 @@ class PersistenceMixin:
             self.__class__._survivor_knowledge = list(_sk)
             if getattr(self, "survivor_knowledge", None) is not None:
                 self.survivor_knowledge.restore(_sk)
+        if profile.get("survivors_lost") is not None:
+            self.__class__._survivors_lost = int(profile["survivors_lost"])
 
         self.name = profile.get("name", self.name)
         self.player_class = profile.get("player_class", self.player_class)

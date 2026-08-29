@@ -110,5 +110,68 @@ class TestProfileSplit(_Base):
                                 "name": "N", "level": 2})
 
 
+class TestDeathTransition(_Base):
+    def _campaign_with_progress(self):
+        """A game whose campaign has real state - depth 8, a milestone
+        known, some variety history."""
+        Apocrysis._world_investigation = {
+            "DIS_FEW_REMAINS": "known", "DIS_MOVED_TOGETHER": "known",
+            "DIS_ROUTES_PREPARED": "known", "DIS_ORGANISED": "known",
+        }
+        Apocrysis._used_mechanisms = ["mountain_pass", "evac_corridor"]
+        Apocrysis._survivor_knowledge = ["BLUE_SIGNS"]
+        g = Apocrysis("Founder", seed=1, io=_IO())
+        g.expeditions_completed = 8
+        g.level, g.xp = 6, 90
+        return g
+
+    def test_heir_resets_survivor_keeps_campaign(self):
+        dying = self._campaign_with_progress()
+        Apocrysis._survivors_lost = 1
+        heir = Apocrysis.persist_new_survivor(
+            self._pf, "Ada", hardcore=False, depth=dying.expeditions_completed)
+
+        # survivor reset
+        self.assertEqual(heir.name, "Ada")
+        self.assertEqual(heir.level, 1)
+        self.assertEqual(heir.xp, 0)
+        self.assertEqual(heir.health, heir.max_health)
+        # campaign kept
+        self.assertEqual(heir.expeditions_completed, 8)          # depth, not survivor
+        self.assertTrue(heir.world_investigation.is_known("DIS_ORGANISED"))
+        self.assertEqual(len(heir.world_investigation.milestones_known()), 1)
+
+    def test_campaign_record_is_byte_identical_across_the_death(self):
+        dying = self._campaign_with_progress()
+        dying.save_profile(self._pf)
+        before = json.load(open(self._pf))["campaign"]
+
+        Apocrysis.persist_new_survivor(
+            self._pf, "Cole", hardcore=False, depth=dying.expeditions_completed)
+        after = json.load(open(self._pf))["campaign"]
+
+        # depth and the rest are untouched by the death (invariant 1)
+        self.assertEqual(before["world_investigation"], after["world_investigation"])
+        self.assertEqual(before["used_mechanisms"], after["used_mechanisms"])
+        self.assertEqual(before["expeditions_completed"], after["expeditions_completed"])
+        self.assertEqual(before["survivor_knowledge"], after["survivor_knowledge"])
+
+    def test_depth_is_not_survivor_progress(self):
+        self._campaign_with_progress()
+        heir = Apocrysis.persist_new_survivor(self._pf, "Iris", hardcore=False, depth=8)
+        # reload as the real lifecycle would
+        prof = Apocrysis.load_profile(self._pf)
+        flat = _profile_flat(prof)
+        self.assertEqual(flat["expeditions_completed"], 8)   # campaign
+        self.assertEqual(flat["level"], 1)                   # survivor
+
+    def test_survivor_name_cycles_then_numbers(self):
+        from src.cli import _next_survivor_name, _SURVIVOR_POOL
+        self.assertEqual(_next_survivor_name(1), _SURVIVOR_POOL[0])
+        self.assertEqual(_next_survivor_name(len(_SURVIVOR_POOL)), _SURVIVOR_POOL[-1])
+        wrapped = _next_survivor_name(len(_SURVIVOR_POOL) + 1)
+        self.assertTrue(wrapped.startswith(_SURVIVOR_POOL[0]) and "(2)" in wrapped)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

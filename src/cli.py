@@ -5,7 +5,7 @@ import os
 
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon
-from src.mixins.persistence_mixin import profile_filename_for_name
+from src.mixins.persistence_mixin import profile_filename_for_name, _profile_flat
 from src.player import PlayerClass
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
@@ -59,6 +59,20 @@ def main_tui(start_log=False):
     app.run()
 
 
+_SURVIVOR_POOL = (
+    "Ada", "Cole", "Nadia", "Rourke", "Iris", "Bex", "Yusuf", "Wren",
+    "Halloran", "Sim", "Petra", "Osei", "Vann", "Dill", "Marsh", "Okonkwo",
+)
+
+
+def _next_survivor_name(n):
+    """The n-th survivor to take up the search. Cycles the pool; adds a
+    numeral once it wraps so names never silently repeat."""
+    base = _SURVIVOR_POOL[(n - 1) % len(_SURVIVOR_POOL)]
+    wrap = (n - 1) // len(_SURVIVOR_POOL)
+    return base if wrap == 0 else f"{base} ({wrap + 1})"
+
+
 def main(start_log=False):
     # v3 SPRINT step 1: no class prompt (classes are level-based now -
     # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and
@@ -70,9 +84,14 @@ def main(start_log=False):
     # (game.py's __init__), not a manual prompt, since v3's whole
     # point is that the map grows with you automatically.
     name, hardcore, profile = _resolve_player_identity()
+    # Phase B: the profile file is the CAMPAIGN's identity. The survivor
+    # who carries it can change (they die; a new one takes over) without
+    # the file key changing.
+    campaign_file = profile_filename_for_name(name)
 
     while True:
         player = None
+        flat = _profile_flat(profile) if profile is not None else {}
 
         # Named-slot manual load - kept as a fallback for an exact
         # full-state resume (map/position/day included), only offered
@@ -92,22 +111,25 @@ def main(start_log=False):
 
         if player is None:
             if profile is not None:
-                level = profile.get("level", 1)
-                expeditions_completed = profile.get("expeditions_completed", 0)
-                print(f"\nWelcome back, {name} - level {level}.")
+                level = flat.get("level", 1)
+                expeditions_completed = flat.get("expeditions_completed", 0)
+                who = flat.get("name", name)
+                print(f"\n{who} takes up the search - level {level}, "
+                      f"the search {expeditions_completed} expeditions deep.")
+                # A.5: seed the campaign class-vars BEFORE construction so
+                # the first expedition's mystery targets the right
+                # WorldFact (generate_map runs in __init__, before
+                # apply_profile).
+                Apocrysis._world_investigation = dict(
+                    flat.get("world_investigation", {}) or {})
+                Apocrysis._survivor_knowledge = list(
+                    flat.get("survivor_knowledge", []) or [])
             else:
                 level = 1
                 expeditions_completed = 0
+                who = name
 
-            if profile is not None:
-                # A.5: seed the World Investigation class-var BEFORE
-                # construction so the first expedition's mystery targets
-                # the right WorldFact (generate_map runs in __init__,
-                # before apply_profile).
-                Apocrysis._world_investigation = dict(
-                    profile.get("world_investigation", {}) or {})
-
-            player = Apocrysis(name, level=level, hardcore=hardcore, expeditions_completed=expeditions_completed)
+            player = Apocrysis(who, level=level, hardcore=hardcore, expeditions_completed=expeditions_completed)
 
             if profile is not None:
                 player.apply_profile(profile)
@@ -143,36 +165,43 @@ def main(start_log=False):
                 print(f"Play logging on -> {_p}")
         player.run_game_loop()
 
-        # v3 SPRINT step 1 / hardcore-mode follow-up: save the profile
-        # on every way a playthrough ends EXCEPT a hardcore death -
-        # "automatic" means the player's name/level/stats are never
-        # re-asked for, regardless of why a non-hardcore game ended.
-        # A hardcore character who died instead has their profile
-        # permanently deleted (delete_profile()), so the next launch
-        # can't reload a dead hardcore run under this name - that's
-        # the entire point of choosing hardcore. Re-read immediately
-        # after so the top of the next loop iteration (or the next
-        # process launch) sees the exact same state either way.
-        if player.hardcore and player.health <= 0:
+        _died = player.health <= 0
+
+        if player.hardcore and _died:
+            # hardcore = one survivor, one shot. The campaign dies too.
             player.delete_profile()
-        else:
-            player.save_profile(profile_filename_for_name(player.name))
+            print("\nThat's the end of it. No reload.\n")
+            break
 
-        profile = Apocrysis.load_profile_by_name(name)
-
-        if getattr(player, 'won', False):
-            # Real bug found live: winning used to hit the same
-            # "break" as quitting/dying, ending the whole program
-            # before Apocrysis.prize_for_next_game (set on win) could
-            # ever be consumed - it's only checked in __init__, which
-            # never ran again once the process exited. Looping back
-            # instead of breaking lets the outer while True create a
-            # fresh Apocrysis() next, which is exactly what actually
-            # grants the earned bonus.
-            print("Starting a new game with your earned supplies...\n")
+        if _died:
+            # Phase B: the roguelite loop. This survivor is gone; the
+            # campaign - everything that's been figured out - stands.
+            # The game lifecycle (not save_profile) replaces the
+            # survivor: the campaign class-vars still hold this run's
+            # progress, so a fresh Apocrysis picks them up; we only
+            # bump the depth and the lost-survivor count, then persist.
+            Apocrysis._survivors_lost = int(
+                getattr(Apocrysis, "_survivors_lost", 0)) + 1
+            heir_name = _next_survivor_name(Apocrysis._survivors_lost)
+            print(f"\n{player.name} did not make it back.")
+            print(f"A NEW SURVIVOR TAKES UP THE SEARCH — {heir_name}.\n")
+            Apocrysis.persist_new_survivor(
+                campaign_file, heir_name, hardcore, player.expeditions_completed)
+            profile = Apocrysis.load_profile(campaign_file)
             continue
 
-        if getattr(player, 'quit', False) or player.health <= 0:
+        # survived - win or quit. Save and carry on / stop.
+        player.save_profile(campaign_file)
+        profile = Apocrysis.load_profile(campaign_file)
+
+        if getattr(player, 'won', False):
+            # Loop back (don't break) so the outer while True builds a
+            # fresh Apocrysis() and Apocrysis.prize_for_next_game (set
+            # on win, consumed only in __init__) is actually granted.
+            print("Starting the next expedition with your earned supplies...\n")
+            continue
+
+        if getattr(player, 'quit', False):
             print("Thanks for playing!")
             break
 

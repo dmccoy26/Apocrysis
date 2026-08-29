@@ -676,16 +676,20 @@ class ApocrysisApp(App):
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
         self._last_load_was_profile = profile is not None
         if profile is not None:
-            # A.5: seed the World Investigation class-var before
-            # construction (generate_map targets next_target() in
-            # __init__, before apply_profile).
+            from src.mixins.persistence_mixin import _profile_flat
+            flat = _profile_flat(profile)
+            # A.5/B: seed the campaign class-vars before construction
+            # (generate_map targets next_target() in __init__, before
+            # apply_profile).
             Apocrysis._world_investigation = dict(
-                profile.get("world_investigation", {}) or {})
+                flat.get("world_investigation", {}) or {})
+            Apocrysis._survivor_knowledge = list(
+                flat.get("survivor_knowledge", []) or [])
             player = Apocrysis(
-                profile.get("name", self._name or "Survivor"),
-                level=profile.get("level", 1),
-                hardcore=profile.get("hardcore", self._hardcore),
-                expeditions_completed=profile.get("expeditions_completed", 0),
+                flat.get("name", self._name or "Survivor"),
+                level=flat.get("level", 1),
+                hardcore=flat.get("hardcore", self._hardcore),
+                expeditions_completed=flat.get("expeditions_completed", 0),
                 io=self.io,
             )
             player.apply_profile(profile)
@@ -700,10 +704,22 @@ class ApocrysisApp(App):
         return player
 
     def _save_or_delete_profile(self):
-        if self.player.hardcore and self.player.health <= 0:
-            self.player.delete_profile()
-        else:
-            self.player.save_profile(profile_filename_for_name(self.player.name))
+        p = self.player
+        campaign_file = profile_filename_for_name(self._name or p.name)
+        if p.health <= 0:
+            if p.hardcore:
+                p.delete_profile()
+                return
+            # Phase B: the survivor died. Keep the campaign, hand it to
+            # a fresh survivor (next launch picks them up).
+            Apocrysis._survivors_lost = int(
+                getattr(Apocrysis, "_survivors_lost", 0)) + 1
+            from src.cli import _next_survivor_name
+            Apocrysis.persist_new_survivor(
+                campaign_file, _next_survivor_name(Apocrysis._survivors_lost),
+                p.hardcore, p.expeditions_completed)
+            return
+        p.save_profile(campaign_file)
 
     def on_mount(self):
         self.io = TextualIO(self)

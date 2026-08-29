@@ -6,24 +6,35 @@ a fresh session.**
 
 ---
 
-## >> DIRECTION (2026-08-29, v5 — Phase A started)
+## >> DIRECTION (2026-08-29, v5 — clean baseline reached, Phase A.0 next)
 
 - Renamed to **v5** (branch + dir). `origin/version-4` kept as a frozen marker.
 - **§10 decision pass LOCKED** — `docs/PHASE_A_DECISIONS.md`. World truth
   **A "The Cordon"**; build behind a thin **`World` seam** now; **world 1
   fact-DAG-only**; CH1+CH2 first.
-- **Phase A todo list**: `docs/PHASE_A_TODO.md` (11 items). Not yet
-  queued in Atlas — the last `todo add` mis-bound targets via `--file`;
-  re-add per-file with no batch `--file`.
-- **Atlas capability run**: `docs/ATLAS_CAPABILITY_LOG.md`. Owner wants
-  every `atlas request` on this repo tracked vs the v4 0-for-5 baseline.
-  4 attempts logged; fixed an `atlas scan` crash in Atlas itself.
-- **Structure**: `docs/STRUCTURE_ASSESSMENT.md` — no big restructure;
-  `worlds/` seam (A.0) + `worldgen/` split (C.0) are the only two, both
-  in the roadmap. Cheap wins pending: split `test_apocrysis.py`; delete
-  the slice scaffolding (needs owner sign-off).
-- **Next**: decide test-split / slice-deletion, then Phase A step 0 (the
-  seam) — likely hand-written, letting Atlas attempt each piece first.
+- **Architectural principle**: `APOCRYSIS_ROADMAP.md` §2B — the seven
+  layers (Truth/History/State/Experience/Evidence/Knowledge/Action/
+  Ledger). This is the architecture of **World 1's transition into** the
+  story engine, not the engine itself. New boundaries are data-oriented
+  (World / Engine / Campaign), not new abstractions.
+- **CLEANUP DONE** (tag `v5-phase-a-baseline`): slice scaffolding
+  removed (`e8e7036`), `test_apocrysis.py` split into 6 files
+  (`6ac9e02`). 164 + 100 green. **This is the clean baseline for
+  Phase A.**
+- **Phase A todo list**: `docs/PHASE_A_TODO.md` (11 items). Cancelled
+  from the Atlas queue — the batch `todo add --file` mis-binds targets;
+  re-add per-file (no batch `--file`) when routing to Atlas.
+- **Atlas capability run**: `docs/ATLAS_CAPABILITY_LOG.md`. Every
+  `atlas request` on this repo tracked vs the v4 0-for-5 baseline.
+  4 attempts logged; fixed an `atlas scan` crash in Atlas itself
+  (`zork` `e749bcd`); `atlas rename` can't do constants.
+- **Structure**: `docs/STRUCTURE_ASSESSMENT.md` (code-level read) — no
+  wholesale restructure. Three seams, each inside the phase that opens
+  it: `worlds/` (A.0), `MechanismFamily` (A.2), `worldgen/` split (C.0).
+- **Next**: Phase A step 0 — the `World` seam. `worlds/silence/` takes
+  the encounter table + tile vocab + prose voice + (later) the
+  `WorldFact` DAG; `Game` takes a `World`. Hand-written, letting Atlas
+  attempt each piece first for the log.
 
 ---
 

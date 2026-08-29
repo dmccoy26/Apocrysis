@@ -125,6 +125,11 @@ class Mystery:
 
     def __init__(self):
         self.mechanism = None
+        self.family = None          # STORY_FAMILIES value
+        self.discovery = None       # DISCOVERY_PATTERNS value
+        self.reasoning = None       # REASONING_PATTERNS value
+        self.resolution = None      # RESOLUTION_PATTERNS value
+        self.confirmation = None    # CONFIRMATION_PATTERNS value
         self.knowledge = Knowledge()
         self.sites = {}            # role -> (x, y)
         self.site_labels = {}      # role -> "the harbourmaster's shed"
@@ -178,6 +183,11 @@ class Mystery:
     def to_dict(self):
         return {
             "mechanism": self.mechanism,
+            "family": self.family,
+            "discovery": self.discovery,
+            "reasoning": self.reasoning,
+            "resolution": self.resolution,
+            "confirmation": self.confirmation,
             "knowledge": self.knowledge.to_dict(),
             "sites": {r: list(xy) for r, xy in self.sites.items()},
             "site_labels": dict(self.site_labels),
@@ -196,6 +206,11 @@ class Mystery:
         if not d:
             return m
         m.mechanism = d.get("mechanism")
+        m.family = d.get("family")
+        m.discovery = d.get("discovery")
+        m.reasoning = d.get("reasoning")
+        m.resolution = d.get("resolution")
+        m.confirmation = d.get("confirmation")
         m.knowledge = Knowledge.from_dict(d.get("knowledge"))
         m.sites = {r: tuple(xy) for r, xy in d.get("sites", {}).items()}
         m.site_labels = dict(d.get("site_labels", {}))

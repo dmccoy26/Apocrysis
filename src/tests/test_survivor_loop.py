@@ -375,6 +375,37 @@ class TestReservoirControls(_Base):
                          _searchables(without.mystery.knowledge))
 
 
+class TestSurfacing(_Base):
+    def test_wi_screen_footer_lists_learned_lore_blurbs(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("Surf", seed=2, io=_IO())
+        _solve(g, "evac_corridor")
+        g.io.log.clear()
+        g.world_investigation_screen()
+        out = "\n".join(g.io.log)
+        self.assertIn("WHAT SURVIVORS HAVE LEARNED", out)
+        self.assertIn("blue signs", out)          # BLUE_SIGNS blurb
+        # never the internal id
+        self.assertNotIn("BLUE_SIGNS", out)
+
+    def test_retrospective_notes_a_lore_learned_this_run(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("Retro", seed=2, io=_IO())
+        _solve(g, "evac_corridor")
+        g.io.log.clear()
+        g._render_end_screen()
+        out = "\n".join(g.io.log)
+        self.assertIn("survivors after you will carry this", out)
+
+    def test_tui_strip_shows_a_lore_count(self):
+        from src.tui import _investigation_strip
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("Strip", seed=2, io=_IO())
+        self.assertNotIn("●", "\n".join(_investigation_strip(g)))
+        g.survivor_knowledge.learn("BLUE_SIGNS")
+        self.assertIn("● 1", "\n".join(_investigation_strip(g)))
+
+
 class TestLegibilityNotPower(_Base):
     """Invariant 4 - a learned lesson changes what's surfaced, nothing
     mechanical. Two otherwise-identical games, one with the lore."""

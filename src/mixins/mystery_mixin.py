@@ -700,4 +700,7 @@ class MysteryMixin:
                 _lo = {lo.id: lo for lo in self.world.survivor_lore}.get(_lore_id)
                 if _lo is not None:
                     self.announce_event(_lo.blurb, _lo.effect, kind="lore")
+                    _ll = list(getattr(self, '_expedition_lore_learned', []))
+                    _ll.append(_lore_id)
+                    self._expedition_lore_learned = _ll
         self.finish_expedition(reason="found the way out")

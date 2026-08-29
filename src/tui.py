@@ -428,7 +428,12 @@ def _investigation_strip(p):
         return []
     titles = p.world.prose.get("thread_titles", {})
     ms = len(wi.milestones_known())
-    out = [f"[b]THE APOCRYSIS[/b]   [yellow]◆ {ms}[/yellow]"]
+    sk = getattr(p, "survivor_knowledge", None)
+    lore_n = len(sk.learned_ids()) if sk else 0
+    head = f"[b]THE APOCRYSIS[/b]   [yellow]◆ {ms}[/yellow]"
+    if lore_n:
+        head += f"   [cyan]● {lore_n}[/cyan]"
+    out = [head]
     for thread, (known, total) in wi.thread_progress().items():
         title = titles.get(thread, (thread.upper(), ""))[0]
         n = 4

@@ -553,7 +553,8 @@ class UIMixin:
         titles = self.world.prose.get("thread_titles", {})
         learned = list(getattr(self, "_expedition_learned", []))
         lines = [""]
-        if won and learned:
+        lore_learned = list(getattr(self, "_expedition_lore_learned", []))
+        if won and (learned or lore_learned):
             lines.append(f"{BOLD}{CYAN}WHAT YOU LEARNED{RESET}")
             for fid in learned:
                 f = wi.fact(fid)
@@ -562,6 +563,12 @@ class UIMixin:
                     t = titles.get(f.thread, (f.thread.upper(), ""))[0]
                     k, tot = wi.thread_progress().get(f.thread, (0, 0))
                     lines.append(f"    ({t}: {k}/{tot} understood)")
+            _by_id = {lo.id: lo for lo in getattr(self.world, "survivor_lore", ())}
+            for lid in lore_learned:
+                lo = _by_id.get(lid)
+                if lo is not None:
+                    lines.append(f"  ● {lo.blurb}")
+                    lines.append("    (survivors after you will carry this)")
         elif not won:
             lines.append(f"{BOLD}{CYAN}THE INVESTIGATION STANDS{RESET}")
             for thread, (k, tot) in wi.thread_progress().items():
@@ -902,6 +909,17 @@ class UIMixin:
                 self.io.say(f"    {mark} {f.statement}")
             if unknown:
                 self.io.say(f"    ? {unknown} more to piece together")
+
+        # B.2c: the concrete lessons carried between survivors.
+        sk = getattr(self, "survivor_knowledge", None)
+        learned = sk.learned_ids() if sk else []
+        if learned:
+            by_id = {lo.id: lo for lo in getattr(self.world, "survivor_lore", ())}
+            self.io.say(f"\n  {BOLD}WHAT SURVIVORS HAVE LEARNED{RESET}")
+            for lid in learned:
+                lo = by_id.get(lid)
+                if lo is not None:
+                    self.io.say(f"    · {lo.blurb}")
         self.io.say("")
 
     def stats(self):

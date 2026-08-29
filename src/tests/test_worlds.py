@@ -15,12 +15,26 @@ class TestWorldSeam(unittest.TestCase):
         self.assertEqual(SILENCE.name, "Apocrysis")
         self.assertIsInstance(SILENCE, World)
 
-    def test_silence_reuses_constants_not_copies(self):
-        # A.0 re-packages, it does not duplicate. These must be the
-        # very same objects the engine already reads from constants.py.
-        self.assertIs(SILENCE.terrain_symbols, constants.TERRAIN_SYMBOLS)
-        self.assertIs(SILENCE.terrain_legend, constants.TERRAIN_LEGEND)
-        self.assertIs(SILENCE.map_archetypes, constants.MAP_ARCHETYPES)
+    def test_silence_owns_the_tile_vocabulary(self):
+        # worlds/silence/world.py is the OWNER of these tables.
+        # constants.py re-exports them as a back-compat shim, so the
+        # shim must point at the World-owned object, not a copy.
+        self.assertIs(constants.TERRAIN_SYMBOLS, SILENCE.terrain_symbols)
+        self.assertIs(constants.TERRAIN_LEGEND, SILENCE.terrain_legend)
+        self.assertIs(constants.MAP_ARCHETYPES, SILENCE.map_archetypes)
+
+    def test_silence_map_archetype_values_unchanged(self):
+        # The relocation must not touch a single weight or blurb.
+        self.assertEqual(set(SILENCE.map_archetypes), {
+            "mixed", "deep_woods", "flooded_basin",
+            "suburban_sprawl", "open_country",
+        })
+        self.assertEqual(
+            SILENCE.map_archetypes["deep_woods"]["weights"],
+            [0.46, 0.10, 0.08, 0.28, 0.08],
+        )
+        self.assertEqual(SILENCE.terrain_symbols["swamp"], "s")
+        self.assertIn("way out, now open", SILENCE.terrain_legend)
 
     def test_world_is_frozen(self):
         with self.assertRaises(dataclasses.FrozenInstanceError):

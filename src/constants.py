@@ -9,32 +9,15 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 CYAN = "\033[96m"
 
-# Real bug found live: wilderness terrain ('forest'/'building'/'water'/
-# 'plain', set on every non-town tile in generate_map()) only ever
-# showed up as flavor text AFTER stepping onto a tile
-# ("You move through dense forest.") - print_map() never rendered it,
-# so every wilderness tile looked identical (.) regardless of
-# terrain. This maps each real terrain type to a map symbol so it's
-# visible before you walk into it. No 'mountain'/'river' terrain
-# exists in generate_map()'s terrain_types - only what's actually
-# generated is mapped here, rather than inventing symbols for terrain
-# that was never implemented.
-TERRAIN_SYMBOLS = {
-    'forest': 'f',
-    'water': '~',
-    'building': 'b',
-    'plain': '.',
-    'mountain': '^',
-    'river': '=',
-    'swamp': 's',
-}
-
-TERRAIN_LEGEND = (
-    "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
-    "  ^ = mountain (impassable)   = = river (impassable)\n"
-    "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
-    "  P = you   Z = zombie (only shown once you've been there)\n"
-    "  ! = a lead you've found   + = the way out, now open"
+# Phase A.0: the tile vocabulary, the map legend and the map archetypes
+# are World 1 content and now live in the World that owns them
+# (src/worlds/silence/world.py). Re-exported here so existing
+# `from src.constants import ...` call sites keep working while the
+# engine is migrated to read them off `game.world` (Phase A.0 step 5).
+from src.worlds.silence.world import (  # noqa: F401
+    TERRAIN_SYMBOLS,
+    TERRAIN_LEGEND,
+    MAP_ARCHETYPES,
 )
 
 # v3 SPRINT: impassable terrain, introduced from generate_map() -
@@ -79,13 +62,8 @@ TOWN_DISTANCE_GROWTH_PER_LEVEL = 2
 # as an overlay inside any chunk - see generate_map().
 CHUNK_SIZE = 4
 
-MAP_ARCHETYPES = {
-    'mixed':          {'weights': [0.28, 0.22, 0.15, 0.25, 0.10], 'blurb': 'A patchwork of woods, fields, and scattered buildings.'},
-    'deep_woods':     {'weights': [0.46, 0.10, 0.08, 0.28, 0.08], 'blurb': 'Dense old-growth forest closes in on every side.'},
-    'flooded_basin':  {'weights': [0.22, 0.07, 0.30, 0.27, 0.14], 'blurb': 'Low, waterlogged ground - a lot of this valley is under water or sinking into it.'},
-    'suburban_sprawl':{'weights': [0.18, 0.34, 0.06, 0.34, 0.08], 'blurb': 'Street after street of empty houses - this was somebody\'s whole town.'},
-    'open_country':   {'weights': [0.20, 0.12, 0.09, 0.53, 0.06], 'blurb': 'Wide open farmland and fields, with little cover anywhere.'},
-}
+# MAP_ARCHETYPES moved to src/worlds/silence/world.py (re-exported at the
+# top of this file). The generator reads it via world.map_archetypes.
 
 # Multiple-settlements investigation: how many populated areas a map
 # can contain, scaling with expeditions_completed (1 early, up to 3

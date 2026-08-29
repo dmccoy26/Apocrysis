@@ -237,6 +237,17 @@ mystery, died anyway. Fixes:
   supplies (re-arms >45); `(your Kitchen Knife barely scratches them -
   search buildings for a heavier weapon)` once/expedition when stuck
   with a <10-dmg weapon and nothing better. UI only, bot unaffected.
+- `ea4e48d` — combat: empty ranged weapon never recommended as a swap
+  and does no phantom str//3 damage (falls back to a 2-dmg club).
+- `73ff535` — `_used_mechanisms`/`_last_family` now save/load through
+  the profile (no-back-to-back-family survives quit/relaunch); hunger/
+  thirst warnings escalate <=30 -> <=10 -> 0, one shot per tier,
+  re-arm >45. NO movement cap - starvation stays HP attrition, just
+  made legible.
+
+**Kid result:** BlueNoodle won 2 expeditions back to back after these
+landed (was dying to "solved it, couldn't get out" / "couldn't find
+the fuel" / "died one tile short").
 
 **Still open:** (a) cosmetic: power site keeps its `!` after
 `power_restored`; (b) `m.escape_kind` for transportation/environmental;

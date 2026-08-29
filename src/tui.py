@@ -223,11 +223,28 @@ def _objective_steps(p, m, k):
     def place(role, generic):
         return labels.get(role, generic) if role in named else generic
 
+    def heading(role):
+        # compass hint from where the player IS to a known site - a kid
+        # had the objective ("fuel at the ranger depot, marked") and
+        # still couldn't find it on the ASCII map (playtest).
+        xy = getattr(m, "sites", {}).get(role)
+        if not xy:
+            return ""
+        px, py = p.current_position
+        dx, dy = xy[0] - px, xy[1] - py
+        ns = "north" if dy < -1 else "south" if dy > 1 else ""
+        ew = "west" if dx < -1 else "east" if dx > 1 else ""
+        d = "-".join(x for x in (ns, ew) if x)
+        return f" ({d})" if d else " (near here)"
+
     item = m.requirement_item
     steps = []
-    # 1. the route
-    steps.append(("route" in named or "F_ROUTE" in known,
-                  f"found {place('route', 'a way toward another route')}"))
+    # 1. the route (skip for informational - the route is unknowable
+    # until the response names it, so this step can only ever be the
+    # hot line pointing nowhere)
+    if not _info:
+        steps.append(("route" in named or "F_ROUTE" in known,
+                      f"found {place('route', 'a way toward another route')}"))
     # 2. what blocks it
     if "F_OBSTACLE" in known or m.saw_obstacle:
         steps.append((True, "found what blocks the route"))
@@ -266,26 +283,32 @@ def _objective_steps(p, m, k):
                       f"learned the transmitter runs off {place('power', 'a generator somewhere')}"
                       if _info else
                       f"learned it's powered from {place('power', 'somewhere else')}"))
+        _pl = labels.get('power', 'the power source')
         steps.append(("power" in named or m.power_restored,
-                      f"reached {place('power', 'the power source')}"))
+                      f"reached {_pl}",
+                      f"go to {_pl}{heading('power')}"))
     # 3. what you need
     if "F_REQUIRE" in known:
         steps.append((True, f"learned you need a {item}"
                             + (f" — kept at {labels['require']}" if 'require' in labels else "")))
     # 4. reached the place it's kept
     if "F_REQUIRE" in known:
+        _rl = labels.get('require', 'where it is kept')
         steps.append(("require" in named or has_item,
-                      f"reached {place('require', 'where it is kept')}"))
+                      f"reached {_rl}",
+                      f"go to {_rl}{heading('require')}"))
     # 5. got it
     if "F_REQUIRE" in known or has_item:
+        _rl = labels.get('require', 'where it is kept')
         steps.append((has_item, f"got the {item}",
-                      f"reach {place('require', 'where it is kept')} and pick up the {item}"))
+                      f"go to {_rl}{heading('require')} and pick up the {item}"))
     # 5b. infrastructural / informational: apply the fix
     if m.power_role and ("F_REQUIRE" in known or has_item):
+        _pl = labels.get('power', 'the power source')
         steps.append((m.power_restored,
                       "got the transmitter running" if _info
-                      else f"restored power at {place('power', 'the source')}",
-                      f"get the {item} to {place('power', 'the power source')}"))
+                      else f"restored power at {_pl}",
+                      f"take the {item} to {_pl}{heading('power')}"))
     # 6. open the way / get the directions
     steps.append((m.obstacle_open,
                   "the outside named a way out" if _info else "opened the way through"))

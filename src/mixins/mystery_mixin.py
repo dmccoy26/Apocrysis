@@ -66,6 +66,21 @@ class MysteryMixin:
             self._mystery_reveal('E_route_reveal')
             m.obstacle_open = True
 
+    def _mystery_heading(self, role):
+        """Compass hint from the player to a mystery site - "it's
+        marked on your map" isn't enough for a kid who can't read the
+        ASCII map (playtest)."""
+        m = self._mystery()
+        xy = m.sites.get(role) if m else None
+        if not xy:
+            return ""
+        px, py = self.current_position
+        dx, dy = xy[0] - px, xy[1] - py
+        ns = "north" if dy < -1 else "south" if dy > 1 else ""
+        ew = "west" if dx < -1 else "east" if dx > 1 else ""
+        d = "-".join(x for x in (ns, ew) if x)
+        return f" ({d} of you)" if d else " (close by)"
+
     def _mystery_reveal(self, evidence_id):
         m = self._mystery()
         if m and m.knowledge.discover(evidence_id):
@@ -99,26 +114,28 @@ class MysteryMixin:
                 self.announce_event(f"the route is at {m.site_labels['route']}",
                                     "It's marked on your map now.", kind="lead")
         if 'F_POWER' in new_facts and m.site_labels.get('power'):
+            _pdir = self._mystery_heading('power')
             if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
                 self.announce_event(
                     f"the transmitter is fed from {m.site_labels['power']}",
-                    "Get it running and the outside can guide you out. Marked on your map.",
+                    f"Get it running and the outside can guide you out. It's{_pdir}, marked on your map.",
                     kind="lead")
             else:
                 self.announce_event(
                     f"the way out is powered from {m.site_labels['power']}",
-                    "You'll have to sort out what's wrong there. Marked on your map.",
+                    f"Sort out what's wrong there - it's{_pdir}, marked on your map.",
                     kind="lead")
         if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
+            _rdir = self._mystery_heading('require')
             if m.controls:
                 self.announce_event(
                     f"whatever clears the way is set from {m.site_labels['require']}",
-                    "You'll have to work out which control. Marked on your map.",
+                    f"You'll have to work out which control. It's{_rdir}, marked on your map.",
                     kind="lead")
             else:
                 self.announce_event(
                     f"the {m.requirement_item} is kept at {m.site_labels['require']}",
-                    "It's marked on your map now.", kind="lead")
+                    f"It's{_rdir}, marked on your map.", kind="lead")
 
         now = k.hypothesis_state()
         if now != hyp_before and k.hypothesis is not None:

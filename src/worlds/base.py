@@ -42,3 +42,5 @@ class World:
     world_facts: tuple = ()
     # SurvivorLore this world can teach (worlds/<w>/lore.py). B.2.
     survivor_lore: tuple = ()
+    # { mechanism_key: lore_id } - solving that mystery teaches that lore.
+    lore_triggers: dict = field(default_factory=dict)

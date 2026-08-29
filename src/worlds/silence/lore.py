@@ -39,3 +39,12 @@ SURVIVOR_LORE = (
 )
 
 SURVIVOR_LORE_BY_ID = {lore.id: lore for lore in SURVIVOR_LORE}
+
+# Which escape mechanism, once solved, teaches which lesson. The engine
+# reads this to decide when to call survivor_knowledge.learn(<id>); the
+# *effect* of each id is engine logic keyed to the literal id.
+LORE_TRIGGERS = {
+    "evac_corridor": "BLUE_SIGNS",
+    "radio_tower": "COMMAND_FREQUENCY",
+    "dam_valves": "RESERVOIR_CONTROLS",
+}

@@ -37,6 +37,8 @@ class _Base(unittest.TestCase):
         Apocrysis._world_investigation = {}
         Apocrysis._survivor_knowledge = []
         Apocrysis._used_mechanisms = []
+        Apocrysis._survivors_lost = 0
+        Apocrysis.prize_for_next_game = False
         self._tmp = tempfile.mkdtemp()
         self._pf = os.path.join(self._tmp, "p.json")
 
@@ -185,18 +187,24 @@ class TestSurvivorLoreData(unittest.TestCase):
             self.assertTrue(lo.blurb and lo.effect and lo.learned_when)
             self.assertIs(SURVIVOR_LORE_BY_ID[lo.id], lo)
 
-    def test_effect_is_never_read_by_the_engine(self):
-        # invariant 3: grep the engine for `.effect` on a lore object.
-        # A weak proxy, but it catches an accidental `lore.effect ==`.
+    def test_effect_is_never_interpreted_by_the_engine(self):
+        # invariant 3: `effect` is player-facing / doc text. The engine
+        # may DISPLAY it (announce_event / io.say) but must never branch
+        # or compare on it. Grep for the interpretation shapes.
         import pathlib
+        import re
         root = pathlib.Path(__file__).resolve().parents[1]
+        bad = re.compile(
+            r"\.effect\s*(==|!=|\bin\b|\band\b|\bor\b)"
+            r"|if\s+[\w.]*\.effect"
+            r"|\.effect\.(startswith|endswith|split|lower|upper)"
+        )
         for path in list((root / "mixins").glob("*.py")) + [
             root / "game.py", root / "escape.py",
             root / "world_investigation.py", root / "survivor_knowledge.py",
         ]:
-            text = path.read_text()
-            self.assertNotIn(".effect", text,
-                             f"{path.name} reads a lore .effect - it's doc text only")
+            hits = bad.findall(path.read_text())
+            self.assertEqual(hits, [], f"{path.name} interprets a lore .effect: {hits}")
 
 
 class TestSurvivorKnowledgePersistence(_Base):
@@ -219,6 +227,120 @@ class TestSurvivorKnowledgePersistence(_Base):
         k = Apocrysis("K", seed=1, io=_IO()).survivor_knowledge
         self.assertTrue(k.learn("BLUE_SIGNS"))
         self.assertFalse(k.learn("BLUE_SIGNS"))
+
+
+def _solve(game, mech):
+    """Force `game` onto a fresh `mech` mystery and solve it."""
+    from src.escape import MECHANISMS, build_mystery
+    Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != mech]
+    Apocrysis._last_family = None
+    Apocrysis._recent_mechanisms = []
+    Apocrysis._recent_signatures = []
+    Apocrysis._world_investigation = {f.id: "known"
+                                      for f in __import__(
+                                          "src.worlds.silence.truth",
+                                          fromlist=["WORLD_FACTS"]).WORLD_FACTS}
+    m = build_mystery(game)
+    assert m.mechanism == mech, (m.mechanism, mech)
+    game.mystery = m
+    game.knowledge = m.knowledge
+    for eid in list(m.knowledge.evidence):
+        m.knowledge.discover(eid)
+    m.obstacle_open = True
+    game.current_position = m.escape_tile
+    game.io.log.clear()
+    game.mystery_try_escape()
+    return m
+
+
+class TestBlueSigns(_Base):
+    def test_solving_evac_corridor_teaches_blue_signs_once(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("BS", seed=2, io=_IO())
+        _solve(g, "evac_corridor")
+        self.assertTrue(g.survivor_knowledge.has("BLUE_SIGNS"))
+        self.assertIn("SURVIVORS NOW KNOW", "\n".join(g.io.log))
+        self.assertEqual("\n".join(g.io.log).count("SURVIVORS NOW KNOW"), 1)
+
+        # a second evac_corridor solve does not re-announce
+        g2 = Apocrysis("BS2", seed=3, io=_IO())
+        Apocrysis._survivor_knowledge = g.survivor_knowledge.snapshot()
+        g2.survivor_knowledge.restore(Apocrysis._survivor_knowledge)
+        _solve(g2, "evac_corridor")
+        self.assertNotIn("SURVIVORS NOW KNOW", "\n".join(g2.io.log))
+
+    def test_blue_signs_marks_the_route_site_from_turn_one(self):
+        from src.escape import MECHANISMS, build_mystery
+        from src.worlds.silence.truth import WORLD_FACTS
+
+        def _fresh_evac(sk):
+            Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != "evac_corridor"]
+            Apocrysis._last_family = None
+            Apocrysis._recent_mechanisms = []
+            Apocrysis._recent_signatures = []
+            Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+            Apocrysis._survivor_knowledge = list(sk)
+            g = Apocrysis("Route", seed=5, io=_IO())
+            self.assertEqual(g.mystery.mechanism, "evac_corridor")
+            return g
+
+        without = _fresh_evac([])
+        rx, ry = without.mystery.sites["route"]
+        self.assertIsNone(without._mystery_site_mark(rx, ry))   # fog of war
+
+        withl = _fresh_evac(["BLUE_SIGNS"])
+        rx, ry = withl.mystery.sites["route"]
+        self.assertIsNotNone(withl._mystery_site_mark(rx, ry))  # visible
+
+
+class TestLegibilityNotPower(_Base):
+    """Invariant 4 - a learned lesson changes what's surfaced, nothing
+    mechanical. Two otherwise-identical games, one with the lore."""
+
+    def _pair(self, lore_id, mech):
+        from src.escape import MECHANISMS
+
+        def _mk(sk):
+            Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != mech]
+            Apocrysis._last_family = None
+            Apocrysis._recent_mechanisms = []
+            Apocrysis._recent_signatures = []
+            Apocrysis._world_investigation = {}
+            Apocrysis._survivor_knowledge = list(sk)
+            return Apocrysis("Pair", seed=9, io=_IO())
+
+        return _mk([]), _mk([lore_id])
+
+    def _assert_mechanically_identical(self, a, b):
+        for attr in ("strength", "dexterity", "intelligence", "wisdom",
+                     "max_health", "health", "level", "xp"):
+            self.assertEqual(getattr(a, attr), getattr(b, attr), attr)
+        self.assertEqual(a.backpack.food, b.backpack.food)
+        self.assertEqual(a.backpack.water, b.backpack.water)
+        wa = a.equipped_weapon
+        wb = b.equipped_weapon
+        self.assertEqual(type(wa), type(wb))
+        self.assertEqual(getattr(wa, "damage", None), getattr(wb, "damage", None))
+        # same zombie roll over a fixed RNG
+        import random
+        a.rng = random.Random(123)
+        b.rng = random.Random(123)
+        za = [type(a._select_zombie_for_encounter()).__name__ for _ in range(20)]
+        b.rng = random.Random(123)
+        zb = [type(b._select_zombie_for_encounter()).__name__ for _ in range(20)]
+        self.assertEqual(za, zb)
+
+    def test_blue_signs_is_legibility_not_power(self):
+        a, b = self._pair("BLUE_SIGNS", "evac_corridor")
+        self._assert_mechanically_identical(a, b)
+
+    def test_command_frequency_is_legibility_not_power(self):
+        a, b = self._pair("COMMAND_FREQUENCY", "radio_tower")
+        self._assert_mechanically_identical(a, b)
+
+    def test_reservoir_controls_is_legibility_not_power(self):
+        a, b = self._pair("RESERVOIR_CONTROLS", "dam_valves")
+        self._assert_mechanically_identical(a, b)
 
 
 if __name__ == "__main__":

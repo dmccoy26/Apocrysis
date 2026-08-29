@@ -690,4 +690,14 @@ class MysteryMixin:
                 "what this place was and where it had to give.\n")
         if _milestone_line is not None:
             self.announce_event(_milestone_line, kind="milestone")
+        # B.2: solving this mechanism may teach a Survivor Knowledge
+        # lesson that carries to the next survivor. learn() is True only
+        # the first time - one banner ever, campaign-wide.
+        _lore_id = self.world.lore_triggers.get(m.mechanism)
+        if _lore_id and getattr(self, 'survivor_knowledge', None) is not None:
+            if self.survivor_knowledge.learn(_lore_id):
+                self.__class__._survivor_knowledge = self.survivor_knowledge.snapshot()
+                _lo = {lo.id: lo for lo in self.world.survivor_lore}.get(_lore_id)
+                if _lo is not None:
+                    self.announce_event(_lo.blurb, _lo.effect, kind="lore")
         self.finish_expedition(reason="found the way out")

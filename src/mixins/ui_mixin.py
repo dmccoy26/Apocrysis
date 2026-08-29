@@ -738,6 +738,14 @@ class UIMixin:
         # where you came in - low value to signpost).
         role_known = {'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known,
                       'power': 'F_POWER' in known}
+        # B.2 BLUE_SIGNS: a survivor who learned that Protocol Seven
+        # blue-signed its routes can pick the signed corridor out from
+        # the start of an evac_corridor expedition (they still walk to
+        # it). Legibility, not power.
+        _sk = getattr(self, 'survivor_knowledge', None)
+        if (_sk is not None and _sk.has('BLUE_SIGNS')
+                and m.mechanism == 'evac_corridor'):
+            role_known['route'] = True
         named = getattr(self, '_mystery_named', set())
         for role, xy in m.sites.items():
             if xy == (x, y) and (role in named or role_known.get(role)):
@@ -762,6 +770,9 @@ class UIMixin:
         elif kind == "solved":
             # A.5.3: the escape moment - one tier below a milestone.
             glyph, color, prefix, head = "◆", f"{BOLD}{GREEN}", "MYSTERY SOLVED — ", title
+        elif kind == "lore":
+            # B.2: a survival lesson that carries to the next survivor.
+            glyph, color, prefix, head = "●", f"{BOLD}{CYAN}", "SURVIVORS NOW KNOW — ", title
         elif kind == "milestone":
             # A.4.4: a piece of the world falls into place. Bigger than a
             # NEW DISCOVERY - its own label, its own glyph.

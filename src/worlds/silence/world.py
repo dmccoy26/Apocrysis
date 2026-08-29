@@ -8,7 +8,7 @@ here imports from the engine - a World is data the engine reads.
 """
 from src.worlds.base import World
 from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
-from src.worlds.silence.lore import SURVIVOR_LORE
+from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
 from src.worlds.silence.truth import WORLD_FACTS
 
 
@@ -78,4 +78,5 @@ SILENCE = World(
     discovery_templates=DISCOVERY_TEMPLATES,
     world_facts=WORLD_FACTS,
     survivor_lore=SURVIVOR_LORE,
+    lore_triggers=LORE_TRIGGERS,
 )

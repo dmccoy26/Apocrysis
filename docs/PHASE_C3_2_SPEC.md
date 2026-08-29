@@ -396,10 +396,13 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 3. ~~C.3.2a piece 2 (`look` recovers the route direction).~~ ✅ `5cd5da6` — **DONE, validated in real play**
 4. ~~Scale investigation~~ ✅ `SCALE_REPORT.md` (`tools/scale_report.py`)
    — the solve circuit outgrows the survival budget by mid-campaign.
-5. **→ Author the C.3.2a-5 spec** against `SCALE_REPORT.md`: keep an
-   appropriate density of actionable destinations as the map grows
-   (not by shrinking maps, not by clustering on spawn). Owner review.
-6. Implement C.3.2a-5. Re-run `scale_report.py`. Owner feel-test.
+5. ~~Author the C.3.2a-5 spec~~ ✅ `PHASE_C3_2_5_SPEC.md`. **→ Owner
+   review.** Metric = `required_circuit / survival_budget` p90; four
+   levers as a matrix, tested independently.
+6. Refine `scale_report.py` (true required circuit) + calibrate the
+   budget from real play. Build the lever A/B matrix (flags only).
+7. Owner picks the lever combination → implement → gate passes →
+   fresh-survivor feel-test at depth 4 / 6.
 7. C.3.2a piece 1 (landmark bearings) — PARKED, only if the player
    still can't *recover direction* after C.3.2a-5.
 8. C.3.2a piece 4 (clue reinforcement) — PARKED, after piece 1.
@@ -533,24 +536,29 @@ recoverability)**.
   without inherited supplies, independent of navigation.** The
   roguelite loop masked this until BlueNoodle died at depth 3.
 
-### The priority: C.3.2a-5, reframed
+### The priority: C.3.2a-5 — **spec authored: `PHASE_C3_2_5_SPEC.md`**
 
-> **How does the generator keep an appropriate density of actionable
-> destinations as the geography expands** — so the solve circuit stays
-> within a fresh survivor's movement budget at every campaign depth?
+> **Can the world become physically larger without becoming
+> proportionally emptier?**
 
-Constraints for that spec:
-- `map growth` is **FROZEN** → the lever is *maintain density*, not
-  *shrink maps*.
-- **Do not cluster every site near spawn** — that recreates the
-  "nothing to explore" problem (and `near` is already flat; it's `far`
-  / `circuit` that balloon).
-- Candidate levers (undecided): scale settlement count with area; bound
-  the site-placement region; cap `TOWN_DISTANCE_GROWTH_PER_LEVEL`;
-  spread a mystery's sites across multiple settlements.
+Central contract: **`required_circuit / survival_budget` at p90**, at
+every supported campaign depth — not "maintain site density" (that's a
+diagnostic, not the requirement). `survival_budget` is *derived* from
+the real hunger/thirst mechanics (≈ 50 moves gross, ≈ 30–35 after
+combat / return / non-beeline margins — calibrated during
+implementation, not hard-coded).
 
-Author the C.3.2a-5 spec against `SCALE_REPORT.md` → owner review →
-implement. Pieces 1 / 4 stay parked until that lands and is re-tested.
+Four candidate levers as a **matrix** (fix / risk), tested
+**independently** against `scale_report.py` before any combination is
+chosen: scale settlements with area · bound the site-placement region ·
+cap `TOWN_DISTANCE_GROWTH_PER_LEVEL` · spread sites across settlements.
+
+Prohibitions: no spawn-cluster (makes the map bigger without making the
+*place* bigger); no shrinking maps (`map growth` frozen; growth is a
+feature); no touching combat/hunger/loot rates.
+
+**Spec only until the lever matrix is reviewed.** Pieces 1 / 4 stay
+parked until C.3.2a-5 lands and navigation is re-tested.
 
 ## Acceptance
 

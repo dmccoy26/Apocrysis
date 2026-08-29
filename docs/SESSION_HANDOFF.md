@@ -196,13 +196,25 @@ doc map below it.**
   *completed* by a survivor without inherited supplies — independent of
   navigation.** The roguelite loop masked it until BlueNoodle died at
   depth 3.
-- **Sequence now:** piece 0 ✅ → piece 2 ✅ (DONE, validated) →
-  **C.3.2a-5 is the priority**, reframed: *how does the generator keep
-  actionable-destination density as geography expands?* `map growth`
-  is FROZEN → lever is maintain density, NOT shrink maps, NOT cluster
-  on spawn. Pieces 1 & 4 PARKED until C.3.2a-5 lands + re-tested.
-- **Next: author the C.3.2a-5 spec** against `SCALE_REPORT.md` → owner
-  review → implement → re-run `scale_report.py`.
+- **Sequence now:** piece 0 ✅ (truthful) → piece 2 ✅ (recoverable,
+  validated) → **C.3.2a-5** (viable destination network at scale).
+  Pieces 1 & 4 PARKED.
+- **C.3.2a-5 SPEC AUTHORED — `PHASE_C3_2_5_SPEC.md`** (spec only, owner
+  review pending). Question: *can the world be physically larger
+  without being proportionally emptier?* — map growth is a feature,
+  not a bug. Central contract: **`required_circuit / survival_budget`
+  at p90**, every supported depth (NOT "maintain density" — that's a
+  diagnostic). `survival_budget` derived from real hunger/thirst
+  mechanics: ~50 moves gross, ~30–35 after combat/return/non-beeline
+  margins (calibrate in impl, don't hard-code). Four levers as a
+  matrix (fix/risk), tested **independently** before any combination:
+  (1) settlements ∝ area (2) bound site-placement region (3) cap
+  `TOWN_DISTANCE_GROWTH_PER_LEVEL` (4) spread sites across settlements.
+  Prohibitions: no spawn-cluster, no shrinking maps, no combat/hunger/
+  loot changes. Method: refine `scale_report.py` → calibrate budget →
+  lever A/B matrix (flags) → owner picks combo → implement → gate →
+  fresh-survivor feel-test depth 4/6.
+- **Next: owner reviews `PHASE_C3_2_5_SPEC.md`.**
 - **Two QoL bug-fixes shipped** (separate track from C.3.2):
   `8bec163` empty ammo no longer alarm-red for a benched weapon;
   `1ce5f3a` `eq N` / `wr W2` / `drop N` by pack slot number + the pack
@@ -241,6 +253,9 @@ doc map below it.**
 4c. `SCALE_REPORT.md` — 200 seeds × 8 depths. The solve circuit
    outgrows the survival budget by mid-campaign; site density
    collapses 5.5×. The basis for the C.3.2a-5 spec.
+4d. `PHASE_C3_2_5_SPEC.md` — the destination-network-at-scale spec.
+   `required_circuit / survival_budget` p90 contract; four levers as a
+   matrix. **Owner review pending; spec only.**
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the old fully-inverted-pipeline vision
    — **superseded** by C.3.2's navigational-affordance framing.

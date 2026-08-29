@@ -160,7 +160,7 @@ wasd remap, no mode toggle/hint, `on_key` gone. Bare Enter at `>` is a
 silent no-op. Numbered equip restored: `1`..`N` = weapon from `i`,
 `W1`/`W2` = armor, straight from the `>` prompt.
 
-### Eat/drink is a meal now (commit 5e07f2c-ish; see git log)
+### Eat/drink is a meal now (`01425cb`)
 
 Playtest: "spent half the game eating." `eat`/`drink` consumed one
 ration (+5) per turn vs −2/turn decay → constant nibbling. Now one

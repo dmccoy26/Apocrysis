@@ -123,6 +123,47 @@ OBJECTIVES panel are the current answer. The remaining gap: the
 generator still scatters role sites across generic `building` tiles.
 Not this todo.
 
+### 3d. Mystery-to-exit continuity (partially done — `ea1d52be` follow-up)
+
+**The critical path of an escape story must create geographic progress
+toward the escape, and resolution must not require an unrelated
+post-solution trek.**
+
+Named after 5 playtests (2026-08-28) that all died the same way: solve
+the mystery in the cluster near spawn, then a long, dangerous,
+resource-draining solo march to the far-corner escape gap
+(`_carve_escape_pass` deliberately picks the *farthest* reachable
+boundary gap) that adds nothing to the investigation. The bot's ~86%
+survival can't see this — it walks straight lines and never wastes a
+turn; a human wanders, and the march is pure attrition tax that
+*scales with expedition* (maps grow +3/level).
+
+The rule is **not** "make every mystery collinear" (that would make
+every map read as walk-solve-walk-leave). It's: the *critical path*
+(`closed → route → obstacle → … → escape`) has momentum toward the
+exit; **side** roles (`require`, `power`) can be detours. Each family
+expresses the momentum differently:
+
+| family | how the resolution lands you at / points you out |
+|---|---|
+| spatial | discover the pass → clear it → it **is** the exit |
+| infrastructural | dead gate → trace power → restore it → the gate **is** the exit |
+| experimental | operate the dam → the newly-dry road **is** the exit |
+| informational | restore the tower → the response **confirms + directs** — `escape` from where you stand (done: lever A, `c816232`) |
+| sequential | station → station → the trail network you assembled **is** the route |
+| transportation | find the vehicle → repair → **fly/sail** out from its location |
+| environmental | drain / clear → the exposed road **is** the exit |
+
+**Done:** lever A — for `reveals_route` mysteries `H_escape.confirmed_by
+= E_route_reveal`, so the response confirms and the walk is narrated,
+not played.
+
+**Next (lever B, generator-level):** `build_mystery` should place the
+critical-path sites with a bias toward the escape gap (and/or
+`_carve_escape_pass` should stop always choosing the farthest gap).
+Combat/resource numbers stay **frozen** through this — it's pacing,
+not difficulty.
+
 ## 4. Which knowledge primitives generalise
 
 | primitive | generalises as-is? | notes |

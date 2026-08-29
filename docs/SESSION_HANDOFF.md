@@ -154,9 +154,29 @@ doc map below it.**
   277 + 100 green.
 - **`src/nav.py` gained `honest_bearing`** (shared core; `tui._route_heading`
   is now a thin wrapper). `nav.py` imports `src.worldgen.reachable`.
-- **Next: owner v1 feel-test.** Play `python3 apocrysis.py` (v1),
-  wander, use `look`, see if navigation is now recoverable. Pieces
-  1/4/C.3.2a-5 are all gated on it.
+- **Re-weighted again (BlueNoodle, 2 v1 wins — 23 & 48 turns, clean,
+  `look` typed ZERO times).** The target player ("moves and fights,
+  never interrogates") navigates by the ESCAPE-panel heading + the
+  survey map. So `look` is now **one recovery mechanism, not the
+  solution** — ranked #4. Channel ranking: (1) persistent passive
+  objective signal [panel heading, piece 0] (2) passive environmental
+  reinforcement [landmark bearings piece 1, clue hints piece 4]
+  (3) map affordances [survey map — keep it a discovery, don't buff]
+  (4) `look` [recovery tool, proven technically, unproven players use
+  it]. NOT concluded: "`look` doesn't work" — BlueNoodle was never
+  lost (selection effect).
+- **Revised gate (in `PHASE_C3_2_SPEC.md` § "The gate"):**
+  - **Step A** — controlled `look` test, once (deliberate wander +
+    `look`). Good → keep, add no more `look`. Gamey → tune it.
+  - **Step B** — play v1 normally. Works for the archetype → done with
+    C.3.2a. Another wandering/death case → **piece 1 (passive landmark
+    bearings)** next. Then piece 4, then C.3.2a-5.
+- **The meta-result:** the geography experiment is now a
+  *player-information* experiment — the map doesn't need to say more,
+  the game needs existing info to persist / reinforce / stay
+  actionable. Stronger than "prettier irregular maps".
+- **Next: owner runs Step A** (or watches a survivor genuinely get
+  lost). No code until then.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug

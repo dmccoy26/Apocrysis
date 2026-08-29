@@ -35,6 +35,46 @@ that exists **land**: validate it (Invariant 4) and **reinforce** it
 ("v1, old navigation") is **not a passing baseline** — C.3.2a is a real
 fix on v1, not a warm-up for v2.
 
+## What this has become (2026-08-29, BlueNoodle's two runs)
+
+The geography experiment has turned into a **player-information
+experiment.** The finding is stronger than "make prettier irregular
+maps":
+
+> The map doesn't need to tell the player *more*. The game needs to make
+> the information it already has **persist, reinforce itself, and stay
+> actionable.**
+
+BlueNoodle (the "moves and fights, never interrogates" archetype) won
+two v1 expeditions and **never typed `look` once**. Behavioural
+evidence: this player *will* act on information already in front of him
+— he follows the ESCAPE-panel heading, he uses the survey map the
+moment it drops — but he will not stop to interrogate the world.
+
+### Channel ranking (revised)
+
+| # | channel | why |
+|---|---|---|
+| 1 | **persistent passive objective signal** — the ESCAPE-panel heading, kept honest (piece 0) and always present | highest value; it's what BlueNoodle actually navigates by, and it costs the player nothing |
+| 2 | **passive environmental reinforcement** — landmark bearings (piece 1), ambient-clue directional hints (piece 4) | arrives *while playing*, no command; closest to the existing loop |
+| 3 | **map affordances** — the survey map | useful, but it must stay a **discovery**, never a crutch. Do not buff it (guardrail). |
+| 4 | **`look`** (piece 2) | an excellent *recovery* tool for a player who deliberately seeks orientation. **Proven to work technically; not proven players will use it.** Do NOT let the core loop depend on it. |
+
+### What is NOT concluded
+
+**Not** "`look` doesn't work because BlueNoodle didn't use it" — that's
+a selection effect; he was never lost. The controlled test still
+matters: *deliberately* get a player into a state where the existing
+heading isn't salient, then see whether `look` rescues them. But it's
+now **secondary validation**, not the primary product question.
+
+### The piece 4 trap
+
+Do **not** turn every ambient clue into a compass arrow. Preserve the
+texture-vs-navigation distinction. The test for a clue-hint is: *does
+it reinforce an already-established lead?* — not *can we extract a
+direction from this prose?*
+
 ## The reframe
 
 C.3.2 is **not primarily a map-generation feature.** The inventory
@@ -353,20 +393,17 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 1. ~~`bearing()` + `heading_is_honest()` in `src/nav.py` + tests.~~ ✅ `2c1cc4d`
 2. ~~C.3.2a piece 0 (graph-honest ESCAPE-panel route heading).~~ ✅ `3fe0485`
-3. ~~C.3.2a piece 2 (`look` recovers the route direction, Invariant 5).~~ ✅ `5cd5da6`
-   *(order swapped with piece 1 after piece 0's finding — `look` is the
-   real fix, landmarks are reinforcement.)*
-4. **→ Owner feel-test on v1.** Does `look` turn the 99-turn death
-   march into recoverable navigation? Does the player reach a mystery
-   site?
-5. C.3.2a piece 1 (landmark bearings) — only if 4 says orientation is
-   still too weak.
-6. C.3.2a piece 4 (ambient clue → soft directional hint) — only if
-   still needed after piece 1.
-7. Second v1 feel-test.
-8. C.3.2a-5 (early-lead reachability / stop site-clustering) — decided
-   only if 7 shows the player still can't *encounter* anything useful
-   despite being able to *recover* the heading.
+3. ~~C.3.2a piece 2 (`look` recovers the route direction).~~ ✅ `5cd5da6`
+4. **→ Step A: the controlled `look` test** (see "The gate" below) —
+   once. Feels good → keep, add no more `look`. Feels gamey → tune it.
+5. **Step B: play v1 normally** (BlueNoodle archetype). Works → done
+   with C.3.2a. Another wandering/death case → piece 1.
+6. C.3.2a piece 1 (landmark bearings) — the passive channel we're
+   missing. Only if 5 shows normal play still fails.
+7. C.3.2a piece 4 (ambient clue → soft hint, *reinforcing an
+   established lead only*) — only if still needed after piece 1.
+8. C.3.2a-5 (site distribution / early-lead reachability) — last, only
+   if the player still can't *encounter* anything.
 9. C.3.2a piece 3 (evidence spawn→gap bearing validation) +
    golden-fixture update. Tag `v5-phase-c3-2a`.
 10. Variety fix (one of the three options).
@@ -374,15 +411,18 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 ## As built — steps 1–3 (2026-08-29)
 
-### Revised sequence (owner, after piece 0's measured finding)
+### Sequence (owner, after two of BlueNoodle's runs)
 
-Piece 0 killed a hypothesis cleanly — *the navigation claim is mostly
-truthful; the player still can't act on it.* So the order changed:
+Two re-weights: piece 0's finding (claim is truthful, player can't act
+on it), then BlueNoodle (the target player won't type `look` — passive
+channels rank above it). Current order:
 
 ```
-piece 0 (guardrail) → piece 2 (look persistence) → v1 feel-test
-  → piece 1 (landmarks) if needed → piece 4 (clue reinforcement) if needed
-  → v1 feel-test again → only then decide C.3.2a-5 → revisit v2
+piece 0 (guardrail) ✅ → piece 2 (look, one recovery mechanism) ✅
+  → step A: controlled look test → step B: play v1 normally
+  → piece 1 (passive landmark bearings) IF normal play still fails
+  → piece 4 (clue reinforcement, established-lead only) if still needed
+  → C.3.2a-5 (site distribution) last → revisit v2
 ```
 
 **Executable success criterion (Invariant 5):** *a player who ignores a
@@ -454,43 +494,50 @@ recoverability)**.
 - `test_look_recall.py` — Invariant 5 executable: wander to the
   farthest reachable tile, assert `look` gives a direction matching
   `honest_bearing` with `facts_known` unchanged. 277 + 100 green.
+- **Two BlueNoodle v1 runs after this (23 turns, 48 turns) — clean
+  wins, no regression, and `look` typed zero times.** He navigates by
+  the ESCAPE-panel heading + the survey map. This is why `look` is
+  now ranked #4 and the passive channels #1–2 (see "What this has
+  become" above).
 
-## v1 feel-test — PENDING (owner)
+## The gate — revised after BlueNoodle (2026-08-29)
 
-**The one question:** *can a player who ignores the initial direction
-recover their way without discovering new information?*
+`look` is **one recovery mechanism, proven to work technically, not
+proven players will use it** — not "the solution." The gate is now
+two cheap steps, in order:
 
-### Protocol (reproduce the bad behaviour, don't play well)
+### Step A — the controlled `look` test (once, closes the experimental question)
+
+Reproduce the bad behaviour, don't play well:
 
 1. Fresh v1 expedition (`python3 apocrysis.py`).
 2. Read the initial ESCAPE direction, then **wander away from it** for
    ~20–40 turns.
 3. **No `search` / `journal` / `remember` / `inspect`.**
-4. `look` once, thoroughly disoriented.
-5. Follow the recovered direction.
+4. `look` once, thoroughly disoriented. Follow the recovered direction.
 
-### Record
+Record: did the direction land immediately? did you encounter
+meaningful terrain / a site / a landmark before resources got
+dangerous? lost, or merely off-course? — and: does `look` feel like a
+**diegetic recovery** ("you get your bearings") or a **GPS button** you
+hammer every few tiles?
 
-- Did the direction immediately give a useful sense of where to go?
-- Did you encounter meaningful terrain / a site / a landmark **before
-  resource pressure got dangerous**?
-- Did the heading stay intuitive as you moved?
-- Ever told "north" while the world gave no way to make progress north?
-- **Lost, or merely temporarily off-course?**
-- Does `look` feel like a **diegetic recovery** ("you get your
-  bearings") or a **GPS button**? If you're hammering `look` every few
-  tiles because it's effectively a compass, we've overcorrected —
-  stop and tune `look` before adding anything.
+- `look` feels good → **keep it, add no more `look` machinery.** Go to
+  step B.
+- `look` feels gamey → stop, tune `look`, add nothing else.
 
-### Decision tree
+### Step B — play v1 normally (the BlueNoodle archetype)
 
-| outcome | next |
-|---|---|
-| substantially better | **do not add piece 1.** Play another fresh v1 run — is it repeatable? |
-| oriented but still wandering because there's nothing to *encounter* | investigate **C.3.2a-5** (site distribution) |
-| have direction, but terrain/landmarks don't help you understand the destination | **piece 1** (landmark bearings) |
-| ambient clues keep saying useful things you can't connect to the route | **piece 4** (clue reinforcement) |
-| `look` itself feels too gamey | stop, tune `look`, add nothing |
+Ordinary play, follow leads, don't force the wander.
+
+- Normal play works for the archetype → **done with C.3.2a for now.**
+  The passive channels (piece 0 heading + survey map) are carrying it.
+- Normal play produces another wandering / death case →
+  **piece 1 (landmark bearings)** is next — it's the passive channel
+  we're missing (a bearing that *arrives while playing*, no command).
+- Then, and only then, revisit **piece 4** (clue reinforcement — under
+  the "reinforces an established lead, not a compass on every clue"
+  constraint) and **C.3.2a-5** (site distribution).
 
 ## Acceptance
 

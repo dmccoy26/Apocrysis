@@ -36,7 +36,14 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote (after fail or not routed) | Atlas-only (no rework) |
 |---|---|---|---|
-| 20 | 5 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`, `world_investigation.py`) | ~19 | 5 |
+| 22 | 6 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`, `world_investigation.py`, `campaign.py` milestones) | ~28 | 6 |
+
+**Atlas can now (2 for 2 each):** a self-contained new file given
+verbatim (dataclass / constant table / a class of short methods, up to
+~60 lines) · a small precise unambiguous edit to a file under ~350
+lines. **Everything else** — larger-file edits, multi-file, cross-module
+imports, procedural test modules, renames — has been Claude's. Every
+architectural decision in Phase A has been Claude's.
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -157,6 +164,20 @@ are large-file or procedural, both known walls.
 
 Net A.3: **1 of 7 files by Atlas** — but it's the substantive one
 (`WorldInvestigation` itself). The wiring is small and hand-written.
+
+## Phase A.4 (2026-08-29) — surfacing the investigation
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 26 | `campaign.chapter_intro` — add a `milestones_known=0` param, key the chapter line to it (advance-only), keep the header string (55-line file) | `atlas request --file src/campaign.py` | `1aaf5024` | **SHIPPED verbatim** ✓ | Exact diff, first try, all safety checks green. Auto-committed `0a07781`. **2nd clean small-file *edit* success** (after `game.py` param). |
+| 27 | `ui_mixin.world_investigation_screen()` + command wiring (843 ln) | not routed | — | **HAND** | past the edit wall |
+| 28 | `world_mixin.generate_map()` `target_fact` wiring (1130 ln) | not routed | — | **HAND** | past the edit wall |
+| 29 | `escape.py` variety-aware target pick (920 ln) | not routed | — | **HAND** | past the edit wall (#12, #17 already confirmed) |
+| 30 | `discovery.py` 2nd routes, `world_investigation.py` `fact()` helper, `world.py` `thread_titles`, `mystery_mixin` banner hook, `ui_mixin` `announce_event` milestone branch, `cli.py` caller, 3 test files | not routed | — | **HAND** | cross-import / large-file / procedural — all known walls |
+
+Net A.4: **1 of ~11 files by Atlas** (`campaign.py`). But it's a real
+data point — small, self-contained *edits* to files under ~350 lines
+now work reliably (2 for 2).
 
 ## Running tally (A.0 + A.1 + A.2 + A.3)
 

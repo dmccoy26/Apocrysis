@@ -13,6 +13,48 @@ from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
 DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
 
+# Phase B: the profile is one file with two logical records - a CAMPAIGN
+# record (what's been figured out; survives every death) and a SURVIVOR
+# record (identity/progression/gear; replaced when a survivor dies).
+# These top-level keys belong to the campaign; everything else is
+# survivor. Used to migrate a legacy flat Phase-A profile.
+_CAMPAIGN_KEYS = (
+    "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
+    "recent_mechanisms", "recent_signatures", "world_investigation",
+    "survivor_knowledge",
+)
+
+
+def _normalise_profile(data):
+    """Return the {"campaign": {...}, "survivor": {...}} shape from
+    either that shape or a legacy flat Phase-A profile (all keys at the
+    top level)."""
+    if data is None:
+        return None
+    if "campaign" in data or "survivor" in data:
+        data.setdefault("campaign", {})
+        data.setdefault("survivor", {})
+        return data
+    campaign = {k: data[k] for k in _CAMPAIGN_KEYS if k in data}
+    survivor = {k: v for k, v in data.items() if k not in _CAMPAIGN_KEYS}
+    return {"campaign": campaign, "survivor": survivor}
+
+
+def _profile_flat(profile):
+    """A campaign+survivor profile flattened to one dict for the
+    field-by-field restore in apply_profile(). The two record's key sets
+    are disjoint, so the merge is lossless."""
+    if profile is None:
+        return {}
+    if "campaign" not in profile and "survivor" not in profile:
+        return profile  # already flat (a caller passed a raw dict)
+    return {**profile.get("campaign", {}), **profile.get("survivor", {})}
+
+
+def _profile_name(data):
+    d = _normalise_profile(data)
+    return d["survivor"].get("name") if d else None
+
 
 def profile_filename_for_name(name):
     """
@@ -387,7 +429,14 @@ class PersistenceMixin:
     # on every launch when a profile already exists.
 
     def save_profile(self, filename=DEFAULT_PROFILE_FILENAME):
-        data = {
+        # Phase B: one file, two logical records.
+        #   SURVIVOR  - identity + progression + gear + physical state;
+        #               replaced wholesale when a survivor dies.
+        #   CAMPAIGN  - what has been figured out about the world;
+        #               carries across every death. save_profile() only
+        #               SERIALISES - the game lifecycle decides when the
+        #               survivor record is replaced (PHASE_B_SPEC.md).
+        survivor = {
             "name": self.name,
             "player_class": self.player_class,
             "level": self.level,
@@ -413,23 +462,25 @@ class PersistenceMixin:
                 for slot, piece in self.equipped_armor.items()
                 if piece
             },
-            "hardcore": getattr(self, "hardcore", False),
-            "expeditions_completed": self.expeditions_completed,
             "has_flashlight": getattr(self, "has_flashlight", False),
+        }
+        campaign = {
+            "hardcore": getattr(self, "hardcore", False),
+            "expeditions_completed": self.expeditions_completed,  # DEPTH, not survivor progress
             # Story-variety guarantee (schema 3a) must survive quit/
-            # relaunch, not just live for one session - a kid playing
-            # one expedition per sitting got the same mechanism twice.
+            # relaunch, not just live for one session.
             "used_mechanisms": list(getattr(self.__class__, "_used_mechanisms", []) or []),
             "last_family": getattr(self.__class__, "_last_family", None),
             "recent_mechanisms": list(getattr(self.__class__, "_recent_mechanisms", []) or []),
             "recent_signatures": list(getattr(self.__class__, "_recent_signatures", []) or []),
-            # A.3: World Investigation status carries across death / new
-            # expedition (map + gear do not).
+            # A.3: World Investigation status carries across death.
             "world_investigation": dict(getattr(self.__class__, "_world_investigation", {}) or {}),
+            # B.2: Survivor Knowledge - learned SurvivorLore ids.
+            "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
         }
 
         with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
+            json.dump({"campaign": campaign, "survivor": survivor}, f, indent=2)
 
     @staticmethod
     def load_profile(filename=DEFAULT_PROFILE_FILENAME):
@@ -437,7 +488,7 @@ class PersistenceMixin:
             return None
 
         with open(filename, 'r') as f:
-            return json.load(f)
+            return _normalise_profile(json.load(f))
 
     @staticmethod
     def list_profile_names():
@@ -453,13 +504,11 @@ class PersistenceMixin:
         """
         names = []
         for path in sorted(glob.glob("apocrysis_profile_*.json")):
-            data = PersistenceMixin.load_profile(path)
-            name = data.get("name") if data else None
+            name = _profile_name(PersistenceMixin.load_profile(path))
             if name and name not in names:
                 names.append(name)
 
-        legacy = PersistenceMixin.load_profile(DEFAULT_PROFILE_FILENAME)
-        legacy_name = legacy.get("name") if legacy else None
+        legacy_name = _profile_name(PersistenceMixin.load_profile(DEFAULT_PROFILE_FILENAME))
         if legacy_name and legacy_name not in names:
             names.append(legacy_name)
 
@@ -481,9 +530,9 @@ class PersistenceMixin:
             return profile
 
         legacy = cls.load_profile(DEFAULT_PROFILE_FILENAME)
-        if legacy is not None and legacy.get("name") == name:
+        if legacy is not None and _profile_name(legacy) == name:
             with open(per_name_file, 'w') as f:
-                json.dump(legacy, f, indent=2)
+                json.dump(legacy, f, indent=2)   # already normalised to {campaign, survivor}
             return legacy
 
         return None
@@ -499,7 +548,7 @@ class PersistenceMixin:
             os.remove(filename)
 
         legacy = self.load_profile(DEFAULT_PROFILE_FILENAME)
-        if legacy is not None and legacy.get("name") == self.name:
+        if legacy is not None and _profile_name(legacy) == self.name:
             os.remove(DEFAULT_PROFILE_FILENAME)
 
     def apply_profile(self, profile):
@@ -509,7 +558,18 @@ class PersistenceMixin:
         return value) - same after-construction-overwrite pattern
         __init__ already uses for prize_for_next_game, just applied
         explicitly by the caller instead of automatically.
+
+        Accepts the Phase-B {campaign, survivor} shape or a legacy flat
+        dict; flattened internally so the field restore below is
+        shape-agnostic.
         """
+        profile = _profile_flat(profile)
+
+        _sk = profile.get("survivor_knowledge")
+        if _sk is not None:
+            self.__class__._survivor_knowledge = list(_sk)
+            if getattr(self, "survivor_knowledge", None) is not None:
+                self.survivor_knowledge.restore(_sk)
 
         self.name = profile.get("name", self.name)
         self.player_class = profile.get("player_class", self.player_class)

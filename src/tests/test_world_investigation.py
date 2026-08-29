@@ -113,7 +113,7 @@ class TestProfileRoundTrip(_ProfileTest):
         Apocrysis._world_investigation = a.world_investigation.snapshot()["status"]
         a.save_profile(self._pf)
         prof = Apocrysis.load_profile(self._pf)
-        self.assertEqual(prof["world_investigation"], {"DIS_FEW_REMAINS": KNOWN})
+        self.assertEqual(prof["campaign"]["world_investigation"], {"DIS_FEW_REMAINS": KNOWN})
 
 
 class TestResolutionHook(_ProfileTest):
@@ -295,7 +295,7 @@ class TestFullLifecycle(_ProfileTest):
         # the real callers (cli.py / tui.py) seed the class-var from the
         # profile BEFORE constructing, so the first expedition targets
         # correctly - mirror that here.
-        Apocrysis._world_investigation = dict(prof.get("world_investigation", {}))
+        Apocrysis._world_investigation = dict(prof["campaign"].get("world_investigation", {}))
         heir = Apocrysis("Life2", seed=42, io=_IO())
         heir.apply_profile(prof)
 

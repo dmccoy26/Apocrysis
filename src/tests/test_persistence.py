@@ -109,11 +109,11 @@ class TestProfilePersistence(unittest.TestCase):
         profile = Apocrysis.load_profile(self.PROFILE_FILE)
 
         self.assertIsNotNone(profile)
-        self.assertEqual(profile["name"], "ProfileTest")
-        self.assertEqual(profile["level"], 7)
-        self.assertEqual(profile["xp"], 42)
-        self.assertEqual(profile["strength"], 20)
-        self.assertEqual(profile["backpack_food"], 5)
+        self.assertEqual(profile["survivor"]["name"], "ProfileTest")
+        self.assertEqual(profile["survivor"]["level"], 7)
+        self.assertEqual(profile["survivor"]["xp"], 42)
+        self.assertEqual(profile["survivor"]["strength"], 20)
+        self.assertEqual(profile["survivor"]["backpack_food"], 5)
 
     def test_apply_profile_preserves_win_prize_on_top_of_saved_backpack(self):
         # A prize_for_next_game bonus applied by __init__ must survive
@@ -149,8 +149,8 @@ class TestProfilePersistence(unittest.TestCase):
                 won = Apocrysis("ProfileTest", map_size=8, seed=1)
             won.save_profile(self.PROFILE_FILE)
             profile = Apocrysis.load_profile(self.PROFILE_FILE)
-            self.assertEqual(profile["used_mechanisms"], ["power_station"])
-            self.assertEqual(profile["last_family"], "infrastructural")
+            self.assertEqual(profile["campaign"]["used_mechanisms"], ["power_station"])
+            self.assertEqual(profile["campaign"]["last_family"], "infrastructural")
 
             # simulate an app restart: class state wiped
             Apocrysis._used_mechanisms = []
@@ -216,7 +216,7 @@ class TestHardcoreProfiles(unittest.TestCase):
         game.save_profile(filename)
         profile = Apocrysis.load_profile(filename)
 
-        self.assertTrue(profile["hardcore"])
+        self.assertTrue(profile["campaign"]["hardcore"])
 
     def test_apply_profile_restores_hardcore_flag(self):
         with patch("builtins.print"):
@@ -261,7 +261,7 @@ class TestHardcoreProfiles(unittest.TestCase):
 
         bob_profile = Apocrysis.load_profile_by_name("Bob")
         self.assertIsNotNone(bob_profile)
-        self.assertTrue(bob_profile["hardcore"])
+        self.assertTrue(bob_profile["campaign"]["hardcore"])
 
         self.assertIsNone(Apocrysis.load_profile_by_name("NoSuchSurvivor"))
 

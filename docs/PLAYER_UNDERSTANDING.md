@@ -97,7 +97,63 @@ The game announces the transitions between these states (that's what
 the `★` banners are). The schema is for us; the story is for the
 player.
 
-## The bar for the next phase
+## Rule 5 — the objective and the banners say WHAT STATE, never HOW
+
+The `▸` line and the `★` banners are powerful enough to accidentally
+solve the mystery. The discipline:
+
+| good (state to reach / why to care) | bad (a walkthrough) |
+|---|---|
+| `▸ Find the ranger station` | `▸ Go to 11,4, search the desk, take the red key, return to the western gate` |
+| `★ NEW LEAD — the maintenance log mentions a service road beyond the quarry. Marked on your map.` | `★ NEW LEAD — go to the quarry, find the equipment shed, take the battery, use it on the bulldozer` |
+
+The objective tells the player *what state they're trying to reach*;
+the world still makes them work out *how*. Especially load-bearing
+for the **corroborative** and **experimental** families, where the
+"how" IS the game.
+
+Concretely: objective lines are phrased from facts the player has
+*discovered* (a named place, an item name, "the way is open"), never
+from `m.sites` coordinates, evidence ids, or the resolution verb. A
+banner answers "why should I care about this?" — not "here's the
+solution."
+
+## The bar for the next phase — the three-mystery test (`9ae794b9`)
+
+**Freeze the balance numbers.** ~86% bot survival, combat-only deaths,
+median 44-turn wins — that is stable and adequate. Do NOT tune combat
+off the bot from here. The bot has done its job.
+
+Build **just enough** to run the test: at least two genuinely
+different families — the current `spatial` plus `infrastructural`
+(dependency chains, `c67cbd25`) — ideally a third (`experimental`,
+`e0475adf`). Then hand a human three generated mysteries, one per
+family, **without saying which family each is**.
+
+For each, record only:
+
+| Question | Pass condition |
+|---|---|
+| What am I trying to accomplish? | player can explain it |
+| What is my current lead? | player knows without rereading history |
+| Where should I go? | map / objective makes it apparent |
+| What am I trying to understand? | player can articulate a hypothesis |
+| What should I do next? | the `▸` objective makes sense |
+| When something changed, did I notice? | a banner interrupted attention |
+| After a wrong action, did I understand the consequence? | result made sense without dev knowledge |
+
+Then the gold question: *"What did you think the game wanted you to
+figure out?"* — three answers like
+
+- "A wanted me to **find** something"
+- "B wanted me to figure out **what was powering** something"
+- "C wanted me to figure out **which control** actually affected the route"
+
+= the test passing. Apocrysis generates different *problems*, not
+different scenery. Only after that passes do the remaining Tier-2
+families get built.
+
+## Original phase-bar note
 
 Not another 10,000-game sweep. **Can a human play three radically
 different generated mysteries** — e.g. a spatial pass, an

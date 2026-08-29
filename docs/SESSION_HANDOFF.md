@@ -212,10 +212,20 @@ found-map could guess the ridge area before the response — but can't
 confirm or use it. Objective step "found what blocks the route" is
 generic (no physical block for informational).
 
+### Traversal pacing — levers A + B (DONE)
+
+Invariant 3d (`ESCAPE_STORY_SCHEMA.md` / `PACING_MYSTERY_TO_EXIT.md`):
+the critical path must carry geographic momentum toward the exit; no
+unrelated post-solution trek. **A** (`c816232`) — informational: the
+radio response confirms the hypothesis, `escape` from anywhere. **B**
+(`build_mystery` + `_carve_escape_pass`) — sites placed along the
+spawn->exit run, gap at ~65th-percentile distance. Bot: survival held
+~85% / 100% combat deaths, **median expedition 43 -> 27 turns**. The
+radio_tower -3pt is erased. Combat/resources still FROZEN.
+
 **Still open:** (a) cosmetic: power site keeps its `!` after
-`power_restored`; (b) Tier-2: `17f2a0ca` transportation, `5761c63f`
-time-pressure. Balance FROZEN (radio_tower is new content, not a tune;
-its ~3pt is additive-mechanism cost, flagged not hidden).
+`power_restored`; (b) `m.escape_kind` for transportation/environmental;
+(c) Tier-2: `17f2a0ca` transportation, `5761c63f` time-pressure.
 
 ## Design rules (settled — don't relitigate)
 

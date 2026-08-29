@@ -154,15 +154,20 @@ expresses the momentum differently:
 | transportation | find the vehicle → repair → **fly/sail** out from its location |
 | environmental | drain / clear → the exposed road **is** the exit |
 
-**Done:** lever A — for `reveals_route` mysteries `H_escape.confirmed_by
-= E_route_reveal`, so the response confirms and the walk is narrated,
-not played.
+**Done — lever A** (`c816232`): `reveals_route` mysteries set
+`H_escape.confirmed_by = E_route_reveal`, so the response confirms and
+the walk is narrated, not played.
 
-**Next (lever B, generator-level):** `build_mystery` should place the
-critical-path sites with a bias toward the escape gap (and/or
-`_carve_escape_pass` should stop always choosing the farthest gap).
-Combat/resource numbers stay **frozen** through this — it's pacing,
-not difficulty.
+**Done — lever B** (`build_mystery` + `_carve_escape_pass`): sites
+scored by detour cost and placed along the spawn→exit run; escape gap
+at the ~65th percentile, not the farthest. Bot: survival held (~85%),
+**median expedition 43→27 turns**. Combat/resources untouched. Details
+in `PACING_MYSTERY_TO_EXIT.md`.
+
+**Still open:** `m.escape_kind ∈ {gap, vehicle, revealed}` so
+transportation/environmental resolutions land the player *at* the exit
+(schema §4). For now `obstacle == exit` covers spatial/infra;
+informational uses lever A.
 
 ## 4. Which knowledge primitives generalise
 

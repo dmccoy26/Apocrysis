@@ -25,7 +25,21 @@ a confirmed + open mystery be left from anywhere ("You follow the
 directions off the ridge and keep going"). The walk is narrated, not
 played. `E_confirm` at the gap still exists as optional flavour.
 
-## Lever B — NEXT (generator-level, `build_mystery` + `_carve_escape_pass`)
+## Lever B — DONE (`build_mystery` + `_carve_escape_pass`)
+
+Shipped. `_carve_escape_pass` picks the ~65th-percentile gap by spawn
+distance (not the max). `build_mystery` scores sites by `_detour(p) =
+(spawn→p + p→exit) − spawn→exit` and assigns: `closed` near spawn,
+`route` = lowest-detour in the 25–85% band of the spawn→exit run,
+`require`/`power` = lowest-detour capped at `map_size*0.5`. Falls back
+to the old logic on an empty filtered pool.
+
+**Measured (24² maps):** last-action-site→exit ~20→~15 avg, worst
+39→23. spawn→exit 30→20. **Bot (3 seeds): survival ~85.2% (baseline
+~85.8%), 100% combat deaths, median expedition 43→27 turns.**
+
+### Original plan (kept for reference)
+
 
 Give the **critical-path** sites geographic momentum toward the exit.
 Side roles (`require`, `power`) may still be detours, but bounded ones.

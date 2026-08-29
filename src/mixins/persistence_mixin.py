@@ -56,6 +56,21 @@ def _profile_name(data):
     return d["survivor"].get("name") if d else None
 
 
+def clean_display_name(raw, fallback="Survivor"):
+    """Sanitise a player-typed survivor name before it becomes
+    self.name. The name flows into Rich markup (the TUI HUD does
+    f"[bold]{name}[/bold]"), plain-text play logs, combat lines and
+    profile-filename slugs, so a stray '[', ']' or '\\' otherwise
+    corrupts the HUD or desyncs the profile file. Keeps letters,
+    digits, spaces and a few name punctuation marks; collapses
+    whitespace; caps length."""
+    if not raw:
+        return fallback
+    kept = re.sub(r"[^A-Za-z0-9 '.\-]+", "", str(raw))
+    kept = re.sub(r"\s+", " ", kept).strip(" .-'")
+    return kept[:24].strip() or fallback
+
+
 def profile_filename_for_name(name):
     """
     Derives a per-player profile filename from a display name, e.g.

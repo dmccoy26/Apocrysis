@@ -8,7 +8,9 @@ from unittest.mock import patch
 from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon, Armor
-from src.mixins.persistence_mixin import profile_filename_for_name
+from src.mixins.persistence_mixin import (
+    profile_filename_for_name, clean_display_name,
+)
 from src.player import PlayerClass
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (
@@ -207,6 +209,17 @@ class TestHardcoreProfiles(unittest.TestCase):
             profile_filename_for_name("../../etc/passwd"),
             "apocrysis_profile__etc_passwd.json",
         )
+
+    def test_clean_display_name_strips_markup_and_backslashes(self):
+        # a stray '\' or '[' in the name corrupts the Rich HUD
+        # (f"[bold]{name}[/bold]") and desyncs the profile slug.
+        self.assertEqual(clean_display_name("Balthus\\"), "Balthus")
+        self.assertEqual(clean_display_name("[red]Ada[/]"), "redAda")
+        self.assertEqual(clean_display_name("  Jo   Anne  "), "Jo Anne")
+        self.assertEqual(clean_display_name("O'Brien-7"), "O'Brien-7")
+        self.assertEqual(clean_display_name(""), "Survivor")
+        self.assertEqual(clean_display_name("\\\\"), "Survivor")
+        self.assertLessEqual(len(clean_display_name("x" * 50)), 24)
 
     def test_save_profile_persists_hardcore_flag(self):
         with patch("builtins.print"):

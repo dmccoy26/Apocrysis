@@ -5,7 +5,9 @@ import os
 
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon
-from src.mixins.persistence_mixin import profile_filename_for_name, _profile_flat
+from src.mixins.persistence_mixin import (
+    profile_filename_for_name, _profile_flat, clean_display_name,
+)
 from src.player import PlayerClass
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
@@ -27,9 +29,16 @@ def _resolve_player_identity():
     else:
         name = input("Enter your name: ").strip()
 
+    # The name becomes self.name, which flows into Rich markup (HUD),
+    # play logs and profile-filename slugs - sanitise it once, here, at
+    # the only point a human types it.
+    name = clean_display_name(name)
+
     if name in existing_names:
         profile = Apocrysis.load_profile_by_name(name)
-        hardcore = bool(profile.get("hardcore", False)) if profile else False
+        # hardcore lives under "campaign" in a Phase-B profile; flatten
+        # so an existing hardcore campaign isn't silently read as soft.
+        hardcore = bool(_profile_flat(profile).get("hardcore", False)) if profile else False
     else:
         profile = None
         hardcore_choice = input(

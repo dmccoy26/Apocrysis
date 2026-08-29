@@ -23,7 +23,9 @@ if __name__ == "__main__":
     group.add_argument("--test", action="store_true", help="Run tests")
     group.add_argument("--classic", action="store_true", help="Run classic print-loop mode")
     parser.add_argument("--log", action="store_true",
-                        help="Write a plain-text play log for this session (also toggleable in game with `log`)")
+                        help="(deprecated - logging is on by default now; kept so old commands still work)")
+    parser.add_argument("--no-log", dest="no_log", action="store_true",
+                        help="Don't auto-write a play log for this session (still toggleable in game with `log`)")
     parser.add_argument("--mapgen", choices=("v1", "v2"), default="v1",
                         help="Map generator: v1 (default, rectangular) or v2 "
                              "(Phase C.3 experiment - irregular valley)")
@@ -32,9 +34,13 @@ if __name__ == "__main__":
     from src.game import Apocrysis
     Apocrysis._default_mapgen = args.mapgen
 
+    # Logging is on by default for interactive play (feel-tests /
+    # playtests need the transcript); --no-log opts out.
+    start_log = not args.no_log
+
     if args.test:
         run_tests()
     elif args.classic:
-        main(start_log=args.log)
+        main(start_log=start_log)
     else:
-        main_tui(start_log=args.log)
+        main_tui(start_log=start_log)

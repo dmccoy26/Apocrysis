@@ -601,6 +601,10 @@ class ApocrysisApp(App):
         self._seed = seed
         self._hardcore = hardcore
         self._start_log = start_log
+        # One transcript file for the whole session - each expedition
+        # after the first appends to it (see _game_thread's post-win
+        # loop) rather than opening a new timestamped file.
+        self._log_path = None
         self.player = None
         self.io = None
         self._expecting_command = False
@@ -742,6 +746,7 @@ class ApocrysisApp(App):
                 # main thread here - start_playlog() does file IO only and
                 # never marshals; announce via log_message() directly.
                 log_path = self.player.start_playlog()
+                self._log_path = log_path
                 self.log_message(f"Play logging on -> {log_path}")
             except OSError as exc:
                 self.log_message(f"Couldn't start the play log: {exc}")
@@ -785,6 +790,19 @@ class ApocrysisApp(App):
                     break  # quit or death - a real exit, not a new game
 
                 self.player = self._new_player()
+
+                # run_game_loop() closes the previous expedition's
+                # playlog on win; reopen the SAME file for the next one
+                # so a session is one transcript, not one-per-expedition.
+                # Skip if the player turned logging off with `log`.
+                if self._log_path is not None:
+                    try:
+                        self.player.start_playlog(path=self._log_path)
+                    except OSError as exc:
+                        self.call_from_thread(
+                            self.log_message,
+                            f"Couldn't reopen the play log: {exc}")
+
                 if self._last_load_was_profile:
                     # Worker thread here - self.io.say() is the
                     # correct channel, its call_from_thread() call is

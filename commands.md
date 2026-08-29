@@ -44,7 +44,7 @@ water, and swamp are slower; mountains and rivers are impassable).
 | `inspect <thing>` | `ins <thing>` | What you actually know about one thing: *Observed* / *Known* / *Suspected* / nothing yet. Try `inspect the way out` |
 | `clear` | `open` | Get past the obstacle on the escape route, once you have what it takes (walking into it with the item also works) |
 | `escape` | | Leave. Only works once your hypothesis is *confirmed* and the way is open — and only from the actual route out |
-| `log` | | Start / stop writing a plain-text transcript of this session to `apocrysis_playlog_<timestamp>.txt` (also `python3 apocrysis.py --log`). Free action. |
+| `log` | | Toggle the plain-text session transcript (`apocrysis_playlog_<timestamp>.txt`). Logging is **on by default** for interactive play — one file per session, each expedition appended; launch with `--no-log` to turn it off. Free action. |
 
 ## Survival
 

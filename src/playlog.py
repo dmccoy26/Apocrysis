@@ -7,8 +7,9 @@
 # .txt file, so a real playthrough can be handed to someone (or an
 # LLM) for "how is this actually being played?" analysis.
 #
-# Toggle in game with the `log` command, or start one automatically
-# with `python3 apocrysis.py --log`.
+# On by default for interactive play (one file per session, each
+# expedition appended); toggle in game with `log`, suppress with
+# `python3 apocrysis.py --no-log`.
 # ============================================================
 
 import datetime

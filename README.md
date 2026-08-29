@@ -23,10 +23,15 @@ pip install -r requirements.txt
 
 python3 apocrysis.py             # play (textual UI)
 python3 apocrysis.py --classic   # play (plain terminal, no textual dependency)
-python3 apocrysis.py --log       # play, writing a transcript for later analysis
+python3 apocrysis.py --no-log    # play without writing a session transcript (logging is on by default)
 python3 apocrysis.py --test      # built-in smoke test suite
 python3 apocrysis.py --mapgen v2 # experimental irregular-valley map generator (default: v1)
 ```
+
+Interactive play writes a plain-text transcript
+(`apocrysis_playlog_<timestamp>.txt`) automatically — one file per
+session, each expedition appended. Toggle it in game with `log`, or
+suppress it with `--no-log`.
 
 `--mapgen v2` is a Phase C.3 experiment — the playable area is one
 grown irregular valley instead of a rectangular board. Reversible and

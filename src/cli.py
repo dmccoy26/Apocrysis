@@ -89,6 +89,11 @@ def main(start_log=False):
     # the file key changing.
     campaign_file = profile_filename_for_name(name)
 
+    # One transcript file for the whole session; each expedition after
+    # the first appends to it (run_game_loop closes it on win, we
+    # reopen the same path) instead of a new timestamped file per run.
+    _log_path = None
+
     while True:
         player = None
         flat = _profile_flat(profile) if profile is not None else {}
@@ -160,8 +165,9 @@ def main(start_log=False):
         print(" ")
 
         if start_log:
-            _p = player.start_playlog()
+            _p = player.start_playlog(path=_log_path)
             if _p:
+                _log_path = _p
                 print(f"Play logging on -> {_p}")
         player.run_game_loop()
 

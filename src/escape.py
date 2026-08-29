@@ -397,6 +397,61 @@ class Mystery:
 
 _IMPASSABLE = ('mountain', 'river')
 
+_CARDINALS = ('north', 'south', 'east', 'west')
+_OPPOSITE = {'north': 'south', 'south': 'north', 'east': 'west', 'west': 'east'}
+
+
+def _compass_tokens(text):
+    """Cardinal words in a string - matches 'north', 'north-east',
+    'northward', 'to the east'. Case-insensitive."""
+    t = text.lower()
+    return {c for c in _CARDINALS if c in t}
+
+
+def _flatten_strs(obj):
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _flatten_strs(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _flatten_strs(v)
+
+
+def _assert_directional_truth(spawn, escape_tile, mystery, spec):
+    """Build-time invariant (SCENARIO_EXPANSION.md §5): any compass word
+    the GENERATOR put into a piece of evidence must agree with the real
+    vector from spawn to the carved gap. Authored scenery in the
+    MECHANISMS entry ('the eastern hills') gets a pass - only tokens the
+    generator added on top are held to the standard. A scenario may be
+    hard; it may not point the player the wrong way."""
+    dx = escape_tile[0] - spawn[0]
+    dy = escape_tile[1] - spawn[1]
+    true_ns = 'north' if dy < -2 else 'south' if dy > 2 else None
+    true_ew = 'west' if dx < -2 else 'east' if dx > 2 else None
+    authored = _compass_tokens(" ".join(_flatten_strs(spec)))
+    problems = []
+    for eid, e in mystery.knowledge.evidence.items():
+        for tok in _compass_tokens(e.text) - authored:
+            if tok in ('north', 'south') and true_ns and tok == _OPPOSITE[true_ns]:
+                problems.append(f"{eid} says {tok!r}, the gap is {true_ns}")
+            if tok in ('east', 'west') and true_ew and tok == _OPPOSITE[true_ew]:
+                problems.append(f"{eid} says {tok!r}, the gap is {true_ew}")
+    # The two bearing-injected clues must, positively, carry the right
+    # direction (a derivation-refactor guard, not just a contradiction
+    # check).
+    for eid in ('E_obstacle_a', 'E_route_reveal'):
+        e = mystery.knowledge.evidence.get(eid)
+        if e is None:
+            continue
+        toks = _compass_tokens(e.text)
+        for real in (true_ns, true_ew):
+            if real and real not in toks and _OPPOSITE[real] in toks:
+                problems.append(f"{eid} bearing text disagrees with spawn->gap ({real})")
+    if problems:
+        raise RuntimeError("directional-truth violation: " + "; ".join(problems))
+
 
 def _reachable_from(game, start):
     """Set of tiles walkable-reachable from start over non-impassable
@@ -817,5 +872,6 @@ def build_mystery(game):
             _carve_line(game, spawn, xy)
             reachable = _reachable_from(game, spawn)
 
+    _assert_directional_truth(spawn, m.escape_tile, m, spec)
     m.validate()
     return m

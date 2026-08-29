@@ -272,6 +272,39 @@ class TestEscapeGeneration(unittest.TestCase):
                          ["propeller", "can of avgas"])
         self.assertIn("require2", loaded.mystery.sites)
 
+    def test_directional_truth_holds_across_many_seeds(self):
+        # build_mystery runs _assert_directional_truth before returning;
+        # a violation would surface as mystery=None (the generator
+        # bailing). Sweep a wide band of seeds/tiers.
+        for seed in range(60):
+            with self.subTest(seed=seed):
+                game = Apocrysis("Dir", seed=seed,
+                                 expeditions_completed=seed % 9, io=_IO())
+                self.assertIsNotNone(game.mystery,
+                                     f"seed {seed}: generator bailed (directional or validate)")
+
+    def test_directional_truth_audit_catches_a_contradiction(self):
+        from src.escape import _assert_directional_truth
+        from src.knowledge import Evidence
+
+        class _K:
+            def __init__(self):
+                self.evidence = {
+                    "E_route_reveal": Evidence(
+                        "E_route_reveal", "a track up the north ridge",
+                        supports=["F_ROUTE"], location="x", method="observe"),
+                }
+
+        class _M:
+            mechanism = "radio_tower"
+            knowledge = _K()
+
+        # gap is well to the south; the clue says north -> must raise
+        with self.assertRaises(RuntimeError):
+            _assert_directional_truth((10, 10), (10, 26), _M(), {"a": "b"})
+        # gap actually north -> fine
+        _assert_directional_truth((10, 26), (10, 10), _M(), {"a": "b"})
+
     def test_tidal_causeway_arms_a_diegetic_deadline(self):
         g = self._force_mechanism("tidal_causeway", seed=4)
         m = g.mystery

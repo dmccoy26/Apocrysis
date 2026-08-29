@@ -61,6 +61,17 @@ different-feeling escape stories from a small set of mechanisms* — not
   tile path loop, rare). Unforced 300-game: 90% survival, 0 timeouts,
   30/30 deaths zombie combat. 158 tests + 40 subtests green. Committed.
 
+- [x] **Phase 4 — directional-truth audit.** `_assert_directional_truth`
+  in `escape.py`, run in `build_mystery` before `validate()`. Any
+  compass word the *generator* injected into evidence must agree with
+  the spawn→gap vector; authored MECHANISMS scenery (`the eastern
+  hills`, control names like `the west intake`) is flattened out and
+  gets a pass. Plus a positive check that the two bearing-injected
+  clues (`E_obstacle_a` tail, `E_route_reveal`) carry the right
+  direction — a derivation-refactor guard. All 10 mechanisms clean
+  across 200 seeds. +2 tests (60-seed sweep, catches-a-lie). 160 tests
+  + 100 subtests green. Committed.
+
 Phases, in order:
 
 1. **Scenario library** (first-class, not filler). **DONE** — see above.

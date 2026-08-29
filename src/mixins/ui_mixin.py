@@ -619,7 +619,11 @@ class UIMixin:
                         char = '.' if map_revealed else ' '
                 else:
                     char = '.' if in_range and (x, y) in self.visited else ' '
-                if (x, y) != self.current_position and ((x, y) in self.visited or map_revealed):
+                if (x, y) != self.current_position:
+                    # Mystery-site markers show even on unexplored,
+                    # un-mapped ground - a lead you've learned about is
+                    # a destination you should be able to see and head
+                    # for. Everything else still respects fog of war.
                     mark = self._mystery_site_mark(x, y)
                     if mark:
                         char = mark
@@ -645,8 +649,19 @@ class UIMixin:
             knows_route = 'F_OBSTACLE' in m.knowledge.facts_known()
             if getattr(self, 'map_revealed', False) or knows_route:
                 return f"{BOLD}{GREEN}+{RESET}" if m.obstacle_open else f"{BOLD}{YELLOW}!{RESET}"
-        for role in getattr(self, '_mystery_named', set()):
-            if m.sites.get(role) == (x, y):
+        # A site is marked once the player has LEARNED about it - either
+        # by visiting it (_mystery_named) or by knowing the fact that
+        # points to it. So "the fuel is at the harbourmaster's shed"
+        # gives you a place on the map, not 40 identical buildings to
+        # walk onto (playtest, repeatedly).
+        known = m.knowledge.facts_known()
+        # 'route'/'require' get marked the moment you know the fact that
+        # points to them; 'closed' only once you've been there (it's
+        # where you came in - low value to signpost).
+        role_known = {'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known}
+        named = getattr(self, '_mystery_named', set())
+        for role, xy in m.sites.items():
+            if xy == (x, y) and (role in named or role_known.get(role)):
                 return f"{BOLD}{YELLOW}!{RESET}"
         return None
 

@@ -192,65 +192,77 @@ _FACT_LABEL = {
 }
 
 
+def _objective_steps(p, m, k):
+    """The OBJECTIVES checklist, generated from THIS mystery's own
+    structure (site labels, mechanism, requirement item) rather than a
+    generic list. It's the player's external memory - "what did I do
+    80 turns ago" - so every line is phrased from what the player has
+    actually learned, not the hidden Escape Proof. The one actionable
+    step is highlighted; the journal keeps the detail."""
+    try:
+        from src.escape import MECHANISMS
+        mech_name = MECHANISMS.get(m.mechanism, {}).get("name", "the way out")
+    except Exception:
+        mech_name = "the way out"
+    known = k.facts_known()
+    named = getattr(p, "_mystery_named", set())
+    labels = getattr(m, "site_labels", {})
+    has_item = any(getattr(it, "name", None) == m.requirement_item
+                   for it in p.backpack.items) or m.obstacle_open
+    confirmed = k.hypothesis_state() == "confirmed"
+
+    def place(role, generic):
+        return labels.get(role, generic) if role in named else generic
+
+    item = m.requirement_item
+    steps = []
+    # 1. the route
+    steps.append(("route" in named or "F_ROUTE" in known,
+                  f"found {place('route', 'a way toward another route')}"))
+    # 2. what blocks it
+    if "F_OBSTACLE" in known or m.saw_obstacle:
+        steps.append((True, "found what blocks the route"))
+    # 3. what you need
+    if "F_REQUIRE" in known:
+        steps.append((True, f"learned you need a {item}"
+                            + (f" — kept at {labels['require']}" if 'require' in labels else "")))
+    # 4. reached the place it's kept
+    if "F_REQUIRE" in known:
+        steps.append(("require" in named or has_item,
+                      f"reached {place('require', 'where it is kept')}"))
+    # 5. got it
+    if "F_REQUIRE" in known or has_item:
+        steps.append((has_item, f"got the {item}"))
+    # 6. open the way
+    steps.append((m.obstacle_open, "opened the way through"))
+    # 7. escape
+    steps.append((m.escaped, f"escaped by {mech_name}"))
+
+    out = [f"[b]ESCAPE — {mech_name}[/b]"]
+    # highlight the first not-done step
+    hot = next((i for i, (d, _) in enumerate(steps) if not d), None)
+    for i, (dn, label) in enumerate(steps):
+        if dn:
+            out.append(f"  [green]✓[/green] {label}")
+        elif i == hot:
+            star = confirmed and m.obstacle_open and "escaped" in label
+            mark = "[b yellow]★[/]" if (star or "escaped" in label and confirmed) else "[yellow]▸[/]"
+            out.append(f"  {mark} [yellow]{label}[/]")
+        else:
+            out.append(f"  [{_DIM}]☐ {label}[/]")
+    return out
+
+
 def _status_block(p):
-    """The bottom-right STATUS box: what you've worked out so far
-    (ticked list) and any active warnings. Progress is the durable
-    counterpart to the one-shot ◆ events; warnings are the standing
-    version of the ⚠ events."""
+    """The bottom-right STATUS box: the OBJECTIVES checklist (external
+    memory of the investigation, generated from the mystery) plus any
+    active warnings (the standing version of the ⚠ events)."""
     lines = []
 
     k = getattr(p, "knowledge", None)
     m = getattr(p, "mystery", None)
     if m is not None and k is not None:
-        known = k.facts_known()
-        has_item = any(getattr(it, "name", None) == m.requirement_item
-                       for it in p.backpack.items)
-        confirmed = k.hypothesis_state() == "confirmed"
-        # What the player has WORKED OUT (done) vs the ONE next thing to
-        # do. Deliberately not the whole Escape Proof - that would turn
-        # investigation into a shopping list. Still leaves the reasoning
-        # and the navigating to the player.
-        done = []
-        if "F_CLOSED" in known:
-            done.append("the usual way out is gone")
-        if "F_ROUTE" in known:
-            done.append("there's another route")
-        if "F_OBSTACLE" in known:
-            done.append("found what's blocking it")
-        if "F_REQUIRE" in known:
-            done.append("worked out what gets you past")
-        if has_item or m.obstacle_open:
-            done.append(f"have the {m.requirement_item}")
-        if m.obstacle_open:
-            done.append("cleared the way")
-
-        if m.escaped:
-            nxt = None
-        elif m.obstacle_open and confirmed:
-            nxt = ("[b yellow]★ ESCAPE[/]  — you know the way and it's open", None)
-        elif m.obstacle_open:
-            nxt = ("get to the way out", None)
-        elif has_item:
-            nxt = ("get back to the blockage and clear it", None)
-        elif "F_REQUIRE" in known:
-            nxt = ("find what you need and bring it to the blockage", None)
-        elif "F_OBSTACLE" in known:
-            nxt = ("work out what would get you past", None)
-        elif "F_ROUTE" in known:
-            nxt = ("follow the other route and see what stops you", None)
-        else:
-            nxt = ("look for another way out", None)
-
-        lines.append("[b]ESCAPE THE VALLEY[/b]")
-        hyp = getattr(k, "hypothesis", None)
-        hstate = k.hypothesis_state() if hyp else "unknown"
-        if hyp and hstate in ("suspected", "confirmed"):
-            tag = "you think" if hstate == "suspected" else "you know"
-            lines.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
-        for d in done:
-            lines.append(f"  [green]✓[/green] {d}")
-        if nxt:
-            lines.append(f"  [yellow]○[/yellow] {nxt[0]}")
+        lines += _objective_steps(p, m, k)
 
     warns = []
     w = p.equipped_weapon

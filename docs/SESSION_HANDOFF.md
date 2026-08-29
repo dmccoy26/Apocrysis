@@ -171,9 +171,24 @@ Built by hand this session:
   wasd/arrows move, i/m/l/j/t/g/f/o/? act) vs TYPE (Enter/`:` →
   focused box, Esc cancels). `request_input` picks: `"> "`→MOVE, any
   dialog→TYPE. Map header shows a MOVE/TYPE chip.
-- Objective removed from the top HUD; the bottom-right OBJECTIVES
-  panel is its only home ("ESCAPE THE VALLEY" + current belief + ✓
-  steps + one ○ next step).
+- Objective removed from the top HUD. The bottom-right OBJECTIVES
+  panel is now the player's **external memory, generated from THIS
+  mystery** — "found an evacuation-route sign / learned you need a
+  barricade key — kept at the police station / reached the police
+  station / got the barricade key / ▸ opened the way / ☐ escaped".
+  Site labels appear only once known; ▸ marks the actionable step.
+- Map: a role site is marked `!` the moment you KNOW the fact that
+  points to it (F_ROUTE→route, F_REQUIRE→require), through fog of war —
+  not only after visiting. A named lead is a place on the map.
+- balance harness updated (drink-from-water, starvation death bucket);
+  2000-game regression: ~86% win, envelope intact (see
+  BALANCE_BASELINE re-run section).
+
+**The four player-facing questions** (design rule going forward):
+WHERE AM I → map · WHAT HAVE I LEARNED → journal · WHAT DO I THINK →
+think · WHAT NEXT → objectives panel. If the player must remember a
+fact to operate the game, the UI remembers it for them. Investigation
+hard, interface easy.
 
 **Escape story library** — `docs/ESCAPE_STORY_LIBRARY.md` rewritten
 around the 10-family reasoning matrix. Atlas todos, continuity-key

@@ -289,8 +289,14 @@ def _objective_steps(p, m, k):
     # 6. open the way / get the directions
     steps.append((m.obstacle_open,
                   "the outside named a way out" if _info else "opened the way through"))
-    # 7. escape
-    steps.append((m.escaped, f"escaped by {mech_name}"))
+    # 7. escape - once it's confirmed + open you can `escape` from
+    # anywhere; a kid walked to the map marker and died one tile short
+    # (playtest). Make the hot line an instruction, not a place.
+    _can_leave = confirmed and m.obstacle_open
+    steps.append((m.escaped, f"escaped by {mech_name}",
+                  ("type `escape` now - you don't have to walk there" if _can_leave and _info
+                   else "type `escape` to leave" if _can_leave
+                   else f"escaped by {mech_name}")))
 
     out = [f"[b]ESCAPE — {mech_name}[/b]"]
     # highlight the first not-done step

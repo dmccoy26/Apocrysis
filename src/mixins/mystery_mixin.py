@@ -91,13 +91,10 @@ class MysteryMixin:
         new_facts = k.facts_known() - set(facts_before)
         if 'F_ROUTE' in new_facts:
             if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
-                # informational: the response named a route that was
-                # never on the map. It's the way out now - and there is
-                # nothing left to clear.
-                self.announce_event(
-                    "the way out",
-                    "The voice on the channel talked you onto it - it's marked on your map now.",
-                    kind="objective")
+                # informational: F_ROUTE and 'confirmed' land in the same
+                # beat here - the "YOU CAN LEAVE NOW" banner below says
+                # everything, so don't double up.
+                pass
             elif m.site_labels.get('route'):
                 self.announce_event(f"the route is at {m.site_labels['route']}",
                                     "It's marked on your map now.", kind="lead")
@@ -129,11 +126,18 @@ class MysteryMixin:
                 self.announce_event("a new idea about the way out",
                                     k.hypothesis.statement, kind="objective")
             elif now == 'confirmed':
-                if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
-                    self.announce_event("you know the way out",
-                                        k.hypothesis.statement,
-                                        "The voice gave you a clear road. Type `escape` to take it.",
-                                        kind="objective")
+                if m.obstacle_open:
+                    # `escape` works from wherever you are now. A kid
+                    # walked to the map marker and died one tile short
+                    # (playtest) - say it loud, say you don't travel.
+                    if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+                        body = ("The voice has you - you do NOT have to reach the ridge "
+                                "yourself. Type `escape` right now and you're out.")
+                    else:
+                        body = ("The way's open and you know it leads out. Type `escape` "
+                                "from here - no need to walk back to it.")
+                    self.announce_event("YOU CAN LEAVE NOW",
+                                        k.hypothesis.statement, body, kind="objective")
                 else:
                     self.announce_event("escape route confirmed",
                                         k.hypothesis.statement,

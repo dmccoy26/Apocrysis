@@ -36,7 +36,11 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote (after fail or not routed) | Atlas-only (no rework) |
 |---|---|---|---|
-| 22 | 6 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`, `world_investigation.py`, `campaign.py` milestones) | ~28 | 6 |
+| 22 | 6 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`, `world_investigation.py`, `campaign.py` milestones) | ~31 | 6 |
+
+> Phase-A-era scoreboard; see **Cumulative (Phase A + B + C)** below for
+> the whole-project picture (9 of ~69 files, +C.1 `reachable.py` and
+> `survivor_knowledge.py`). Nothing has been routed to Atlas since.
 
 **Atlas can now (2 for 2 each):** a self-contained new file given
 verbatim (dataclass / constant table / a class of short methods, up to
@@ -268,7 +272,21 @@ Net Phase C: **1 of ~9 files by Atlas** (`reachable.py`). C.3's
 irregular-valley experiment (reversible, behind `mapgen="v1"|"v2"`) is
 hand-written and awaits the owner's human feel-test.
 
-## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~65 files touched
+## Phase C.3.1 + post-experiment fixes (2026-08-29) — feel-test prep
+
+Three hand-written changes while getting the C.3 build ready for the
+owner's five-expedition feel-test. None routed to Atlas.
+
+| # | ask | route | outcome |
+|---|---|---|---|
+| 45 | C.3.1 — guarantee a mystery on v2 maps (regenerate the base map until `build_mystery` succeeds); `world_mixin.generate_map()` retry loop, v2 only | not routed | **HAND** — edit inside `generate_map` (720-line file, mid-function control flow); known edit wall |
+| 46 | auto-write the play log by default + carry one transcript across expeditions | not routed | **HAND** — 3-file change (`apocrysis.py`, `cli.py` loop, `tui.py` post-win rebuild); multi-file + large-file |
+| 47 | sanitise the survivor name on entry (`clean_display_name`) — stray `\`/`[` corrupted the Rich HUD, the play log and the profile slug; + `rich.markup.escape` in the HUD; + `hardcore` flag read through `_profile_flat` | not routed | **HAND** — new helper is ~10 lines and self-contained (Atlas-shaped), but it ships with edits to `cli.py`, `tui.py` and a test file; routing just the helper would strand the wiring |
+
+Net C.3.1: **0 of 4 files by Atlas.** #47's helper is the only
+Atlas-sized piece and it couldn't stand alone.
+
+## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~69 files touched
 
 9 self-contained new leaf files; every architecture / large-file /
 multi-file / cross-import / mechanical-move change hand-written.

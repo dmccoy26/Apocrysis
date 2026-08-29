@@ -16,12 +16,9 @@ import random
 
 from src.constants import (
     BOLD, GREEN, RESET, CAMPAIGN_LENGTH,
-    BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     IMPASSABLE_TERRAIN,
-    OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
-    CHUNK_SIZE, MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS,
     ZOMBIE_MAP_DENSITY, ENCOUNTER_CHANCE_DAY, ENCOUNTER_CHANCE_NIGHT,
 )
 from src.items import MeleeWeapon, RangedWeapon, Armor
@@ -72,13 +69,6 @@ class WorldMixin:
         'wilderness': {'food': 1.4, 'water': 1.4, 'medicine': 0.6, 'ammo': 0.9, 'weapon': 0.9, 'armor': 0.5},
     }
 
-    def _zone_for_terrain(self, terrain):
-        if terrain in ('forest', 'swamp', 'water'):
-            return self.rng.choices(('wilderness', 'rural'), weights=(0.8, 0.2))[0]
-        if terrain == 'building':
-            return self.rng.choices(
-                ('suburban', 'downtown', 'industrial'), weights=(0.45, 0.3, 0.25))[0]
-        return self.rng.choices(('rural', 'suburban', 'wilderness'), weights=(0.55, 0.25, 0.2))[0]
 
     def _current_zone(self):
         cell = self.map[self.current_position[1]][self.current_position[0]]
@@ -98,175 +88,19 @@ class WorldMixin:
     Explicitly out of scope for this pass: per-settlement discovery so decoy settlements genuinely differ from the real objective (currently settlement_explored is one global flag set by entering ANY settlement). That remains a separate, not-yet-implemented change.
     """
     def generate_map(self):
-        terrain_types = ['forest', 'building', 'water', 'plain', 'swamp']
-
-        # v4: per-expedition map archetype. Every map used to roll each
-        # chunk's terrain uniformly from terrain_types, so the only
-        # variety between expeditions was the seed - same rough
-        # forest/field/building mix every time. An archetype biases that
-        # roll (weights are positional, matching terrain_types) so a
-        # given expedition reads as deep woods / flooded basin /
-        # suburban sprawl / open country / a plain mix. Picked from the
-        # seeded RNG so it's reproducible per seed. The boundary ring,
-        # settlements, zones and mystery are untouched.
-        _archetypes = self.world.map_archetypes
-        self.map_archetype = self.rng.choice(list(_archetypes))
-        _arch = _archetypes[self.map_archetype]
-
-        obstacle_density = min(
-            OBSTACLE_DENSITY_CAP,
-            max(0, self.expeditions_completed - OBSTACLE_START_LEVEL) * OBSTACLE_DENSITY_PER_LEVEL,
-        )
-
-        # Chunk-based terrain generation investigation: one base
-        # terrain rolls per CHUNK_SIZE x CHUNK_SIZE block instead of
-        # independently per tile, so forests/plains/etc form
-        # contiguous regions instead of a checkerboard of unrelated
-        # single-tile rolls. Obstacle terrain (mountain/river) is
-        # still an overlay rolled per-tile inside any chunk via
-        # _pick_terrain() - it represents a hazard cutting across a
-        # region, not a region type of its own.
-        chunk_terrain = {}
-        for cy in range(0, self.map_size, CHUNK_SIZE):
-            for cx in range(0, self.map_size, CHUNK_SIZE):
-                # spawn-local terrain variety was requested as a separate feature 
-                # (a lighter, spawn-scoped version of biome clustering, giving each game's opening moves a recognizable local context - forest edge, riverside, near buildings, etc.) but is already satisfied by this same clustering logic - since spawn is picked from the already-clustered map, its immediate neighborhood naturally inherits whatever biome it landed in. Verified empirically across 5 seeds: 4/5 showed a single dominant terrain type filling the spawn's 5x5 neighborhood, each a different terrain. No separate spawn-context mechanism was needed.
-                neighbor_key = None
-                if (cx, cy - CHUNK_SIZE) in chunk_terrain:
-                    neighbor_key = (cx, cy - CHUNK_SIZE)
-                elif (cx - CHUNK_SIZE, cy) in chunk_terrain:
-                    neighbor_key = (cx - CHUNK_SIZE, cy)
-
-                if neighbor_key is not None and self.rng.random() < 0.6:
-                    chunk_terrain[(cx, cy)] = chunk_terrain[neighbor_key]
-                else:
-                    chunk_terrain[(cx, cy)] = self.rng.choices(
-                        terrain_types, weights=_arch['weights'])[0]
-
-        # Hard ceilings on the two terrains that make a map miserable to
-        # cross or read. The 0.6 clustering carry-forward snowballs
-        # whatever wins an early chunk, so ANY archetype could end up
-        # mostly 'b' (a named site is unfindable in a field of identical
-        # buildings - playtest, x3) or mostly '~' (water is slow +
-        # fatiguing + a health-loss roll, and now zombie-free but still
-        # a trek-killer - playtest: solved the mystery, starved before
-        # reaching the exit). Excess chunks fall back to the archetype's
-        # most likely OTHER terrain.
-        for _terr, _frac in (('building', 0.22), ('water', 0.25), ('swamp', 0.15)):
-            _chunks = [k for k, v in chunk_terrain.items() if v == _terr]
-            _cap = max(1, int(len(chunk_terrain) * _frac))
-            if len(_chunks) > _cap:
-                # spill into a plain/forest terrain (never another
-                # capped, movement-punishing one)
-                _fallback = max(
-                    ('forest', 'plain'),
-                    key=lambda t: _arch['weights'][terrain_types.index(t)],
-                )
-                self.rng.shuffle(_chunks)
-                for k in _chunks[_cap:]:
-                    chunk_terrain[k] = _fallback
-
-        # v4 (todo 457c93a6): a semantic ZONE tag per chunk, on top of
-        # terrain. Terrain answers "what do I walk on"; zone answers
-        # "what kind of place is this" and is what drives contextual
-        # zombie composition (2D.1) and loot (2D.2). Clustered the same
-        # way terrain is, and biased by the chunk's own terrain.
-        chunk_zone = {}
-        for cy in range(0, self.map_size, CHUNK_SIZE):
-            for cx in range(0, self.map_size, CHUNK_SIZE):
-                nb = None
-                if (cx, cy - CHUNK_SIZE) in chunk_zone:
-                    nb = (cx, cy - CHUNK_SIZE)
-                elif (cx - CHUNK_SIZE, cy) in chunk_zone:
-                    nb = (cx - CHUNK_SIZE, cy)
-                if nb is not None and self.rng.random() < 0.55:
-                    chunk_zone[(cx, cy)] = chunk_zone[nb]
-                else:
-                    chunk_zone[(cx, cy)] = self._zone_for_terrain(chunk_terrain[(cx, cy)])
-
-        self.map = [
-            [
-                {
-                    'terrain': self._pick_terrain(
-                        chunk_terrain[(x - x % CHUNK_SIZE, y - y % CHUNK_SIZE)],
-                        obstacle_density,
-                    ),
-                    'zone': chunk_zone[(x - x % CHUNK_SIZE, y - y % CHUNK_SIZE)],
-                    'content': '-',
-                    'explored': False,
-                }
-                for x in range(self.map_size)
-            ]
-            for y in range(self.map_size)
-        ]
-
-        # v4 Phase A (todo 6c9f672a): mountain-boundary Phase 1. The
-        # outer ring of the map is forced 'mountain' - a natural world
-        # edge you can see and bump into, instead of an invisible
-        # rectangular cutoff. Applied here so _pick_random_walkable_tile()
-        # never spawns on it, and again after settlement placement
-        # (below) so a settlement box clipping the edge doesn't punch a
-        # hole in it. move_and_search() gives it a first-hit discovery
-        # beat per direction.
-        self._force_boundary_ring()
-
-        # Random player spawn (v3 #6) - was always the map center.
-        spawn = self._pick_random_walkable_tile()
-        self.current_position = spawn
-        self.map[spawn[1]][spawn[0]]['content'] = 'P'
-
-        # Multiple-settlements investigation: 1-MAX_SETTLEMENTS
-        # populated areas, more as expeditions_completed grows.
-        # Exactly one (chosen at random, not always the first placed)
-        # gets the real Town Center - the rest are decoys with no
-        # win-triggering tile, just loot/exploration opportunities
-        # (organic-settlement investigation covers each one's own
-        # shape/district structure - see _generate_settlement()).
-        # Known limitation: settlements are placed independently, each
-        # only checked against SPAWN distance - with 2-3 on a small
-        # map they can end up adjacent or slightly overlapping. Not a
-        # correctness requirement the way spawn-to-real-Town-Center
-        # reachability below is, so left as-is rather than adding a
-        # full non-overlap placement search.
-        town_size = min(5, self.map_size)
-        min_distance = min(
-            self.map_size - 2,
-            BASE_TOWN_MIN_DISTANCE + self.expeditions_completed * TOWN_DISTANCE_GROWTH_PER_LEVEL,
-        )
-        num_settlements = min(
-            MAX_SETTLEMENTS,
-            1 + self.expeditions_completed // SETTLEMENTS_PER_EXPEDITIONS,
-        )
-        real_settlement_index = self.rng.randrange(num_settlements)
-
-        # Real bug found live: with the real settlement placed in loop
-        # order (not necessarily last), an overlapping DECOY placed
-        # afterward could straight-up overwrite its 'T' tile with an
-        # H/R/S/B letter, silently deleting the only win tile on the
-        # map. Placing every decoy first and the real settlement last
-        # guarantees its tiles (including 'T') always win any overlap.
-        settlement_order = [i for i in range(num_settlements) if i != real_settlement_index]
-        settlement_order.append(real_settlement_index)
-
-        town_center = None
-        for i in settlement_order:
-            top_left = self._pick_town_position(town_size, spawn, min_distance)
-            center = self._generate_settlement(top_left, town_size, is_real=(i == real_settlement_index))
-            if center is not None:
-                town_center = center
-
-        # Re-seal the boundary ring in case a settlement box clipped it.
-        self._force_boundary_ring()
+        # Phase C (C.1): the base-map pipeline lives in src/worldgen now.
+        # This method is the orchestrator: worldgen builds terrain /
+        # boundary / spawn / settlements, then the engine embeds the
+        # mystery, guarantees reachability, and places zombies. RNG
+        # order is unchanged from pre-C.1.
+        from src.worldgen import MapGenerator
+        gen = MapGenerator(self)
+        town_center = gen.generate()
 
         # v4 Phase C: build this expedition's escape mystery onto the
         # generated map, and point self.knowledge at its catalogue.
-        # (build_mystery may carve one gap in the boundary ring for the
-        # actual escape route - mountain-boundary Phase 3.)
         from src.escape import build_mystery
-        # A.4.2: each expedition targets the next un-known WorldFact
-        # whose prerequisites are met (WorldInvestigation.next_target()).
-        # None once the CH1/CH2 DAG is exhausted -> build_mystery takes
-        # the ordinary random path.
+        # A.4.2: each expedition targets the next un-known WorldFact.
         _target = None
         _wi = getattr(self, 'world_investigation', None)
         if _wi is not None:
@@ -274,45 +108,27 @@ class WorldMixin:
         try:
             self.mystery = build_mystery(self, target_fact=_target)
         except RuntimeError as exc:
-            # A mystery that fails its own validation is a generation
-            # bug - surface it in tests, but never ship a broken map to
-            # a player: fall back to reach-the-Town-Center.
             if getattr(self, '_strict_mystery', False):
                 raise
             self.io.say(f"(world generation note: {exc})")
             self.mystery = None
         if self.mystery is not None:
             self.knowledge = self.mystery.knowledge
-        if town_center is not None and (
-            town_center[0] in (0, self.map_size - 1)
-            or town_center[1] in (0, self.map_size - 1)
-        ):
-            # Extremely unlikely (settlement centres are placed well
-            # inside), but a real Town Center buried under the ring
-            # would be unwinnable - nudge it one tile inward.
-            tx = min(max(town_center[0], 1), self.map_size - 2)
-            ty = min(max(town_center[1], 1), self.map_size - 2)
-            self.map[ty][tx] = {'terrain': 'town', 'content': 'T', 'explored': False}
-            town_center = (tx, ty)
 
-        # v4 (todo 7db3c4b5): variable abandonment. Every building /
-        # settlement tile gets a generated CAUSE for being empty -
-        # different placed flavour for the same tile type. Cheap way to
-        # multiply perceived detail without more location types.
+        # v4 (todo 7db3c4b5): variable abandonment - a generated CAUSE
+        # for every building/settlement tile being empty.
         causes = list(self._ABANDONMENT_FLAVOUR)
         for row in self.map:
             for cell in row:
                 if isinstance(cell, dict) and cell.get('terrain') in ('building', 'town'):
                     cell['abandonment'] = self.rng.choice(causes)
 
-        # Connectivity guarantee (#7) - a "harder" map with more
-        # obstacles must never generate an unreachable REAL Town
-        # Center. Decoy settlements are best-effort only (see the
-        # known-limitation note above) - never carved for.
-        self._ensure_reachable(spawn, town_center)
+        # Connectivity guarantee (#7) - never ship an unreachable REAL
+        # Town Center. Decoy settlements are best-effort only.
+        gen.ensure_reachable(self.current_position, town_center)
 
-        # Zombie placement (10% of tiles) - unchanged shape, now via
-        # self.rng and skipping impassable/town/spawn tiles.
+        # Zombie placement (frozen balance) - unchanged shape.
+        spawn = self.current_position
         total_tiles = self.map_size ** 2
         num_zombies = int(total_tiles * ZOMBIE_MAP_DENSITY)
 
@@ -321,14 +137,13 @@ class WorldMixin:
         max_attempts = max(200, num_zombies * 20)
 
         # v4: never bury a mystery site / obstacle / escape tile - OR
-        # the route to one - under a zombie. The investigation must
-        # stay physically solvable, not just physically reachable.
+        # the route to one - under a zombie.
         protected = set()
         if self.mystery is not None:
             targets = list(self.mystery.sites.values()) + [self.mystery.escape_tile]
             protected = set(targets)
             for t in targets:
-                path = self._mystery_bfs_path(spawn, t)
+                path = gen.mystery_bfs_path(spawn, t)
                 if path:
                     protected.update(path)
 
@@ -346,14 +161,6 @@ class WorldMixin:
             ):
                 self.map[y][x] = self._select_zombie_for_encounter()
                 placed_zombies += 1
-
-        # One line of scene-setting for this expedition's archetype.
-        # STORED, not emitted here: generate_map() runs inside
-        # Apocrysis.__init__, which in the TUI happens on the app's own
-        # thread - calling self.io.say() (-> Textual call_from_thread)
-        # from there raises. run_game_loop() emits it on its first turn,
-        # on whichever thread is safe for that mode (see ui_mixin).
-        self.map_archetype_blurb = _arch['blurb']
 
         return self.map
 
@@ -404,104 +211,9 @@ class WorldMixin:
         self.io.say(blurb)
         self.knowledge.add_clue(statement, evidence_text=blurb)
 
-    def _generate_settlement(self, top_left, size, is_real):
-        """
-        Organic-settlement investigation: fills a size x size bounding
-        box with an irregular (diamond-ish, not solid-square)
-        boundary and per-tile district tags based on distance from
-        the settlement's own center. Returns the town-center
-        coordinate if is_real (the only settlement that gets a real
-        'T' tile), else None.
-        """
-        town_features = ['H', 'R', 'S', 'B']
-        cx = top_left[0] + size // 2
-        cy = top_left[1] + size // 2
-        max_dist = max(1, size // 2)
 
-        for y in range(top_left[1], top_left[1] + size):
-            for x in range(top_left[0], top_left[0] + size):
-                if not (0 <= x < self.map_size and 0 <= y < self.map_size):
-                    continue
 
-                dist = abs(x - cx) + abs(y - cy)
 
-                # Irregular boundary: tiles outside the inscribed
-                # diamond (the box's own corners) have a real chance
-                # to stay whatever background terrain was already
-                # there, instead of every bounding-box tile becoming
-                # part of the settlement - breaks up the solid-square
-                # silhouette without touching the box's own size.
-                if dist > max_dist and self.rng.random() < 0.6:
-                    continue
-
-                is_center = is_real and (x, y) == (cx, cy)
-                feature = 'T' if is_center else self.rng.choice(town_features)
-                district = (
-                    "downtown" if dist <= max_dist // 2
-                    else "commercial" if dist <= max_dist
-                    else "residential"
-                )
-                self.map[y][x] = {
-                    'terrain': 'town', 'content': feature,
-                    'explored': False, 'district': district,
-                }
-
-        return (cx, cy) if is_real else None
-
-    def _pick_terrain(self, base_terrain, obstacle_density):
-        if obstacle_density > 0 and self.rng.random() < obstacle_density:
-            return self.rng.choice(['mountain', 'river'])
-        return base_terrain
-
-    def _pick_random_walkable_tile(self):
-        # v4: keep the spawn away from the mountain-boundary ring and
-        # off slow/wet terrain where possible, so the opening view has
-        # room to move instead of half a wall. Falls back to the old
-        # any-walkable-tile behaviour if the map is too small/hemmed in
-        # to satisfy the preference.
-        margin = 3 if self.map_size >= 10 else 1
-        lo, hi = margin, self.map_size - 1 - margin
-        good_terrain = ('plain', 'building', 'forest')
-
-        best = None
-        for _ in range(300):
-            x = self.rng.randint(0, self.map_size - 1)
-            y = self.rng.randint(0, self.map_size - 1)
-            terrain = self.map[y][x]['terrain']
-            if terrain in IMPASSABLE_TERRAIN:
-                continue
-            interior = lo <= x <= hi and lo <= y <= hi
-            if interior and terrain in good_terrain:
-                return (x, y)
-            if best is None or (interior and self.map[best[1]][best[0]]['terrain'] not in good_terrain):
-                best = (x, y)
-        return best if best is not None else (self.map_size // 2, self.map_size // 2)
-
-    def _pick_town_position(self, town_size, spawn, min_distance):
-        max_start = max(0, self.map_size - town_size)
-
-        def center_of(top_left):
-            return (top_left[0] + town_size // 2, top_left[1] + town_size // 2)
-
-        def distance_from_spawn(top_left):
-            cx, cy = center_of(top_left)
-            return abs(cx - spawn[0]) + abs(cy - spawn[1])
-
-        for _ in range(200):
-            candidate = (
-                self.rng.randint(0, max_start),
-                self.rng.randint(0, max_start),
-            )
-            if distance_from_spawn(candidate) >= min_distance:
-                return candidate
-
-        # Map too small to satisfy min_distance anywhere - fall back
-        # to whichever map corner is genuinely farthest from spawn,
-        # not another random guess.
-        corners = [
-            (0, 0), (0, max_start), (max_start, 0), (max_start, max_start),
-        ]
-        return max(corners, key=distance_from_spawn)
 
     def _spot_landmarks(self):
         """v4 Phase A (todo 7ecd39cc): the first time an unvisited
@@ -542,30 +254,6 @@ class WorldMixin:
             self._building_sightings = getattr(self, '_building_sightings', 0) + 1
             self.io.say("You spot a building standing alone in the distance.")
 
-    def _mystery_bfs_path(self, start, goal):
-        """Shortest path start->goal over non-impassable terrain, as a
-        list of tiles (or None). Used to protect a zombie-free route to
-        every mystery site."""
-        n = self.map_size
-        prev = {start: None}
-        q = deque([start])
-        while q:
-            cur = q.popleft()
-            if cur == goal:
-                path = []
-                while cur is not None:
-                    path.append(cur)
-                    cur = prev[cur]
-                return path
-            x, y = cur
-            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < n and 0 <= ny < n and (nx, ny) not in prev:
-                    c = self.map[ny][nx]
-                    if isinstance(c, dict) and c.get('terrain') not in IMPASSABLE_TERRAIN:
-                        prev[(nx, ny)] = cur
-                        q.append((nx, ny))
-        return None
 
     def finish_expedition(self, reason="found the way out"):
         """Shared win finalisation for BOTH v4 win paths - the
@@ -597,95 +285,10 @@ class WorldMixin:
             self.io.say(f"{BOLD}A stash of supplies awaits your next game.{RESET}\n")
         self._check_and_complete_goals("reach_town")
 
-    def _force_boundary_ring(self):
-        """v4 Phase A: the outer row/column on every side is 'mountain'."""
-        last = self.map_size - 1
-        for i in range(self.map_size):
-            for (bx, by) in ((i, 0), (i, last), (0, i), (last, i)):
-                cell = self.map[by][bx]
-                if isinstance(cell, dict):
-                    cell['terrain'] = 'mountain'
-                    cell['content'] = '-'
-                    cell.setdefault('zone', 'wilderness')
-                else:
-                    self.map[by][bx] = {'terrain': 'mountain', 'content': '-',
-                                        'zone': 'wilderness', 'explored': False}
 
-    def _bfs_reachable(self, start, goal):
-        if start == goal:
-            return True
 
-        visited = {start}
-        queue = deque([start])
 
-        while queue:
-            x, y = queue.popleft()
-            for dx, dy in ((0, -1), (0, 1), (1, 0), (-1, 0)):
-                nx, ny = x + dx, y + dy
-                if not (0 <= nx < self.map_size and 0 <= ny < self.map_size):
-                    continue
-                if (nx, ny) in visited:
-                    continue
-                cell = self.map[ny][nx]
-                terrain = cell.get('terrain') if isinstance(cell, dict) else None
-                if terrain in IMPASSABLE_TERRAIN:
-                    continue
-                if (nx, ny) == goal:
-                    return True
-                visited.add((nx, ny))
-                queue.append((nx, ny))
 
-        return False
-
-    def _carve_path(self, spawn, town_center):
-        # Walks an L-shaped route (x-leg then y-leg) between spawn and
-        # town_center, clearing only the obstacle cells it crosses -
-        # explicitly never touching the spawn or town-center tiles
-        # themselves, even though neither would ever be impassable by
-        # construction (spawn is chosen walkable; town tiles are never
-        # 'mountain'/'river').
-        x, y = spawn
-        tx, ty = town_center
-        path = []
-
-        step_x = 1 if tx > x else -1
-        while x != tx:
-            x += step_x
-            path.append((x, y))
-
-        step_y = 1 if ty > y else -1
-        while y != ty:
-            y += step_y
-            path.append((x, y))
-
-        for px, py in path:
-            if (px, py) in (spawn, town_center):
-                continue
-            cell = self.map[py][px]
-            if isinstance(cell, dict) and cell.get('terrain') in IMPASSABLE_TERRAIN:
-                cell['terrain'] = 'plain'
-
-    def _ensure_reachable(self, spawn, town_center):
-        if self._bfs_reachable(spawn, town_center):
-            return
-
-        self._carve_path(spawn, town_center)
-
-        if not self._bfs_reachable(spawn, town_center):
-            # Treated as a real generation bug (per the sprint plan's
-            # governing invariant), not a map silently shipped
-            # unreachable - the L-carve should always connect a
-            # straight route, so reaching this means something else
-            # is wrong.
-            raise RuntimeError(
-                "generate_map(): spawn-to-town-center reachability "
-                "could not be guaranteed after carving a path"
-            )
-
-    # v3 SPRINT step 3: base (health, attack) per zombie type, at
-    # difficulty_factor == 1.0 - scaled below the same way every type
-    # already was, just table-driven instead of one elif per type
-    # (6 types would otherwise mean 6 near-identical branches).
     _ZOMBIE_BASE_STATS = {
         FreshZombie: (30, 5),
         RegularZombie: (50, 10),

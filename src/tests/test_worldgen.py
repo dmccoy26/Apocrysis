@@ -46,8 +46,10 @@ class TestMapGeneration(unittest.TestCase):
                     )
                 town_center = self._find_town_center(game)
                 self.assertIsNotNone(town_center)
+                from src.worldgen.reachable import is_reachable
                 self.assertTrue(
-                    game._bfs_reachable(game.current_position, town_center),
+                    is_reachable([[c for c in row] for row in game.map],
+                                 game.map_size, game.current_position, town_center),
                     f"unreachable town at seed={seed} expeditions_completed={expeditions_completed}",
                 )
 

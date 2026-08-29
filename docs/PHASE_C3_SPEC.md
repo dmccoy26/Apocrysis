@@ -186,6 +186,24 @@ Two things that are NOT the finding:
   `F_OBSTACLE` — the game had the information and failed to make it a
   navigational affordance.
 
+### Update (2026-08-29) — expedition 2 shows this is NOT v2-specific
+
+A second feel-test run — **v1**, `boat_crossing`, 18×18 — died at turn
+99 having found **zero mystery evidence** (`facts_known` = 5 ambient
+clues, `hypothesis` never left `unknown`). The player left spawn on
+turn 1, circled the map perimeter (64 of 324 tiles), and never touched
+a mystery site, because the sites cluster near spawn by design. The
+ESCAPE panel showed "head for the way out (north)" from turn 1 and an
+ambient clue ("boot prints lead north") matched it exactly at turn 94 —
+neither was reinforced or marked, and the player acted on neither.
+
+**The v2 rejection was never really about v2.** v1 has the identical
+failure mode; the rectangular map's self-correcting bounds merely hid
+it more often. This does not change the verdict (v2 stays rejected as
+designed, C.3.2 stays the path) — it sharpens why C.3.2a on v1 is a
+real fix, not a warm-up. See `PHASE_C3_2_SPEC.md` § "The problem is not
+v2-specific".
+
 ### A clean negative result (not a failed experiment)
 
 Keep the four claims separate:

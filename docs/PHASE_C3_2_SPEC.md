@@ -4,6 +4,37 @@ Builds on: `PHASE_C3_SPEC.md` (the v2 feel-test verdict + the three
 invariants) and `NAV_SIGNAL_INVENTORY.md` (26 signals classified
 `observable → interpretable → actionable`).
 
+## The problem is not v2-specific (2026-08-29, expedition 2)
+
+A second feel-test run — **v1**, `boat_crossing`, 18×18 — died at turn
+99 with **zero mystery evidence found**. `facts_known` was five ambient
+`_PHASE_B_CLUES` and nothing else; `hypothesis` never left `unknown`.
+The player left spawn on turn 1, looped the entire map perimeter (64 of
+324 tiles, all edge), never touched a single mystery site, and starved.
+
+This matters for C.3.2's framing:
+
+- **v1 has the identical failure mode.** The mystery sites cluster near
+  spawn by design (`escape.py`: "the gap is deliberately the far
+  corner"); leave spawn and circle, and you can miss the entire
+  mystery. Expedition 1 only passed because that map's RNG put the
+  settlement on the wander line. v2 didn't create this — it removed the
+  rectangle's forgiveness (self-correcting bounds).
+- **The turn-1 directional lead already exists and is not enough.** The
+  ESCAPE panel showed "► head for the way out (north)" from turn 1
+  (`_objective_steps` → `heading('route')`, unconditional straight-line
+  to the route site). At turn 94 an ambient clue fired: "Boot prints
+  all lead the same way — out the back, north." **Two independent
+  "north" signals, never connected, never reinforced, never on the
+  map** — and the player, circling the south/east edge, acted on
+  neither.
+
+So C.3.2's job is not to *invent* an early lead — it's to make the one
+that exists **land**: validate it (Invariant 4) and **reinforce** it
+(`look`, ambient clues, a soft map hint). And the 2×2's top-left cell
+("v1, old navigation") is **not a passing baseline** — C.3.2a is a real
+fix on v1, not a warm-up for v2.
+
 ## The reframe
 
 C.3.2 is **not primarily a map-generation feature.** The inventory
@@ -128,19 +159,32 @@ It never invents a clue on a tile that has none.
 ### C.3.2a — v1 navigation affordances (ships first)
 
 Ordered smallest-first. Each piece stands alone and is testable.
+**The through-line: the ESCAPE panel already carries a turn-1 route
+heading (`_objective_steps` → `heading('route')`). C.3.2a validates it
+and reinforces it in the places the player is actually looking — it
+does not add a competing new lead.**
 
 | # | change | where | MapGraph contract | test |
 |---|---|---|---|---|
+| 0 | **Validate the ESCAPE-panel route heading.** `heading('route')` is an unconditional straight-line bearing to the route site — on v2's expedition it pointed "north-east" into a wall. Run it through `heading_is_honest`; show the honest heading, or drop the parenthetical if there is no honest one. | `tui._objective_steps` `heading()` / `_compass` → the shared helper | `heading_is_honest(graph, player, route_site, claimed)` | unit: straight-line NE but path goes N → panel says "(north)"; no coherent heading → no parenthetical |
 | 1 | **Landmark → bearing.** `_spot_landmarks` says *which way* the rooftops/building are; the sighting is remembered so `look` can re-report it. | `world_mixin._spot_landmarks`, a `_landmarks_seen_dir` store | bearing computed from real tile positions | unit: a sighting NE of the player produces "north-east"; structural: on 200 seeds every settlement sighting has a non-empty bearing or is adjacent |
-| 2 | **`look` re-frames** (section above) — reports the nearest earned lead with a graph-honest heading, or says plainly there's none. | `knowledge_mixin.knowledge_look` | `heading_is_honest` before printing a direction | unit: known route NE + clear path → "north-east"; known route NE + wall NE + path actually goes N → "north"; nothing known → the null line |
-| 3 | **Validate the spawn→gap bearing.** The baked `E_obstacle_a` / `E_route_reveal` bearing ("toward the north-east edge") is checked against `MapGraph` at generation; if the honest early-path heading differs, the text uses the honest one. | `escape.build_mystery` (the `_bearing` block), `world_mixin.generate_map` after the graph is built | `shortest_path(spawn, exit)` early tiles define the honest heading | structural: on 300 v1 + 300 v2 seeds, the bearing word in `E_obstacle_a` matches the first-5-tiles heading of the spawn→exit path |
-| 4 | **Ambient clues → soft hint** *(only if 1–3 don't clear the bar)*. `_PHASE_B_CLUES` entries with a direction ("boot prints lead north") drop a low-confidence directional arc the map/`look` can show — imprecise, not a `!`. | `world_mixin._maybe_surface_clue`, `_render_map_lines` | the arc points along a real reachable sector, else the clue surfaces without a hint | unit: a "north" clue with open north → hint shown; blocked → text only |
+| 2 | **`look` re-frames** (section above) — reports the nearest earned lead (incl. the ESCAPE-panel route heading) with a graph-honest heading, or says plainly there's none. This is the *reinforcement* channel — the panel heading and `look` should agree. | `knowledge_mixin.knowledge_look` | `heading_is_honest` before printing a direction | unit: known route NE + clear path → "north-east"; known route NE + wall NE + path actually goes N → "north"; nothing known → the null line |
+| 3 | **Validate the spawn→gap bearing in evidence.** The baked `E_obstacle_a` / `E_route_reveal` bearing ("toward the north-east edge") is checked against `MapGraph` at generation; if the honest early-path heading differs, the text uses the honest one. | `escape.build_mystery` (the `_bearing` block), `world_mixin.generate_map` after the graph is built | `shortest_path(spawn, exit)` early tiles define the honest heading | structural: on 300 v1 + 300 v2 seeds, the bearing word in `E_obstacle_a` matches the first-5-tiles heading of the spawn→exit path |
+| 4 | **Ambient clues → soft hint** *(only if 0–3 don't clear the bar)*. `_PHASE_B_CLUES` entries with a direction ("boot prints lead north") drop a low-confidence directional arc `look`/the map can show — imprecise, not a `!`. In expedition 2 "boot prints lead north" *matched* the panel heading and was never connected; this piece connects them. | `world_mixin._maybe_surface_clue`, `_render_map_lines` | the arc points along a real reachable sector, else the clue surfaces without a hint | unit: a "north" clue with open north → hint shown; blocked → text only |
 
-**No early-lead *generation* guarantee in C.3.2a.** If 1–4 land and
-the early window still starves the player of direction on v1, *then* a
-minimal guarantee (an actionable lead reachable within the early
-window, validated by Invariant 4) is scoped as C.3.2a-5 — never by
-pinning a settlement distance or a story location near spawn.
+**Early-lead *generation* guarantee — likely NOT optional (revised
+after expedition 2).** Expedition 2 (v1) found *zero* mystery evidence
+in 99 turns because every site clusters near spawn and the player
+circled the perimeter. If 0–4 land and the early window still starves
+the player on v1, the fix is one of:
+
+- a minimal guarantee that an actionable lead is reachable within the
+  early window (validated by Invariant 4), **or**
+- stop the generator clustering every site in one blob near spawn —
+  spread at least one site onto a plausible early path.
+
+Scoped as **C.3.2a-5**, decided by the v1 feel-test. Never by pinning a
+fixed settlement distance or a story location near spawn.
 
 ### C.3.2b — replay the experiment on v2
 
@@ -200,16 +244,20 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 1. `bearing()` + `heading_is_honest()` shared helpers + unit tests
    (small new module, `src/worldgen/` or `src/nav.py`).
-2. C.3.2a piece 1 (landmark bearings).
-3. C.3.2a piece 2 (`look` reframe).
-4. C.3.2a piece 3 (spawn→gap bearing validation) + golden-fixture
-   update.
-5. Both suites green, commit, tag `v5-phase-c3-2a`.
-6. **Owner feel-test on v1** — does navigation feel supported?
-7. Piece 4 (ambient clue hints) only if 6 says the early window still
+2. C.3.2a piece 0 (validate the ESCAPE-panel route heading) — smallest,
+   and it's the signal expedition 2 showed failing on v2.
+3. C.3.2a piece 1 (landmark bearings).
+4. C.3.2a piece 2 (`look` reframe — reinforces the panel heading).
+5. C.3.2a piece 3 (evidence spawn→gap bearing validation) +
+   golden-fixture update.
+6. Both suites green, commit, tag `v5-phase-c3-2a`.
+7. **Owner feel-test on v1** — does navigation feel supported? Does the
+   player reach a mystery site? (Expedition 2 didn't in 99 turns.)
+8. Piece 4 (ambient clue hints) and/or C.3.2a-5 (early-lead guarantee
+   / stop site-clustering) only if 7 says the early window still
    starves.
-8. Variety fix (one of the three options).
-9. C.3.2b — owner feel-test on v2. Fill the 2×2. Verdict.
+9. Variety fix (one of the three options).
+10. C.3.2b — owner feel-test on v2. Fill the 2×2. Verdict.
 
 ## Acceptance
 

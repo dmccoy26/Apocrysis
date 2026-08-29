@@ -86,6 +86,17 @@ doc map below it.**
 - **Blocking C.3.2b:** mechanism variety (`DIS_FEW_REMAINS` → only
   `mountain_pass`). Pick one of: play a campaign forward /
   `--force-mechanism` debug flag / a 2nd DiscoveryTemplate.
+- **Expedition 2 (v1, `boat_crossing`, 18×18) confirms the problem is
+  NOT v2-specific:** died turn 99 with ZERO mystery evidence — left
+  spawn turn 1, circled the perimeter, never hit a site (they cluster
+  near spawn by design). ESCAPE panel showed "(north)" from turn 1 +
+  ambient clue "boot prints lead north" at turn 94 — neither reinforced
+  or marked, player acted on neither. So C.3.2a-on-v1 is a real fix,
+  not a warm-up; the 2×2's "v1 old-nav" cell is not a passing baseline.
+  Spec updated: piece 0 (validate the panel route heading), and the
+  early-lead generation guarantee (C.3.2a-5) is likely NOT optional
+  (either guarantee an early reachable lead, or stop the generator
+  clustering every site near spawn).
 - **Next: owner reviews `PHASE_C3_2_SPEC.md`**, then build order step 1
   (the `bearing()` + `heading_is_honest()` helpers).
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one

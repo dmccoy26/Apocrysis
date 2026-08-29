@@ -220,8 +220,9 @@ class TestEscapeGeneration(unittest.TestCase):
         g.mystery_pull_control("main sluice")
         self.assertFalse(m.obstacle_open)
         self.assertIn("the main sluice", m.controls_tried)
-        # right control: opens
-        g.mystery_pull_control(m.correct_control.split()[-1])
+        # right control: opens ("east intake" / "west intake" - the last
+        # word alone is ambiguous, so drop only the article)
+        g.mystery_pull_control(m.correct_control.replace("the ", "", 1))
         self.assertTrue(m.obstacle_open)
         self.assertTrue(g._mystery_obstacle_ready())
 

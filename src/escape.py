@@ -415,9 +415,14 @@ def _carve_escape_pass(game, reachable):
 
     reachable_gaps = [g for g in all_gaps if (g[2], g[3]) in reachable]
     if reachable_gaps:
-        # farthest from spawn - escape should feel like a journey
-        bx, by, ix, iy = max(reachable_gaps,
-                             key=lambda g: abs(g[2] - sx) + abs(g[3] - sy))
+        # A gap at a MODERATE remove from spawn - a journey, not a
+        # half-map hike on a 34^2 (pacing invariant 3d). Sort by
+        # spawn distance and take the ~65th-percentile gap rather than
+        # the max.
+        _by_dist = sorted(reachable_gaps,
+                          key=lambda g: abs(g[2] - sx) + abs(g[3] - sy))
+        bx, by, ix, iy = _by_dist[min(len(_by_dist) - 1,
+                                      int(len(_by_dist) * 0.65))]
     elif all_gaps:
         bx, by, ix, iy = rng.choice(all_gaps)
         _carve_line(game, (sx, sy), (ix, iy))
@@ -491,15 +496,40 @@ def build_mystery(game):
     if len(sites) < 3:
         return None
 
-    # Assign the three non-obstacle roles to distinct sites. 'closed'
-    # and 'route' near spawn (early discoveries); 'require' anywhere.
+    # Assign the non-obstacle roles. Critical-path sites get geographic
+    # momentum toward the exit; side sites may detour, but bounded
+    # (pacing invariant 3d - "solve then trek" was every playtest death).
     sites = [s for s in sites if s != m.obstacle_tile]
-    near = sites[: max(2, len(sites) // 2)]
-    role_closed = near[0]
-    role_route = near[1] if len(near) > 1 else sites[1]
-    remaining = [s for s in sites if s not in (role_closed, role_route)] or [sites[-1]]
-    rng.shuffle(remaining)
-    role_require = remaining[0]
+    ex, ey = m.escape_tile
+    _sp_ex = abs(spawn[0] - ex) + abs(spawn[1] - ey) or 1
+
+    def _from_spawn(p):
+        return abs(spawn[0] - p[0]) + abs(spawn[1] - p[1])
+
+    def _detour(p):
+        # extra distance spawn->p->exit costs over spawn->exit direct;
+        # ~0 means p is on the way out.
+        return (_from_spawn(p) + abs(p[0] - ex) + abs(p[1] - ey)) - _sp_ex
+
+    # 'closed' - where you came in; keep it near spawn (list is
+    # nearest-spawn-first).
+    role_closed = sites[0]
+    _rest = [s for s in sites if s != role_closed] or [sites[0]]
+
+    # 'route' - the site that turns "wander" into "head for the way
+    # out": low detour, in the middle band of the spawn->exit run.
+    _band = sorted((s for s in _rest
+                    if 0.25 * _sp_ex <= _from_spawn(s) <= 0.85 * _sp_ex),
+                   key=_detour)
+    role_route = (_band[0] if _band
+                  else (sorted(_rest, key=_detour)[0] if _rest else role_closed))
+    _rest = [s for s in _rest if s != role_route] or [role_route]
+
+    # 'require' - a real side-trip is fine, a straight shot off-axis is
+    # not; cap the detour.
+    _side = sorted((s for s in _rest if _detour(s) <= game.map_size * 0.5),
+                   key=_detour) or sorted(_rest, key=_detour)
+    role_require = _side[0]
 
     m.sites = {
         'closed': role_closed,
@@ -662,7 +692,8 @@ def build_mystery(game):
         plabel = spec['roles']['power']
         used_xy = set(m.sites.values())
         pool = [s for s in sites if s not in used_xy]
-        rng.shuffle(pool)
+        # power is a side-trip too - keep it low-detour (pacing 3d).
+        pool.sort(key=_detour)
         p_xy = pool[0] if pool else role_require
         m.sites['power'] = p_xy
         m.site_labels['power'] = plabel

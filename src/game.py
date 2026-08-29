@@ -301,23 +301,50 @@ class Apocrysis(
         else:
             self._starve_turns = 0
 
-        # One-time nudge when you're getting low but CAN act on it - a
-        # kid drained to 0 with 9 food in the pack, never ate (playtest).
-        # Not while already starving (own message); not on an empty pack.
-        low_hunger = 0 < self.hunger <= 30 and self.backpack.food > 0
-        low_thirst = 0 < self.thirst <= 30 and self.backpack.water > 0
-        if (low_hunger or low_thirst) and not getattr(self, '_supply_nudged', False):
-            self._supply_nudged = True
-            if low_hunger and low_thirst:
-                self.announce_event("getting hungry and thirsty",
-                                    "Type `eat` and `drink` - you've got food and water in your pack.",
-                                    kind="warn")
-            elif low_hunger:
-                self.announce_event("getting hungry",
-                                    "Type `eat` - you've got food in your pack.", kind="warn")
-            else:
-                self.announce_event("getting thirsty",
-                                    "Type `drink` - you've got water in your pack.", kind="warn")
-        elif self.hunger > 45 and self.thirst > 45:
-            self._supply_nudged = False
+        self._supply_warnings()
+
+    def _supply_warnings(self):
+        """Escalating hunger/thirst warnings. A kid ran to 0/0 with food
+        still in the pack - the single -30 nudge fired once and never
+        again (playtest). Three tiers, one shot each per depletion
+        episode, re-armed once the level recovers past 45. NO movement
+        cap - starvation stays HP attrition; this just makes the state
+        unmistakable so the player owns the "12 HP, exit's three tiles
+        away, do I risk it?" call."""
+        for kind, level, supply in (
+            ("hunger", self.hunger, self.backpack.food),
+            ("thirst", self.thirst, self.backpack.water),
+        ):
+            attr = f"_{kind}_warned"
+            if level > 45:
+                setattr(self, attr, 0)
+                continue
+            tier = 3 if level <= 0 else 2 if level <= 10 else 1 if level <= 30 else 0
+            if tier <= getattr(self, attr, 0):
+                continue
+            setattr(self, attr, tier)
+            verb = "eat" if kind == "hunger" else "drink"
+            noun = "food" if kind == "hunger" else "water"
+            adj = "hungry" if kind == "hunger" else "thirsty"
+            if tier == 1 and supply > 0:
+                self.announce_event(f"getting {adj}",
+                                    f"Type `{verb}` - you've got {noun} in your pack.", kind="warn")
+            elif tier == 2:
+                if supply > 0:
+                    self.announce_event(f"YOU'RE {adj.upper()} - {verb} NOW",
+                                        f"You have {noun} in your pack. It costs health once it hits zero.",
+                                        kind="warn")
+                else:
+                    self.announce_event(f"getting {adj}, and no {noun}",
+                                        f"Find some - at zero, {kind} starts costing you health.",
+                                        kind="warn")
+            elif tier == 3:
+                if supply > 0:
+                    self.announce_event(f"YOU ARE {adj.upper()} - {verb} SOMETHING",
+                                        f"There's {noun} in your pack and {kind} is costing you health right now.",
+                                        kind="warn")
+                else:
+                    self.announce_event(f"YOU ARE {adj.upper()}",
+                                        f"No {noun} left, and {kind} is costing you health. Find some or get out.",
+                                        kind="warn")
 

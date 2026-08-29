@@ -655,6 +655,59 @@ class TestTimeAndDecay(unittest.TestCase):
         self.assertGreaterEqual(self.game.hunger, 0)
         self.assertGreaterEqual(self.game.thirst, 0)
 
+    def test_zero_food_and_water_drains_health_no_movement_cap(self):
+        # BlueNoodle reached 0/0 and still escaped - starvation must
+        # stay HP attrition, never a hard "you can only move N squares".
+        self.game.hunger = 0
+        self.game.thirst = 0
+        self.game.health = 100
+        for _ in range(5):
+            self.game._apply_decay()
+        # -2 hunger -2 thirst per turn = -4/turn
+        self.assertEqual(self.game.health, 100 - 5 * 4)
+        # only hunger at zero -> -2/turn
+        self.game.thirst = 60
+        self.game.health = 100
+        self.game._apply_decay()
+        self.assertEqual(self.game.health, 98)
+
+    def test_supply_warnings_escalate_once_per_tier(self):
+        # A kid ran to 0 with food in the pack and never got a second
+        # warning after the first -30 nudge. Now: -30, -10, and 0 each
+        # fire once, phrased for "you HAVE food".
+        said = []
+        self.game.io = type("IO", (), {
+            "say": lambda s, t: said.append(str(t)),
+            "__getattr__": lambda s, n: (lambda *a, **k: None),
+        })()
+        self.game.backpack.food = 5
+        self.game.backpack.water = 60
+        self.game.hunger = 100
+        for _ in range(60):
+            self.game._apply_decay()
+        joined = " ".join(said).upper()
+        self.assertIn("GETTING HUNGRY", joined)          # tier 1 (<=30)
+        self.assertIn("EAT NOW", joined)                 # tier 2 (<=10)
+        self.assertIn("EAT SOMETHING", joined)           # tier 3 (0, has food)
+        # each headline once
+        self.assertEqual(joined.count("GETTING HUNGRY"), 1)
+        self.assertEqual(joined.count("EAT NOW"), 1)
+
+    def test_supply_warning_rearms_after_recovery(self):
+        said = []
+        self.game.io = type("IO", (), {
+            "say": lambda s, t: said.append(str(t)),
+            "__getattr__": lambda s, n: (lambda *a, **k: None),
+        })()
+        self.game.backpack.food = 9
+        self.game.hunger = 31
+        self.game._apply_decay()                # -> 29, tier-1 fires
+        self.game.hunger = 80                   # ate
+        self.game._apply_decay()                # recovered, re-arm
+        self.game.hunger = 31
+        self.game._apply_decay()                # -> 29, tier-1 fires AGAIN
+        self.assertEqual(" ".join(said).upper().count("GETTING HUNGRY"), 2)
+
     def test_a_normal_trek_crosses_a_day_night_transition(self):
         # v3 SPRINT step 5's actual goal, verified directly rather
         # than just checking the arithmetic: before this sprint, a
@@ -1033,6 +1086,40 @@ class TestProfilePersistence(unittest.TestCase):
         # 9 saved + 10 prize
         self.assertEqual(fresh.backpack.food, 19)
         self.assertEqual(fresh.level, 5)
+
+    def test_escape_story_history_survives_quit_and_relaunch(self):
+        # A kid playing one expedition per sitting got power_station
+        # twice - _used_mechanisms / _last_family were session-only.
+        Apocrysis._used_mechanisms = ["power_station"]
+        Apocrysis._last_family = "infrastructural"
+        try:
+            with patch("builtins.print"):
+                won = Apocrysis("ProfileTest", map_size=8, seed=1)
+            won.save_profile(self.PROFILE_FILE)
+            profile = Apocrysis.load_profile(self.PROFILE_FILE)
+            self.assertEqual(profile["used_mechanisms"], ["power_station"])
+            self.assertEqual(profile["last_family"], "infrastructural")
+
+            # simulate an app restart: class state wiped
+            Apocrysis._used_mechanisms = []
+            Apocrysis._last_family = None
+            with patch("builtins.print"):
+                relaunched = Apocrysis("ProfileTest", map_size=8, seed=2)
+            relaunched.apply_profile(profile)
+            self.assertEqual(Apocrysis._used_mechanisms, ["power_station"])
+            self.assertEqual(Apocrysis._last_family, "infrastructural")
+
+            # and choose_mechanism now refuses the whole infra family
+            from src.escape import choose_mechanism, MECHANISMS
+            import random
+            for i in range(40):
+                pick = choose_mechanism(random.Random(i),
+                                        Apocrysis._used_mechanisms,
+                                        Apocrysis._last_family)
+                self.assertNotEqual(MECHANISMS[pick]["family"], "infrastructural")
+        finally:
+            Apocrysis._used_mechanisms = []
+            Apocrysis._last_family = None
 
 
 class TestHardcoreProfiles(unittest.TestCase):

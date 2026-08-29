@@ -417,6 +417,11 @@ class PersistenceMixin:
             "hardcore": getattr(self, "hardcore", False),
             "expeditions_completed": self.expeditions_completed,
             "has_flashlight": getattr(self, "has_flashlight", False),
+            # Story-variety guarantee (schema 3a) must survive quit/
+            # relaunch, not just live for one session - a kid playing
+            # one expedition per sitting got the same mechanism twice.
+            "used_mechanisms": list(getattr(self.__class__, "_used_mechanisms", []) or []),
+            "last_family": getattr(self.__class__, "_last_family", None),
         }
 
         with open(filename, 'w') as f:
@@ -506,6 +511,13 @@ class PersistenceMixin:
         self.player_class = profile.get("player_class", self.player_class)
         self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
         self.expeditions_completed = profile.get("expeditions_completed", self.expeditions_completed)
+        # Restore the escape-story shuffle-bag so the "no back-to-back
+        # family" rule holds across sessions, not just within one.
+        _um = profile.get("used_mechanisms")
+        if _um is not None:
+            self.__class__._used_mechanisms = list(_um)
+        if profile.get("last_family") is not None:
+            self.__class__._last_family = profile["last_family"]
         self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
         self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time
         self.level = profile.get("level", self.level)

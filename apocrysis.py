@@ -24,7 +24,13 @@ if __name__ == "__main__":
     group.add_argument("--classic", action="store_true", help="Run classic print-loop mode")
     parser.add_argument("--log", action="store_true",
                         help="Write a plain-text play log for this session (also toggleable in game with `log`)")
+    parser.add_argument("--mapgen", choices=("v1", "v2"), default="v1",
+                        help="Map generator: v1 (default, rectangular) or v2 "
+                             "(Phase C.3 experiment - irregular valley)")
     args = parser.parse_args()
+
+    from src.game import Apocrysis
+    Apocrysis._default_mapgen = args.mapgen
 
     if args.test:
         run_tests()

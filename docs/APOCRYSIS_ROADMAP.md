@@ -6,7 +6,7 @@ Written 2026-08-29. Supersedes `NIGHT_BUILD_PLAN.md` as the top-level
 grammar); `SESSION_HANDOFF.md` stays the per-session state.
 
 > **SPOILER WARNING.** §2 contains a draft of the world's designed
-> truth (not locked — see §10). §1B–§1E are open design brainstorm and
+> truth (not locked — see §10). §1B–§1F are open design brainstorm and
 > reference it. If you want to play blind, stop after §1.
 
 ---
@@ -945,7 +945,247 @@ target as §1C.6).
 
 ---
 
-## 2. The world spine — world 1: "The Silence" (draft — see §10 and §1B–§1E before building)
+## 1F. The story-engine framing — brainstorm, the asymptote
+
+*The most ambitious framing in this document. Read §1F.15 first — it is
+the vision the architecture should not foreclose, not the thing to
+build in Phase A.*
+
+### 1F.0 The gap and the thesis
+
+The roadmap has a **discovery grammar** (spatial / infrastructural /
+experimental / …) — *how* the player learns things. It is missing a
+**story grammar** — *what kinds of stories can happen*. And the deeper
+reframe:
+
+> **The engine shouldn't generate stories from clues. It should
+> generate stories from people making decisions under constraints.**
+> Traces, mysteries, maps, evidence, consequences — even many of the
+> "quests" — are shadows cast by those decisions.
+
+### 1F.1 Eight engine primitives
+
+| primitive | answers | status |
+|---|---|---|
+| **Story Grammar** | what kinds of stories can exist? | absent |
+| **Actors** | who makes things happen? | history-only in §1E |
+| **Goals / Motives** | why do they act? | absent |
+| **Secrets** | what isn't immediately knowable? | absent (`WorldFact` only) |
+| **Timeline** | when do things happen? | partial (`deadline`, `tidal_causeway`) |
+| **World State** | what is true *right now*? | absent (`WorldFact` = what is true, not when) |
+| **Consequences** | what changes because things happened? | §1E traces, one direction only |
+| **Story Ledger** | what happened specifically in *your* game? | §1C |
+
+Existing systems become **components** of this engine, not the whole:
+`WorldFact DAG → truth · Causal Model → history · Discovery Templates →
+investigation · Map Generator → physical realisation · Knowledge
+System → player understanding · Survival System → pressure · Story
+Ledger → personal history · Survivor Network → persistent
+consequences`.
+
+### 1F.2 Story Grammar
+
+A pool of story *structures*: disappearance · betrayal · rescue ·
+conspiracy · accident · containment failure · cover-up · pilgrimage ·
+sabotage · forbidden experiment · faction conflict ·
+race-against-a-deadline · someone hiding something · someone revealing
+something · two groups with incompatible goals. A generated mystery =
+**story structure × causal events × actors × locations × evidence ×
+discovery method × player choices**.
+
+### 1F.3 Actors as causal agents
+
+An actor has: goal · fear · knowledge · secret · allegiance ·
+relationships · resources · available actions · **false beliefs** ·
+things they hide · things they misunderstand · the consequences of
+their succeeding or failing. The player **never meets Mara** — they
+encounter the consequences of Mara's actions. Dramatic causality, not
+just historical.
+
+### 1F.4 Motives — the causal model gains a head
+
+```
+GOAL        Command wants to contain the outbreak
+   ↓
+DECISION    seal the evacuation corridor
+   ↓
+ACTION      close Gate 7
+   ↓
+CONSEQUENCE 143 civilians remain inside
+   ↓
+TRACES      gate log · abandoned vehicles · hospital census · radio traffic
+```
+
+The player reconstructs not just *what* happened but *why someone did
+it*.
+
+### 1F.5 Relationships
+
+`Mara trusts Daniel · Daniel suspects Command · Command controls Mara ·
+Mara protects her brother`. Relationships become mysteries: *"why did
+the hospital director falsify the evacuation list?"* — answered not by
+a document but by assembling *her brother was on the list · his name
+was removed · she had system access · she was in contact with Command ·
+a survivor says she was trying to save him*. The player interprets
+human behaviour.
+
+### 1F.6 `WorldSecret` — a sibling to `WorldFact`
+
+**Fact:** "Command ordered the corridor sealed." **Secret:** "The
+commander knew his own family was still inside when he gave the order."
+The secret is **not required** to solve the main mystery — discovering
+it *reinterprets* the fact. `fact → context → reinterpretation`. Feeds
+retroactive meaning (§1E.10). **Cheap (my note):** it's `WorldFact`
+with a `reinterprets: <fact_id>` field and no gate on the main
+hypothesis — worth reserving room for in Phase A's schema.
+
+### 1F.7 Factions
+
+Not NPC simulation — the *concept*. Emergency Command · hospital staff
+· local government · survivors · researchers · military · a religious
+group · refugees. Each has goals · resources · territory ·
+relationships · knowledge · enemies · policies. Stories emerge from
+**conflicting objectives**: *"Command wanted containment"* vs *"hospital
+staff wanted evacuation"* vs *"the survivors wanted out."* The causal
+model gets competing objectives, not one chain. **Cheap as a tag (my
+note):** a `faction` field on facts/actors makes competing objectives
+legible even in a hand-baked model.
+
+### 1F.8 Narrative time — the story clock
+
+Bigger than time-of-day. Events carry: absolute time · duration ·
+deadlines · prerequisites · triggers · consequences.
+
+```
+T+20 floodgate opens · T+30 road impassable · T+40 settlement abandoned
+· T+50 infected arrive · T+60 the transmission begins
+```
+
+The player reconstructs the timeline. Once they know enough: *"the
+flood isn't random — we have 12 turns."* Knowledge changes how the
+player experiences time. **This generalises the shipped `deadline`
+machinery (`tidal_causeway`) — extend it, don't build a parallel
+system.**
+
+### 1F.9 `WorldState` — what is true *right now*
+
+A first-class engine concept, distinct from `WorldFact`. Fact = what is
+true (history). State = what is true at this moment. The world holds:
+geography · infrastructure · characters · factions · resources ·
+events · relationships · secrets · facts · **state** · timeline.
+
+### 1F.10 Story-state transitions — the world reacts to the player
+
+The biggest missing loop:
+
+```
+player opens the dam → water falls → new road exposed →
+survivors reach the settlement → infected migrate toward it →
+the settlement changes its defences → new evidence appears
+```
+
+`player knowledge → action → world change → new story state → new
+evidence`. This is what turns a mystery *generator* into a living
+narrative *system*.
+
+### 1F.11 Branching via simulation, not authored branches
+
+Not `choice A → story A`. Instead: `player action → world state changes
+→ causal model reacts → new consequences → new traces → player
+discovers them`. The story branches because the **simulation**
+branches — compatible with procgen, and two players get genuinely
+different stories with no second authored narrative.
+
+### 1F.12 The player can cause mysteries
+
+The endpoint of the Ledger idea:
+
+```
+player opens a sealed bunker → the survivors inside leave →
+their absence changes another settlement →
+a later survivor finds that settlement abandoned → "what happened here?"
+```
+
+The player becomes part of the causal model. Gives §1C.5–§1C.7 a much
+bigger purpose.
+
+### 1F.13 The full architecture (the asymptote)
+
+```
+                STORY AUTHORING
+                      │
+                 WORLD PREMISE
+                      │
+             CHARACTERS / FACTIONS
+                      │
+           GOALS / MOTIVES / SECRETS
+                      │
+                 CAUSAL MODEL
+                      │
+                   TIMELINE
+                      │
+                  WORLD STATE
+             ┌────────┴────────┐
+        CONSEQUENCES       ACTORS ACT
+             │                 │
+          TRACES          WORLD CHANGES
+             └────────┬────────┘
+                 PROCEDURAL WORLD
+                      │
+              PLAYER EXPERIENCES  ←──┐
+                      │              │  KNOWLEDGE ENGINE
+                 PLAYER ACTION       │  traces/evidence ↑
+              ┌───────┴───────┐      │  hypotheses ↓ decisions ↓
+          SURVIVES          DIES     │
+              └───────┬───────┘ ─────┘
+                 STORY LEDGER
+                      │
+               WORLD REMEMBERS
+                      │
+                NEW STORY STATE
+                      │  (repeat)
+```
+
+### 1F.14 The answer to "how do we add more stories"
+
+Not 100 more hand-authored mystery scenarios. **New authored
+worlds/campaigns expressed through a common story grammar**, with the
+engine generating the circumstances in which those stories are
+discovered. This is where Apocrysis stops being "a procedural zombie
+mystery" and becomes a procedural story/game engine that *happens to
+have* The Silence as its first story.
+
+### 1F.15 Reality check — this is the asymptote, not the plan
+
+- **Scope.** A runtime actor model with goals, beliefs, relationships,
+  and a reactive causal simulation is a **2+ year, research-grade**
+  system. Very few games have shipped it (Dwarf Fortress, Versu,
+  RimWorld's storyteller as a thin version). Most attempts didn't
+  ship. The current game is ~12,600 lines and *works*; the jump from
+  Phase A ("`WorldFact` DAG + discovery templates", months) to §1F
+  ("reactive actor simulation", years) is enormous.
+- **It degrades gracefully — and world 1 should take the degraded
+  path.** Author the actors and their decisions *once, at authoring
+  time*, as a design document; **bake** the resulting causal model
+  into a static structure; do **not** simulate at runtime. You get
+  ~80% of the "stories from decisions" feel with none of the
+  simulation risk. The actor model becomes an authoring *mindset and
+  tool*, not a runtime system.
+- **What to actually reserve room for in Phase A** (all cheap):
+  - `WorldSecret` = `WorldFact + reinterprets` field (§1F.6).
+  - Evidence provenance + epistemic status in the `Evidence` schema
+    (§1E.4 / §1F.11) — the honest-lies mechanism.
+  - `faction` as a tag on facts and actors (§1F.7).
+  - Treat `deadline` as the seed of the story clock, not a one-off
+    (§1F.8).
+- **The line to hold.** §1F is the vision; Phases A–E build *toward* it
+  without committing to the runtime simulation. The test for every
+  Phase A/B decision: *does this foreclose a reactive actor model
+  later?* If no — proceed with the baked version.
+
+---
+
+## 2. The world spine — world 1: "The Silence" (draft — see §10 and §1B–§1F before building)
 
 ### 2.1 The premise: The Silence
 
@@ -1243,6 +1483,12 @@ rather than one decorating the other. Automatable.
 ---
 
 ## 6. The scenario matrix becomes a discovery grammar
+
+> **§1F reframes this.** The discovery grammar is *one of eight engine
+> primitives* (§1F.1), not the organising one — it answers "how does
+> the player learn", while Story Grammar / Actors / Motives answer
+> "what happened and why". This section stays valid; it's just no
+> longer the top of the stack.
 
 Each family stops being "a random puzzle" and becomes **a way of
 discovering history**:

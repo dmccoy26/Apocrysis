@@ -13,13 +13,17 @@ the rev-3 artifact). One-line version: *make Apocrysis produce many
 different-feeling escape stories from a small set of mechanisms* — not
 "add two more puzzle types."
 
+**Progress (overnight 2026-08-29, autonomous build):**
+- [x] **Phase 1 — scenario library.** `SCENARIO_SEEDS.md` brought to the
+  full 16-field schema (~49 seeds; story signature / duplicate-of / kid
+  rating added, signature census). `SCENARIO_EXPANSION.md` written (5
+  levels of randomness, variety rules A/B/C with the signature formula,
+  the 5 validation categories, directional-truth spec, build-priority
+  sequence). Doc-only, no code. Committed.
+
 Phases, in order:
 
-1. **Scenario library** (first-class, not filler). `docs/SCENARIO_SEEDS.md`
-   already has a ~45-seed first draft — bring it up to the full 16-field
-   schema (add **story signature**, `duplicate-of`, kid rating). Plus
-   `docs/SCENARIO_EXPANSION.md` capturing the levels-of-randomness /
-   variety-rules / validation direction.
+1. **Scenario library** (first-class, not filler). **DONE** — see above.
 2. **Transportation** — `airfield_plane`, two parallel `requirement_items`
    (a checklist, vs infra's serial chain). Spec: `docs/MECHANISM_TRANSPORTATION.md`.
 3. **Time-pressure** — `tidal_causeway`, diegetic `deadline` from when

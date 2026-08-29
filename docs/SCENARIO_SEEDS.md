@@ -62,6 +62,28 @@ For every seed, one question decides:
 
 ---
 
+## The full 16-field schema
+
+Each row in the family tables below encodes the first 11 fields as a
+`class` string (`situation / route / discovery / reasoning /
+dependency / resolution / confirmation / pressure / exit-type`) plus
+`premise` and `tag` (= machinery-need). The remaining fields —
+**story signature**, **duplicate-of**, **kid rating** — are in
+§"Full-schema completion" below, keyed by seed id, so a generator pass
+has all 16 without re-deriving them.
+
+- **story signature** `(family, dependency-class, exit-type)` —
+  `dependency-class ∈ {none, single-item, checklist, restore-chain,
+  control-choice, corroboration}`. Two seeds with the same signature
+  are the same *shape* to the player even if the mechanism names
+  differ; Rule C (see `SCENARIO_EXPANSION.md` §3) dedups on this.
+- **duplicate-of** — another seed id this collapses onto under the
+  acceptance test, or `—`. "Pick one" pairs are flagged both ways.
+- **kid rating** — `kid-ok` or `kid-hard` + the reason (permadeath
+  exposure, tight clock, genuine ambiguity, deep site nesting).
+
+---
+
 ## 1. Spatial — *where is the way out?*
 
 | seed | premise | class | tag |
@@ -178,6 +200,76 @@ The exit is a machine, at a location, needing one or more things.
 | `boat_crossing` | fuel a boat at the marina, motor out | 1-item | **SHIPPED** — leave it alone |
 | `ferry` | a cable ferry across the reservoir; restore its winch motor, operate it across | 1-item + operate | **reuses** |
 | `rescue_boat` | a launch on a davit at the rescue station; find fuel, lower it, cast off | 1-item, `escape_kind=vehicle` | **needs: escape_kind=vehicle** |
+
+---
+
+## Full-schema completion — signature · duplicate-of · kid rating
+
+| seed | story signature | duplicate-of | kid rating |
+|---|---|---|---|
+| `mountain_pass` | spatial · single-item · gap | — | kid-ok |
+| `rail_tunnel` | spatial · single-item · gap | — | kid-ok |
+| `storm_drain` | spatial · single-item · revealed-route | — | kid-ok |
+| `border_station` | spatial · none · gap | `logging_road` | kid-ok |
+| `logging_road` | spatial · none · gap | `border_station` (pick one) | kid-ok |
+| `service_footbridge` | spatial · none · crossing | — | kid-ok |
+| `power_station` | infrastructural · restore-chain · gap | — | kid-ok |
+| `service_route` | infrastructural · single-item · gap | `mountain_pass` (fetch) | kid-ok |
+| `rail_switch` | infrastructural · restore-chain+control-choice · gap | — | kid-hard (2-stage: restore *then* a which-way pull) |
+| `lift_bridge` | infrastructural · restore-chain · crossing | — | kid-ok |
+| `tunnel_vent` | infrastructural · restore-chain · gap | `power_station` (near-dup, share hook) | kid-ok |
+| `elevator_shaft` | infrastructural · checklist · revealed-route | — | kid-hard (two subsystems + nesting) |
+| `dam_valves` | experimental · control-choice · revealed-route | — | kid-hard (genuine ambiguity — solved on 2nd try in playtest) |
+| `rail_junction_puzzle` | experimental · control-choice · gap | `dam_valves` | kid-hard (same ambiguity) |
+| `mine_junction` | experimental · control-choice · revealed-route | — | kid-hard (deep site nesting + ambiguity) |
+| `sluice_bank` | experimental · control-choice · revealed-route | `dam_valves` (stale-label twist) | kid-hard |
+| `radio_tower` | informational · restore-chain · revealed-route | — | kid-ok (solved by every kid; deaths were survival-layer) |
+| `fire_lookout` | informational · restore-chain · revealed-route | `radio_tower` (lamp for radio) | kid-ok |
+| `smoke_sighting` | informational · none · revealed-route | — | kid-ok |
+| `beacon_bearing` | directional · none · revealed-route | — | kid-hard (warmer/colder navigation, no map marker) |
+| `night_lights` | informational · none · revealed-route | `smoke_sighting` + day/night twist | kid-hard (day/night gate) |
+| `two_maps_agree` | corroborative · corroboration · gap | — | kid-hard (must reason "do these agree", not "find X") |
+| `survey_route` | corroborative · corroboration · revealed-route | `two_maps_agree` + doc-assembly | kid-hard |
+| `two_witnesses` | corroborative · corroboration · revealed-route | `two_maps_agree` | kid-hard |
+| `label_vs_thing` | corroborative · corroboration+control-choice · revealed-route | — | kid-hard (combo) |
+| `ranger_network` | sequential · none · revealed-route | — | kid-ok (linear, each site points to the next) |
+| `survivor_caches` | sequential · single-item · gap | `ranger_network` (same machinery) | kid-ok |
+| `emergency_relay` | sequential · restore-chain · revealed-route | — | kid-hard (chain + response) |
+| `river_leads_out` | directional · none · crossing | — | kid-ok (follow the water) |
+| `sunset_firebreak` | directional · none · revealed-route | — | kid-hard (time-of-day visibility) |
+| `ridge_bearing` | spatial · none · gap | `mountain_pass` (thin) | kid-ok |
+| `drain_tunnel` | environmental · restore-chain · revealed-route | — | kid-ok |
+| `dam_spillway` | environmental · control-choice · revealed-route | `drain_tunnel` (share region-mutation hook) | kid-hard |
+| `firebreak_race` | environmental · none · revealed-route | — | kid-hard (advancing fire = moving deadline) |
+| `sprinkler_system` | environmental · restore-chain · gap | `power_station` (restore→clear) | kid-ok |
+| `tidal_causeway` | time-pressure · none · crossing | — | kid-hard (clock + triage; soft failure softens it) |
+| `storm_road` | time-pressure · none · gap | `tidal_causeway` (same deadline machinery) | kid-hard |
+| `scheduled_train` | time-pressure · single-item · vehicle | — | kid-hard (window + vehicle) |
+| `rescue_window` | time-pressure · restore-chain · vehicle | — | kid-hard (restore→time→be-there) |
+| `collapsing_mine` | time-pressure · none · revealed-route | — | kid-hard (clock + no-backtrack) |
+| `airfield_plane` | transportation · checklist · gap | — | kid-ok (two items, order-free, machine tells you what's missing) |
+| `bush_plane` | transportation · checklist(3) · gap | `airfield_plane` (more items) | kid-hard (3 items + clear step) |
+| `snowplow` | transportation · checklist · gap | — | kid-ok |
+| `service_bulldozer` | transportation · single-item · gap | — | kid-ok |
+| `utility_truck` | transportation · checklist · vehicle | — | kid-ok |
+| `handcar` | transportation · single-item+control-choice · gap | — | kid-hard (combo) |
+| `boat_crossing` | transportation · single-item · crossing | — | kid-ok |
+| `ferry` | transportation · single-item · crossing | `boat_crossing` | kid-ok |
+| `rescue_boat` | transportation · single-item · vehicle | `boat_crossing` + escape_kind | kid-ok |
+
+**Signature census** (what the pool actually covers today vs after
+tonight):
+
+- `* · single-item · gap` — 4 seeds (`mountain_pass`, `rail_tunnel`,
+  `service_route`, `survivor_caches`). Over-represented; Rule C should
+  bias against a third in a row.
+- `infrastructural · restore-chain · *` — 6 seeds. The workhorse; keep
+  it but vary the situation (level 2).
+- `experimental · control-choice · *` — 5 seeds, all kid-hard.
+- `* · corroboration · *` — 4 seeds, all blocked on the gate.
+- `transportation · checklist · *` — 4 seeds, unlocked by tonight's
+  `requirement_items`.
+- `time-pressure · * · *` — 5 seeds, unlocked by tonight's `deadline`.
 
 ---
 

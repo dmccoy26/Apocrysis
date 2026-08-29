@@ -135,6 +135,36 @@ class TestResolutionHook(_ProfileTest):
         self.assertEqual(
             Apocrysis._world_investigation.get("DIS_ORGANISED"), KNOWN)
 
+    def _solve_targeted(self, seed, fid):
+        g = Apocrysis("MB", seed=seed, io=_IO())
+        m = build_mystery(g, target_fact=fid)
+        g.mystery = m
+        g.knowledge = m.knowledge
+        for eid in list(m.knowledge.evidence):
+            m.knowledge.discover(eid)
+        m.obstacle_open = True
+        g.current_position = m.escape_tile
+        g.io.log.clear()
+        g.mystery_try_escape()
+        return g
+
+    def test_milestone_fact_fires_the_milestone_banner_once(self):
+        g = self._solve_targeted(11, "DIS_ORGANISED")   # DIS_ORGANISED is M1
+        out = "\n".join(g.io.log)
+        self.assertEqual(out.count("A PIECE FALLS INTO PLACE"), 1)
+
+    def test_non_milestone_fact_fires_no_milestone_banner(self):
+        g = self._solve_targeted(12, "DIS_FEW_REMAINS")  # not a milestone
+        out = "\n".join(g.io.log)
+        self.assertNotIn("A PIECE FALLS INTO PLACE", out)
+        self.assertTrue(g.world_investigation.is_known("DIS_FEW_REMAINS"))
+
+    def test_milestone_banner_does_not_refire_when_already_known(self):
+        Apocrysis._world_investigation = {"DIS_ORGANISED": KNOWN}
+        g = self._solve_targeted(13, "DIS_ORGANISED")
+        out = "\n".join(g.io.log)
+        self.assertNotIn("A PIECE FALLS INTO PLACE", out)
+
     def test_solving_an_untagged_mystery_flips_nothing(self):
         # every fact already known -> next_target() is None -> generate_map
         # produces an ordinary (untagged) mystery

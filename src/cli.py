@@ -124,7 +124,9 @@ def main(start_log=False):
         # v4 (todo 55df661d): campaign-as-chapters. A short framing line
         # for this expedition, keyed to how far in you are.
         from src.campaign import chapter_intro
-        print(chapter_intro(player.expeditions_completed))
+        _ms = len(player.world_investigation.milestones_known()) if getattr(
+            player, "world_investigation", None) else 0
+        print(chapter_intro(player.expeditions_completed, _ms))
         print(" ")
 
         if start_log:

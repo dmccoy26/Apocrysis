@@ -639,8 +639,18 @@ class MysteryMixin:
         # transition, so evidence/provenance logic can replace it later
         # without touching anything else. See PHASE_A3_INVESTIGATION.md.
         if getattr(m, 'world_fact_id', None) and getattr(self, 'world_investigation', None):
-            self.world_investigation.mark_known(m.world_fact_id)
-            self.__class__._world_investigation = self.world_investigation.snapshot()['status']
+            _wi = self.world_investigation
+            _fid = m.world_fact_id
+            _was_known = _wi.is_known(_fid)
+            _wi.mark_known(_fid)
+            self.__class__._world_investigation = _wi.snapshot()['status']
+            # A.4.4: milestone banner - fires exactly once, on the
+            # not-KNOWN -> KNOWN transition of a milestone=True fact.
+            # Distinct from the ordinary NEW DISCOVERY announcements.
+            if not _was_known:
+                _fact = _wi.fact(_fid)
+                if _fact is not None and _fact.milestone:
+                    self.announce_event(_fact.statement, kind="milestone")
         used = getattr(self.__class__, '_used_mechanisms', None)
         if used is None:
             used = self.__class__._used_mechanisms = []

@@ -724,6 +724,10 @@ class UIMixin:
                    "objective": "OBJECTIVE UPDATED"}
         if kind == "warn":
             glyph, color, prefix, head = "[!]", f"{BOLD}{RED}", "", title.upper()
+        elif kind == "milestone":
+            # A.4.4: a piece of the world falls into place. Bigger than a
+            # NEW DISCOVERY - its own label, its own glyph.
+            glyph, color, prefix, head = "◆◆", f"{BOLD}{YELLOW}", "A PIECE FALLS INTO PLACE — ", title
         elif kind in _labels:
             # the label carries the emphasis; leave the title as prose
             glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", f"{_labels[kind]} — ", title

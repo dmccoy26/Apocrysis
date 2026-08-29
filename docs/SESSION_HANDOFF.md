@@ -6,35 +6,37 @@ a fresh session.**
 
 ---
 
-## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION DONE
+## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION FROZEN, C.3 EXPERIMENT AWAITS FEEL-TEST
 
-**Read `docs/PHASE_A_COMPLETE.md`, `docs/PHASE_B_COMPLETE.md`,
-`docs/PHASE_C_SPEC.md` (§ As-built).**
+**Read `PHASE_A_COMPLETE.md`, `PHASE_B_COMPLETE.md`,
+`PHASE_C_FOUNDATION.md`, `PHASE_C3_SPEC.md`.**
 
 - Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
-  `v5-phase-c-foundation`. **247 tests + 100 subtests green, clean tree.**
-- **Phase A** (frozen): World seam -> WorldFact DAG -> WorldInvestigation
-  -> targeted mysteries -> milestones -> profile-persistent knowledge.
-- **Phase B** (frozen): roguelite inheritance. Profile is
-  {campaign, survivor}; a non-hardcore death resets the survivor, keeps
-  the campaign; 3 SurvivorLore (legibility not power).
-- **Phase C foundation** (frozen): `src/worldgen/` - `MapGenerator`
-  (terrain/boundary/spawn/settlements, moved verbatim, byte-identical)
-  + `MapGraph` (connectivity guarantee: reachability is asserted, the
-  zombie corridor is a graph query). `world_mixin` 1130->714 lines.
-  Deterministic structural suite (golden fixture + 300-seed sweep).
-- **Phase C.3 (the inverted graph-first pipeline) NOT DONE** - deferred
-  to its own reviewed pass with balance sign-off. Plan in
-  `PHASE_C_SPEC.md` § As-built. It changes what maps feel like; needs
-  human playtesting.
+  `v5-phase-c-foundation`, `v5-phase-c3-experiment`. **251 + 100 green.**
+- **A** (frozen): World seam -> WorldFact DAG -> WorldInvestigation ->
+  targeted mysteries -> milestones -> profile-persistent knowledge.
+- **B** (frozen): roguelite inheritance. Profile {campaign, survivor};
+  death resets the survivor, keeps the campaign; 3 SurvivorLore.
+- **C foundation** (frozen): `src/worldgen/` (`MapGenerator` moved
+  verbatim, byte-identical; `MapGraph` connectivity guarantee). C.4
+  deterministic structural suite.
+- **C.3 experiment** (`v5-phase-c3-experiment`): `Apocrysis(mapgen=
+  "v1"|"v2")`, default **"v1"** (frozen). v2 grows ONE irregular valley
+  instead of a rectangular board. **Reversible** - flip the default or
+  checkout `v5-phase-c-foundation`. Measured: balance envelope held
+  (win 51%≈49%, treks ~29% shorter, combat equal). **NEEDS the owner's
+  human feel-test** to accept/reject. See `PHASE_C3_SPEC.md` § accept
+  gate. `tools/geo_compare.py --games N --variants v1,v2 [--gameplay]`.
 - **Invariants** (all phases): world investigation is campaign-level;
   death never mutates the campaign record; SurvivorLore ids are the
-  executable interface; `WorldFact` is never aware of the generator;
-  `worlds/*` and `worldgen/*` never import the engine; balance FROZEN.
-- **Atlas**: 9 of ~65 files across A+B+C, all self-contained leaf files.
-  11 `atlas-self` capability todos; `atlas scan` crash fixed (`zork`).
-- **Next**: C.3 (own spec + sign-off) / A.0.1 (parked encounters) /
-  roadmap B.3 (optional-evidence valley file) / native modal wi screen.
+  interface; WorldFact never aware of the generator; worlds/* and
+  worldgen/* never import the engine; balance FROZEN.
+- **Atlas**: 9 of ~70 files across A+B+C, all leaf files. 13 `atlas-self`
+  capability todos; `atlas scan` crash fixed (`zork`).
+- **Next**: owner plays ~5 `mapgen="v2"` expeditions -> accept / reject /
+  tune C.3. Then: C.3.2 (fully-inverted pipeline, only if accepted) /
+  A.0.1 (parked encounters) / roadmap B.3 (valley file) / modal wi
+  screen.
 
 ---
 

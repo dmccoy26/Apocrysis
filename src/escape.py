@@ -171,6 +171,9 @@ class Mystery:
         self.confirmation = None    # CONFIRMATION_PATTERNS value
         self.power_role = None       # role of the 'apply the fix here' site (infrastructural family), else None
         self.power_restored = False  # infrastructural: the dependency chain is satisfied
+        self.controls = []            # experimental family: candidate controls, or []
+        self.correct_control = None   # the control that opens the obstacle
+        self.controls_tried = []      # control names pulled so far
         self.knowledge = Knowledge()
         self.sites = {}            # role -> (x, y)
         self.site_labels = {}      # role -> "the harbourmaster's shed"
@@ -243,6 +246,9 @@ class Mystery:
             "confirmation": self.confirmation,
             "power_role": self.power_role,
             "power_restored": self.power_restored,
+            "controls": list(self.controls),
+            "correct_control": self.correct_control,
+            "controls_tried": list(self.controls_tried),
             "knowledge": self.knowledge.to_dict(),
             "sites": {r: list(xy) for r, xy in self.sites.items()},
             "site_labels": dict(self.site_labels),
@@ -268,6 +274,9 @@ class Mystery:
         m.confirmation = d.get("confirmation")
         m.power_role = d.get("power_role")
         m.power_restored = d.get("power_restored", False)
+        m.controls = list(d.get("controls", []))
+        m.correct_control = d.get("correct_control")
+        m.controls_tried = list(d.get("controls_tried", []))
         m.knowledge = Knowledge.from_dict(d.get("knowledge"))
         m.sites = {r: tuple(xy) for r, xy in d.get("sites", {}).items()}
         m.site_labels = dict(d.get("site_labels", {}))

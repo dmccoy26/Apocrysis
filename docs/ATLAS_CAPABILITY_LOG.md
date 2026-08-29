@@ -36,7 +36,7 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 9 | 2 (`base.py`, `worlds/__init__.py`) | 5 (rename ×2, `world.py`, seam bundle, constants shim) | 2 |
+| 12 | 3 (`base.py`, `worlds/__init__.py`, `game.py` param) | 7 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`) | 3 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -91,6 +91,32 @@ contains a large literal (here: `MAP_ARCHETYPES`, ~6 lines of nested
 dict) — it regenerates the whole file and never converges. Even though
 the *edit* only removes lines. Same root cause as the v4 `MECHANISMS`
 hang. Added to `atlas-self` `dbc93715`.
+
+## Phase A.0 step 5 (2026-08-29) — engine reads `self.world`
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 10 | 4-file bundle (`game.py` + `world_mixin` + `ui_mixin` + `tui.py`), each a small precise edit | `atlas request --file ×4` | — | **TIMED OUT** at 2 min; only a `game.py` workflow materialised | huge bundled prompt (`prompt_chars` 58 637), `patch` mode, never finished the other 3 |
+| 11 | `game.py` alone: add `world=None` param + `self.world = world if world is not None else SILENCE` + import | (the workflow from #10) `32ac8acf` | `32ac8acf` | **SHIPPED** ✓ | **Correct on the first try** — exact param placement, exact `if world is not None` form, import in the right block. Auto-committed `aa033a2`. Best Atlas result of the session: a real semantic edit to a 340-line existing engine file. |
+| 12 | `world_mixin.py` alone: `MAP_ARCHETYPES` → `self.world.map_archetypes` (3 lines in `generate_map`) | `atlas request --file …` | (rejected) | **REJECTED — failed validation** | 1130-line file. Ran ~2 min in the background then Atlas's own validation killed the generated change. Hand-written. |
+| — | `ui_mixin.py` (842 lines), `tui.py` (900 lines) | not routed | — | **HAND** | two Atlas failures already this step; both files are past the size where Atlas has ever succeeded here. Hand-written. |
+
+### The real capability picture after A.0
+
+**Atlas (32B coder) on this repo, ranked by what works:**
+
+1. ✅ **Small, self-contained new file** (bare `@dataclass`, a docstring module) — reliable.
+2. ✅ **Small, precise edit to a mid-size existing file** (`game.py`, 340 lines: add a param + one line + one import) — worked first try. *This is new since v4.*
+3. ❌ **Edit to a large file** (>~800 lines) — rejected or times out.
+4. ❌ **Edit near a large literal** — full-file regen, never converges.
+5. ❌ **New file needing import-then-construct** — drops imports, emits a stub.
+6. ❌ **Any multi-file bundle** (`--create` or plain `--file ×N`) — rejected or times out.
+
+Net A.0: **2 of ~9 files by Atlas** (`base.py`, `worlds/__init__.py`,
+`game.py` param). The seam's actual wiring — hand-written. The
+experiment answered its question: Atlas moved its boundary a little
+(#2 is real progress) but "decompose and execute a constrained
+multi-file architectural change" is still out of reach.
 
 ## Original blocker writeup (for the record)
 

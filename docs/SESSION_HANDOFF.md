@@ -170,9 +170,19 @@ games, seed 7): survival 85.5%→84.5% (noise; still 100% combat deaths,
 zero starvation), median completion 46→42 turns. Frozen-balance line
 held — economy unchanged, only the action tax removed.
 
+### Requirement lead moved to the route site (`ee84647`)
+
+Playtest (spatial): learned "locked gate" at the noticeboard, trekked
+to the gate, *then* got told "key's at the ranger station" — wasted
+trip + backtrack, objective panel couldn't warn. `E_require_a` moved
+`location='obstacle'` → `location='route'`, so the route site
+(noticeboard / marina / tunnel mouth) now gives the whole briefing at
+once (route + obstacle + where the key/item/controls are), both places
+map-marked in the same beat. All 7 mechanisms.
+
 **Still open (all minor / post-gate):** (a) cosmetic: power site keeps
 its `!` after `power_restored` (`_mystery_site_mark`, should clear);
-(b) start Tier-2 families. Balance stays FROZEN (this eat/drink change
+(b) start Tier-2 families. Balance stays FROZEN (the eat/drink change
 was economy-neutral, verified on the bot — not a difficulty tune).
 
 ## Design rules (settled — don't relitigate)

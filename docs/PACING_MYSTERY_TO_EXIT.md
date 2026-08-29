@@ -16,6 +16,16 @@ the tax scales exactly as the campaign tightens.
 This is **pacing**, not combat balance. Combat/resource numbers stay
 frozen while fixing it.
 
+## Lever A discoverability fix (`5778432`)
+
+Playtest: a kid solved the whole radio_tower mystery, got the confirm
+banner at HP 35, then walked to the map marker and **died one tile
+from the exit** - never learned `escape` works from anywhere. Now the
+moment `mystery_try_escape` would succeed from any tile,
+`_mystery_progress_flare` fires **"YOU CAN LEAVE NOW - you do NOT have
+to reach the ridge, type `escape`"**, and the objective hot line reads
+`type escape now - you don't have to walk there`.
+
 ## Lever A — DONE (`c816232`)
 
 Informational (`reveals_route`): `H_escape.confirmed_by =

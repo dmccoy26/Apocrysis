@@ -77,20 +77,27 @@ a fresh session.**
 - **Atlas**: shipped `world_investigation.py` verbatim (its most
   procedural file here); wiring hand-written. 5 leaf files by Atlas
   across A.0–A.3, all architecture Claude's. 7 `atlas-self` gap todos.
-- **Phase A.4 DONE** (`docs/PHASE_A4_SURFACE.md`; commits to `582881f`):
-  `wi`/`investigation` screen (`ui_mixin.world_investigation_screen`),
-  `generate_map` → `build_mystery(target_fact=next_target())` with a
-  variety-aware target pick, `chapter_intro(…, milestones_known)`,
-  `announce_event(kind="milestone")` banner. **214 + 100 green.**
-  **Phase A core loop is complete end to end.**
-- **Atlas**: `campaign.py` milestone keying shipped first-try (2nd
-  clean small-file edit). 6 files by Atlas across A.0–A.4; ~28
-  hand-written; all architecture Claude's. 8 `atlas-self` gap todos.
-- **Next**: PAUSED for owner review. Phase A polish options: campaign
-  retrospective keyed to investigation; a native TUI investigation
-  panel; A.0.1 encounter extraction (still parked). Or move to Phase B
-  (roguelite loop — death → "that survivor didn't make it", Survivor
-  Knowledge) / Phase C (map-v2).
+- **Phase A.4 + A.5 DONE** (`docs/PHASE_A4_SURFACE.md`,
+  `docs/PHASE_A5_COHERENCE.md`; commits to `af05903`). A.4: `wi` screen,
+  investigation-driven mystery targeting (variety-aware),
+  `chapter_intro(…, milestones_known)`, milestone banner. A.5: TUI
+  investigation strip in the OBJECTIVES panel, expedition-end
+  retrospective, 3-tier vocabulary (NEW DISCOVERY / MYSTERY SOLVED /
+  A PIECE FALLS INTO PLACE), one end-to-end lifecycle test, + fixed an
+  A.4.2 ordering bug (profile now seeds `_world_investigation` before
+  construction). **215 + 100 green.**
+- **PHASE A COMPLETE** — spine works end to end (seam → truth →
+  discovery binding → persistent investigation → targeted generation →
+  surfacing, all without schema leakage).
+- **Atlas**: shipped 6 of ~40 files across A.0–A.5 (4 leaf files + 2
+  tiny edits); everything architectural / large-file / multi-file
+  hand-written. 9 `atlas-self` gap todos filed. `docs/ATLAS_CAPABILITY_LOG.md`
+  has the full tally.
+- **Next**: PAUSED for owner review. Options: Phase B (roguelite loop —
+  death → "that survivor didn't make it", Survivor Knowledge tiers) /
+  Phase C (map-v2 + `worldgen/` split) / A.0.1 (parked encounter
+  extraction) / a native modal TUI investigation screen (A.5 did a
+  compact strip only).
 
 ---
 

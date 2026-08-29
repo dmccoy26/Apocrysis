@@ -1,8 +1,18 @@
 # Phase C.3.2a-5 — destination-network viability as geography expands (spec)
 
 Grounded in **`SCALE_REPORT.md`** (200 seeds × 8 campaign depths).
-Builds on `PHASE_C3_2_SPEC.md`. **Spec only — no generator change until
-this is reviewed.**
+Builds on `PHASE_C3_2_SPEC.md`. **Owner-approved 2026-08-29** (proceed
+to task 1). **Spec only — no generator change until the lever matrix
+is reviewed.**
+
+## North star
+
+> **Can the larger world contain proportionally enough meaningful
+> destinations and routes that its increased physical scale remains
+> playable?**
+
+The question is *not* "can we make the mystery short enough?" — that
+invites the spawn-cluster failure in a nicer shirt.
 
 ## The question
 
@@ -41,19 +51,55 @@ placed ones can be miserable. The player-facing contract is a ratio:
 > **primary metric — `required_circuit / survival_budget`, at p90 (not
 > mean), at every supported campaign depth.**
 
+### `survival_budget` is an empirical *envelope*, not the optimisation target
+
+The gate is `required_circuit / survival_budget < 1` at p90. But a
+lever must **not** be judged a success just because it drives that
+ratio under 1. Two maps can both have a 70-tile required circuit and
+play completely differently:
+
+- 70 mostly-forward tiles with intermediate opportunities → fine;
+- 70 tiles of repeated backtracking through already-cleared territory →
+  awful, same number.
+
+So `survival_budget` bounds *feasibility*; it does not define *quality*.
+The measurement matrix below carries a third number precisely so we
+don't "solve" this by generating efficient-but-boring spaghetti.
+
+### The three-number measurement matrix
+
+| measure | purpose |
+|---|---|
+| **required-circuit p50 / p90** (tiles) | how much travel the authored mystery actually demands |
+| **survival-budget ratio p90** | the hard feasibility gate |
+| **backtrack / repeated-travel proportion** | quality diagnostic — measure it, don't make it a hard invariant *yet*. A lever that passes the gate by producing high-backtrack routes has not really passed. |
+
+### Methodological rule (locked)
+
+**Do NOT evaluate the levers using nearest-site distance.** It stays
+~5 tiles at every depth and tells us almost nothing about viability
+(`SCALE_REPORT.md`). It stays in the tool as a labelled *diagnostic
+only*. The primary synthetic question is:
+
+> Given the generated world and the actual mystery structure, how much
+> **traversable travel** does a survivor need to complete the required
+> investigation **and reach the escape**?
+
 ### `required_circuit` (define precisely; `scale_report.py` currently
 approximates it)
 
-The shortest path a survivor must actually walk to solve the mystery:
+The shortest traversable path a survivor must actually walk to solve
+the mystery, from `escape.py`'s real role set:
 
 ```
-spawn → { route, require, require2 } in nearest-first order → obstacle/escape_tile
+spawn → { route, require, [require2], [power] }  (nearest-first order)
+      → obstacle_tile → escape_tile
 ```
 
-Not the greedy "touch every site" circuit the tool reports today (that
-includes `closed` and the town centre, which are context, not
-requirements). Refining the tool to the true required set is the first
-task of implementation.
+**Excluded:** `closed` (context — "where you came in", the game itself
+says it's low-value to signpost) and the town centre (info hub, not
+the way out). Not the greedy "touch every site" circuit the tool
+reports today. **Refining the tool to this true required set is task 1.**
 
 ### `survival_budget` (derived from the real mechanics, not guessed)
 
@@ -119,15 +165,23 @@ measure them alone first so the spec's implementation section can say
 
 ## Prohibitions
 
-- **Do NOT put all required sites into a compact spawn cluster.** We
-  already know why: it makes the *map* bigger without making the
-  *place* bigger. `near` is already flat at ~5 — that's the symptom of
-  over-clustering, not a target to lean into.
+- **Do NOT put all required sites into a compact spawn cluster.** It
+  makes the *map* bigger without making the *place* bigger. `near` is
+  already flat at ~5 — the symptom of over-clustering, not a target.
+- **Do NOT let a lever pass merely by moving required locations closer
+  together while the world stays increasingly empty around them.**
+  That is the spawn-clustering problem wearing a nicer shirt. A lever
+  that gets the ratio under 1 by shrinking the *required set's*
+  footprint while `dens` (sites / 1000 playable tiles) keeps falling
+  has NOT passed — the larger world must gain proportional content, not
+  just a tighter mystery. Report `dens` alongside the gate for every
+  lever.
 - **Do NOT shrink the maps.** `map growth` is on the frozen balance
   list (`PHASE_C3_SPEC.md`). The world getting larger is a feature.
-- **Do NOT touch** combat / hunger-thirst rates / encounter / loot —
-  also frozen. This spec changes *where content goes*, not how fast
-  the clock runs.
+- **Do NOT touch** combat / hunger-thirst rates / encounter / loot /
+  survivor power — also frozen. The experiment forces the
+  **world-generation / content network** to carry the burden, not the
+  survivor.
 - **Do NOT** regress v1 byte-identity for depths where the lever
   doesn't change placement (the golden fixture covers depth ~2–3).
 
@@ -139,40 +193,81 @@ measure them alone first so the spec's implementation section can say
 - not the v2 irregular mask (still parked);
 - not a campaign-length or roguelite-inheritance change.
 
-## Method
+## As built — tasks 1–3 (2026-08-29)
 
-1. Refine `scale_report.py`: `required_circuit` = the true required set
-   (route/require/require2 → escape), not the greedy all-sites circuit.
-2. Instrument 3–5 real expeditions at depths 3 / 6 / 9 to calibrate
-   `survival_budget` and its margins against actual play.
-3. Implement each lever behind a flag / constant; A/B each alone across
-   all depths; fill the lever matrix with numbers.
-4. Owner reviews the matrix → picks the combination → spec's
-   implementation section written → implement → gate must pass →
-   commit, tag.
-5. Feel-test: a **fresh survivor** (new campaign or forced level 1,
-   starter supplies) at depth 4 and depth 6 — can it be *completed*
-   without inherited gear?
+`tools/scale_report.py` refined:
+- **`required_circuit`** = the true required set
+  (`route/require/require2/power → obstacle → escape`), greedy
+  nearest-first — no more `closed` / town-centre inflation.
+- **survival budget calibrated**: `GROSS_BUDGET = 50`,
+  `USABLE_BUDGET = 32` (derivation + the v1-death cross-check are in
+  the file's header comment).
+- **backtrack diagnostic** added (`1 - unique tiles / circuit length`).
+- `near` demoted to a labelled diagnostic column.
 
-## Build order
+Result (250 seeds/depth, `SCALE_REPORT.md`): **the gate
+(`ratio p90 < 1`) fails from depth 3** — depth 6 is 1.22 with 49 % of
+maps over budget, depth 12 is 1.50 / 70 %. **Backtrack ≈ 0 at every
+depth** — the current generator's problem is *distance*, not spaghetti.
+`infeasible = 0 %` — purely a budget problem, not connectivity.
 
-1. `scale_report.py` refinement + budget calibration.
-2. Lever A/B matrix (no game change shipped — flags only).
-3. Owner review of the matrix.
-4. Implement the chosen mix. Gate passes on `scale_report.py`.
-5. Fresh-survivor feel-test at depth 4 / 6.
-6. Then unpark **piece 1 / piece 4** only if navigation still needs it.
+**Next: the lever A/B matrix (tasks 4–7).** Each lever is a flag in
+generator/settlement placement; nothing shipped; owner reviews the
+matrix before any combination is chosen.
+
+## Frozen sequence (owner)
+
+```
+PHASE_C3_2a-5
+      │
+      ▼
+1. refine required-circuit measurement (true required set, not all-sites)
+      │
+      ▼
+2. calibrate the survival envelope from actual mechanics + instrumented play
+      │
+      ▼
+3. add the backtrack / repeated-travel diagnostic
+      │
+      ▼
+4. A/B lever #1  (settlements ∝ area)      ─┐
+5. A/B lever #2  (bounded placement region) │  each ALONE, all depths,
+6. A/B lever #3  (town-distance cap)         │  flags only, nothing shipped
+7. A/B lever #4  (sites across settlements) ─┘
+      │
+      ▼
+   owner review of the matrix
+      │
+      ▼
+   choose combination  →  implement + regression gate
+      │
+      ▼
+  fresh-survivor playtest  (depth 4 + depth 6, starter supplies only)
+      │
+      ▼
+  then unpark piece 1 / piece 4 only if navigation still needs it
+```
+
+Each lever tested **alone first** — otherwise we won't know what
+actually moved the 74 %.
 
 ## Acceptance
 
-- The gate (`p90 required_circuit < budget` at supported depths) passes
-  on ≥ 300 seeds/depth.
+- The gate (`p90 required_circuit / survival_budget < 1` at supported
+  depths) passes on ≥ 300 seeds/depth.
+- **`dens` (sites / 1000 playable tiles) does not keep falling** at the
+  chosen lever combination — the larger world gained proportional
+  content, it didn't just get a tighter mystery.
+- **Backtrack proportion did not worsen** vs the current generator at
+  the chosen combination (measured, not gated).
 - The lever matrix is in the doc with real numbers and a stated reason
   for the chosen combination.
-- A fresh survivor completes a depth-4 and a depth-6 expedition in the
-  owner's feel-test without relying on inherited supplies.
+- A **fresh** survivor completes a depth-4 and a depth-6 expedition in
+  the owner's feel-test with starter supplies only.
 - v1 byte-identity holds where placement is unchanged.
 
 ---
 
-*Spec only. No generator change until the lever matrix is reviewed.*
+*Spec only. No generator change until the lever matrix is reviewed.
+Nothing in C.3.2a-5 touches combat / hunger / thirst / loot / survivor
+power — the world-generation / content network carries the burden.*

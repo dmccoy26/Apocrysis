@@ -21,23 +21,58 @@ Area grows **5×** over a campaign. Settlement count grows to 3.
 `TOWN_DISTANCE_GROWTH_PER_LEVEL` actively pushes the objective away.
 Mystery-site count is fixed at ~5 regardless.
 
-## Measured (200 seeds/depth)
+## Measured — v1 (refined, C.3.2a-5 task 1–3, 250 seeds/depth)
 
-| depth | map | playable | empty% | sites/1k tiles | spawn→nearest site | spawn→farthest (p50) | **solve circuit p50** | **circuit p90** | town (p50) | **circuit > 50 tiles** |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 0 | 15² | 170 | 82% | **29.4** | 4 | 11 | 20 | 28 | 8 | **0 %** |
-| 1 | 18² | 257 | 84% | 19.5 | 5 | 14 | 26 | 37 | 11 | 0 % |
-| 2 | 21² | 362 | 86% | 13.8 | 6 | 18 | 30 | 42 | 14 | 1 % |
-| 3 | 24² | 485 | 86% | 10.3 | 5 | 21 | 38 | 51 | 15 | **12 %** |
-| 4 | 27² | 626 | 84% | 8.0 | 5 | 24 | 41 | 57 | 19 | **24 %** |
-| 6 | 33² | 935 | 85% | 5.3 | 5 | 30 | 52 | 73 | 24 | **54 %** |
-| 9 | 34² | 952 | 84% | 5.3 | 6 | 32 | 58 | 80 | 29 | **68 %** |
-| 12 | 34² | 909 | 84% | 5.5 | 5 | 33 | 60 | 78 | 32 | **74 %** |
+`required_circuit` = the *true* required path (`spawn →
+route/require/require2/power → obstacle → escape`), not the earlier
+greedy "touch every site" proxy. `survival_budget` calibrated
+(`PHASE_C3_2_5_SPEC.md`): **gross ≈ 50 moves**, **usable investigative
+≈ 32** after combat / return-leg / non-beeline margins.
 
-("solve circuit" = greedy path spawn → touch every meaningful site.
-"> 50 tiles" ≈ more than a fresh survivor's whole beeline movement
-budget before starvation, *before* combat, backtracking, or the trek
-to the exit.)
+| depth | map | dens (sites/1k) | circ p50 | circ p90 | **ratio p90** (circ / 32) | **% over budget** | backtrack p50/p90 | near\* |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 15² | 23.5 | 14 | 21 | **0.66** | 0 % | 0.00 / 0.06 | 4 |
+| 1 | 18² | 15.6 | 17 | 28 | 0.88 | 6 % | 0.00 / 0.02 | 5 |
+| 2 | 21² | 11.1 | 21 | 31 | 0.97 | 7 % | 0.00 / 0.04 | 6 |
+| 3 | 24² | 8.2 | 23 | 34 | **1.06** | 13 % | 0.00 / 0.03 | 5 |
+| 4 | 27² | 6.4 | 26 | 33 | **1.03** | 10 % | 0.00 / 0.00 | 5 |
+| 6 | 33² | 4.3 | 32 | 39 | **1.22** | **49 %** | 0.00 / 0.00 | 5 |
+| 9 | 34² | 4.2 | 34 | 41 | 1.28 | **64 %** | 0.00 / 0.03 | 6 |
+| 12 | 34² | 4.4 | 35 | 48 | **1.50** | **70 %** | 0.00 / 0.03 | 5 |
+
+\* `near` (spawn → nearest site) is a **diagnostic only** — flat at
+4–6, never an evaluation metric.
+
+### Reading
+
+- **The gate fails from depth 3.** `ratio p90` crosses 1.0 at depth 3;
+  by depth 6 it's 1.22 with **49 % of maps** over the usable budget,
+  depth 12 it's 1.5× and 70 %.
+- **The true required circuit (p50 14 → 35) is ~40 % shorter than the
+  earlier greedy proxy (20 → 60)** — the old number was inflated by
+  `closed` + the town centre. But it *still* outgrows the budget.
+- **Backtrack is ≈ 0 at every depth.** The required circuits the
+  current generator produces are almost pure forward travel — the
+  problem is *distance*, not spaghetti. A lever that cuts distance
+  without introducing backtracking is a clean win; one that trades
+  distance for re-crossing is not.
+- **`infeasible` = 0 %** — every required circuit *is* traversable. This
+  is purely a budget problem, not a connectivity one.
+- **`dens` collapses 23.5 → 4.2** — the density mismatch is the
+  underlying cause; watch it does not keep falling under any lever.
+
+### Old table (superseded — greedy all-sites circuit, `> 50` threshold)
+
+<details><summary>200 seeds/depth, first pass</summary>
+
+| depth | map | playable | dens | near | far p50 | circ p50 | circ p90 | circ > 50 |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 15² | 170 | 29.4 | 4 | 11 | 20 | 28 | 0 % |
+| 3 | 24² | 485 | 10.3 | 5 | 21 | 38 | 51 | 12 % |
+| 6 | 33² | 935 | 5.3 | 5 | 30 | 52 | 73 | 54 % |
+| 12 | 34² | 909 | 5.5 | 5 | 33 | 60 | 78 | 74 % |
+
+</details>
 
 ## The finding
 

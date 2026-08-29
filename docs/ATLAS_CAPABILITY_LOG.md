@@ -36,13 +36,73 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 0 | 0 | 0 | 0 |
+| 3 | 0 | 0 (blocked before hand-write) | 0 |
+
+## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
+
+`atlas scan` now works (fix committed to Atlas `zork`:
+`scripts/atlas.py` scan branch re-imports `RepositoryScanner` locally —
+a later branch in `main()` shadowed the module import, leaving the name
+function-local and unbound). The EI store rebuilt (45 KB → 790 KB, 103
+files). Remaining Atlas-tooling gaps below are **not** staleness.
+
+## Still open — `atlas rename` can't rename constants
+
+`atlas rename CAMPAIGN_LENGTH EXPEDITIONS_PER_CAMPAIGN` still fails with
+`no Definition named 'CAMPAIGN_LENGTH' in the indexed store` even with a
+fresh index. The Definition store tracks callables, not module-level
+`NAME = value` assignments. So an **atomic repo-wide constant rename has
+no Atlas path**: `atlas rename` won't see it, and per-file `atlas
+request` can only touch one file at a time (breaking importers →
+rollback). Filed in `atlas-self` (`1ba1bf47`).
+
+## Original blocker writeup (for the record)
+
+## BLOCKER (2026-08-29) — `atlas scan` is broken, index is a week stale
+
+`atlas scan` (and `atlas --json scan`) crash every time:
+
+```
+Atlas hit an unexpected error: cannot access local variable
+'RepositoryScanner' where it is not associated with a value
+```
+
+`atlas doctor` reports all-green regardless. The Engineering
+Intelligence store on disk is from **2026-08-23** (`file_map.json`
+2026-08-18) — it predates the entire overnight build. Consequences:
+
+- **`atlas rename` is unusable** — `no Definition named 'CAMPAIGN_LENGTH'
+  in the indexed store` (the symbol isn't in the stale index).
+- **`atlas request` scoping is blind** — it can't see current structure,
+  so it can't reliably target the right file (see attempt 1).
+- **The stale-index data-loss mode (memory `atlas_stale_index_dataloss`)
+  is live and un-mitigable** — a proposal that diffs against the Aug-23
+  index would revert three weeks of work. Only mitigation available:
+  work on a committed clean tree so a revert = last commit, and reject
+  any diff whose context lines don't match the working tree.
+
+Until `atlas scan` is fixed (it's a bug in the Atlas CLI on the `zork`
+branch), Atlas cannot safely author changes on this repo. Filing a
+fix-Atlas todo in the `atlas-self` workspace.
 
 ## Log
 
-| # | date | todo / ask | files | workflow id | model | outcome | notes |
-|---|---|---|---|---|---|---|---|
-| — | — | _(first entry lands when the vocab-rename todo is submitted)_ | | | | | |
+| # | date | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|---|
+| 1 | 08-29 | vocab rename pt.1 — rename `CAMPAIGN_LENGTH` across ~10 files | `atlas todo do 077a94f1` (list added with `--file docs/PHASE_A_TODO.md`) | a650f393 | **REJECTED-SCOPE** | `--file` on `todo add` pins every item's target to that one file. Atlas "did" the rename by string-replacing the constant name *inside the todo doc's own prose*, producing "rename `EXPEDITIONS_PER_CAMPAIGN` to `EXPEDITIONS_PER_CAMPAIGN`". Confidence **1.0**, all 8 safety checks green. Classic confidence-vs-scope failure. My config error (wrong `--file` semantics) + Atlas's — it should not have accepted a target that can't contain the change. |
+| 2 | 08-29 | same rename, scoped to just `src/constants.py` | `atlas request --file src/constants.py` | 700934ba | **REJECTED (correct diff, un-approvable)** | Diff was exactly right and minimal — `CAMPAIGN_LENGTH` → `EXPEDITIONS_PER_CAMPAIGN` on the definition line, comment kept. But approving one file alone breaks ~10 importers → both suites fail → Atlas's own verify gate would roll it back. Confirms the rename must be atomic; Atlas's one-file-at-a-time model can't do atomic multi-file. |
+| 3 | 08-29 | same rename via the purpose-built symbol tool | `atlas rename CAMPAIGN_LENGTH EXPEDITIONS_PER_CAMPAIGN` (dry-run) | — | **BLOCKED** | `no Definition named 'CAMPAIGN_LENGTH' in the indexed store`. First thought stale index; see #4. |
+| 3.5 | 08-29 | unblock the tooling | fixed `atlas scan` in Atlas itself (`zork`), reran it | — | **FIXED** | scan crashed on an unbound `RepositoryScanner`; one-line local re-import. Index rebuilt 45 KB → 790 KB. Not a capability of Atlas-on-apocrysis, but it's what stood between here and one. |
+| 4 | 08-29 | retry #3 with a fresh index | `atlas rename ... --run-tests` | — | **BLOCKED (tool limitation)** | Still `no Definition named 'CAMPAIGN_LENGTH'`. `atlas rename` indexes callables, not `NAME = value` constants. No Atlas path to an atomic multi-file constant rename. Filed `atlas-self` `1ba1bf47`. |
+
+### Takeaway so far
+
+The v4 baseline finding still stands, and the cause is now precise:
+**Atlas's authoring on this repo is gated by the Engineering
+Intelligence index, and that index is stale and un-refreshable because
+`atlas scan` has a bug.** The 32B coder model produced a *correct*
+minimal diff in attempt 2 — the model is not the bottleneck this time.
+The tooling around it is.
 
 ### Outcome vocabulary
 

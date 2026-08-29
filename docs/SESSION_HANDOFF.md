@@ -196,6 +196,16 @@ still 100% combat deaths, no new failure mode. `radio_tower` solo
 ~77%** (more traversal). Needs a human blind playtest like the other
 three got — `python3 tools/playtest_three.py radio_tower`.
 
+**Playtest 1 (radio_tower):** mechanic worked end to end — found the
+log, fueled the generator, got the voice/route reveal, objective panel
+tracked it all. Died on the SW trek to the far-corner escape gap on a
+21×21 map (out of water, Armored Zombie) — the same "solved it, died
+getting out" pattern as every other playtest this session (5/5). Fixed
+`b??????` — revisiting the require site (walked back down past the
+depot) re-handed the jerrycan and re-fired "take it to the generator
+shed"; now guarded on the fix being done, recap says "nothing more to
+take here." Applies to all fetch families.
+
 Known v1 limitations: the "broadcast tower" obstacle site sits at the
 escape gap (schema `escape_kind` not built), so a player with the
 found-map could guess the ridge area before the response — but can't

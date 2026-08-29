@@ -876,6 +876,17 @@ def build_mystery(game, target_fact=None):
         elif e.id == 'E_route_reveal':
             e.text = e.text.replace('{bearing}', _bearing)
 
+    # B.2 COMMAND_FREQUENCY: a survivor who learned that regional command
+    # held one emergency frequency reads the broadcast log at the route
+    # site as an arrival observation, not a thing to dig for - one fewer
+    # `search` step in a radio_tower mystery. Legibility, not power: same
+    # site, same solve, the item just surfaces on arrival.
+    _sk = getattr(game, 'survivor_knowledge', None)
+    if _reveal and _sk is not None and _sk.has('COMMAND_FREQUENCY'):
+        for e in ev:
+            if e.id == 'E_route_a':
+                e.method = 'observe'
+
     for e in ev:
         k.add_evidence(e)
 

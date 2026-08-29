@@ -293,6 +293,45 @@ class TestBlueSigns(_Base):
         self.assertIsNotNone(withl._mystery_site_mark(rx, ry))  # visible
 
 
+class TestCommandFrequency(_Base):
+    def _evac_then_radio(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("CF", seed=2, io=_IO())
+        _solve(g, "radio_tower")
+        return g
+
+    def test_solving_radio_tower_teaches_command_frequency(self):
+        g = self._evac_then_radio()
+        self.assertTrue(g.survivor_knowledge.has("COMMAND_FREQUENCY"))
+        self.assertIn("SURVIVORS NOW KNOW", "\n".join(g.io.log))
+
+    def test_command_frequency_drops_one_radio_tower_search_step(self):
+        from src.escape import MECHANISMS, build_mystery
+        from src.worlds.silence.truth import WORLD_FACTS
+
+        def _radio(sk):
+            Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != "radio_tower"]
+            Apocrysis._last_family = None
+            Apocrysis._recent_mechanisms = []
+            Apocrysis._recent_signatures = []
+            Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+            Apocrysis._survivor_knowledge = list(sk)
+            g = Apocrysis("R", seed=6, io=_IO())
+            self.assertEqual(g.mystery.mechanism, "radio_tower")
+            return g.mystery.knowledge
+
+        def _searchables(k):
+            return sorted(e.id for e in k.evidence.values() if e.method == "search")
+
+        without = _searchables(_radio([]))
+        withl = _searchables(_radio(["COMMAND_FREQUENCY"]))
+        self.assertIn("E_route_a", without)
+        self.assertNotIn("E_route_a", withl)
+        # exactly one fewer, and it's E_route_a - nothing else moved
+        self.assertEqual(set(without) - set(withl), {"E_route_a"})
+        self.assertEqual(set(withl) - set(without), set())
+
+
 class TestLegibilityNotPower(_Base):
     """Invariant 4 - a learned lesson changes what's surfaced, nothing
     mechanical. Two otherwise-identical games, one with the lore."""

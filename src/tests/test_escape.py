@@ -167,6 +167,41 @@ class TestEscapeGeneration(unittest.TestCase):
         self.assertIn(m.family, STORY_FAMILIES)
         self.assertIn(m.resolution, RESOLUTION_PATTERNS)
 
+    def _force_mechanism(self, name, seed=0):
+        from src.escape import MECHANISMS
+        import src.game as gmod
+        gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != name]
+        try:
+            g = Apocrysis("Force", seed=seed, io=_IO())
+            self.assertEqual(g.mystery.mechanism, name)
+            return g
+        finally:
+            gmod.Apocrysis._used_mechanisms = []
+            gmod.Apocrysis._last_family = None
+
+    def test_power_station_builds_the_dependency_chain(self):
+        g = self._force_mechanism("power_station")
+        m = g.mystery
+        self.assertEqual(m.power_role, "power")
+        self.assertIn("power", m.sites)
+        self.assertIn("F_POWER", m.knowledge.facts)
+        # F_POWER has >=2 evidence routes
+        routes = [e for e in m.knowledge.evidence.values() if "F_POWER" in e.supports]
+        self.assertGreaterEqual(len(routes), 2)
+
+    def test_power_station_gate_opens_on_power_not_on_the_item(self):
+        g = self._force_mechanism("power_station", seed=3)
+        m = g.mystery
+        # carry the fuel to the gate: not ready
+        g.backpack.add_item(__import__("src.items", fromlist=["Item"]).Item(m.requirement_item))
+        self.assertFalse(g._mystery_obstacle_ready())
+        # apply it at the hydro station
+        g.current_position = m.sites["power"]
+        g.mystery_arrive(*m.sites["power"])
+        self.assertTrue(m.power_restored)
+        self.assertFalse(g._mystery_has_item())      # consumed there
+        self.assertTrue(g._mystery_obstacle_ready())  # gate now openable
+
     def test_mystery_round_trips_through_save_load(self):
         import os
         import tempfile

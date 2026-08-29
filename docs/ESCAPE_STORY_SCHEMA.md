@@ -142,6 +142,17 @@ that must grow: (1) `requirement_item` → `requirement_items` chain,
 role set → per-family role sets. Each is scoped to the Tier 2 todo
 that needs it, not front-loaded here.
 
+## 4b. Hard rule: no vocabulary leakage
+
+The classification (`family`, `discovery`, `reasoning`, `resolution`,
+`confirmation`) is **generator metadata only**. It must never reach
+the player — no `family: experimental` line, no "REASONING PATTERN:
+REVISE". The player experiences *"I tried the west sluice and the
+water rose — maybe that's not the one,"* not a taxonomy. See
+`PLAYER_UNDERSTANDING.md` Rule 4. Anything user-facing (objective
+panel, journal, banners) is phrased in the mystery's own prose, keyed
+off what the player has discovered — never off these fields.
+
 ## 5. What this todo (`9ab1b420`) actually ships
 
 1. The five vocabulary tuples + the `classification` keys on all five

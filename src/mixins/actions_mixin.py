@@ -127,11 +127,20 @@ class ActionsMixin:
 
     def eat(self):
         if self.backpack.food > 0:
-            self.backpack.food -= 1
-            self.hunger = min(100, self.hunger + 5)  # Adjust value as per game mechanics
-            self.health = min(100, self.health + 5)  # Health increases by 10 when eating, up to a max of 100
-            self.io.say("You eat some food. Hunger increased. Health restored.")
-            
+            # A meal, not a single ration - eat enough to matter in one
+            # turn (playtest: "spent half the game eating"). Same
+            # rations-per-point ratio (+5 each), capped at 6, and never
+            # more than the current deficit needs.
+            deficit = 100 - self.hunger
+            rations = min(self.backpack.food, max(1, (deficit + 4) // 5), 6)
+            self.backpack.food -= rations
+            self.hunger = min(100, self.hunger + 5 * rations)
+            self.health = min(100, self.health + 5)  # flat, not per ration
+            if rations == 1:
+                self.io.say("You eat a ration. Hunger up.")
+            else:
+                self.io.say(f"You eat {rations} rations. Hunger well up.")
+
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)
@@ -155,10 +164,17 @@ class ActionsMixin:
 
     def drink(self):
         if self.backpack.water > 0:
-            self.backpack.water -= 1
-            self.thirst = min(100, self.thirst + 5)  # Adjust value as per game mechanics
-            self.health = min(100, self.health + 5)  # Health increases by 5 when drinking, up to a max of 100
-            self.io.say("You drink some water. Thirst increased. Health restored.")
+            # Drink your fill in one turn - same +5-per-portion ratio,
+            # capped at 6, never past the current deficit.
+            deficit = 100 - self.thirst
+            portions = min(self.backpack.water, max(1, (deficit + 4) // 5), 6)
+            self.backpack.water -= portions
+            self.thirst = min(100, self.thirst + 5 * portions)
+            self.health = min(100, self.health + 5)  # flat, not per portion
+            if portions == 1:
+                self.io.say("You drink some water. Thirst up.")
+            else:
+                self.io.say(f"You drink {portions} portions of water. Thirst well up.")
 
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
@@ -166,8 +182,8 @@ class ActionsMixin:
             self._check_and_complete_goals("drink")
         elif self._at_natural_water():
             # Scoop from the lake/river. Less clean than stored water
-            # (smaller top-up, no heal) but it's always there.
-            self.thirst = min(100, self.thirst + 4)
+            # (no heal) but it's always there - a proper drink.
+            self.thirst = min(100, self.thirst + 15)
             self.io.say("You drink from the water. It's not clean, but it's water.")
             self._check_and_complete_goals("drink")
         else:

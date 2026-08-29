@@ -64,7 +64,189 @@ The critical design line:
 
 ---
 
-## 2. The world spine (draft — see §10 before building)
+## 1B. Open horizon — brainstorm, not decided
+
+*This section captures a live brainstorm. Nothing here is committed.
+It exists so the decisions we make for §2–§9 don't quietly foreclose a
+much larger design space. Read §1B.9 for what it changes about
+decisions being made now.*
+
+### 1B.1 The question under the question
+
+We are no longer really arguing about "should Apocrysis have 25 maps."
+The real question is **what is an Apocrysis game**:
+
+| | |
+|---|---|
+| A | one zombie game with an infinite procedural campaign |
+| B | one persistent universe with multiple campaigns |
+| C | a procedural mystery/adventure **engine** with different authored worlds |
+| D | a multiplayer procedural escape-room **platform** |
+| E | some combination |
+
+**C + D** is the interesting frame: *Apocrysis is a system for
+generating cooperative adventure mysteries.* Under that framing
+"zombie apocalypse" is not the product — it is **the first world built
+with the engine**. Everything in §2 (The Silence / Cordon / Quiet /
+Handoff) becomes *world 1*, not *the campaign*.
+
+### 1B.2 Separate the layers — there are more than three
+
+§1 named three axes. The full set is five:
+
+| layer | question | authored or generated | persistence |
+|---|---|---|---|
+| **World type** | which story am I playing? | authored (a world pack) | chosen at start |
+| **Campaign / World Investigation** | how much of *this world's* truth have I uncovered? | authored DAG, generated discovery | persists across deaths |
+| **Chapter** | how deep into the story am I? | authored (chapter gates) | persists across deaths |
+| **Expedition difficulty** | how hard is *this* map/mystery? | generated, *derived from chapter* | per expedition |
+| **Player level** | how capable is this survivor? | generated | resets on death |
+
+§1's "Map Level" splits: **chapter** (narrative depth, persists) vs
+**expedition difficulty** (derived from the chapter, per-run).
+Difficulty stops being a number you grind and becomes *a consequence
+of where you are in the story*.
+
+### 1B.3 Apocrysis as a story engine
+
+```
+╔══════════════════════════════════════════╗
+║                 APOCRYSIS                ║
+║  CHOOSE YOUR WORLD                        ║
+║  > THE SILENCE   a region has gone quiet  ║
+║    THE DERELICT  your ship arrived        ║
+║                  somewhere no one was     ║
+║    THE FORGOTTEN REALM  the kingdom is    ║
+║                         dying             ║
+║    ???                                    ║
+╚══════════════════════════════════════════╝
+```
+
+The engine does not care whether the world contains zombies, mutants,
+goblins, robots, cultists, or traps. The loop underneath every world
+is the same:
+
+> **explore → discover → reason → survive → solve → progress the story**
+
+Three world sketches (all: same loop, same knowledge model, same
+generation stack; different pack):
+
+- **THE SILENCE** — zombie survival mystery. *Where did everyone go?*
+  (§2, world 1.)
+- **THE DERELICT** — sci-fi. You wake on a damaged colony ship;
+  everyone is gone; something still answers the comms. The crew didn't
+  disappear — they **changed**. "Zombies" become mutated crew;
+  "valleys" become decks and sealed compartments.
+- **THE FORGOTTEN REALM** — fantasy. Abandoned villages, monsters on
+  the roads, failing wards, ancient texts that contradict each other.
+  *Why is the kingdom dying?* The heroes didn't defeat the old evil —
+  they **joined** it.
+
+### 1B.4 The generation stack
+
+```
+WORLD          authored  (a data pack: encounter table, tile vocabulary,
+  │                        prose voice, the WorldFact DAG)
+  └── CAMPAIGN        authored  (the overarching mystery = the DAG)
+       └── CHAPTER    authored  (chapter gates + framing)
+            └── MAP           generated  (topology → terrain)
+                 └── MYSTERY  generated  (a discovery template, realised)
+                      └── EVIDENCE   generated  (clue placement)
+                           └── ENCOUNTER  generated  (hazards, NPCs, the Dead)
+```
+
+The truth is authored at the top four levels; the *experience of
+discovering it* is generated at the bottom four. A "world" is a data
+pack over a shared engine — that is what makes world 2 cheap instead
+of a rewrite.
+
+### 1B.5 Progression is discovery-based, not map-count
+
+The player advances because *"you discovered something important,"*
+not because *"you completed Expedition 14."* The World Investigation
+screen (§8) shows % per thread. The player does not necessarily know
+how many expeditions remain.
+
+Death → **the world remembers**. Survivor #1 learns "the evacuation
+was organised" and dies at chapter 4. Survivor #2 starts at chapter 4
+with that knowledge (but #1's gear is gone), reads things #1 couldn't,
+gets further, dies. Survivor #3 inherits both discoveries. "Damn, I
+died, start over" becomes "okay — we know why they closed the routes
+now; what's next."
+
+### 1B.6 Multiple endings
+
+```
+              FINAL TRUTH
+                   │
+        ┌──────────┼──────────┐
+      EXPOSE    PROTECT     LEAVE
+        │          │          │
+     ENDING A   ENDING B   ENDING C
+```
+
+Accumulated discoveries gate which choices are *available*. Some
+endings require **optional** investigations — the player finishes the
+main story and realises "I never found out what happened at that
+hospital," which is an invitation to replay. Per-world.
+
+### 1B.7 Multiplayer — a separate axis
+
+A procedural cooperative escape room, 2–4 players. The key is
+**information asymmetry**: players hold *different* evidence and must
+talk to combine it.
+
+> Player A finds an evacuation map: *blue route → north.*
+> Player B finds a maintenance log: *blue routes abandoned after the
+> second convoy.*
+> Now they are **discussing the puzzle**, not each independently
+> clicking things.
+
+The knowledge model already has the shape for this: `Evidence →
+Deduction → Hypothesis`. Multiplayer distributes the `Evidence` nodes
+across players; the `Deduction` only lands when they pool what they
+have. Treat it as its own track — **not core now** — but note the
+architectural constraint in §1B.9.
+
+### 1B.8 Vocabulary
+
+Settle on: **World · Campaign · Chapter · Expedition**, with **player
+level** orthogonal to all of them. Stop saying "map level" — a level-23
+character can be on *Chapter 3, Expedition 11* of *The Silence*, or
+*Chapter 7, Expedition 3* of *The Derelict*.
+
+### 1B.9 What this changes about decisions being made now
+
+- **The A/B/C truth candidates (`WORLD_TRUTH_CANDIDATES.md`) are
+  candidates for *world 1 ("The Silence")*, not "the Apocrysis
+  truth."** Choosing one does not lock the engine to zombies.
+- **Resolve the game-vs-engine question (A–E) before Phase A step 1.**
+  It decides whether `world_truth.py` is a single file or
+  `worlds/silence/` is a module implementing a `World` interface
+  (encounter table, tile vocabulary, prose voice, `WorldFact` DAG,
+  win/ending logic).
+- **Recommended regardless of the answer:** build Phase A behind a thin
+  `World` seam even if there is only one world for a long time. The
+  cost is a handful of indirections; the payoff is that world 2 is a
+  data pack, not a fork. This is the cheapest insurance against
+  regretting a hardcoded "zombie" assumption later.
+- **If multiplayer is ever wanted:** the `Evidence / Deduction /
+  Hypothesis` refactor in Phase E must be **single-observer-agnostic
+  from the start** — no assumption that one player has seen everything,
+  and the solvability solver (§7) must reason about "is this solvable
+  by the *group's* pooled evidence," not one observer's.
+
+### 1B.10 The honest status
+
+This is bigger than a night's work and it is not decided. The near-term
+plan (§9 Phase A) still holds — *prove the discovery loop is
+compelling on world 1 before building the platform under it*. But
+build it with §1B.9 in mind, so "world 1" and "the engine" are
+separable from the first commit.
+
+---
+
+## 2. The world spine — world 1: "The Silence" (draft — see §10 and §1B before building)
 
 ### 2.1 The premise: The Silence
 
@@ -174,7 +356,8 @@ across the campaign (§3, §4).
 
 ### 3.1 World truth = a DAG of `WorldFact`s
 
-A new authored data structure, `src/world_truth.py`:
+A new authored data structure (location depends on the §1B.9 seam
+decision — `src/world_truth.py` or `worlds/silence/truth.py`):
 
 ```python
 WorldFact(
@@ -440,7 +623,13 @@ front of them.
 ### Phase A — the spine, on the current engine
 *No map-v2. Prove the loop is compelling before rebuilding generation.*
 
-1. `src/world_truth.py` — the `WorldFact` DAG, **CH1 + CH2 only**
+0. **The `World` seam (§1B.9).** Before any content: a thin interface
+   so "world 1" and "the engine" are separable — `worlds/silence/`
+   holds the encounter table, tile vocabulary, prose voice, `WorldFact`
+   DAG, and ending logic; the engine takes a `World`. Costs a handful
+   of indirections now, saves a fork later. Do this even if there is
+   only ever one world.
+1. `worlds/silence/truth.py` — the `WorldFact` DAG, **CH1 + CH2 only**
    (~10 facts, ~3 milestones). Enough truth to build toward.
 2. `DiscoveryTemplate` — bind a `WorldFact` to an existing MECHANISMS
    family + role labels + evidence text. `build_mystery` gains a
@@ -514,6 +703,8 @@ after Phase E.
 
 | decision | needed by | notes |
 |---|---|---|
+| **game vs engine (§1B.1, A–E)** | **Phase A step 1** | decides whether `world_truth.py` is a file or `worlds/silence/` is a `World` module. Recommendation: build behind a thin `World` seam regardless (§1B.9) |
+| the exact truth for world 1 (`WORLD_TRUTH_CANDIDATES.md` A/B/C) | Phase A | scope locked (~25 / 5 chapters + finale); candidate not yet picked |
 | the exact truth (§2) — ratify or rewrite | Phase A | the DAG can't be authored until the ending is chosen |
 | the ending shape (§2.6) — empty / staffed / settlement / choice | Phase A (structure), Phase E (content) | leaning: truth at command centre + settlement as the final act |
 | chapter count and maps-per-chapter | Phase A | draft: 5 chapters + finale, ~4–5 maps each, ~25 total |
@@ -526,6 +717,9 @@ after Phase E.
 
 ## 11. Relationship to existing docs
 
+- `WORLD_TRUTH_CANDIDATES.md` — the three candidate truths for world 1
+  ("The Silence"); §1B reframes these as *world 1*, not *the* truth.
+  Spoiler-gated. The §10 decision picks one.
 - `NIGHT_BUILD_PLAN.md` — done, superseded by this. Its Phase-5
   variety rules are live and feed §3.1.
 - `SCENARIO_SEEDS.md` — becomes the discovery-grammar catalogue; seeds

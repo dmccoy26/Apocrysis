@@ -10,6 +10,7 @@
 # hypothesis is confirmed and the obstacle is open.
 # ============================================================
 
+from src.escape import MECHANISMS
 from src.items import Item
 
 
@@ -17,6 +18,18 @@ class MysteryMixin:
 
     def _mystery(self):
         return getattr(self, 'mystery', None)
+
+    def _mystery_obstacle_ready(self):
+        """Can the obstacle be opened? For a plain (spatial) mystery
+        that's 'do you carry the requirement item'; for the
+        infrastructural family it's 'is the dependency satisfied'
+        (m.power_restored) - the item was consumed elsewhere."""
+        m = self._mystery()
+        if m is None:
+            return False
+        if m.power_role:
+            return m.power_restored
+        return self._mystery_has_item()
 
     def _mystery_role_at(self, x, y):
         m = self._mystery()
@@ -62,6 +75,11 @@ class MysteryMixin:
         if 'F_ROUTE' in new_facts and m.site_labels.get('route'):
             self.announce_event(f"the route is at {m.site_labels['route']}",
                                 "It's marked on your map now.", kind="lead")
+        if 'F_POWER' in new_facts and m.site_labels.get('power'):
+            self.announce_event(
+                f"the way out is powered from {m.site_labels['power']}",
+                "You'll have to sort out what's wrong there. Marked on your map.",
+                kind="lead")
         if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
             self.announce_event(
                 f"the {m.requirement_item} is kept at {m.site_labels['require']}",
@@ -117,9 +135,22 @@ class MysteryMixin:
                 any_new = True
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
+            _pl = m.site_labels.get('power', 'where it is needed')
+            _dest = "head back to it" if not m.power_role else f"take it to {_pl}"
             self.announce_event(
                 f"you have the {m.requirement_item}",
-                "This is what gets you past the blocked route - head back to it.",
+                f"This is what gets you past the blocked route - {_dest}.",
+                kind="objective",
+            )
+        # Infrastructural: applying the fix at the dependency site.
+        if role == m.power_role and not m.power_restored and self._mystery_has_item():
+            self.backpack.items = [it for it in self.backpack.items
+                                   if getattr(it, 'name', None) != m.requirement_item]
+            m.power_restored = True
+            self.announce_event(
+                "the generator is running",
+                MECHANISMS[m.mechanism].get(
+                    'power_restored_desc', "The way out has power now."),
                 kind="objective",
             )
         self._mystery_progress_flare(_hyp_before, _facts_before)
@@ -134,7 +165,13 @@ class MysteryMixin:
         revealed = False
         for eid in m._site_evidence.get('obstacle', []):
             revealed = self._mystery_reveal(eid) or revealed
-        if not revealed:
+        if m.power_role and not m.power_restored and self._mystery_has_item():
+            # The failed action teaches the dependency, doesn't just
+            # reject: the fuel belongs somewhere else.
+            self.io.say(
+                f"You have the {m.requirement_item}. The gate is electrically "
+                f"operated - there's nowhere to use it here.")
+        elif not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
         self._mystery_progress_flare(_hyp_before, _facts_before)
 
@@ -184,17 +221,24 @@ class MysteryMixin:
         if m.obstacle_open:
             self.io.say("It's already open.")
             return
-        if not self._mystery_has_item():
-            self.io.say(f"You can't get past it without the {m.requirement_item}.")
+        if not self._mystery_obstacle_ready():
+            if m.power_role:
+                self.io.say("The gate has no power. Nothing you do here changes that.")
+            else:
+                self.io.say(f"You can't get past it without the {m.requirement_item}.")
             return
-        self.backpack.items = [it for it in self.backpack.items
-                               if getattr(it, 'name', None) != m.requirement_item]
+        if not m.power_role:
+            self.backpack.items = [it for it in self.backpack.items
+                                   if getattr(it, 'name', None) != m.requirement_item]
         m.obstacle_open = True
         game_cell = self.map[oy][ox]
         if isinstance(game_cell, dict):
             game_cell['obstacle'] = False
-        _how = (f"You come back with the {m.requirement_item}. It works."
-                if m.saw_obstacle else f"The {m.requirement_item} does it.")
+        if m.power_role:
+            _how = "The gate has power now. It grinds open."
+        else:
+            _how = (f"You come back with the {m.requirement_item}. It works."
+                    if m.saw_obstacle else f"The {m.requirement_item} does it.")
         self.announce_event("the way is open", _how,
                             "The route ahead is clear - keep going.", kind="objective")
 

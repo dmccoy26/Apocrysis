@@ -207,8 +207,9 @@ def _objective_steps(p, m, k):
     known = k.facts_known()
     named = getattr(p, "_mystery_named", set())
     labels = getattr(m, "site_labels", {})
-    has_item = any(getattr(it, "name", None) == m.requirement_item
-                   for it in p.backpack.items) or m.obstacle_open
+    has_item = (any(getattr(it, "name", None) == m.requirement_item
+                    for it in p.backpack.items)
+                or m.obstacle_open or m.power_restored)
     confirmed = k.hypothesis_state() == "confirmed"
 
     def place(role, generic):
@@ -222,6 +223,11 @@ def _objective_steps(p, m, k):
     # 2. what blocks it
     if "F_OBSTACLE" in known or m.saw_obstacle:
         steps.append((True, "found what blocks the route"))
+    # 2b. infrastructural: the dependency
+    if m.power_role and ("F_POWER" in known):
+        steps.append((True, f"learned it's powered from {place('power', 'somewhere else')}"))
+        steps.append(("power" in named or m.power_restored,
+                      f"reached {place('power', 'the power source')}"))
     # 3. what you need
     if "F_REQUIRE" in known:
         steps.append((True, f"learned you need a {item}"
@@ -233,6 +239,9 @@ def _objective_steps(p, m, k):
     # 5. got it
     if "F_REQUIRE" in known or has_item:
         steps.append((has_item, f"got the {item}"))
+    # 5b. infrastructural: apply the fix
+    if m.power_role and ("F_REQUIRE" in known or has_item):
+        steps.append((m.power_restored, f"restored power at {place('power', 'the source')}"))
     # 6. open the way
     steps.append((m.obstacle_open, "opened the way through"))
     # 7. escape

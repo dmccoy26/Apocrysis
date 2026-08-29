@@ -838,7 +838,7 @@ class WorldMixin:
         # item. Walking into it with the item clears it in place.
         m = getattr(self, 'mystery', None)
         if m is not None and m.obstacle_tile == (new_x, new_y) and not m.obstacle_open:
-            if self._mystery_has_item():
+            if self._mystery_obstacle_ready():
                 self.mystery_clear_obstacle()
             else:
                 self.mystery_bump_obstacle()

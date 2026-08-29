@@ -588,7 +588,8 @@ class BotIO:
         # what's the current objective tile?
         target = None
         do_here = None
-        for role in ("closed", "route", "require"):
+        roles = ["closed", "route", "require"]
+        for role in roles:
             if role not in self._m_searched:
                 target = m.sites[role]
                 if p.current_position == target:
@@ -597,7 +598,12 @@ class BotIO:
                     return "search"
                 break
         else:
-            if not m.obstacle_open:
+            # Infrastructural family: carry the requirement item to the
+            # power site (the game consumes it there and restores power)
+            # BEFORE the obstacle will open.
+            if getattr(m, "power_role", None) and not m.power_restored:
+                target = m.sites[m.power_role]
+            elif not m.obstacle_open:
                 target = m.obstacle_tile  # stepping onto it clears it with the item
             elif p.current_position != m.escape_tile:
                 target = m.escape_tile

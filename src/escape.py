@@ -203,6 +203,8 @@ class Mystery:
             problems.append("hypothesis.confirmed_by is not a real evidence id")
         if self.obstacle_tile is None or self.escape_tile is None:
             problems.append("missing obstacle or escape tile")
+        if self.power_role and self.power_role not in self.sites:
+            problems.append("power_role set but no such site")
         # Classification must come from the closed vocabularies - catches
         # a typo in a new MECHANISMS entry before a player sees it.
         for attr, vocab in (
@@ -539,6 +541,34 @@ def build_mystery(game):
     # index evidence by site role for arrival/search
     for e in ev:
         m._site_evidence.setdefault(e.location, []).append(e.id)
+
+    # --- infrastructural family (power_station): the obstacle depends
+    # on a system somewhere ELSE. A 5th site (the hydro station), a new
+    # F_POWER fact, and the requirement item is applied THERE - the
+    # gate opens on m.power_restored, not on carrying the item to it.
+    if spec.get('power_role'):
+        m.power_role = spec['power_role']
+        plabel = spec['roles']['power']
+        used_xy = set(m.sites.values())
+        pool = [s for s in sites if s not in used_xy]
+        rng.shuffle(pool)
+        p_xy = pool[0] if pool else role_require
+        m.sites['power'] = p_xy
+        m.site_labels['power'] = plabel
+        pcell = game.map[p_xy[1]][p_xy[0]]
+        if isinstance(pcell, dict):
+            pcell['site_label'] = plabel
+        k.add_fact(Fact('F_POWER', spec['power_fact']))
+        for e in (
+            Evidence('E_power_a', spec['power_obstacle_ev'],
+                     supports=['F_OBSTACLE', 'F_POWER'], location='obstacle', method='observe'),
+            Evidence('E_power_b', spec['power_site_ev'],
+                     supports=['F_POWER'], location='power', method='observe'),
+            Evidence('E_generator', spec['generator_ev'],
+                     supports=['F_REQUIRE'], location='power', method='observe'),
+        ):
+            k.add_evidence(e)
+            m._site_evidence.setdefault(e.location, []).append(e.id)
 
     # Physical guarantee: every site and the escape tile must be
     # reachable from spawn (with the obstacle open). Carve an approach

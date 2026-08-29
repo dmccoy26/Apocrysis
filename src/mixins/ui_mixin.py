@@ -34,12 +34,14 @@ class UIMixin:
         bar = ["move  n/s/e/w", "look", "map", "journal", "?=help"]
         m = getattr(self, 'mystery', None)
         here = self._mystery_role_at(*self.current_position) if hasattr(self, '_mystery_role_at') and m else None
-        if here in ('closed', 'route', 'require', 'obstacle'):
+        if here in ('closed', 'route', 'require', 'obstacle', 'power'):
             bar.insert(1, "search")
         if m is not None:
             if m.obstacle_open and m.knowledge.hypothesis_state() == 'confirmed' and not m.escaped:
                 bar.insert(1, "ESCAPE")
-            elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_has_item():
+            elif here == m.power_role and self._mystery_has_item() and not m.power_restored:
+                bar.insert(1, "(walk in - the fuel goes here)")
+            elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_obstacle_ready():
                 bar.insert(1, "open (at the gate)")
         if self.backpack.water == 0 and hasattr(self, '_at_natural_water') and self._at_natural_water():
             bar.append("drink (from the water)")
@@ -658,7 +660,8 @@ class UIMixin:
         # 'route'/'require' get marked the moment you know the fact that
         # points to them; 'closed' only once you've been there (it's
         # where you came in - low value to signpost).
-        role_known = {'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known}
+        role_known = {'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known,
+                      'power': 'F_POWER' in known}
         named = getattr(self, '_mystery_named', set())
         for role, xy in m.sites.items():
             if xy == (x, y) and (role in named or role_known.get(role)):

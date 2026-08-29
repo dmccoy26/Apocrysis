@@ -25,6 +25,11 @@ session, then the doc map below it.**
   (win 51%≈49%, treks ~29% shorter, combat equal). **NEEDS the owner's
   human feel-test** to accept/reject. See `PHASE_C3_SPEC.md` § accept
   gate. `tools/geo_compare.py --games N --variants v1,v2 [--gameplay]`.
+- **C.3.1 DONE (2026-08-29):** the ~1.3% no-mystery v2 maps are
+  eliminated - `generate_map()` now regenerates the base map (≤12×,
+  v2 only) until `build_mystery` succeeds. Measured 0/1500. v1 loop
+  runs once, byte-identity intact. Both suites green. **Run the
+  feel-test on THIS build**, not the pre-fix one.
 - **Invariants** (all phases): world investigation is campaign-level;
   death never mutates the campaign record; SurvivorLore ids are the
   interface; WorldFact never aware of the generator; worlds/* and

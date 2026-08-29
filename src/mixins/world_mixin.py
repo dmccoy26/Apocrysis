@@ -105,13 +105,31 @@ class WorldMixin:
         _wi = getattr(self, 'world_investigation', None)
         if _wi is not None:
             _target = _wi.next_target()
-        try:
-            self.mystery = build_mystery(self, target_fact=_target)
-        except RuntimeError as exc:
+
+        # C.3.1: guarantee a mystery instead of tuning toward one. v2's
+        # irregular valley can occasionally grow too cramped for the
+        # three building sites a mystery needs (~1.3% pre-fix); when that
+        # happens, regenerate the base map and try again rather than
+        # shipping a story-less "reach the town" expedition. v1 is frozen
+        # and never hits the degenerate path, so the loop runs exactly
+        # once for v1 - RNG consumption and byte-identity are unchanged.
+        _max_map_tries = 12 if getattr(self, '_mapgen', 'v1') == 'v2' else 1
+        self.mystery = None
+        _mystery_exc = None
+        for _try in range(_max_map_tries):
+            if _try > 0:
+                town_center = gen.generate()
+            try:
+                _candidate = build_mystery(self, target_fact=_target)
+            except RuntimeError as exc:
+                _candidate, _mystery_exc = None, exc
+            if _candidate is not None:
+                self.mystery = _candidate
+                break
+        if self.mystery is None and _mystery_exc is not None:
             if getattr(self, '_strict_mystery', False):
-                raise
-            self.io.say(f"(world generation note: {exc})")
-            self.mystery = None
+                raise _mystery_exc
+            self.io.say(f"(world generation note: {_mystery_exc})")
         if self.mystery is not None:
             self.knowledge = self.mystery.knowledge
 

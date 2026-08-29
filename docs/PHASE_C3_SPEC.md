@@ -94,7 +94,7 @@ change: the board stops being a box.
 | spawn→site (max) | 24.4 (11 / 33) | 20.3 (10 / 31) |
 | critical-path tiles | 38.8 (20 / 58) | 33.2 (16 / 51.5) |
 | spawn→town | 23.4 (8 / 36) | 22.8 (9 / 34) |
-| maps with no mystery | **0 / 1000** | **13 / 1000 (1.3 %)** |
+| maps with no mystery | **0 / 1000** | **0 / 1500** (was 13/1000; fixed by C.3.1) |
 
 ### Gameplay (scripted bot, 500 games each, exp tiers 1–5)
 
@@ -118,9 +118,25 @@ change: the board stops being a box.
 - **v2 is marginally harsher at the p10 min-health tail** (12 vs 14) —
   the narrow irregular corridors give a zombie fewer places to be
   avoided. Small, worth watching.
-- **~1.3 % of v2 maps produce no mystery** (valley too small for 3
-  building sites) vs 0 % for v1. A real minor regression — a floor was
-  added but not fully eliminated.
+- **No-mystery maps: eliminated (C.3.1).** Pre-fix, ~1.3 % of v2 maps
+  grew a valley too cramped for the three building sites a mystery
+  needs and shipped a story-less "reach the town" expedition.
+  `generate_map()` now *guarantees* a mystery instead of tuning toward
+  one: when `build_mystery` returns None / raises on a v2 map, it
+  regenerates the base map and retries (≤12×). Measured 0 / 1500 after.
+  v1 is frozen — the loop runs exactly once for v1, RNG consumption and
+  byte-identity unchanged. This is the "make it structurally
+  impossible, don't tune the statistic" fix the pre-playtest review
+  asked for.
+
+## C.3.1 — no-mystery guarantee (DONE, 2026-08-29)
+
+The base map is now regenerated until `build_mystery` succeeds, for
+`variant == "v2"` only. Changed: `src/mixins/world_mixin.py`
+`generate_map()`. Both suites green (`apocrysis.py --test`; pytest
+251 + 100). Geometry/gameplay re-measured — envelope still held, win
+rate noise-equal, min-health p10 tail now v1≈v2. The five-expedition
+feel-test should be run on this build.
 
 ## The accept/reject gate
 

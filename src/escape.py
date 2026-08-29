@@ -182,6 +182,24 @@ MECHANISMS = {
                   "require2": "the field store"},
         "assemble_desc": "You wrestle the propeller onto the shaft and pin it, then pump both tanks full from the drum. The engine catches on the second turn - it's ready to fly.",
     },
+    "tidal_causeway": {
+        "name": "the tidal causeway",
+        "family": "time_pressure", "discovery": "find_document",
+        "reasoning": "triage", "resolution": "follow", "confirmation": "traversal",
+        "closed": "Every road inland is blocked - checkpoints, a slide, a bridge dropped in the river. Nothing is driving out.",
+        "route": "A stone causeway runs out from the shore to a headland, and a footbridge carries on from there - off the valley entirely, inland. But the causeway is tidal: it floods at high water.",
+        "obstacle": "The causeway is walkable right now, at low tide. When the water turns it goes under - chest-deep and climbing, no crossing it then.",
+        "require": "A tide board is posted at the shore station - the schedule, if you read it properly.",
+        "item": None,
+        "require_fact": "The tide runs on a schedule you can read and plan around - a short window now, another after dark.",
+        "require_ev": "The tide board: low water now, but the window is short. Miss it and the next low tide isn't until well after dark.",
+        "obstacle_desc": "The causeway stretches out across the flats, wet stone, weed on the low rocks - the tide line is halfway up the marker posts already.",
+        "escape_desc": "You cross the causeway at a jog, water pushing at your boots by the far end, and climb onto the headland. The footbridge runs on inland from here. You're out.",
+        "roles": {"closed": "the blocked checkpoint", "route": "the shore station",
+                  "obstacle": "the causeway", "require": "the tide board"},
+        "deadline_turns": 22,
+        "flood_recovery": 24,
+    },
 }
 
 _MECH_ORDER = list(MECHANISMS)
@@ -197,6 +215,7 @@ DISCOVERY_PATTERNS = (
 )
 REASONING_PATTERNS = (
     'locate', 'connect', 'corroborate', 'infer', 'experiment', 'revise', 'sequence',
+    'triage',   # time-pressure: the window fits the critical path, not the optional evidence
 )
 RESOLUTION_PATTERNS = (
     'open', 'find', 'repair', 'clear', 'operate', 'reveal', 'follow', 'respond',
@@ -248,6 +267,10 @@ class Mystery:
                                        # behaviour for the other 8 mechanisms.
         self.saw_obstacle = False
         self.escaped = False
+        # time-pressure family (tidal_causeway): a diegetic clock.
+        self.deadline = None       # turns until the tide turns; None = no clock / not armed yet
+        self.tide_recovery = 0     # while flooded: turns until the causeway reopens
+        self.crossed = False       # stood on the far side with it open - the tide can't trap you now
         # role -> list of evidence ids observed/searchable at that site
         self._site_evidence = {}
 
@@ -331,6 +354,9 @@ class Mystery:
             "escape_tile": list(self.escape_tile) if self.escape_tile else None,
             "requirement_item": self.requirement_item,
             "requirement_items": list(self.requirement_items),
+            "deadline": self.deadline,
+            "tide_recovery": self.tide_recovery,
+            "crossed": self.crossed,
             "saw_obstacle": self.saw_obstacle,
             "escaped": self.escaped,
             "site_evidence": {r: list(v) for r, v in self._site_evidence.items()},
@@ -360,6 +386,9 @@ class Mystery:
         m.escape_tile = tuple(d["escape_tile"]) if d.get("escape_tile") else None
         m.requirement_item = d.get("requirement_item")
         m.requirement_items = list(d.get("requirement_items", []))
+        m.deadline = d.get("deadline")
+        m.tide_recovery = d.get("tide_recovery", 0)
+        m.crossed = d.get("crossed", False)
         m.saw_obstacle = d.get("saw_obstacle", False)
         m.escaped = d.get("escaped", False)
         m._site_evidence = {r: list(v) for r, v in d.get("site_evidence", {}).items()}
@@ -553,7 +582,11 @@ def build_mystery(game):
     # invariant 3d). Everyone else: low detour, middle band of the
     # spawn->exit run.
     _transport = bool(spec.get('item2'))
-    if _transport:
+    _deadline = bool(spec.get('deadline_turns'))
+    if _transport or _deadline:
+        # transportation: the plane sits at the valley's edge.
+        # time-pressure: the causeway runs to the valley's edge.
+        # Either way the route site IS the way out - same vector.
         role_route = min(_rest, key=lambda s: abs(s[0] - ex) + abs(s[1] - ey))
     else:
         _band = sorted((s for s in _rest
@@ -583,6 +616,13 @@ def build_mystery(game):
     if _transport:
         _rest2 = [s for s in _rest if s != role_require] or [role_require]
         m.sites['require2'] = _pick_side(_rest2)
+    if _deadline:
+        # time-pressure: the tide is OUT when the mystery starts - the
+        # causeway tile is passable. There is nothing to unlock; the
+        # clock (armed when F_ROUTE lands) is the whole obstacle. The
+        # tick flips obstacle_open False when the tide floods.
+        m.obstacle_open = True
+        game.map[inner_tile[1]][inner_tile[0]]['obstacle'] = False
 
     # World grammar: each role-site is a NAMED place, not a generic
     # building. The evidence chain references these same names ("the
@@ -622,7 +662,8 @@ def build_mystery(game):
     k = m.knowledge
     _req_line = (f"The thing needed to get past it exists - a {spec['item']}, "
                  f"and you know where." if spec.get('item')
-                 else "What clears it is something you have to work out on the spot.")
+                 else spec.get('require_fact',
+                               "What clears it is something you have to work out on the spot."))
     _reveal = bool(spec.get('reveals_route'))
     F = {
         'F_CLOSED': "The usual way out is closed.",
@@ -671,7 +712,7 @@ def build_mystery(game):
                  (f"A bank of controls: {', '.join(spec['controls'])}. "
                   "One of them sets the valley reservoir - but which?"
                   if spec.get('controls')
-                  else f"You find the {spec['item']} here."),
+                  else spec.get('require_ev') or f"You find the {spec['item']} here."),
                  supports=['F_REQUIRE'], location='require', method='search'),
         Evidence('E_confirm', spec["escape_desc"], supports=['F_ROUTE'],
                  location='escape', method='observe'),

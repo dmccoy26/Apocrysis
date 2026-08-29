@@ -36,6 +36,10 @@ class MysteryMixin:
         m = self._mystery()
         if m is None:
             return False
+        if MECHANISMS.get(m.mechanism, {}).get('deadline_turns'):
+            # time-pressure: the tide state is the gate. Once you've
+            # crossed, a later flood can't shut you back in.
+            return m.obstacle_open or m.crossed
         if m.controls:
             return m.obstacle_open
         if m.power_role:
@@ -61,6 +65,82 @@ class MysteryMixin:
     def _mystery_has_all_items(self):
         req = self._mystery_required_items()
         return bool(req) and not self._mystery_missing_items()
+
+    # ---- time-pressure family (tidal_causeway) --------------------
+
+    def _mystery_arm_deadline(self):
+        """Start the tide clock the turn the player learns the causeway
+        exists (F_ROUTE known) - diegetic, not from spawn."""
+        m = self._mystery()
+        if m is None:
+            return
+        spec = MECHANISMS.get(m.mechanism, {})
+        if not spec.get('deadline_turns') or m.deadline is not None or m.crossed:
+            return
+        m.deadline = spec['deadline_turns']
+        self.announce_event(
+            "the tide is going out",
+            f"The causeway is clear now, but not for long - you've got "
+            f"roughly {m.deadline} turns before the water's back over it. "
+            "Don't stop for anything you don't need.",
+            kind="lead")
+
+    def _mystery_tide_tick(self):
+        """Per-turn, from world_mixin.move_and_search right after decay.
+        Runs the tide state machine for a tidal_causeway mystery; a
+        no-op for everything else."""
+        m = self._mystery()
+        if m is None or m.escaped or m.crossed:
+            return
+        spec = MECHANISMS.get(m.mechanism, {})
+        if not spec.get('deadline_turns'):
+            return
+        if m.tide_recovery > 0:
+            # flooded - counting down to the next low tide
+            m.tide_recovery -= 1
+            if m.tide_recovery in (10, 5):
+                self.io.say(f"The causeway's still under - about {m.tide_recovery} turns to low water.")
+            if m.tide_recovery <= 0:
+                m.tide_recovery = 0
+                m.obstacle_open = True
+                m.deadline = spec['deadline_turns']
+                ox, oy = m.obstacle_tile
+                cell = self.map[oy][ox]
+                if isinstance(cell, dict):
+                    cell['obstacle'] = False
+                self.announce_event(
+                    "THE TIDE IS OUT AGAIN",
+                    "The water's pulled back off the causeway. Go now - "
+                    f"you've got another {m.deadline} turns or so.",
+                    kind="objective")
+            return
+        if m.deadline is None:
+            return
+        m.deadline -= 1
+        if m.deadline == 10:
+            self.io.say("The tide's on the turn - maybe 10 turns before the causeway floods.")
+        elif m.deadline == 5:
+            self.announce_event("the water's coming up",
+                                "Five turns, give or take, before the causeway goes under.",
+                                kind="warn")
+        elif m.deadline == 2:
+            self.announce_event("the causeway's about to flood",
+                                "Two turns. If you're not across, you wait for the next tide.",
+                                kind="warn")
+        elif m.deadline <= 0:
+            m.deadline = None
+            m.obstacle_open = False
+            m.tide_recovery = spec.get('flood_recovery', 24)
+            ox, oy = m.obstacle_tile
+            cell = self.map[oy][ox]
+            if isinstance(cell, dict):
+                cell['obstacle'] = True
+            self.announce_event(
+                "THE TIDE HAS TURNED",
+                "The causeway's under water - no crossing it now. The next "
+                f"low tide is roughly {m.tide_recovery} turns off, after dark. "
+                "Find somewhere to wait it out.",
+                kind="warn")
 
     def _mystery_role_at(self, x, y):
         m = self._mystery()
@@ -133,6 +213,7 @@ class MysteryMixin:
         k = m.knowledge
         new_facts = k.facts_known() - set(facts_before)
         if 'F_ROUTE' in new_facts:
+            self._mystery_arm_deadline()
             if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
                 # informational: F_ROUTE and 'confirmed' land in the same
                 # beat here - the "YOU CAN LEAVE NOW" banner below says
@@ -200,6 +281,11 @@ class MysteryMixin:
 
         if role == 'escape':
             if m.obstacle_open and not m.escaped:
+                if MECHANISMS.get(m.mechanism, {}).get('deadline_turns'):
+                    # stood on the far side with the causeway open - the
+                    # tide can't strand you now; stop the clock.
+                    m.crossed = True
+                    m.deadline = None
                 self._mystery_reveal('E_confirm')
                 self._mystery_progress_flare(_hyp_before, _facts_before)
                 if m.knowledge.hypothesis_state() == 'confirmed':
@@ -342,6 +428,11 @@ class MysteryMixin:
                     + _and_list(_miss) + " before it'll run.")
             else:
                 self.io.say("You've got everything it needs - fit it and go.")
+        elif MECHANISMS.get(m.mechanism, {}).get('deadline_turns') and not m.obstacle_open:
+            self.io.say(
+                "The causeway's under water - chest-deep and still coming up. "
+                f"The next low tide is about {max(m.tide_recovery, 1)} turns off. "
+                "Nothing to do here but wait it out somewhere safe.")
         elif not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
         self._mystery_progress_flare(_hyp_before, _facts_before)
@@ -512,19 +603,23 @@ class MysteryMixin:
             return
         confirmed = m.knowledge.hypothesis_state() == 'confirmed'
         on_tile = self.current_position == m.escape_tile
+        _open = m.obstacle_open or m.crossed
         # Once you've stood at the way out and it's open, you don't have
         # to be standing on it to leave - `escape` means "go there and
         # go." Playtest: solved the whole mystery, then starved on the
         # trek back to the exit tile. The investigation is the game;
         # the walk back is not.
-        if not on_tile and not (confirmed and m.obstacle_open):
+        if not on_tile and not (confirmed and _open):
             self.io.say(
                 "You're not anywhere you could leave from. If there's a "
                 "way out you haven't reached it yet."
             )
             return
-        if not m.obstacle_open:
-            self.io.say("The way is still blocked behind you.")
+        if not _open:
+            self.io.say(
+                "The causeway's under water - wait for the tide."
+                if MECHANISMS.get(m.mechanism, {}).get('deadline_turns')
+                else "The way is still blocked behind you.")
             return
         if not confirmed:
             self.io.say(

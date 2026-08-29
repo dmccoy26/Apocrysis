@@ -323,6 +323,40 @@ def _objective_steps(p, m, k):
                 out.append(f"  [{_DIM}]☐ {label}[/]")
         return out
 
+    # --- time-pressure family (tidal_causeway): no fetch, no fix - a
+    # window. The one live number is turns-to-the-tide.
+    if _spec.get("deadline_turns"):
+        dl = getattr(m, "deadline", None)
+        recov = getattr(m, "tide_recovery", 0)
+        crossed = getattr(m, "crossed", False)
+        if crossed or m.escaped:
+            cross_hot = "type `escape` to leave"
+        elif recov > 0:
+            cross_hot = f"wait it out - about {recov} turns to the next low tide"
+        elif dl is not None:
+            cross_hot = f"cross now - the tide turns in about {dl} turns"
+        else:
+            cross_hot = f"get to {place('route', 'the shore')}{heading('route')} and read the tide"
+        steps.append((crossed or m.escaped, "crossed the causeway", cross_hot))
+        steps.append((m.escaped, f"escaped by {mech_name}"))
+        out = [f"[b]ESCAPE — {mech_name}[/b]"]
+        hyp = getattr(k, "hypothesis", None)
+        hstate = k.hypothesis_state() if hyp else "unknown"
+        if hyp and hstate in ("suspected", "confirmed"):
+            tag = "you think" if hstate == "suspected" else "you know"
+            out.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
+        hot = next((i for i, s in enumerate(steps) if not s[0]), None)
+        for i, s in enumerate(steps):
+            dn, label = s[0], s[1]
+            todo = s[2] if len(s) > 2 else label
+            if dn:
+                out.append(f"  [green]✓[/green] {label}")
+            elif i == hot:
+                out.append(f"  [yellow]▸[/yellow] [yellow]{todo}[/]")
+            else:
+                out.append(f"  [{_DIM}]☐ {label}[/]")
+        return out
+
     # 2b. infrastructural / informational: the dependency
     if m.power_role and ("F_POWER" in known):
         steps.append((True,
@@ -408,6 +442,14 @@ def _status_block(p):
         warns.append(f"{w.name} out of ammo" + (" — eq a blade" if spare else ""))
     elif 0 < getattr(w, "durability", 99) <= 5:
         warns.append(f"{w.name} nearly worn out ({w.durability})")
+    if m is not None:
+        _recov = getattr(m, "tide_recovery", 0)
+        _dl = getattr(m, "deadline", None)
+        if not getattr(m, "crossed", False) and not getattr(m, "escaped", False):
+            if _recov > 0:
+                warns.append(f"causeway flooded — ~{_recov} to low tide")
+            elif _dl is not None and _dl <= 10:
+                warns.append(f"the tide turns in ~{_dl}")
     if 0 < p.health <= p.max_health * 0.2:
         warns.append("critically hurt")
     if p.hunger <= 0:

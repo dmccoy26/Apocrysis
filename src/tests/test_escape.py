@@ -272,6 +272,63 @@ class TestEscapeGeneration(unittest.TestCase):
                          ["propeller", "can of avgas"])
         self.assertIn("require2", loaded.mystery.sites)
 
+    def test_tidal_causeway_arms_a_diegetic_deadline(self):
+        g = self._force_mechanism("tidal_causeway", seed=4)
+        m = g.mystery
+        self.assertEqual(m.family, "time_pressure")
+        self.assertEqual(m.reasoning, "triage")
+        # tide is out at the start - the causeway tile is passable and
+        # the clock is not armed yet
+        self.assertTrue(m.obstacle_open)
+        self.assertIsNone(m.deadline)
+        self.assertIsNone(m.requirement_item)
+        # learning F_ROUTE (at the shore station) arms the clock
+        g.current_position = m.sites["route"]
+        g.mystery_arrive(*m.sites["route"])
+        self.assertIn("F_ROUTE", m.knowledge.facts_known())
+        self.assertIsNotNone(m.deadline)
+        self.assertGreater(m.deadline, 0)
+
+    def test_tidal_causeway_soft_failure_floods_then_reopens(self):
+        g = self._force_mechanism("tidal_causeway", seed=1)
+        m = g.mystery
+        from src.escape import MECHANISMS
+        m.deadline = MECHANISMS["tidal_causeway"]["deadline_turns"]
+        for _ in range(m.deadline):
+            g._mystery_tide_tick()
+        # clock ran out: causeway floods (soft failure, not a loss)
+        self.assertFalse(m.obstacle_open)
+        self.assertGreater(m.tide_recovery, 0)
+        self.assertFalse(g.won)
+        for _ in range(m.tide_recovery):
+            g._mystery_tide_tick()
+        # next low tide: it reopens and the clock resets
+        self.assertTrue(m.obstacle_open)
+        self.assertEqual(m.tide_recovery, 0)
+        self.assertIsNotNone(m.deadline)
+
+    def test_tidal_causeway_crossing_beats_a_later_flood(self):
+        g = self._force_mechanism("tidal_causeway", seed=5)
+        m = g.mystery
+        g.current_position = m.escape_tile
+        g.mystery_arrive(*m.escape_tile)
+        self.assertTrue(m.crossed)
+        # a flood after crossing can't strand the player
+        m.obstacle_open = False
+        self.assertTrue(g._mystery_obstacle_ready())
+        g.mystery_try_escape()
+        self.assertTrue(g.won)
+
+    def test_tidal_causeway_round_trips_the_clock(self):
+        import os, tempfile
+        os.chdir(tempfile.mkdtemp())
+        g = self._force_mechanism("tidal_causeway", seed=8)
+        g.mystery.deadline = 9
+        g.mystery.tide_recovery = 0
+        g.save_game("tide.json")
+        loaded = Apocrysis.load_game("tide.json")
+        self.assertEqual(loaded.mystery.deadline, 9)
+
     def test_mystery_round_trips_through_save_load(self):
         import os
         import tempfile

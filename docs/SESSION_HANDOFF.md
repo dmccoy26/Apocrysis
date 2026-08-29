@@ -42,6 +42,25 @@ different-feeling escape stories from a small set of mechanisms* — not
   `airfield_plane` 92.6% solved. 154 tests + 40 subtests green.
   Committed.
 
+- [x] **Phase 3 — time-pressure (`tidal_causeway`).** Hand-written.
+  `docs/MECHANISM_TIME_PRESSURE.md` written. New `triage` word in
+  `REASONING_PATTERNS`. `Mystery.deadline` / `tide_recovery` / `crossed`
+  + save/load round-trip. `build_mystery`: route site nearest the gap,
+  obstacle **open at build** (tide is out), `require_ev`/`require_fact`
+  spec keys so an item-less mechanism doesn't say "you find the None
+  here". Mixin: `_mystery_arm_deadline` (fires when `F_ROUTE` lands —
+  diegetic), `_mystery_tide_tick` (per-turn from `move_and_search`
+  after decay: banners at 10/5/2, soft-fail flood at 0 → `tide_recovery`
+  countdown → reopen + reset), bump/escape/obstacle-ready all respect
+  `crossed`. TUI: time-pressure `_objective_steps` branch + a
+  `the tide turns in ~N` / `causeway flooded — ~N to low tide` WARNINGS
+  line. Bot: triages by skipping the tide-board site. Hand sim (15
+  seeds): focused player wins every time, dawdling floods then recovers,
+  save/load preserves the clock. Forced 100-game: 86% survived / 88%
+  solved / median 20, 12/12 deaths zombie combat, 2 timeouts (flooded-
+  tile path loop, rare). Unforced 300-game: 90% survival, 0 timeouts,
+  30/30 deaths zombie combat. 158 tests + 40 subtests green. Committed.
+
 Phases, in order:
 
 1. **Scenario library** (first-class, not filler). **DONE** — see above.

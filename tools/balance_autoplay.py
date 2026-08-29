@@ -56,6 +56,7 @@ from collections import Counter, defaultdict, deque
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.constants import CAMPAIGN_LENGTH, IMPASSABLE_TERRAIN, MINUTES_PER_DAY
+from src.escape import MECHANISMS
 from src.game import Apocrysis
 from src.items import RangedWeapon
 
@@ -595,6 +596,12 @@ class BotIO:
         roles = ["closed", "route", "require"]
         if "require2" in m.sites:
             roles.append("require2")
+        # time-pressure (tidal_causeway): the 'require' site is the tide
+        # board - optional evidence a focused player skips. The bot
+        # triages by skipping it: route -> escape, straight across.
+        if getattr(m, "deadline", None) is not None or \
+                MECHANISMS.get(m.mechanism, {}).get("deadline_turns"):
+            roles = ["closed", "route"]
         for role in roles:
             if role not in self._m_searched:
                 target = m.sites[role]

@@ -857,6 +857,10 @@ class WorldMixin:
         move_cost = 15 if (self.has_waders and dest_terrain in ('water', 'swamp')) else TERRAIN_MOVE_MINUTES.get(dest_terrain, 15)
         self._update_time(move_cost)
         self._apply_decay()
+        # v4 time-pressure family (tidal_causeway): advance the tide
+        # clock. No-op for every other mystery / no mystery.
+        if getattr(self, 'mystery', None) is not None:
+            self._mystery_tide_tick()
 
         # Fatigue increases with movement - but not in the slice,
         # where there's no combat for it to matter to and a pegged

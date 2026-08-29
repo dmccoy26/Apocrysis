@@ -1,12 +1,12 @@
 # Session handoff — Apocrysis v4
 
-Last updated **2026-08-29** (late — end of the kid-playtest session,
-start of the overnight scenario-expansion build). **Read this first in
+Last updated **2026-08-29** (overnight build complete — all 5 phases
+shipped — then a long roadmap/direction session). **Read this first in
 a fresh session.**
 
 ---
 
-## >> DIRECTION (2026-08-30) — read these two first
+## >> DIRECTION (2026-08-29, session continued) — read these two first
 
 The project's direction has moved past "more mechanisms." Two new docs:
 
@@ -29,14 +29,20 @@ grammar).
 
 ---
 
-## >> START HERE — 2026-08-29 overnight build
+## Overnight build 2026-08-29 — DONE (all 5 phases, `NIGHT_BUILD_PLAN.md`)
 
-**The plan for tonight is `docs/NIGHT_BUILD_PLAN.md`** (mirrored from
-the rev-3 artifact). One-line version: *make Apocrysis produce many
-different-feeling escape stories from a small set of mechanisms* — not
-"add two more puzzle types."
+Autonomous build. Goal was *make Apocrysis produce many
+different-feeling escape stories from a small set of mechanisms.*
+**All 5 phases shipped and pushed** to `origin/version-4`. Working tree
+clean. **164 tests + 100 subtests** green (both runners). 10-mechanism
+bot run at the bottom. `git stash` mined + dropped. Atlas confirmed
+unusable for this repo (two more rejected proposals — see Phase 2).
 
-**Progress (overnight 2026-08-29, autonomous build):**
+The nightly commits: `f4f241e` (Phase 1) · `18ad92b` (Phase 2) ·
+`c8231f2` (Phase 3) · `05e736e` (Phase 4) · `748c40a` (Phase 5) ·
+`8c72330` (handoff + 10k numbers).
+
+**Progress:**
 - [x] **Phase 1 — scenario library.** `SCENARIO_SEEDS.md` brought to the
   full 16-field schema (~49 seeds; story signature / duplicate-of / kid
   rating added, signature census). `SCENARIO_EXPANSION.md` written (5
@@ -122,35 +128,21 @@ balance held** — every death is the survival layer, no new failure
 mode. `tools/balance_autoplay.py --force-mechanism <name>` pins one
 family; the per-mechanism table prints on any run.
 
-Phases, in order:
+**FROZEN (do not touch — held through all 5 phases, confirmed by the
+10k bot run):** combat numbers · hunger/thirst decay · encounter rate ·
+loot rate · map growth · a hard movement cap at 0/0. No fetch reskins.
+No assist mode.
 
-1. **Scenario library** (first-class, not filler). **DONE** — see above.
-2. **Transportation** — `airfield_plane`, two parallel `requirement_items`
-   (a checklist, vs infra's serial chain). Spec: `docs/MECHANISM_TRANSPORTATION.md`.
-3. **Time-pressure** — `tidal_causeway`, diegetic `deadline` from when
-   `F_ROUTE` lands, escalating tide banners, **soft failure** (route
-   reopens next low tide). Spec: write `docs/MECHANISM_TIME_PRESSURE.md`.
-4. **Directional-truth audit** — build-time assertion: any compass word
-   in generated evidence must match the vector to the site it names.
-5. **Variety rules B + C** *(if runway)* — recent-scenario history +
-   story-signature dedup, persisted like the family history.
-
-**Forks resolved:** two-item assembly · soft failure · leave
-`boat_crossing` alone.
-
-**FROZEN (do not touch):** combat numbers · hunger/thirst decay ·
-encounter rate · loot rate · map growth · a hard movement cap at 0/0.
-No fetch reskins. No engine rewrite. No assist mode.
-
-**`git stash@{0}`** — a rough first pass at the transportation code
-(`requirement_items` field + `validate` + `build_mystery` site
-placement). Predates the rev-3 design; `git stash show -p stash@{0}` to
-mine it or `git stash drop` and rebuild from the doc.
-
-**Atlas can't edit this repo** — failed the `airfield_plane` MECHANISMS
-entry tonight (hung, killed). Every code change this session and last
-was hand-written. Route only tiny `MECHANISMS` dict entries + library
-classification through Atlas; hand-write everything else.
+**Atlas can't edit this repo** — tried the `airfield_plane` MECHANISMS
+entry twice via `atlas request --file`; both proposals diffed against a
+stale index and would have reverted the `require2` work. Rejected both
++ one stale leftover `mystery_apply_fix` workflow. Every line this
+session was hand-written. Also: 5 todos filed into Atlas's own
+`atlas-self` workspace todo list to fix the failure modes
+(`0c03efc9` patch scope-containment · `430be5ca` confidence vs scope ·
+`2f67f707` stale-workflow detection · `90229f32` file disambiguation ·
+`2222271b` span-scoped generation). Roadmap-relevant Atlas capability:
+none for this repo — hand-write everything.
 
 ---
 
@@ -159,7 +151,7 @@ classification through Atlas; hand-write everything else.
 - **Working tree:** `projects/apocrysis/version-4/` (only v4 copy;
   `version-1..3/` are read-only clones).
 - **Branch:** `version-4`, pushed to `github.com/dmccoy26/Apocrysis`.
-  HEAD: `252db78` (or later).
+  HEAD: `babc7c3` (2026-08-29 end of session) or later.
 - **Run:** `python3 apocrysis.py` (TUI) · `--classic` · `--slice`
   (tutorial) · `--test` · `--log` (session transcript).
 - **Tests:** `python3 apocrysis.py --test` (unittest) **and**
@@ -185,14 +177,17 @@ taking the route — not by reaching a Town Center. Playable end to end,
 - **`src/knowledge.py`** — the four-object model (Fact / Evidence /
   Deduction / Hypothesis). States (Observed/Known/Suspected/Confirmed)
   are *derived* from discovered evidence; transitions automatic.
-- **`src/escape.py`** — `MECHANISMS` (7 escape mechanisms, each with a
-  story-family **classification**; see below), `choose_mechanism`
-  (shuffle-bag + no back-to-back family), `build_mystery(game)`
-  (assigns role sites to building tiles, carves one gap in the
-  mountain ring, builds + `validate()`s the proof). `Mystery` carries
-  `family/discovery/reasoning/resolution/confirmation`, plus
-  `power_role`/`power_restored` (infrastructural) and
-  `controls`/`correct_control` (experimental).
+- **`src/escape.py`** — `MECHANISMS` (**10** escape mechanisms, each
+  with a story-family **classification**; see below), `choose_mechanism`
+  (shuffle-bag + variety rules A/B/C: no back-to-back family, no recent
+  mechanism, no recent `story_signature`), `build_mystery(game)`
+  (assigns role sites, carves one gap in the mountain ring, builds +
+  `validate()`s the proof, runs `_assert_directional_truth`). `Mystery`
+  carries `family/discovery/reasoning/resolution/confirmation`, plus
+  `power_role`/`power_restored` (infrastructural),
+  `controls`/`correct_control` (experimental),
+  `requirement_items`/`assemble_desc` (transportation), and
+  `deadline`/`tide_recovery`/`crossed` (time-pressure).
 - **`src/mixins/mystery_mixin.py`** — the investigation loop.
   `mystery_arrive` auto-discovers all evidence at a site;
   `_mystery_obstacle_ready()` gates the obstacle (spatial: carry the
@@ -341,7 +336,7 @@ trip + backtrack, objective panel couldn't warn. `E_require_a` moved
 `location='obstacle'` → `location='route'`, so the route site
 (noticeboard / marina / tunnel mouth) now gives the whole briefing at
 once (route + obstacle + where the key/item/controls are), both places
-map-marked in the same beat. All 7 mechanisms.
+map-marked in the same beat. All mechanisms.
 
 ### Informational family — `radio_tower` (`ea1d52be`, DONE)
 
@@ -427,8 +422,8 @@ he dies a lot and has fun.
 
 **Still open:** (a) cosmetic: power site keeps its `!` after
 `power_restored`; (b) `m.escape_kind` for transportation/environmental
-(deferred — not in transportation v1); (c) tonight's build — see
-**>> START HERE** at the top.
+(deferred — roadmap Phase D); (c) the roadmap — see **DIRECTION** at
+the top.
 
 ## Design rules (settled — don't relitigate)
 
@@ -451,17 +446,26 @@ he dies a lot and has fun.
 ## Open todos
 
 The `atlas todo list` for this workspace is **stale** — a months-old
-design-doc paste, never reconciled; most items are done or garbage
-fragments. Ignore it; don't `atlas todo next`. Real open work:
+design-doc paste, never reconciled. Ignore it; don't `atlas todo next`.
+Real open work:
 
-- **Tonight:** `17f2a0ca` transportation · `5761c63f` time-pressure ·
-  `66dbacb5` scenario library (see **>> START HERE**).
-- Post-tonight machinery (seeded in `SCENARIO_SEEDS.md`, ranked): the
-  corroboration gate, region mutation, `escape_kind=vehicle`.
+- **THE BIG ONE:** `docs/APOCRYSIS_ROADMAP.md` — the world-investigation
+  spine. Not started. Blocked on a §10 decision pass (see DIRECTION at
+  the top). ~8 forks to lock: world truth A/B/C, game-vs-engine + the
+  `World` seam, campaign scope, causal-model depth for world 1,
+  region-stability window, what carries on death (`STORY_ENGINE §1D` is
+  the candidate answer), the ending shape, the vocabulary rename.
+- Cheap-to-reserve-now for the roadmap (fold into Phase A schema):
+  `WorldSecret`, evidence provenance + epistemic status, `faction`
+  tags, `deadline`-as-story-clock.
+- Post-roadmap machinery (still seeded in `SCENARIO_SEEDS.md`): the
+  corroboration gate (top pick — makes `Deduction` load-bearing),
+  region mutation, `escape_kind=vehicle`.
 - Minor/cosmetic: power-site `!` clears after `power_restored` ·
-  `9779d49f` NEW DISCOVERY banner · `c359b1bb` bigger map render.
-- **Not doing:** `6cffc528` / `e2850fa5` Tier-1 fetch reskins — cut.
-  `461878aa` campaign narrative — needs a design conversation first.
+  `9779d49f` NEW DISCOVERY banner · `c359b1bb` bigger map render ·
+  2 bot timeouts on flooded-causeway path loops (0.19% of 10k, benign).
+- **Cut:** `6cffc528` / `e2850fa5` Tier-1 fetch reskins. `461878aa`
+  campaign narrative — **subsumed by `APOCRYSIS_ROADMAP.md`.**
 
 ## Atlas — does not work here
 
@@ -472,13 +476,25 @@ dict". `escape.py` / `tui.py` / `mystery_mixin.py` / `ui_mixin.py` /
 self-rejects, or hangs on a big dict literal. **Every code change this
 session and last was hand-written.**
 
-Only attempt Atlas for: a tiny `MECHANISMS` dict entry, an isolated
-data addition, scenario-library classification. Route those through
-`atlas request → review → approve`, inspect the diff, reject a
-rewrite. Hand-write everything in `build_mystery`, the mixins, the TUI,
-save/load, turn hooks.
+**2026-08-29 update:** tried once more for the `airfield_plane`
+`MECHANISMS` entry — the smallest possible task — via `atlas request
+--file src/escape.py`. It produced a proposal, but the diff was built
+against a stale scan index and would have **silently reverted
+uncommitted hand-written work** (deleted new `E_require2_a/b` evidence,
+rolled back a loop), with every safety check green and confidence 1.0.
+Rejected. **Do not route anything through Atlas for this repo** —
+including "tiny" dict entries. Hand-write everything. (Fix todos filed
+into the `atlas-self` workspace — see the overnight section above.)
 
 ## Session history (for context; detail in git log + Claude memory)
+
+**2026-08-29** — overnight build: 5 phases (`f4f241e`..`748c40a`) taking
+the mechanism count 7 → 10 (transportation, time-pressure) + the
+directional-truth audit + variety rules B/C + the scenario library to
+full schema. Then a long direction session: `APOCRYSIS_ROADMAP.md`
+(world-investigation spine), `WORLD_TRUTH_CANDIDATES.md`, a big
+brainstorm expansion, split into roadmap (plan) + `APOCRYSIS_STORY_ENGINE.md`
+(vision). 5 Atlas-self-improvement todos filed. No Phase-A code yet.
 
 Playtest-driven, 2026-08-28, ~40 commits on `version-4`:
 `341ceca`..`325ed26` (playlog crashes, map declutter, growth,
@@ -495,10 +511,18 @@ PLAYER_UNDERSTANDING, typed banners) → `ce54c4a`..`d5a517b`
 
 ## Design docs
 
-**Read for tonight:** `NIGHT_BUILD_PLAN.md` (the plan) ·
-`SCENARIO_SEEDS.md` (~45-seed library, first draft) ·
-`SCENARIO_EXPANSION.md` (levels-of-randomness / variety-rules
-direction) · `MECHANISM_TRANSPORTATION.md` (airfield_plane spec).
+**Direction (read first):** `APOCRYSIS_ROADMAP.md` (the buildable
+plan — world-investigation spine, Phases A–E, §10 open decisions) ·
+`APOCRYSIS_STORY_ENGINE.md` (the far-horizon brainstorm — Story Ledger,
+death model, Trace principle, eight primitives) ·
+`WORLD_TRUTH_CANDIDATES.md` (world 1 truth — 3 candidates A/B/C,
+spoiler-gated).
+
+**Overnight-build inputs (done, feed the roadmap):**
+`NIGHT_BUILD_PLAN.md` (superseded) · `SCENARIO_SEEDS.md` (~49-seed
+library, full 16-field schema) · `SCENARIO_EXPANSION.md` (5 levels of
+randomness / variety rules / validation) · `MECHANISM_TRANSPORTATION.md`
+· `MECHANISM_TIME_PRESSURE.md`.
 
 **Standing:** `ESCAPE_STORY_SCHEMA.md` (families, patterns, invariants
 incl. **3d mystery-to-exit continuity** and **no vocab leak**) ·

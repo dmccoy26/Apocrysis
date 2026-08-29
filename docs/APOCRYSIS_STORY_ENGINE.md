@@ -1,6 +1,6 @@
 # Apocrysis story engine — the far-horizon design space
 
-Written 2026-08-29. Split out of `APOCRYSIS_ROADMAP.md` on 2026-08-30
+Written 2026-08-29. Split out of `APOCRYSIS_ROADMAP.md`
 once the brainstorm outgrew the plan. **This document is allowed to be
 ambitious. The roadmap is not.** Keeping the two apart stops an
 interesting future idea from masquerading as a near-term requirement.

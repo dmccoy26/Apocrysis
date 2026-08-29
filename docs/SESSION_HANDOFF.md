@@ -122,11 +122,32 @@ even with the next step fully determined.
   (`▸ get the jerrycan of fuel to the hydro station`, `▸ try the
   controls one at a time - pull each`) not a past-tense achievement.
 
-**Still open:** (a) re-run B and C blind to confirm the fixes land;
-(b) run **A (spatial)** — never tested yet; (c) cosmetic: the power
-site keeps its `!` after `power_restored` (`_mystery_site_mark`,
-should clear). Balance stays FROZEN — the deaths were confusion, not
-tuning.
+### Playtest round 2 (2026-08-28) — fixes confirmed
+
+- **C `dam_valves`:** player read the revisit recap, typed `pull
+  intake`, opened the way. **First experimental solve.** Died later to
+  a zombie on the walk out (survival layer, frozen) — investigation
+  bar PASSED.
+- **B `power_station`:** **WON** (turn 60). Recap sent them for the
+  jerrycan; walking back onto the hydro tile auto-restored power. But
+  they didn't believe it worked — ~20 turns typing `fill generator` /
+  `use fuel` / `pull gate` / `inspect panel`, and `t` still
+  dead-ended (power on but route not yet found). Marginal pass.
+
+Two more fixes for the B friction (pushed, 145+40 green):
+- `6e18632` — `t` 4th case: power restored + route unknown → "the
+  gate has power now, you still have to find where the route comes
+  through."
+- `55a6a65` — explicit `use`/`fill`/`refuel`/`pour`/`apply` verb at
+  the power site (`mystery_apply_fix`): applies the fix like
+  auto-on-arrival, or points forward if already done.
+
+**Still open:** (a) run **A (`mountain_pass`, spatial)** — never
+tested, the control case; (b) optional re-run of B to confirm the two
+new fixes smooth it; (c) cosmetic: power site keeps its `!` after
+`power_restored` (`_mystery_site_mark`, should clear); (d) papercuts:
+`equip <n>` fails from the command line (only works inside `i`);
+empty-Enter → "Unknown command: ''". Balance stays FROZEN.
 
 ## Design rules (settled — don't relitigate)
 

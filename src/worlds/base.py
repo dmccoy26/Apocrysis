@@ -25,3 +25,6 @@ class World:
     encounters: dict = field(default_factory=dict)
     # { world_fact_id: (DiscoveryTemplate, ...) } - >=1 route per fact
     discovery_templates: dict = field(default_factory=dict)
+    # the authored WorldFact DAG (worlds/<w>/truth.py). WorldInvestigation
+    # reads this; the facts themselves know nothing about gameplay.
+    world_facts: tuple = ()

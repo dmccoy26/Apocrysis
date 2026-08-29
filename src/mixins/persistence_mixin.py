@@ -423,6 +423,9 @@ class PersistenceMixin:
             "last_family": getattr(self.__class__, "_last_family", None),
             "recent_mechanisms": list(getattr(self.__class__, "_recent_mechanisms", []) or []),
             "recent_signatures": list(getattr(self.__class__, "_recent_signatures", []) or []),
+            # A.3: World Investigation status carries across death / new
+            # expedition (map + gear do not).
+            "world_investigation": dict(getattr(self.__class__, "_world_investigation", {}) or {}),
         }
 
         with open(filename, 'w') as f:
@@ -523,6 +526,11 @@ class PersistenceMixin:
             self.__class__._recent_mechanisms = list(profile["recent_mechanisms"])
         if profile.get("recent_signatures") is not None:
             self.__class__._recent_signatures = list(profile["recent_signatures"])
+        _wi = profile.get("world_investigation")
+        if _wi is not None:
+            self.__class__._world_investigation = dict(_wi)
+            if getattr(self, "world_investigation", None) is not None:
+                self.world_investigation.restore({"status": dict(_wi)})
         self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
         self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time
         self.level = profile.get("level", self.level)

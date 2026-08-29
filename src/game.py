@@ -20,6 +20,7 @@ from src.mixins.world_mixin import WorldMixin
 from src.mixins.knowledge_mixin import KnowledgeMixin
 from src.mixins.mystery_mixin import MysteryMixin
 from src.knowledge import Knowledge
+from src.world_investigation import WorldInvestigation
 
 
 class Apocrysis(
@@ -42,6 +43,10 @@ class Apocrysis(
     # expeditions don't just alternate two scenarios or repeat a shape.
     _recent_mechanisms = []
     _recent_signatures = []
+    # A.3: World Investigation status that carries across expeditions /
+    # deaths, same class-var + profile round-trip pattern as the lists
+    # above. { world_fact_id: "known" | "suspected" }.
+    _world_investigation = {}
 
     # v4: the fresh-start ration every game begins with, so a game
     # doesn't open in a food/water deficit. load_game() and
@@ -59,6 +64,11 @@ class Apocrysis(
         # self.io.ask_yes_no() instead of bare print()/input().
         self.io = io if io is not None else ConsoleIO()
         self.world = world if world is not None else SILENCE
+
+        # A.3: the campaign's World Investigation, seeded from the
+        # class-var (which apply_profile restores from the profile).
+        self.world_investigation = WorldInvestigation(self.world.world_facts)
+        self.world_investigation.restore({"status": dict(type(self)._world_investigation)})
 
         # v3 SPRINT: no player_class param - every new game starts as
         # the easiest tier's representative class (initialize_player()

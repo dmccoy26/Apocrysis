@@ -634,6 +634,13 @@ class MysteryMixin:
                 else "You make your way back to the pass and start walking.")
             self._update_time(90)
         m.escaped = True
+        # A.3: a resolved mystery explicitly tagged with a WorldFact
+        # marks that fact KNOWN. Deliberately simple - one isolated
+        # transition, so evidence/provenance logic can replace it later
+        # without touching anything else. See PHASE_A3_INVESTIGATION.md.
+        if getattr(m, 'world_fact_id', None) and getattr(self, 'world_investigation', None):
+            self.world_investigation.mark_known(m.world_fact_id)
+            self.__class__._world_investigation = self.world_investigation.snapshot()['status']
         used = getattr(self.__class__, '_used_mechanisms', None)
         if used is None:
             used = self.__class__._used_mechanisms = []

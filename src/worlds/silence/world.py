@@ -8,6 +8,7 @@ here imports from the engine - a World is data the engine reads.
 """
 from src.worlds.base import World
 from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
+from src.worlds.silence.truth import WORLD_FACTS
 
 
 # Tile vocabulary -------------------------------------------------------
@@ -67,4 +68,5 @@ SILENCE = World(
         "leave_verb": "leave the valley",
     },
     discovery_templates=DISCOVERY_TEMPLATES,
+    world_facts=WORLD_FACTS,
 )

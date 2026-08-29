@@ -224,34 +224,36 @@ the rest of the world doesn't give that geometry meaning.
    `## Contamination: mechanism variety`). Three `mountain_pass` runs
    in a row contaminated the geography read.
 
-## Pre-C.3.2 investigation — the navigational-signal inventory
+## Pre-C.3.2 investigation — the navigational-signal inventory (DONE)
 
-Before any generator work, answer one architectural question:
+**`docs/NAV_SIGNAL_INVENTORY.md`** — 26 signals inventoried and
+classified `observable → interpretable → actionable`. Owner review
+pending.
 
-> **What information does Apocrysis currently give the player that can
-> legitimately function as a navigational lead?**
+Headline findings:
 
-Inventory every existing signal — terrain, terrain transitions,
-buildings, settlements ("rooftops in the distance"), the escape
-mechanisms, investigation facts (`F_*`), world prose, map visibility /
-the found survey map, landmarks, the radio mechanism, compass bearings
-on leads, the objective panel — and classify each on:
+- **Terrain is inert for navigation.** 7 types, none directional. No
+  roads. The only linear features are barriers.
+- **The map has no orientation aids** (no coords / compass / scale —
+  removed 2026-08-28) **and no markers until a fact is already known.**
+- **The strongest actionable signal — the found survey map — is a
+  random loot drop.**
+- **Every mystery lead is gated behind already knowing the fact**, and
+  you learn the fact by physically stepping on the site tile. No
+  see-it-at-a-distance beat (except the rare BLUE_SIGNS lore).
+- **The one heading the generator hands out** (spawn→gap bearing,
+  "toward the north-east edge") **is never validated against
+  traversability** — Invariant 2 failing by construction, predating v2.
+- **Navigational flavour text exists and is thrown away** (boot-prints-
+  lead-north etc. land in the journal as inert trivia).
 
-```
-observable  →  interpretable  →  actionable
-```
-
-- **observable** — the player can perceive it exists
-- **interpretable** — the player can tell what kind of thing it is
-- **actionable** — it gives the player a direction to move *now*
-
-The likely finding: the generator may not be the primary problem. The
-game may already carry plenty of raw information and simply fail to
-turn it into direction. That makes the C.3.2 spec much sharper — it may
-be a surfacing/prose change, not a generation change.
-
-Deliverable: a short doc (`docs/NAV_SIGNAL_INVENTORY.md` or similar),
-owner-reviewed, feeding the C.3.2 spec.
+**Conclusion: the generator is not the primary problem.** The game
+already computes live bearings, has a marker system, and generates
+directional clue text — it just gates all of it behind knowing the
+fact, never validates a heading, and leaves ambient nav text inert.
+So C.3.2 is **mostly a surfacing + validation experiment with a small
+generator guarantee**, not a generation rewrite (see the doc's
+"What this means for C.3.2" for the ordered candidate pieces).
 
 ## C.3.2 — navigational affordances (SPEC PENDING, after the investigation)
 

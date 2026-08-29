@@ -49,23 +49,32 @@ doc map below it.**
   worldgen/* never import the engine; balance FROZEN.
 - **Atlas**: 9 of ~69 files across A+B+C, all leaf files. 13 `atlas-self`
   capability todos; `atlas scan` crash fixed (`zork`).
-- **Next step is NOT the C.3.2 spec.** First: **the navigational-signal
-  inventory** — a small design investigation. Question: *what
-  information does Apocrysis currently give the player that can
-  legitimately function as a navigational lead?* Inventory every signal
-  (terrain, settlements, prose, map, facts, radio, bearings, objective
-  panel…) and classify each `observable → interpretable → actionable`.
-  Likely finding: the generator may not be the primary problem — the
-  game may already carry the information and fail to turn it into
-  direction. Deliverable: a short doc feeding the C.3.2 spec. See
-  `PHASE_C3_SPEC.md` § "Pre-C.3.2 investigation".
-- **Then C.3.2 — navigational affordances** (spec after the inventory).
-  Three testable story-agnostic invariants already recorded in
+- **Navigational-signal inventory — DONE.** `docs/NAV_SIGNAL_INVENTORY.md`
+  (26 signals, classified `observable → interpretable → actionable`;
+  owner review pending). **Conclusion: the generator is not the primary
+  problem.** The game already computes live bearings, has a map-marker
+  system, and generates directional clue text — but gates all of it
+  behind already knowing the fact, never validates a communicated
+  heading against geography, and leaves ambient nav text inert.
+  Terrain is completely inert for navigation (no roads, no directional
+  types). The strongest actionable signal (found survey map) is a
+  random loot drop.
+- **C.3.2 — navigational affordances** is therefore **mostly a
+  surfacing + validation experiment with a small generator guarantee**,
+  not a generation rewrite. Ordered candidate pieces in the inventory
+  doc's "What this means for C.3.2": (1) give landmarks a bearing +
+  make `look` re-report them; (2) validate the spawn→gap bearing
+  against `MapGraph` at gen; (3) wire the nav clues to a soft map hint;
+  (4) only then a generator early-lead guarantee. Recommendation:
+  scope C.3.2 around 1–3 on **v1**, then re-test the v2 mask *after*.
+- Three testable story-agnostic invariants recorded in
   `PHASE_C3_SPEC.md` § C.3.2: (1) lead before obstacle, (2) leads must
   survive geography, (3) navigation must stay actionable. Plus the
   distinction **a lead ≠ information** (`F_OBSTACLE` is information;
   "route lies north-east" is a lead). Prohibited: guaranteeing a
   settlement distance / a story location near spawn.
+- **Next: author the C.3.2 spec** against the inventory's findings →
+  owner review → implement.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug
@@ -87,10 +96,13 @@ doc map below it.**
    rollback point. **Frozen.**
 4. `PHASE_C3_SPEC.md` — the irregular-valley experiment + **the
    feel-test verdict**: v2 geography REJECTED-AS-DESIGNED, C.3
-   architecture kept, the "irregularity ≠ navigation" finding, and the
-   **C.3.2 — navigational affordances** premise (spec pending). Also
-   the C.3.1 no-mystery guarantee (`42efb63`) and the mechanism-variety
-   contamination note.
+   architecture kept, the "irregularity ≠ navigation" finding, the
+   **C.3.2 — navigational affordances** invariants, and the C.3.1
+   no-mystery guarantee (`42efb63`) + mechanism-variety contamination
+   note.
+4a. `NAV_SIGNAL_INVENTORY.md` — 26 player-facing signals classified
+   `observable → interpretable → actionable`. Feeds C.3.2. Conclusion:
+   surfacing + validation problem, not a generator problem.
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the old fully-inverted-pipeline vision
    — **superseded** by C.3.2's navigational-affordance framing.

@@ -6,6 +6,29 @@ a fresh session.**
 
 ---
 
+## >> DIRECTION (2026-08-30) — read these two first
+
+The project's direction has moved past "more mechanisms." Two new docs:
+
+- **`docs/APOCRYSIS_ROADMAP.md`** — the buildable plan. Apocrysis gets
+  a *world-investigation spine*: one authored question ("what happened
+  to the region?") that every procedural expedition answers a piece of.
+  Phased A–E. **Phase A question: the smallest version of the story
+  engine that makes "The Silence" feel like a story.** Open decisions
+  in §10 — nothing is being built yet; the world truth isn't picked
+  (`docs/WORLD_TRUTH_CANDIDATES.md`, three candidates, A/B/C).
+- **`docs/APOCRYSIS_STORY_ENGINE.md`** — the far-horizon brainstorm
+  (Story Ledger, death model, the "Trace" causal-model principle, the
+  eight story-engine primitives). Ambitious on purpose; kept separate
+  so it can't masquerade as a near-term requirement. World 1's causal
+  history is **frozen and hand-authored** — no runtime simulation.
+
+The overnight scenario/mechanism work below is done and feeds the
+roadmap (`SCENARIO_SEEDS.md` / `SCENARIO_EXPANSION.md` = the discovery
+grammar).
+
+---
+
 ## >> START HERE — 2026-08-29 overnight build
 
 **The plan for tonight is `docs/NIGHT_BUILD_PLAN.md`** (mirrored from

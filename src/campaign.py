@@ -27,8 +27,12 @@ _CHAPTERS = [
 ]
 
 
-def chapter_intro(expeditions_completed):
-    i = max(0, min(expeditions_completed, len(_CHAPTERS) - 1))
+def chapter_intro(expeditions_completed, milestones_known=0):
+    exp_i = max(0, min(expeditions_completed, len(_CHAPTERS) - 1))
+    if milestones_known > 0:
+        i = min(len(_CHAPTERS) - 1, max(exp_i, milestones_known))
+    else:
+        i = exp_i
     n = expeditions_completed + 1
     return f"-- Expedition {n} of {CAMPAIGN_LENGTH} --\n{_CHAPTERS[i]}"
 

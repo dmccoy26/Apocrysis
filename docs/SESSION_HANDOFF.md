@@ -31,10 +31,23 @@ a fresh session.**
 - **Structure**: `docs/STRUCTURE_ASSESSMENT.md` (code-level read) — no
   wholesale restructure. Three seams, each inside the phase that opens
   it: `worlds/` (A.0), `MechanismFamily` (A.2), `worldgen/` split (C.0).
-- **Next**: Phase A step 0 — the `World` seam. `worlds/silence/` takes
-  the encounter table + tile vocab + prose voice + (later) the
-  `WorldFact` DAG; `Game` takes a `World`. Hand-written, letting Atlas
-  attempt each piece first for the log.
+- **Phase A.0 CORE DONE** (`docs/PHASE_A0_SEAM.md` steps 2/3/5/6/7/8;
+  commits `bbaa922`→`2f21386`). `src/worlds/base.py` (frozen data-only
+  `World`), `src/worlds/silence/world.py` (`SILENCE`, owns
+  `TERRAIN_SYMBOLS`/`TERRAIN_LEGEND`/`MAP_ARCHETYPES`), `constants.py`
+  is a re-export shim, `Game(world=None)` defaults to `SILENCE`, engine
+  renders off `self.world`. `test_worlds.py` `DUMMY`-world test proves
+  the seam is real (engine renders supplied values, no engine change).
+  **178 + 100 green.**
+- **Deferred**: A.0.1 = encounter roster extraction
+  (`_select_zombie_for_encounter`, balance-sensitive). Later phase: the
+  `cli.py` classic-mode intro narrative → `world` prose.
+- **Atlas**: 3/~9 A.0 files by Atlas (incl. `game.py` param, first-try —
+  new capability). Large-file / multi-file edits still fail. 4 gaps
+  filed in `atlas-self` (`dbc93715`/`f7ee975b`/`c4b89284`/`1ba1bf47`).
+- **Next**: PAUSED for owner review of the step-5 engine diff. Then
+  Phase A.1 — `WorldFact` DAG (`worlds/silence/truth.py`, The Cordon,
+  CH1+CH2) beside the knowledge model.
 
 ---
 

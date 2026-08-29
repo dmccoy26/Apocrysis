@@ -53,6 +53,11 @@ class Apocrysis(
     # B.1b: how many survivors this campaign has lost (drives the next
     # survivor's name). Campaign-level.
     _survivors_lost = 0
+    # C.3: which map generator to use. "v1" is the frozen rectangular
+    # pipeline; "v2" is the irregular-valley experiment. Default stays
+    # "v1" until C.3 is accepted. A constructor arg overrides this;
+    # tools/geo_compare.py flips the class default for its bot runs.
+    _default_mapgen = "v1"
 
     # v4: the fresh-start ration every game begins with, so a game
     # doesn't open in a food/water deficit. load_game() and
@@ -62,7 +67,7 @@ class Apocrysis(
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, world=None):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, world=None, mapgen=None):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
@@ -97,6 +102,7 @@ class Apocrysis(
         self.name = name
         self.hardcore = hardcore
         self.expeditions_completed = expeditions_completed
+        self._mapgen = mapgen or type(self)._default_mapgen
         self.rng = random.Random(seed)
 
         # v4 Phase B: the player knowledge model (src/knowledge.py).

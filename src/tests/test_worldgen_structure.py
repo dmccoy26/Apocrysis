@@ -8,6 +8,7 @@ import ast
 import json
 import os
 import pathlib
+import statistics
 import unittest
 
 from src.game import Apocrysis
@@ -134,6 +135,60 @@ class TestReachabilitySweep(unittest.TestCase):
                 self.assertTrue(
                     is_reachable(grid, n, g.current_position, g.mystery.escape_tile),
                     f"seed {seed}: escape tile unreachable")
+
+
+class TestMapGeneratorV2(unittest.TestCase):
+    """C.3 experiment: the irregular-valley generator. v1 is unchanged
+    (the golden test covers that); v2 must still be seed-deterministic,
+    single-region, and keep every mystery site + exit reachable."""
+
+    def _v2(self, seed, exp):
+        return Apocrysis("V2", seed=seed, io=_IO(),
+                         expeditions_completed=exp, mapgen="v2")
+
+    def test_v1_is_the_default(self):
+        self.assertEqual(Apocrysis("D", seed=1, io=_IO())._mapgen, "v1")
+
+    def test_v2_is_seed_deterministic(self):
+        for seed in (7, 88, 250):
+            a = self._v2(seed, 6)
+            b = self._v2(seed, 6)
+            self.assertEqual(
+                [[_terrain(c) for c in r] for r in a.map],
+                [[_terrain(c) for c in r] for r in b.map])
+            self.assertEqual(a.current_position, b.current_position)
+
+    def test_v2_reachability_sweep(self):
+        from src.worldgen.reachable import is_reachable
+        for seed in range(150):
+            exp = (0, 3, 6, 9, 12)[seed % 5]
+            g = self._v2(seed, exp)
+            n = g.map_size
+            grid = [[c if isinstance(c, dict) else {"terrain": "plain"}
+                     for c in row] for row in g.map]
+            if g.mystery is None:
+                continue
+            for role, xy in g.mystery.sites.items():
+                self.assertTrue(is_reachable(grid, n, g.current_position, xy),
+                                f"v2 seed {seed}: site {role} unreachable")
+            self.assertTrue(
+                is_reachable(grid, n, g.current_position, g.mystery.escape_tile),
+                f"v2 seed {seed}: escape tile unreachable")
+
+    def test_v2_valley_is_meaningfully_smaller_than_v1(self):
+        # the intentional change: v2 is an irregular valley, not a box.
+        def playable_pct(g):
+            n = g.map_size
+            interior = (n - 2) ** 2
+            p = sum(1 for y in range(1, n - 1) for x in range(1, n - 1)
+                    if isinstance(g.map[y][x], dict)
+                    and g.map[y][x].get("terrain") not in ("mountain", "river"))
+            return 100 * p / interior
+        v1 = statistics.mean(playable_pct(Apocrysis("A", seed=s, io=_IO(),
+                             expeditions_completed=6)) for s in range(30))
+        v2 = statistics.mean(playable_pct(self._v2(s, 6)) for s in range(30))
+        self.assertGreater(v1, 80)
+        self.assertLess(v2, 78)
 
 
 class TestMapGraph(unittest.TestCase):

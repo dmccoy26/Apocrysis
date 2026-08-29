@@ -94,7 +94,7 @@ class WorldMixin:
         # mystery, guarantees reachability, and places zombies. RNG
         # order is unchanged from pre-C.1.
         from src.worldgen import MapGenerator
-        gen = MapGenerator(self)
+        gen = MapGenerator(self, variant=getattr(self, '_mapgen', 'v1'))
         town_center = gen.generate()
 
         # v4 Phase C: build this expedition's escape mystery onto the

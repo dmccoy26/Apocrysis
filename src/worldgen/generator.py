@@ -21,8 +21,9 @@ _ZONE_TYPES = ('rural', 'suburban', 'industrial', 'downtown', 'wilderness')
 
 
 class MapGenerator:
-    def __init__(self, game):
+    def __init__(self, game, variant="v1"):
         self.g = game
+        self.variant = variant
 
     # ---- zones / terrain -------------------------------------------
 
@@ -192,6 +193,121 @@ class MapGenerator:
             )
 
 
+    # ---- v2: irregular valley mask (C.3 experiment) -------------
+
+    def _grow_valley_mask(self):
+        """C.3 v2: instead of a rectangular playable field, seed-and-grow
+        one irregular connected valley region across the interior and
+        mountain-fill the rest. The 34x34 array storage is unchanged;
+        the *shape* is not a box any more. Deterministic on g.rng.
+
+        Preserves: one connected region, a boundary of mountain,
+        terrain vocabulary. Intentionally changes: the map's outline
+        and internal shape (peninsulas, basins, lobes).
+        """
+        g = self.g
+        n = g.map_size
+        rng = g.rng
+        interior = [(x, y) for y in range(1, n - 1) for x in range(1, n - 1)]
+        if len(interior) < 16:
+            return  # too small to carve a shape - leave it a box
+
+        # target ~55-75% of the interior stays valley, with an absolute
+        # floor so the region always holds a full mystery (>=3 sites +
+        # a trek). Below the floor v2 would spit out degenerate
+        # reach-the-town maps far more often than v1.
+        target = max(
+            int(len(interior) * rng.uniform(0.55, 0.75)),
+            min(len(interior) - 20, 300),
+        )
+
+        # 1-3 growth seeds so a valley can be single-lobed or two-lobed
+        seeds = rng.randint(1, 3)
+        frontier = []
+        valley = set()
+        for _ in range(seeds):
+            sx = rng.randint(n // 4, 3 * n // 4)
+            sy = rng.randint(n // 4, 3 * n // 4)
+            if (sx, sy) not in valley:
+                valley.add((sx, sy))
+                frontier.append((sx, sy))
+
+        # random-frontier flood: pick a random frontier cell, add a
+        # random passable neighbour. Gives blobby, organic outlines.
+        while frontier and len(valley) < target:
+            i = rng.randrange(len(frontier))
+            x, y = frontier[i]
+            nbrs = [(x + dx, y + dy) for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0))
+                    if 1 <= x + dx < n - 1 and 1 <= y + dy < n - 1
+                    and (x + dx, y + dy) not in valley]
+            if not nbrs:
+                frontier.pop(i)
+                continue
+            nb = rng.choice(nbrs)
+            valley.add(nb)
+            frontier.append(nb)
+
+        # keep only the LARGEST connected component of the grown region
+        # so the valley is always ONE place - no isolated pockets the
+        # player can see but never reach. (Multi-seed growth can leave
+        # lobes that never joined up.)
+        remaining = set(valley)
+        best = set()
+        while remaining:
+            root = next(iter(remaining))
+            comp = {root}
+            stack = [root]
+            while stack:
+                cx, cy = stack.pop()
+                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    nb = (cx + dx, cy + dy)
+                    if nb in remaining and nb not in comp:
+                        comp.add(nb)
+                        stack.append(nb)
+            remaining -= comp
+            if len(comp) > len(best):
+                best = comp
+        valley = best
+
+        # everything interior not in the (single, connected) valley
+        # becomes mountain.
+        for (x, y) in interior:
+            if (x, y) not in valley:
+                cell = g.map[y][x]
+                if isinstance(cell, dict):
+                    cell['terrain'] = 'mountain'
+                    cell['content'] = '-'
+
+        # final pass: obstacle rivers/mountains from the per-tile
+        # overlay can still split the valley. Keep the largest
+        # PASSABLE component and mountain-fill any other passable
+        # islands, so the realised map is one connected place.
+        def _pass(x, y):
+            c = g.map[y][x]
+            return isinstance(c, dict) and c.get('terrain') not in ('mountain', 'river')
+
+        passable = {(x, y) for (x, y) in interior if _pass(x, y)}
+        seen_all = set()
+        biggest = set()
+        for cell0 in passable:
+            if cell0 in seen_all:
+                continue
+            comp = {cell0}
+            stack = [cell0]
+            while stack:
+                cx, cy = stack.pop()
+                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    nb = (cx + dx, cy + dy)
+                    if nb in passable and nb not in comp:
+                        comp.add(nb)
+                        stack.append(nb)
+            seen_all |= comp
+            if len(comp) > len(biggest):
+                biggest = comp
+        for (x, y) in passable - biggest:
+            g.map[y][x]['terrain'] = 'mountain'
+            g.map[y][x]['content'] = '-'
+
     # ---- the base-map pipeline ----------------------------------
 
     def generate(self):
@@ -267,6 +383,11 @@ class MapGenerator:
         ]
 
         self.force_boundary_ring()
+
+        # C.3 v2: carve the box into an irregular valley before anything
+        # is placed on it. v1 skips this entirely (frozen).
+        if self.variant == "v2":
+            self._grow_valley_mask()
 
         spawn = self._pick_random_walkable_tile()
         g.current_position = spawn

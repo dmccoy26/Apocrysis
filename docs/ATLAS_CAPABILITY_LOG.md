@@ -292,11 +292,14 @@ Atlas-sized piece and it couldn't stand alone.
 |---|---|---|---|
 | 48 | `src/nav.py` — `bearing()` + `heading_is_honest()`, ~72 lines, pure, no imports; + `test_nav.py` (11 tests) | not routed | **HAND** — ~72 lines is just over the reliable line, and `heading_is_honest` is real branching logic (axis-set contradiction test) not a data literal or a dataclass; the paired test file is procedural. A borderline call — could have been *attempted* — but the index-staleness risk plus the logic density made hand-writing the safer path for a load-bearing helper. |
 | 49 | C.3.2 piece 0: `tui.py` `_objective_steps` — make the route heading graph-honest (~15-line change: extract `_route_heading`, delegate `heading()` to it, 2 module imports) | `atlas request --file src/tui.py` | **REJECTED-UNPARSEABLE** (3 attempts, no parseable patch) — the whole-file-load ceiling, exactly as predicted (`tui.py` ~980 lines). Note it did *not* hit `exceed_context_size_error` this time (post scan-fix), it just produced nothing parseable 3×. Filed `atlas-self` `9ecc7f2b`. Hand-written + `test_route_heading.py` (5 tests). |
+| 50 | C.3.2 piece 2: `src/mixins/knowledge_mixin.py` (191 lines) — add `_look_recall_bearing` method (given verbatim in the request) + one call line at the end of `knowledge_look` | `atlas request --file src/mixins/knowledge_mixin.py` | **SHIPPED+FIXUP** ✓ — proposal in ~2 min, all 7 safety checks green, `atlas approve` → VERIFIED (pytest ×3). Diff was the requested method verbatim + the call, correctly placed at the end of `knowledge_look`. FIXUP: Atlas parked the new method between the `# ---- inspect` header and `knowledge_inspect` (60 lines from its call site); moved it to sit after `knowledge_look`, dropped a trailing-whitespace line. **First real Apocrysis win since Phase A** — a semantic method in a large-ish mixin, not a leaf file. What made it work: a **small file (191 lines)**, the method body **supplied verbatim**, and a single unambiguous call site. |
 
-Net C.3.2 so far: **0 of 2.** The recurring wall: every non-trivial
-Apocrysis file that matters (`tui.py`, `escape.py`, `world_mixin.py`,
-`game.py`, `ui_mixin.py`, `mystery_mixin.py`) is past the size where
-Atlas can load it to edit, and the edits that land are cross-file.
+Net C.3.2 so far: **1 of 3.** The one that landed: small file + verbatim
+body + one call site. The recurring wall still stands — `tui.py`,
+`escape.py`, `world_mixin.py`, `game.py`, `ui_mixin.py`,
+`mystery_mixin.py` are all past the size where Atlas can load them to
+edit. Pattern confirmed: Atlas is usable here **only** when the target
+file is small *and* the change is spelled out to near-verbatim.
 
 ## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~70 files touched
 

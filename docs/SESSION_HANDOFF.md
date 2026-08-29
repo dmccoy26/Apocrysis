@@ -134,8 +134,29 @@ doc map below it.**
   Invariant-2/falsehood). Piece 0 is a correct cheap guard; **the real
   weight is on piece 2 (`look`/persistence) and C.3.2a-5 (site
   clustering / early-lead recoverability).**
-- **Next:** owner reviews the piece-0 result + the measured finding,
-  then piece 1 (landmark bearings) → piece 2 (`look`).
+- **Sequence re-weighted (owner):** piece 0 killed a hypothesis cleanly
+  (claim is truthful, player still can't act on it). New order —
+  piece 0 ✅ → **piece 2 ✅** → **v1 feel-test** → piece 1 (landmarks)
+  if needed → piece 4 (clues) if needed → 2nd feel-test → then decide
+  C.3.2a-5 → piece 3 → v2.
+- **BUILT piece 2 — `look` recovers the route direction (Invariant 5),
+  commit `5cd5da6`.** `knowledge_look` ends with `_look_recall_bearing()`:
+  "You get your bearings. The way out lies to the north-west." —
+  `nav.honest_bearing` from the player's *current* position, so a
+  wanderer types `look` from anywhere and gets a fresh correct heading
+  with zero discovery. Non-informational from turn 1; informational
+  silent until F_ROUTE; silent on the site. Verified live (spawn "(east)"
+  → far corner → `look` "(north-west)").
+  **Atlas SHIPPED it** (`atlas request --file
+  src/mixins/knowledge_mixin.py`, `6ec6269a`, VERIFIED pytest ×3) —
+  first real Apocrysis win since Phase A (small file + verbatim body +
+  one call site). Fixup: method placement. `test_look_recall.py`.
+  277 + 100 green.
+- **`src/nav.py` gained `honest_bearing`** (shared core; `tui._route_heading`
+  is now a thin wrapper). `nav.py` imports `src.worldgen.reachable`.
+- **Next: owner v1 feel-test.** Play `python3 apocrysis.py` (v1),
+  wander, use `look`, see if navigation is now recoverable. Pieces
+  1/4/C.3.2a-5 are all gated on it.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug

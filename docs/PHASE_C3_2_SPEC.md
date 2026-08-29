@@ -351,31 +351,56 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 > 0–2) make it *recoverable*, then see if that's enough before touching
 > generation.
 
-1. `bearing()` + `heading_is_honest()` in `src/nav.py` + unit tests.
-2. C.3.2a piece 0 (validate the ESCAPE-panel route heading) — smallest,
-   and it's the signal expedition 2 showed failing on v2.
-3. C.3.2a piece 1 (landmark bearings).
-4. C.3.2a piece 2 (`look` reframe — reinforces the panel heading).
-5. C.3.2a piece 3 (evidence spawn→gap bearing validation) +
-   golden-fixture update.
-6. Both suites green, commit, tag `v5-phase-c3-2a`.
-7. **Owner feel-test on v1** — does navigation feel supported? Does the
-   player reach a mystery site? (Expedition 2 didn't in 99 turns.)
-8. Piece 4 (ambient clue hints) and/or C.3.2a-5 (early-lead guarantee
-   / stop site-clustering) only if 7 says the early window still
-   starves.
-9. Variety fix (one of the three options).
-10. C.3.2b — owner feel-test on v2. Fill the 2×2. Verdict.
+1. ~~`bearing()` + `heading_is_honest()` in `src/nav.py` + tests.~~ ✅ `2c1cc4d`
+2. ~~C.3.2a piece 0 (graph-honest ESCAPE-panel route heading).~~ ✅ `3fe0485`
+3. ~~C.3.2a piece 2 (`look` recovers the route direction, Invariant 5).~~ ✅ `5cd5da6`
+   *(order swapped with piece 1 after piece 0's finding — `look` is the
+   real fix, landmarks are reinforcement.)*
+4. **→ Owner feel-test on v1.** Does `look` turn the 99-turn death
+   march into recoverable navigation? Does the player reach a mystery
+   site?
+5. C.3.2a piece 1 (landmark bearings) — only if 4 says orientation is
+   still too weak.
+6. C.3.2a piece 4 (ambient clue → soft directional hint) — only if
+   still needed after piece 1.
+7. Second v1 feel-test.
+8. C.3.2a-5 (early-lead reachability / stop site-clustering) — decided
+   only if 7 shows the player still can't *encounter* anything useful
+   despite being able to *recover* the heading.
+9. C.3.2a piece 3 (evidence spawn→gap bearing validation) +
+   golden-fixture update. Tag `v5-phase-c3-2a`.
+10. Variety fix (one of the three options).
+11. C.3.2b — owner feel-test on v2. Fill the 2×2. Verdict.
 
-## As built — steps 1 + 2 (2026-08-29)
+## As built — steps 1–3 (2026-08-29)
 
-**Step 1 — `src/nav.py`** (`bearing`, `heading_is_honest`), commit
-`2c1cc4d`, 11 tests. `heading_is_honest` refined during piece 0 from
-the spec's "shares an axis / contradicts none" to a pure **contradiction
-test** with `window=8` — the reason is in the helper section above
-(subset tests punish BFS L-shapes).
+### Revised sequence (owner, after piece 0's measured finding)
 
-**Step 2 — piece 0**, commit `<this>`.
+Piece 0 killed a hypothesis cleanly — *the navigation claim is mostly
+truthful; the player still can't act on it.* So the order changed:
+
+```
+piece 0 (guardrail) → piece 2 (look persistence) → v1 feel-test
+  → piece 1 (landmarks) if needed → piece 4 (clue reinforcement) if needed
+  → v1 feel-test again → only then decide C.3.2a-5 → revisit v2
+```
+
+**Executable success criterion (Invariant 5):** *a player who ignores a
+navigation lead must be able to recover it without discovering anything
+new.*
+
+### Step 1 — `src/nav.py`
+
+`bearing`, `heading_is_honest`, and (added for piece 2) `honest_bearing`
+— commits `2c1cc4d` / `2d30950`, 16 tests. `heading_is_honest` refined
+during piece 0 from the spec's "shares an axis" to a pure
+**contradiction test** (`window=8`) — subset tests punish BFS L-shapes
+(reason in the helper section above). `honest_bearing(here, dest, grid,
+n)` is the shared graph-honest-heading core: straight-line claim vs the
+real `shortest_path`, substitute on a genuine reversal. `nav.py` now
+imports `src.worldgen.reachable` (pure, not engine).
+
+### Step 2 — piece 0, commits `3fe0485` / `2d30950`
 - `tui._route_heading(here, dest, grid, n)` — new module-level, pure,
   unit-tested (`test_route_heading.py`, 5 tests). `_objective_steps`'s
   `heading()` delegates to it; the old nested `_compass` is gone.
@@ -406,6 +431,33 @@ Invariant-4 hole for the rare pathological case, but it is **not** the
 fix for what the two expeditions showed. The weight is on **piece 2
 (`look` / persistence)** and **C.3.2a-5 (site clustering / early-lead
 recoverability)**.
+
+### Step 3 — piece 2 (`look` recovers the route direction), commit `5cd5da6`
+
+`knowledge_look` ends with `_look_recall_bearing()`:
+
+> `You get your bearings. The way out lies to the north-west.`
+
+- non-informational: from turn 1 (matches the panel's unconditional
+  route step); informational: silent until `F_ROUTE`; names the
+  mechanism once `F_ROUTE` is known; silent on/adjacent to the site.
+- The recall bearing is `nav.honest_bearing` from the player's
+  *current* position — so a player who wandered to the far corner
+  types `look` and gets a fresh, correct heading, no discovery needed.
+  Verified live: spawn panel "(east)" → wander to the SE corner →
+  `look` → "(north-west)".
+- **Atlas: SHIPPED+FIXUP** (`atlas request --file
+  src/mixins/knowledge_mixin.py`, workflow `6ec6269a`, VERIFIED
+  pytest ×3). First real Apocrysis win since Phase A — small file
+  (191 ln) + method body supplied verbatim + one call site. Fixup:
+  method placement. Log entry #50.
+- `test_look_recall.py` — Invariant 5 executable: wander to the
+  farthest reachable tile, assert `look` gives a direction matching
+  `honest_bearing` with `facts_known` unchanged. 277 + 100 green.
+
+**Next: the v1 feel-test** (revised sequence) — does `look` turn the
+99-turn death march into recoverable navigation? Pieces 1 / 4 / C.3.2a-5
+are gated on it.
 
 ## Acceptance
 

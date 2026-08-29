@@ -93,6 +93,11 @@ problem, the banners or objective phrasing aren't working yet.
 Balance is **FROZEN** (Atlas decision recorded) — do NOT tune combat
 or resources off the bot. This playtest replaces another sweep.
 
+**Harness ready:** `python3 tools/playtest_three.py shuffle` runs one
+blind mystery; do it 3×. `A`/`B`/`C` force spatial/infrastructural/
+experimental. Answer sheet + facilitator key:
+`docs/PLAYTEST_three_mystery_ANSWERS.md`.
+
 ## Design rules (settled — don't relitigate)
 
 1. **Four panels answer four questions:** Map=WHERE · Journal=WHAT I

@@ -223,6 +223,21 @@ spawn->exit run, gap at ~65th-percentile distance. Bot: survival held
 ~85% / 100% combat deaths, **median expedition 43 -> 27 turns**. The
 radio_tower -3pt is erased. Combat/resources still FROZEN.
 
+### New-player legibility (kid playtests, 2026-08-28 night)
+
+Son (age ~kid) played 3 radio_tower runs. All 3: understood/solved the
+mystery, died anyway. Fixes:
+- `5778432` — "YOU CAN LEAVE NOW" banner + objective hot line the moment
+  `escape` works from anywhere (he solved it, walked to the marker,
+  died one tile short).
+- `4012664` — compass headings: objective `▸ go to the ranger depot
+  (west)` and lead banners "it's (west of you), marked on your map"
+  ("marked on your map" alone means nothing to a kid).
+- `d572268` — nudges: `⚠ GETTING HUNGRY / type eat` when low + have
+  supplies (re-arms >45); `(your Kitchen Knife barely scratches them -
+  search buildings for a heavier weapon)` once/expedition when stuck
+  with a <10-dmg weapon and nothing better. UI only, bot unaffected.
+
 **Still open:** (a) cosmetic: power site keeps its `!` after
 `power_restored`; (b) `m.escape_kind` for transportation/environmental;
 (c) Tier-2: `17f2a0ca` transportation, `5761c63f` time-pressure.

@@ -85,6 +85,20 @@ different-feeling escape stories from a small set of mechanisms* — not
   survival, 0 timeouts, 100% combat deaths, and a visibly more even
   mechanism spread. Committed.
 
+**10,000-game bot run (`--games 10000 --seed 1`), all 10 mechanisms:**
+87.0% won (8704), 1277 died (**1277/1277 zombie combat**), 19 timeout
+(0.19% — flooded-causeway path loop + normal bot dead-ends, pre-existing
+class). Per-mechanism survived / solved / median turns: radio_tower
+86.6 / 95.9 / 28 · tidal_causeway 88.0 / 88.7 / 21 · evac_corridor
+89.8 / 90.5 / 26 · dam_valves 89.2 / 90.1 / 26 · power_station 86.5 /
+86.8 / 29 · boat_crossing 87.7 / 88.7 / 29 · airfield_plane 81.8 /
+82.7 / 40 (longest — two-store detour) · service_route 87.1 / 87.5 /
+29 · rail_tunnel 86.0 / 87.5 / 26 · mountain_pass 87.1 / 87.6 / 25.
+Even mechanism spread (886–1119 each) from variety rules B+C. **Frozen
+balance held** — every death is the survival layer, no new failure
+mode. `tools/balance_autoplay.py --force-mechanism <name>` pins one
+family; the per-mechanism table prints on any run.
+
 Phases, in order:
 
 1. **Scenario library** (first-class, not filler). **DONE** — see above.

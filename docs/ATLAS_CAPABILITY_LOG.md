@@ -34,9 +34,9 @@ that baseline.
 
 ## Scoreboard
 
-| attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
+| attempts | Atlas shipped | Claude hand-wrote (after fail or not routed) | Atlas-only (no rework) |
 |---|---|---|---|
-| 18 | 4 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`) | ~15 (rename ×2, `world.py`, seam bundle, constants shim, `world_mixin`, `ui_mixin`+`tui`, `test_world_truth`, `discovery.py`, `base.py` v2, `escape.py`, `test_discovery`) | 4 |
+| 20 | 5 (`base.py` v1, `worlds/__init__.py`, `game.py` param, `truth.py`, `world_investigation.py`) | ~19 | 5 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -146,6 +146,37 @@ Atlas can type out *structured data* it's given; it can't yet author
 Net A.2: **0 of 5 files by Atlas** — the one it could have done
 (`discovery.py`, structured data) it botched on the import. The rest
 are large-file or procedural, both known walls.
+
+## Phase A.3 (2026-08-29) — World Investigation state
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 19 | create `src/world_investigation.py` — a **full class**, ~58 lines, self-contained (no `src` imports), with procedural methods (`eligible`/`thread_progress`/`milestones_known` = list comprehensions with conditions) | `atlas request --file … --create --force` | `c5f9c529` | **SHIPPED verbatim** ✓ | **The most procedural file Atlas has produced correctly here.** Bigger and more logic-heavy than `test_world_truth.py` (#14, rejected). Distinguishing factor: one coherent class of short methods, given verbatim, vs a test module of 9 independent methods + a DFS. Auto-committed `96c9580`. |
+| 20–24 | `worlds/base.py` field, `worlds/silence/world.py` import+arg, `game.py` class-var + ctor lines, `mystery_mixin.py` (664 ln) 2-line hook, `persistence_mixin.py` (555 ln) round-trip | **not routed** | — | **HAND** | `base`+`world` are the cross-module-import shape (#8, #15 both failed); `mystery_mixin`/`persistence_mixin` are past the ~800-line-ish edit wall (#12, #17). Routing them would only re-confirm known gaps and cost ~15 min. Hooks are 2–6 precise lines each. |
+| 25 | `test_world_investigation.py` — 10 tests, tempfile profile round-trip, resolution-hook driving | not routed | — | **HAND** | procedural, past #14's line boundary |
+
+Net A.3: **1 of 7 files by Atlas** — but it's the substantive one
+(`WorldInvestigation` itself). The wiring is small and hand-written.
+
+## Running tally (A.0 + A.1 + A.2 + A.3)
+
+**Atlas shipped, no rework — 5 files:** `worlds/base.py` (v1),
+`worlds/__init__.py`, `game.py` (world param), `worlds/silence/truth.py`,
+`src/world_investigation.py`.
+
+The pattern is now clear and stable:
+
+| Atlas CAN | Atlas CANNOT |
+|---|---|
+| a self-contained new file — dataclass, constant table, or a whole class of short methods, up to ~60 lines, **given verbatim** | a new file that must `import` a project symbol and use it (stubs it locally — 3 repros) |
+| a small, precise, unambiguous edit to a ≤~350-line file (`game.py` param) | any edit to a ~550+ line file (rejected or non-convergent) |
+| | any multi-file bundle |
+| | procedural logic (a test module) past ~45–50 lines |
+| | a module-level constant rename |
+
+All of Phase A's **architecture and wiring** has been Claude's. Atlas
+has been a competent typist for the isolated, fully-specified leaf
+files.
 
 ## Running tally after A.0 + A.1 + A.2
 

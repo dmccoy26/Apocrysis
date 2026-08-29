@@ -45,23 +45,37 @@ class MysteryMixin:
 
     # ---- arrival (from world_mixin.move_and_search) ----------
 
-    def _mystery_hyp_flare(self, before_state):
-        """Emphasise a hypothesis state change (unknown -> suspected ->
-        confirmed) instead of letting it slide past in the scenery.
-        Call with the state captured BEFORE an evidence-revealing action."""
+    def _mystery_progress_flare(self, hyp_before, facts_before):
+        """Banner the investigation beats so they don't slide past in
+        the scenery (playtest: "the game didn't tell me my problem had
+        changed"). Call with the hypothesis state AND facts_known set
+        captured BEFORE an evidence-revealing action.
+          NEW LEAD       - learned where the route / the requirement is;
+                           that place is now marked on the map
+          OBJECTIVE ...  - the hypothesis moved (suspected / confirmed)
+        """
         m = self._mystery()
         if m is None:
             return
-        now = m.knowledge.hypothesis_state()
-        if now == before_state or m.knowledge.hypothesis is None:
-            return
-        if now == 'suspected':
-            self.announce_event("A new idea about the way out.",
-                                m.knowledge.hypothesis.statement)
-        elif now == 'confirmed':
-            self.announce_event("Escape route confirmed.",
-                                m.knowledge.hypothesis.statement,
-                                "Get to it and type `escape`.")
+        k = m.knowledge
+        new_facts = k.facts_known() - set(facts_before)
+        if 'F_ROUTE' in new_facts and m.site_labels.get('route'):
+            self.announce_event(f"the route is at {m.site_labels['route']}",
+                                "It's marked on your map now.", kind="lead")
+        if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
+            self.announce_event(
+                f"the {m.requirement_item} is kept at {m.site_labels['require']}",
+                "It's marked on your map now.", kind="lead")
+
+        now = k.hypothesis_state()
+        if now != hyp_before and k.hypothesis is not None:
+            if now == 'suspected':
+                self.announce_event("a new idea about the way out",
+                                    k.hypothesis.statement, kind="objective")
+            elif now == 'confirmed':
+                self.announce_event("escape route confirmed",
+                                    k.hypothesis.statement,
+                                    "Get to it and type `escape`.", kind="objective")
 
     def mystery_arrive(self, x, y):
         m = self._mystery()
@@ -71,11 +85,12 @@ class MysteryMixin:
         if role is None:
             return
         _hyp_before = m.knowledge.hypothesis_state()
+        _facts_before = set(m.knowledge.facts_known())
 
         if role == 'escape':
             if m.obstacle_open and not m.escaped:
                 self._mystery_reveal('E_confirm')
-                self._mystery_hyp_flare(_hyp_before)
+                self._mystery_progress_flare(_hyp_before, _facts_before)
                 if m.knowledge.hypothesis_state() == 'confirmed':
                     self.io.say("(Type `escape` to leave.)")
             return
@@ -103,23 +118,25 @@ class MysteryMixin:
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
             self.announce_event(
-                f"You have the {m.requirement_item}.",
-                "This is what gets you past the blocked route. Head back to it.",
+                f"you have the {m.requirement_item}",
+                "This is what gets you past the blocked route - head back to it.",
+                kind="objective",
             )
-        self._mystery_hyp_flare(_hyp_before)
+        self._mystery_progress_flare(_hyp_before, _facts_before)
 
     def mystery_bump_obstacle(self):
         m = self._mystery()
         if m is None:
             return
         _hyp_before = m.knowledge.hypothesis_state()
+        _facts_before = set(m.knowledge.facts_known())
         m.saw_obstacle = True
         revealed = False
         for eid in m._site_evidence.get('obstacle', []):
             revealed = self._mystery_reveal(eid) or revealed
         if not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
-        self._mystery_hyp_flare(_hyp_before)
+        self._mystery_progress_flare(_hyp_before, _facts_before)
 
     # ---- commands ------------------------------------------
 
@@ -138,6 +155,7 @@ class MysteryMixin:
             return
 
         _hyp_before = m.knowledge.hypothesis_state()
+        _facts_before = set(m.knowledge.facts_known())
         any_new = False
         for eid in m._site_evidence.get(role, []):
             if self._mystery_reveal(eid):
@@ -145,12 +163,13 @@ class MysteryMixin:
         if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
             self.backpack.add_item(Item(m.requirement_item))
             self.announce_event(
-                f"You have the {m.requirement_item}.",
-                "This is what gets you past the blocked route. Head back to it.",
+                f"you have the {m.requirement_item}",
+                "This is what gets you past the blocked route - head back to it.",
+                kind="objective",
             )
         elif not any_new:
             self.io.say("You've already been over this place. Check `journal` for what you found.")
-        self._mystery_hyp_flare(_hyp_before)
+        self._mystery_progress_flare(_hyp_before, _facts_before)
 
     def mystery_clear_obstacle(self):
         m = self._mystery()
@@ -176,7 +195,8 @@ class MysteryMixin:
             game_cell['obstacle'] = False
         _how = (f"You come back with the {m.requirement_item}. It works."
                 if m.saw_obstacle else f"The {m.requirement_item} does it.")
-        self.announce_event("The way is open.", _how, "The route ahead is clear - keep going.")
+        self.announce_event("the way is open", _how,
+                            "The route ahead is clear - keep going.", kind="objective")
 
     def mystery_try_escape(self):
         m = self._mystery()

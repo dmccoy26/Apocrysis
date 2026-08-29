@@ -672,11 +672,20 @@ class UIMixin:
         until the eye tunes it out (playtest: "damn it, I had the
         key?"), so the things that actually CHANGE have to look
         different. The durable copy lives in the journal / objective
-        panel afterward; this is just the flare. kind="warn" for bad
-        news (red), "info" (cyan) otherwise.
+        panel afterward; this is just the flare. kind: "warn" bad news
+        (red), "lead"/"discovery"/"objective" investigation beats
+        (cyan, labelled), "info" otherwise.
         """
-        glyph, color = ("[!]", f"{BOLD}{RED}") if kind == "warn" else ("*", f"{BOLD}{CYAN}")
-        rows = [f"{glyph} {title.upper()}"] + [str(b) for b in body_lines]
+        _labels = {"lead": "NEW LEAD", "discovery": "NEW DISCOVERY",
+                   "objective": "OBJECTIVE UPDATED"}
+        if kind == "warn":
+            glyph, color, prefix, head = "[!]", f"{BOLD}{RED}", "", title.upper()
+        elif kind in _labels:
+            # the label carries the emphasis; leave the title as prose
+            glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", f"{_labels[kind]} — ", title
+        else:
+            glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", "", title.upper()
+        rows = [f"{glyph} {prefix}{head}"] + [str(b) for b in body_lines]
         rule = "═" * max(30, min(56, max(len(r) for r in rows) + 2))
         body = "\n".join(rows)
         self.io.say(f"\n{color}{rule}\n{body}\n{rule}{RESET}")

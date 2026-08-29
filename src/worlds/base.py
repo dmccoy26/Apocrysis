@@ -40,3 +40,5 @@ class World:
     # the authored WorldFact DAG (worlds/<w>/truth.py). WorldInvestigation
     # reads this; the facts themselves know nothing about gameplay.
     world_facts: tuple = ()
+    # SurvivorLore this world can teach (worlds/<w>/lore.py). B.2.
+    survivor_lore: tuple = ()

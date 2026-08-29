@@ -173,5 +173,53 @@ class TestDeathTransition(_Base):
         self.assertTrue(wrapped.startswith(_SURVIVOR_POOL[0]) and "(2)" in wrapped)
 
 
+class TestSurvivorLoreData(unittest.TestCase):
+    def test_shipped_lore_is_well_formed(self):
+        from src.worlds.silence import SILENCE
+        from src.worlds.silence.lore import SURVIVOR_LORE_BY_ID
+        ids = [lo.id for lo in SILENCE.survivor_lore]
+        self.assertEqual(sorted(ids),
+                         ["BLUE_SIGNS", "COMMAND_FREQUENCY", "RESERVOIR_CONTROLS"])
+        self.assertLessEqual(len(SILENCE.survivor_lore), 5)   # hard cap
+        for lo in SILENCE.survivor_lore:
+            self.assertTrue(lo.blurb and lo.effect and lo.learned_when)
+            self.assertIs(SURVIVOR_LORE_BY_ID[lo.id], lo)
+
+    def test_effect_is_never_read_by_the_engine(self):
+        # invariant 3: grep the engine for `.effect` on a lore object.
+        # A weak proxy, but it catches an accidental `lore.effect ==`.
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[1]
+        for path in list((root / "mixins").glob("*.py")) + [
+            root / "game.py", root / "escape.py",
+            root / "world_investigation.py", root / "survivor_knowledge.py",
+        ]:
+            text = path.read_text()
+            self.assertNotIn(".effect", text,
+                             f"{path.name} reads a lore .effect - it's doc text only")
+
+
+class TestSurvivorKnowledgePersistence(_Base):
+    def test_learned_lore_survives_a_death(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("Founder", seed=1, io=_IO())
+        self.assertTrue(g.survivor_knowledge.learn("BLUE_SIGNS"))
+        Apocrysis._survivor_knowledge = g.survivor_knowledge.snapshot()
+        g.expeditions_completed = 3
+
+        Apocrysis._survivors_lost = 1
+        heir = Apocrysis.persist_new_survivor(self._pf, "Ada", hardcore=False, depth=3)
+        self.assertTrue(heir.survivor_knowledge.has("BLUE_SIGNS"))
+
+        # and through a full profile round-trip
+        prof = Apocrysis.load_profile(self._pf)
+        self.assertIn("BLUE_SIGNS", _profile_flat(prof)["survivor_knowledge"])
+
+    def test_learn_is_idempotent(self):
+        k = Apocrysis("K", seed=1, io=_IO()).survivor_knowledge
+        self.assertTrue(k.learn("BLUE_SIGNS"))
+        self.assertFalse(k.learn("BLUE_SIGNS"))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -21,6 +21,7 @@ from src.mixins.knowledge_mixin import KnowledgeMixin
 from src.mixins.mystery_mixin import MysteryMixin
 from src.knowledge import Knowledge
 from src.world_investigation import WorldInvestigation
+from src.survivor_knowledge import SurvivorKnowledge
 
 
 class Apocrysis(
@@ -74,6 +75,9 @@ class Apocrysis(
         # class-var (which apply_profile restores from the profile).
         self.world_investigation = WorldInvestigation(self.world.world_facts)
         self.world_investigation.restore({"status": dict(type(self)._world_investigation)})
+        # B.2: the campaign's Survivor Knowledge, seeded from the
+        # class-var (apply_profile restores that from the profile).
+        self.survivor_knowledge = SurvivorKnowledge(type(self)._survivor_knowledge)
 
         # v3 SPRINT: no player_class param - every new game starts as
         # the easiest tier's representative class (initialize_player()

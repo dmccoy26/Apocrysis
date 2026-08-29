@@ -179,6 +179,49 @@ Net A.4: **1 of ~11 files by Atlas** (`campaign.py`). But it's a real
 data point — small, self-contained *edits* to files under ~350 lines
 now work reliably (2 for 2).
 
+## Phase A.5 (2026-08-29) — coherence pass
+
+**Nothing routed to Atlas.** Every A.5 change was to `ui_mixin.py`
+(870 ln), `mystery_mixin.py` (690), `tui.py` (920), or a mid-function
+6-line edit to `cli.py` — all past or at the edit wall, none a
+self-contained new file. The `campaign.py`-style opportunity did not
+recur. All hand-written. This is itself a data point: **a
+presentation/coherence pass on an existing codebase gives Atlas (at
+this capability level) essentially no surface** — the work is
+distributed small edits across large files, which is exactly what it
+can't do.
+
+## Phase A end state — Atlas final tally
+
+**6 files shipped by Atlas** over A.0–A.5 (~40 files touched total):
+
+| file | kind |
+|---|---|
+| `src/worlds/base.py` (v1) | new, self-contained dataclass |
+| `src/worlds/__init__.py` | new, one-line |
+| `src/worlds/silence/truth.py` | new, self-contained, 9 constructor calls |
+| `src/world_investigation.py` | new, self-contained, a class of 11 short methods |
+| `src/game.py` (world param) | small precise edit, 340-line file |
+| `src/campaign.py` (milestones) | small precise edit, 55-line file |
+
+**Everything else — the seam wiring, every large-file edit, every
+multi-file change, every cross-import module, every test file, the
+rename — was Claude's. Every architectural decision was Claude's.**
+
+The capability gained since v4 (`0-for-5`) is real: Atlas can now be a
+reliable typist for a fully-specified, self-contained leaf file or a
+small unambiguous edit to a small file. It is not yet a participant in
+architecture or in changes that span the existing codebase.
+
+## 9 `atlas-self` capability todos filed this session
+
+`dbc93715` (multi-file + import-construct + procedural-length) ·
+`f7ee975b` (data-block edit non-convergence) · `c4b89284` (large-file
+edit) · `1ba1bf47` (constant rename) · `89efb2fc` (new-file length
+boundary) · `434396fb` (import-stub, 3 repros) · `9fd6b2b0` (positive:
+class-of-methods > test-module) · `e25bed2b` (positive: small-file edit
+sizing) · plus the scan-crash fix already committed (`e749bcd`).
+
 ## Running tally (A.0 + A.1 + A.2 + A.3)
 
 **Atlas shipped, no rework — 5 files:** `worlds/base.py` (v1),

@@ -55,17 +55,45 @@ Same shape as the others, plus:
 - classification keys (table above)
 - `"power_item"` reuses `"item"` (a jerrycan of fuel) — no new item type
 
+### The knowledge chain (DECIDED: `F_POWER` is its own fact)
+
+```
+OBSERVATION   the tunnel gate is electrically dead        (F_OBSTACLE)
+     ↓
+POWER FACT    the gate is powered by the hydro station    (F_POWER)   <-- new
+     ↓
+REQUIREMENT   the generator needs fuel                     (F_REQUIRE)
+     ↓
+ACTION        bring fuel to the hydro station
+     ↓
+CONFIRMATION  the generator runs; the gate has power
+```
+
+Stuffing this into F_OBSTACLE/F_REQUIRE would hide the thing the
+player is actually learning — a *dependency*. `F_POWER` gives the UI
+a real `★ NEW LEAD` ("the gate is powered by the hydro station - it's
+on your map") and a real `★ NEW DISCOVERY` at the hydro station ("the
+generator is dry").
+
 ### `build_mystery` (src/escape.py)
-After the existing 4-role assignment, if `'power' in spec['roles']`:
-- pick a 5th distinct building site → `m.sites['power']`, label it,
-  `m.power_role = 'power'`
-- F_REQUIRE's prose changes to point at the generator, not the gate
-- add evidence: `E_power_a` at `obstacle` ("the gate is electric and
-  dead - it's fed from the hydro station"), `E_power_b` at `power`
-  ("the generator's dry"). Both support a new `F_POWER` fact OR fold
-  into F_OBSTACLE/F_REQUIRE — decide during impl; F_POWER is cleaner.
-- reachability: `m.sites['power']` joins the protected/`_ensure_reachable`
-  set.
+After the existing 4-role assignment, if `spec.get('power_role')`:
+- pick a 5th distinct building site → `m.sites['power']`, label it
+  ("the hydro station"), `m.power_role = 'power'`
+- add fact `F_POWER` ("The gate's power comes from {power label}.")
+- F_REQUIRE prose points at the generator, not the gate
+- evidence (each load-bearing fact keeps >=2 routes):
+  - `E_power_a` at `obstacle`: "the gate is electric and the panel's
+    dead - it's fed from the hydro station downriver" -> F_OBSTACLE, F_POWER
+  - `E_power_b` at `power`: "a cable run leaves here toward the ridge
+    tunnel" -> F_POWER
+  - `E_require_a`/`E_require_b` (reuse) now at `power`: "the generator's
+    dry" / "you find the fuel here" is at the REQUIRE site (yard); the
+    generator-needs-fuel evidence is at `power`
+- `Deduction` for the hypothesis: needs F_CLOSED, F_ROUTE, F_OBSTACLE
+  (unchanged) - F_POWER is not required to *suspect* the route, only
+  to act on it
+- reachability: `m.sites['power']` joins `_ensure_reachable` +
+  the zombie-free protected path set
 
 ### `mystery_mixin`
 - `mystery_arrive`: `if role == m.power_role and self._mystery_has_item()
@@ -83,6 +111,21 @@ After the existing 4-role assignment, if `'power' in spec['roles']`:
 - `_mystery_site_mark`: mark `m.sites['power']` once `F_POWER` known.
 - `_action_bar`: "restore power (at the generator)" when at the power
   site with the item.
+
+### The failed action teaches the dependency
+
+If the player brings the fuel to the **tunnel gate** (the obstacle):
+
+```
+You have fuel.
+The tunnel gate is electrically operated. There is nowhere to use
+the fuel here.
+```
+
+Not "you can't do that" — a hint that the fuel belongs somewhere
+else. `mystery_bump_obstacle` / `mystery_clear_obstacle`: when the
+mechanism has a `power_role`, `has_item` but `not power_restored`,
+say this instead of the generic blocked message.
 
 ## Validation
 

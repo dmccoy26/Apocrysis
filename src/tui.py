@@ -419,11 +419,34 @@ def _objective_steps(p, m, k):
     return out
 
 
+def _investigation_strip(p):
+    """A.5.1: a compact, always-visible read of the World Investigation -
+    milestone count + per-thread progress. Thread titles only, never
+    ids. Empty when the world carries no facts (bare test worlds)."""
+    wi = getattr(p, "world_investigation", None)
+    if wi is None or not wi.all_facts():
+        return []
+    titles = p.world.prose.get("thread_titles", {})
+    ms = len(wi.milestones_known())
+    out = [f"[b]THE APOCRYSIS[/b]   [yellow]◆ {ms}[/yellow]"]
+    for thread, (known, total) in wi.thread_progress().items():
+        title = titles.get(thread, (thread.upper(), ""))[0]
+        n = 4
+        filled = 0 if not total else round(n * known / total)
+        bar = "█" * filled + "░" * (n - filled)
+        out.append(f"  {title}   {bar}  {known}/{total}")
+    return out
+
+
 def _status_block(p):
-    """The bottom-right STATUS box: the OBJECTIVES checklist (external
-    memory of the investigation, generated from the mystery) plus any
-    active warnings (the standing version of the ⚠ events)."""
+    """The bottom-right STATUS box: a compact World Investigation strip
+    (A.5.1), the OBJECTIVES checklist (external memory of the current
+    mystery), plus any active warnings."""
     lines = []
+
+    strip = _investigation_strip(p)
+    if strip:
+        lines += strip + [""]
 
     k = getattr(p, "knowledge", None)
     m = getattr(p, "mystery", None)
@@ -653,6 +676,11 @@ class ApocrysisApp(App):
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
         self._last_load_was_profile = profile is not None
         if profile is not None:
+            # A.5: seed the World Investigation class-var before
+            # construction (generate_map targets next_target() in
+            # __init__, before apply_profile).
+            Apocrysis._world_investigation = dict(
+                profile.get("world_investigation", {}) or {})
             player = Apocrysis(
                 profile.get("name", self._name or "Survivor"),
                 level=profile.get("level", 1),

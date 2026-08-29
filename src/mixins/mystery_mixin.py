@@ -638,19 +638,25 @@ class MysteryMixin:
         # marks that fact KNOWN. Deliberately simple - one isolated
         # transition, so evidence/provenance logic can replace it later
         # without touching anything else. See PHASE_A3_INVESTIGATION.md.
+        _milestone_line = None
         if getattr(m, 'world_fact_id', None) and getattr(self, 'world_investigation', None):
             _wi = self.world_investigation
             _fid = m.world_fact_id
             _was_known = _wi.is_known(_fid)
             _wi.mark_known(_fid)
             self.__class__._world_investigation = _wi.snapshot()['status']
-            # A.4.4: milestone banner - fires exactly once, on the
-            # not-KNOWN -> KNOWN transition of a milestone=True fact.
-            # Distinct from the ordinary NEW DISCOVERY announcements.
             if not _was_known:
+                # A.5.2: what this expedition changed, for the retrospective
+                _learned = list(getattr(self, '_expedition_learned', []))
+                _learned.append(_fid)
+                self._expedition_learned = _learned
+                # A.4.4: milestone banner - fires exactly once, on the
+                # not-KNOWN -> KNOWN transition of a milestone=True fact.
+                # Announced AFTER the "found the way out" texture below
+                # (A.5.3), so the beats read solved -> texture -> milestone.
                 _fact = _wi.fact(_fid)
                 if _fact is not None and _fact.milestone:
-                    self.announce_event(_fact.statement, kind="milestone")
+                    _milestone_line = _fact.statement
         used = getattr(self.__class__, '_used_mechanisms', None)
         if used is None:
             used = self.__class__._used_mechanisms = []
@@ -668,6 +674,10 @@ class MysteryMixin:
         _rs.append(story_signature(m.mechanism))
         self.__class__._recent_signatures = _rs[-2:]
         _stmt = m.knowledge.hypothesis.statement.rstrip('.')
+        # A.5.3: the signpost beat - MYSTERY SOLVED - then the texture
+        # prose, then (if any) the milestone. One coherent hierarchy.
+        _mech_name = MECHANISMS.get(m.mechanism, {}).get('name', 'the way out')
+        self.announce_event(_mech_name, f"{_stmt}.", kind="solved")
         if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
             self.io.say(
                 f"\nYou found the way out - {_stmt}. You worked out that "
@@ -678,4 +688,6 @@ class MysteryMixin:
                 f"\nYou found the way out - {_stmt}. "
                 "Not because anything told you, but because you worked out "
                 "what this place was and where it had to give.\n")
+        if _milestone_line is not None:
+            self.announce_event(_milestone_line, kind="milestone")
         self.finish_expedition(reason="found the way out")

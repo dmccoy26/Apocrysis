@@ -245,5 +245,70 @@ class TestInvestigationDrivenTargeting(_ProfileTest):
         self.assertIsNone(g.mystery.world_fact_id)
 
 
+class TestFullLifecycle(_ProfileTest):
+    """A.5.4 - one test walking the whole Phase A feature end to end."""
+
+    def _solve_current(self, g):
+        m = g.mystery
+        for eid in list(m.knowledge.evidence):
+            m.knowledge.discover(eid)
+        m.obstacle_open = True
+        g.current_position = m.escape_tile
+        g.io.log.clear()
+        g.mystery_try_escape()
+        return m
+
+    def test_campaign_lifecycle_through_a_death(self):
+        from src.campaign import chapter_intro
+
+        Apocrysis._world_investigation = {}
+        chain = ["DIS_FEW_REMAINS", "DIS_MOVED_TOGETHER",
+                 "DIS_ROUTES_PREPARED", "DIS_ORGANISED"]
+
+        for i, expected_fid in enumerate(chain):
+            g = Apocrysis("Life", seed=200 + i, io=_IO())
+            self.assertEqual(g.mystery.world_fact_id, expected_fid,
+                             f"expedition {i + 1} should target {expected_fid}")
+            self._solve_current(g)
+            self.assertTrue(g.world_investigation.is_known(expected_fid))
+            Apocrysis._world_investigation = g.world_investigation.snapshot()["status"]
+            Apocrysis._last_family = g.mystery.family
+            banner = "\n".join(g.io.log)
+            if expected_fid == "DIS_ORGANISED":     # M1
+                self.assertIn("A PIECE FALLS INTO PLACE", banner)
+            else:
+                self.assertNotIn("A PIECE FALLS INTO PLACE", banner)
+
+        # framing has advanced with the milestone
+        ms = 1  # only DIS_ORGANISED is a milestone among the four
+        framed = chapter_intro(1, ms)  # replaying early, exp count low
+        framed_line = framed.split("\n", 1)[1]
+        from src.campaign import _CHAPTERS
+        self.assertEqual(framed_line, _CHAPTERS[max(1, ms)])
+
+        # --- DEATH: a new survivor picks up the profile ---
+        tmp = os.path.join(self._tmp, "life.json")
+        donor = Apocrysis("Life", seed=1, io=_IO())
+        donor.save_profile(tmp)
+        Apocrysis._world_investigation = {}          # wipe in-process
+        prof = Apocrysis.load_profile(tmp)
+        # the real callers (cli.py / tui.py) seed the class-var from the
+        # profile BEFORE constructing, so the first expedition targets
+        # correctly - mirror that here.
+        Apocrysis._world_investigation = dict(prof.get("world_investigation", {}))
+        heir = Apocrysis("Life2", seed=42, io=_IO())
+        heir.apply_profile(prof)
+
+        for fid in chain:
+            self.assertTrue(heir.world_investigation.is_known(fid),
+                            f"{fid} must survive the death")
+        # framing must not regress
+        self.assertGreaterEqual(
+            len(heir.world_investigation.milestones_known()), 1)
+        # next expedition moves into CH2, not a CH1 re-run
+        self.assertNotIn(heir.mystery.world_fact_id, chain)
+        self.assertIsNotNone(heir.mystery.world_fact_id)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

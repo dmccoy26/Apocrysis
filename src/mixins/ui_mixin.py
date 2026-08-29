@@ -541,6 +541,41 @@ class UIMixin:
         box += [f"║ {pad(r)} ║" for r in rows]
         box += ["╚" + "═" * (w + 2) + "╝"]
         self.io.say("\n" + title_color + "\n".join(box) + RESET)
+        self._render_investigation_retrospective(won)
+
+    def _render_investigation_retrospective(self, won):
+        """A.5.2: the what-changed beat - the transition THIS expedition
+        caused for the World Investigation, plus what the next survivor
+        can look into. Not a re-print of the `wi` screen."""
+        wi = getattr(self, "world_investigation", None)
+        if wi is None or not wi.all_facts():
+            return
+        titles = self.world.prose.get("thread_titles", {})
+        learned = list(getattr(self, "_expedition_learned", []))
+        lines = [""]
+        if won and learned:
+            lines.append(f"{BOLD}{CYAN}WHAT YOU LEARNED{RESET}")
+            for fid in learned:
+                f = wi.fact(fid)
+                if f is not None:
+                    lines.append(f"  ✓ {f.statement}")
+                    t = titles.get(f.thread, (f.thread.upper(), ""))[0]
+                    k, tot = wi.thread_progress().get(f.thread, (0, 0))
+                    lines.append(f"    ({t}: {k}/{tot} understood)")
+        elif not won:
+            lines.append(f"{BOLD}{CYAN}THE INVESTIGATION STANDS{RESET}")
+            for thread, (k, tot) in wi.thread_progress().items():
+                if k:
+                    lines.append(f"  {titles.get(thread, (thread.upper(), ''))[0]}: {k}/{tot}")
+        nxt = wi.next_target()
+        if nxt is not None:
+            nf = wi.fact(nxt)
+            if nf is not None:
+                lines.append("")
+                lines.append(f"{BOLD}{CYAN}THE NEXT SURVIVOR CAN LOOK INTO{RESET}")
+                lines.append(f"  {nf.statement}")
+        if len(lines) > 1:
+            self.io.say("\n".join(lines))
 
     def _toggle_playlog(self):
         """`log` command: start/stop writing a plain-text transcript of
@@ -724,6 +759,9 @@ class UIMixin:
                    "objective": "OBJECTIVE UPDATED"}
         if kind == "warn":
             glyph, color, prefix, head = "[!]", f"{BOLD}{RED}", "", title.upper()
+        elif kind == "solved":
+            # A.5.3: the escape moment - one tier below a milestone.
+            glyph, color, prefix, head = "◆", f"{BOLD}{GREEN}", "MYSTERY SOLVED — ", title
         elif kind == "milestone":
             # A.4.4: a piece of the world falls into place. Bigger than a
             # NEW DISCOVERY - its own label, its own glyph.

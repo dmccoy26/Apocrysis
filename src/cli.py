@@ -99,6 +99,14 @@ def main(start_log=False):
                 level = 1
                 expeditions_completed = 0
 
+            if profile is not None:
+                # A.5: seed the World Investigation class-var BEFORE
+                # construction so the first expedition's mystery targets
+                # the right WorldFact (generate_map runs in __init__,
+                # before apply_profile).
+                Apocrysis._world_investigation = dict(
+                    profile.get("world_investigation", {}) or {})
+
             player = Apocrysis(name, level=level, hardcore=hardcore, expeditions_completed=expeditions_completed)
 
             if profile is not None:

@@ -6,6 +6,27 @@ a fresh session.**
 
 ---
 
+## >> DIRECTION (2026-08-29, v5 — Phase A started)
+
+- Renamed to **v5** (branch + dir). `origin/version-4` kept as a frozen marker.
+- **§10 decision pass LOCKED** — `docs/PHASE_A_DECISIONS.md`. World truth
+  **A "The Cordon"**; build behind a thin **`World` seam** now; **world 1
+  fact-DAG-only**; CH1+CH2 first.
+- **Phase A todo list**: `docs/PHASE_A_TODO.md` (11 items). Not yet
+  queued in Atlas — the last `todo add` mis-bound targets via `--file`;
+  re-add per-file with no batch `--file`.
+- **Atlas capability run**: `docs/ATLAS_CAPABILITY_LOG.md`. Owner wants
+  every `atlas request` on this repo tracked vs the v4 0-for-5 baseline.
+  4 attempts logged; fixed an `atlas scan` crash in Atlas itself.
+- **Structure**: `docs/STRUCTURE_ASSESSMENT.md` — no big restructure;
+  `worlds/` seam (A.0) + `worldgen/` split (C.0) are the only two, both
+  in the roadmap. Cheap wins pending: split `test_apocrysis.py`; delete
+  the slice scaffolding (needs owner sign-off).
+- **Next**: decide test-split / slice-deletion, then Phase A step 0 (the
+  seam) — likely hand-written, letting Atlas attempt each piece first.
+
+---
+
 ## >> DIRECTION (2026-08-29, session continued) — read these two first
 
 The project's direction has moved past "more mechanisms." Two new docs:

@@ -301,3 +301,23 @@ class Apocrysis(
         else:
             self._starve_turns = 0
 
+        # One-time nudge when you're getting low but CAN act on it - a
+        # kid drained to 0 with 9 food in the pack, never ate (playtest).
+        # Not while already starving (own message); not on an empty pack.
+        low_hunger = 0 < self.hunger <= 30 and self.backpack.food > 0
+        low_thirst = 0 < self.thirst <= 30 and self.backpack.water > 0
+        if (low_hunger or low_thirst) and not getattr(self, '_supply_nudged', False):
+            self._supply_nudged = True
+            if low_hunger and low_thirst:
+                self.announce_event("getting hungry and thirsty",
+                                    "Type `eat` and `drink` - you've got food and water in your pack.",
+                                    kind="warn")
+            elif low_hunger:
+                self.announce_event("getting hungry",
+                                    "Type `eat` - you've got food in your pack.", kind="warn")
+            else:
+                self.announce_event("getting thirsty",
+                                    "Type `drink` - you've got water in your pack.", kind="warn")
+        elif self.hunger > 45 and self.thirst > 45:
+            self._supply_nudged = False
+

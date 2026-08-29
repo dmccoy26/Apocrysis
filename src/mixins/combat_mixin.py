@@ -108,6 +108,16 @@ class CombatMixin:
                 f"(You're carrying a {_better.name} ({_better.damage} dmg) - "
                 f"stronger than your {_held}. Flee and 'eq {_better.name}' to switch.)"
             )
+        elif (_cur_dmg and _cur_dmg < 10 and not _eq_broken
+              and not getattr(self, '_weak_weapon_nudged', False)):
+            # Nothing better in the pack and this one barely hurts them -
+            # a kid fought the whole game with a 6-dmg knife and got
+            # worn down (playtest). Once per expedition.
+            self._weak_weapon_nudged = True
+            self.io.say(
+                f"(Your {self.equipped_weapon.name} ({_cur_dmg} dmg) barely "
+                "scratches them - search buildings for a heavier weapon.)"
+            )
 
         # v3 SPRINT step 3/6: explicit yes/no, re-prompting on
         # anything else - the original "anything other than the

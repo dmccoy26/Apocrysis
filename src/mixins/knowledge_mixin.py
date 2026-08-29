@@ -90,6 +90,9 @@ class KnowledgeMixin:
             elif m and getattr(m, 'power_role', None) and not m.power_restored and not self._mystery_has_item() and 'F_POWER' in known and 'F_REQUIRE' in known:
                 self.io.say('The way out is dead without power from ' + m.site_labels.get('power', 'the power source') + ', and that needs the ' + str(m.requirement_item or 'part') + ' from ' + m.site_labels.get('require', 'the store') + '.')
                 return
+            elif m and getattr(m,'power_role',None) and m.power_restored and 'F_ROUTE' not in known:
+                self.io.say('The gate has power now. You still have to find where the route comes through - keep looking.')
+                return
             self.io.say("It's real, but it doesn't point anywhere yet.")
             return
 

@@ -6,38 +6,35 @@ a fresh session.**
 
 ---
 
-## >> DIRECTION (2026-08-29) — PHASE A + B COMPLETE, both frozen
+## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION DONE
 
-**Read `docs/PHASE_A_COMPLETE.md` then `docs/PHASE_B_COMPLETE.md`** for
-the architecture + invariants.
+**Read `docs/PHASE_A_COMPLETE.md`, `docs/PHASE_B_COMPLETE.md`,
+`docs/PHASE_C_SPEC.md` (§ As-built).**
 
-- Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`.
-  **240 tests + 100 subtests green from a clean tree.**
-- **Phase A** (frozen): World seam -> WorldFact DAG ("The Cordon",
-  CH1+CH2) -> WorldInvestigation -> next_target() -> targeted mystery ->
-  discovery -> milestone -> profile-persistent knowledge.
-- **Phase B** (frozen): the roguelite inheritance loop. Profile file is
-  now {campaign, survivor}. A non-hardcore death replaces the SURVIVOR
-  (level 1, new name, starter gear) and keeps the CAMPAIGN (investigation,
-  Survivor Knowledge, depth, variety). 3 SurvivorLore entries
-  (BLUE_SIGNS / COMMAND_FREQUENCY / RESERVOIR_CONTROLS) - legibility,
-  not power. Lifecycle (not save_profile) owns survivor replacement.
-- **Invariants** (do not break): world investigation is campaign-level
-  not survivor-level; death never mutates the campaign record;
-  expeditions_completed = depth != survivor progress; SurvivorLore ids
-  are the only executable interface (.effect is text); balance frozen.
-- Design docs per phase: `PHASE_A_DECISIONS.md`, `PHASE_A0..A5`,
-  `PHASE_A_COMPLETE.md`, `PHASE_B_SPEC.md`, `PHASE_B_COMPLETE.md`.
-  `PHASE_A_TODO.md` SUPERSEDED.
-- **Atlas** (`docs/ATLAS_CAPABILITY_LOG.md`): shipped 8 of ~55 files
-  over both phases, all self-contained leaf files or <2-line edits;
-  every architectural + large-file + multi-file change was Claude's.
-  10 `atlas-self` capability todos filed; `atlas scan` crash fixed
-  (`zork` e749bcd).
-- **Next**: write + review a spec, then implement. Options: Phase C
-  (map-v2 + worldgen/ split - the big geography rewrite), A.0.1 (parked
-  encounters), a native modal investigation screen, or roadmap B.3
-  (optional-evidence / valley file, deferred out of B).
+- Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
+  `v5-phase-c-foundation`. **247 tests + 100 subtests green, clean tree.**
+- **Phase A** (frozen): World seam -> WorldFact DAG -> WorldInvestigation
+  -> targeted mysteries -> milestones -> profile-persistent knowledge.
+- **Phase B** (frozen): roguelite inheritance. Profile is
+  {campaign, survivor}; a non-hardcore death resets the survivor, keeps
+  the campaign; 3 SurvivorLore (legibility not power).
+- **Phase C foundation** (frozen): `src/worldgen/` - `MapGenerator`
+  (terrain/boundary/spawn/settlements, moved verbatim, byte-identical)
+  + `MapGraph` (connectivity guarantee: reachability is asserted, the
+  zombie corridor is a graph query). `world_mixin` 1130->714 lines.
+  Deterministic structural suite (golden fixture + 300-seed sweep).
+- **Phase C.3 (the inverted graph-first pipeline) NOT DONE** - deferred
+  to its own reviewed pass with balance sign-off. Plan in
+  `PHASE_C_SPEC.md` § As-built. It changes what maps feel like; needs
+  human playtesting.
+- **Invariants** (all phases): world investigation is campaign-level;
+  death never mutates the campaign record; SurvivorLore ids are the
+  executable interface; `WorldFact` is never aware of the generator;
+  `worlds/*` and `worldgen/*` never import the engine; balance FROZEN.
+- **Atlas**: 9 of ~65 files across A+B+C, all self-contained leaf files.
+  11 `atlas-self` capability todos; `atlas scan` crash fixed (`zork`).
+- **Next**: C.3 (own spec + sign-off) / A.0.1 (parked encounters) /
+  roadmap B.3 (optional-evidence valley file) / native modal wi screen.
 
 ---
 

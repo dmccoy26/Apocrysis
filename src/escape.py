@@ -887,6 +887,18 @@ def build_mystery(game, target_fact=None):
             if e.id == 'E_route_a':
                 e.method = 'observe'
 
+    # B.2 RESERVOIR_CONTROLS: informational only. A survivor who's done a
+    # dam_valves mystery before reads the control-room notes and knows
+    # which control governs the reservoir - they still operate it, still
+    # revise if they pull a wrong one. Control count and the obstacle's
+    # open condition are unchanged (invariant 4).
+    if spec.get('controls') and _sk is not None and _sk.has('RESERVOIR_CONTROLS'):
+        for e in ev:
+            if e.id == 'E_require_b':
+                e.text = (f"A bank of controls: {', '.join(spec['controls'])}. "
+                          f"The control-room notes are clear: {m.correct_control} "
+                          f"governs the valley reservoir.")
+
     for e in ev:
         k.add_evidence(e)
 

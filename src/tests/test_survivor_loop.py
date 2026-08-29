@@ -332,6 +332,49 @@ class TestCommandFrequency(_Base):
         self.assertEqual(set(withl) - set(without), set())
 
 
+class TestReservoirControls(_Base):
+    def _dam(self, sk):
+        from src.escape import MECHANISMS
+        from src.worlds.silence.truth import WORLD_FACTS
+        Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != "dam_valves"]
+        Apocrysis._last_family = None
+        Apocrysis._recent_mechanisms = []
+        Apocrysis._recent_signatures = []
+        Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+        Apocrysis._survivor_knowledge = list(sk)
+        g = Apocrysis("D", seed=8, io=_IO())
+        self.assertEqual(g.mystery.mechanism, "dam_valves")
+        return g
+
+    def test_solving_dam_valves_teaches_reservoir_controls(self):
+        Apocrysis._survivor_knowledge = []
+        g = Apocrysis("RC", seed=2, io=_IO())
+        _solve(g, "dam_valves")
+        self.assertTrue(g.survivor_knowledge.has("RESERVOIR_CONTROLS"))
+
+    def test_reservoir_controls_names_the_right_control_but_changes_nothing_mechanical(self):
+        without = self._dam([])
+        withl = self._dam(["RESERVOIR_CONTROLS"])
+
+        # same number of controls, same correct control, same open path
+        self.assertEqual(len(withl.mystery.controls), len(without.mystery.controls))
+        self.assertEqual(withl.mystery.controls, without.mystery.controls)
+
+        # the control-room evidence now names the correct control
+        e = withl.mystery.knowledge.evidence["E_require_b"]
+        self.assertIn(withl.mystery.correct_control, e.text)
+        self.assertNotIn("but which", e.text)
+        # without the lore it does not
+        e0 = without.mystery.knowledge.evidence["E_require_b"]
+        self.assertIn("but which", e0.text)
+
+        # the searchable evidence set is unchanged (no step removed)
+        def _searchables(k):
+            return sorted(x.id for x in k.evidence.values() if x.method == "search")
+        self.assertEqual(_searchables(withl.mystery.knowledge),
+                         _searchables(without.mystery.knowledge))
+
+
 class TestLegibilityNotPower(_Base):
     """Invariant 4 - a learned lesson changes what's surfaced, nothing
     mechanical. Two otherwise-identical games, one with the lore."""

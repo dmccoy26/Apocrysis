@@ -76,10 +76,11 @@ Answered by a 2×2, not a single comparison:
 Both are valuable results. The comparison that matters is
 **v1-affordances vs v2-affordances**, not v2 against the original v1.
 
-## The invariants (locked before implementation)
+## The invariants (locked — spec FROZEN 2026-08-29)
 
-The first three are from `PHASE_C3_SPEC.md`, restated. **Invariant 4 is
-new** and is the hard contract for C.3.2.
+Invariants 1–3 are from `PHASE_C3_SPEC.md`, restated. **Invariant 4**
+(topology authority) and **Invariant 5** (persistence) are new and are
+the hard contracts for C.3.2.
 
 > **Invariant 1 — Lead before obstacle.** Every expedition exposes at
 > least one meaningful navigational lead within the early exploration
@@ -102,6 +103,36 @@ new** and is the hard contract for C.3.2.
 > navigational claim is true. Prose and generation do not
 > independently agree — the claim is validated against the realised
 > graph.
+>
+> **Invariant 5 — Navigation Persistence.** A meaningful navigational
+> lead must remain *recoverable* after the player ignores it. The game
+> must not require "I obeyed the turn-1 instruction perfectly." A
+> player who wanders, forgets, or takes a wrong turn must be able to
+> reconnect with the objective through a channel they'll actually
+> hit — `look`, an ambient clue, a landmark, the map.
+
+### The persistence loop (Invariant 5)
+
+Expedition 2 proved the game *has* a turn-1 lead ("head north") and no
+way to get back to it. The missing loop:
+
+```
+Turn 1   ESCAPE panel: head north
+              │
+         player wanders / investigates something else / takes a wrong turn
+              │
+         look          → "The way out lies to the north."
+              │
+         ambient clue  → "Boot prints lead north."   (reinforces, same axis)
+              │
+         landmark / map → the northward route becomes legible
+              │
+         player reconnects with the objective
+```
+
+None of the reinforcement channels invent new information — they
+re-surface the lead the player already earned, in a place they're
+looking.
 
 ### Invariant 4, concretely
 
@@ -123,12 +154,42 @@ If a check fails the signal is **corrected, not suppressed**: re-word
 the heading to the honest one, or (generation only) regenerate. A claim
 is never shipped that the graph says is false.
 
-**`bearing()` is a new shared helper** — one implementation, replacing
-the two ad-hoc ones (`_mystery_heading`, tui `_compass`). Signature
-roughly `bearing(from_xy, to_xy) -> "north-east" | "" ` with the
-existing ±1 deadzone. C.3.2 adds a graph-aware variant:
-`heading_is_honest(graph, here, node, claimed) -> bool` — true iff the
-shortest path's early tiles move in `claimed`'s general direction.
+#### `heading_is_honest` is a *monotonic-progress* test, not a reachability test
+
+The v2 failure was not "the destination is unreachable" — it was
+reachable. The failure was that a player following the displayed
+heading hit walls on their first several decisions:
+
+```
+claimed: north-east
+  NE → wall
+  N  → wall
+  NE → wall
+  E  → wall        ← route actually detours west around a ridge first
+```
+
+So the test is: **can a player following the claimed heading make
+roughly monotonic progress along the real route, without the early
+decisions repeatedly reversing the claimed axes?** `MapGraph` supplies
+the real route (`shortest_path`); the helper judges whether the claimed
+heading is a fair *description* of that route's early direction.
+
+**Two shared helpers ship in this step (and only these):**
+
+- `bearing(from_xy, to_xy) -> "north-east" | "" ` — pure geometry, the
+  existing ±1 deadzone, y-down = south. Replaces the two ad-hoc impls
+  (`_mystery_heading`, tui `_compass`) *when their call sites are
+  migrated in later pieces* — this step just adds the helper + tests.
+- `heading_is_honest(path, claimed, window=5) -> bool` — `path` is a
+  `shortest_path` result (`[start, …, dest]`). True iff `claimed`
+  shares at least one axis with the route's first-`window`-step
+  direction and contradicts none of them. Empty `claimed` → True
+  (no directional assertion to be dishonest about). Degenerate/short
+  path → True.
+
+Callers that need the honest heading to substitute call
+`bearing(path[0], path[min(window, len(path)-1)])` directly — no third
+helper.
 
 ## `look` — the reframe
 
@@ -154,6 +215,33 @@ earned* (a known mystery site, a spotted-and-remembered landmark, an
 ambient clue's soft hint), with a graph-honest bearing (Invariant 4).
 It never invents a clue on a tile that has none.
 
+`look` is the primary **persistence** channel (Invariant 5) — the one
+place a wandering player can always ask "which way was I meant to go?"
+and get the answer back. It is likely the single most important
+player-facing change in C.3.2a. Landmark bearings (piece 1) and the
+ambient-clue hints (piece 4) are *reinforcement* around it, not
+navigation mechanisms in their own right.
+
+## A conceptual distinction to keep (do NOT build the abstraction yet)
+
+C.3.2 is, underneath, the discovery that Apocrysis needs a first-class
+**lead / surfacing layer** distinct from its fact layer:
+
+```
+FACT         "I found a locked gate."          (Phase A: WorldFact / F_*)
+LEAD         "The route is north."             (C.3.2: currently only the ESCAPE panel)
+CONNECTION   "The locked gate is on the route." (Phase A: deductions)
+OBJECTIVE    "Reach and open that gate."        (the ESCAPE checklist)
+```
+
+Phase A handles facts and connections well. C.3.2 is exposing that
+**leads** are under-served: one channel, no persistence, no validation.
+
+**Do not create a `NavigationLead` object in C.3.2.** The approach —
+shared helpers + existing signals + `MapGraph` validation — is
+deliberately un-abstracted. Let the experiment prove whether a formal
+lead type is actually necessary before building one.
+
 ## Scope
 
 ### C.3.2a — v1 navigation affordances (ships first)
@@ -167,23 +255,27 @@ does not add a competing new lead.**
 | # | change | where | MapGraph contract | test |
 |---|---|---|---|---|
 | 0 | **Validate the ESCAPE-panel route heading.** `heading('route')` is an unconditional straight-line bearing to the route site — on v2's expedition it pointed "north-east" into a wall. Run it through `heading_is_honest`; show the honest heading, or drop the parenthetical if there is no honest one. | `tui._objective_steps` `heading()` / `_compass` → the shared helper | `heading_is_honest(graph, player, route_site, claimed)` | unit: straight-line NE but path goes N → panel says "(north)"; no coherent heading → no parenthetical |
-| 1 | **Landmark → bearing.** `_spot_landmarks` says *which way* the rooftops/building are; the sighting is remembered so `look` can re-report it. | `world_mixin._spot_landmarks`, a `_landmarks_seen_dir` store | bearing computed from real tile positions | unit: a sighting NE of the player produces "north-east"; structural: on 200 seeds every settlement sighting has a non-empty bearing or is adjacent |
-| 2 | **`look` re-frames** (section above) — reports the nearest earned lead (incl. the ESCAPE-panel route heading) with a graph-honest heading, or says plainly there's none. This is the *reinforcement* channel — the panel heading and `look` should agree. | `knowledge_mixin.knowledge_look` | `heading_is_honest` before printing a direction | unit: known route NE + clear path → "north-east"; known route NE + wall NE + path actually goes N → "north"; nothing known → the null line |
+| 1 | **Landmark → bearing** *(reinforcement, not the primary mechanism)*. `_spot_landmarks` says *which way* the rooftops/building are; the sighting is remembered so `look` can re-report it. | `world_mixin._spot_landmarks`, a `_landmarks_seen_dir` store | bearing computed from real tile positions | unit: a sighting NE of the player produces "north-east"; structural: on 200 seeds every settlement sighting has a non-empty bearing or is adjacent |
+| 2 | **`look` → recoverable orientation** *(the key player-facing change; the primary Invariant-5 channel)*. Reports the nearest earned lead (incl. the ESCAPE-panel route heading) with a graph-honest heading, or says plainly there's none. The panel heading and `look` must agree. | `knowledge_mixin.knowledge_look` | `heading_is_honest` before printing a direction | unit: known route NE + clear path → "north-east"; known route NE + wall NE + path actually goes N → "north"; nothing known → the null line |
 | 3 | **Validate the spawn→gap bearing in evidence.** The baked `E_obstacle_a` / `E_route_reveal` bearing ("toward the north-east edge") is checked against `MapGraph` at generation; if the honest early-path heading differs, the text uses the honest one. | `escape.build_mystery` (the `_bearing` block), `world_mixin.generate_map` after the graph is built | `shortest_path(spawn, exit)` early tiles define the honest heading | structural: on 300 v1 + 300 v2 seeds, the bearing word in `E_obstacle_a` matches the first-5-tiles heading of the spawn→exit path |
 | 4 | **Ambient clues → soft hint** *(only if 0–3 don't clear the bar)*. `_PHASE_B_CLUES` entries with a direction ("boot prints lead north") drop a low-confidence directional arc `look`/the map can show — imprecise, not a `!`. In expedition 2 "boot prints lead north" *matched* the panel heading and was never connected; this piece connects them. | `world_mixin._maybe_surface_clue`, `_render_map_lines` | the arc points along a real reachable sector, else the clue surfaces without a hint | unit: a "north" clue with open north → hint shown; blocked → text only |
 
-**Early-lead *generation* guarantee — likely NOT optional (revised
-after expedition 2).** Expedition 2 (v1) found *zero* mystery evidence
-in 99 turns because every site clusters near spawn and the player
-circled the perimeter. If 0–4 land and the early window still starves
-the player on v1, the fix is one of:
+**C.3.2a-5 — early-window signal recoverability (separate generator
+concern, decided by the v1 feel-test).** The requirement, phrased so it
+does *not* prescribe where sites go:
 
-- a minimal guarantee that an actionable lead is reachable within the
-  early window (validated by Invariant 4), **or**
-- stop the generator clustering every site in one blob near spawn —
-  spread at least one site onto a plausible early path.
+> The player must be able to **encounter or recover** an actionable
+> navigational signal during the early exploration window **without
+> already having solved the mystery**.
 
-Scoped as **C.3.2a-5**, decided by the v1 feel-test. Never by pinning a
+Expedition 2 (v1) failed this: zero mystery evidence in 99 turns
+because every site clusters near spawn and the player circled the
+perimeter. If pieces 0–4 land and the early window still starves the
+player on v1, the fix is one of — a minimal early-reachable-lead
+guarantee (validated by Invariants 4/5), *or* stop the generator
+clustering every site in one blob near spawn. Kept a separate concern
+so the surfacing experiment (0–4) is tested first, uncontaminated.
+Never by pinning a
 fixed settlement distance or a story location near spawn.
 
 ### C.3.2b — replay the experiment on v2
@@ -242,8 +334,16 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 ## Build order
 
-1. `bearing()` + `heading_is_honest()` shared helpers + unit tests
-   (small new module, `src/worldgen/` or `src/nav.py`).
+> **THIS STEP (spec frozen 2026-08-29):** build **only** step 1 —
+> `bearing()` + `heading_is_honest()` + their unit tests, in
+> `src/nav.py`. **No generator changes. No new navigation abstraction.
+> No map hints. No call-site migration yet.** The helpers are inert
+> until a later piece wires them in. This keeps the next experiment
+> controlled: first make the navigation claim *truthful*, then (piece
+> 0–2) make it *recoverable*, then see if that's enough before touching
+> generation.
+
+1. `bearing()` + `heading_is_honest()` in `src/nav.py` + unit tests.
 2. C.3.2a piece 0 (validate the ESCAPE-panel route heading) — smallest,
    and it's the signal expedition 2 showed failing on v2.
 3. C.3.2a piece 1 (landmark bearings).
@@ -261,14 +361,19 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 ## Acceptance
 
-- **C.3.2a:** all four invariants hold on the structural suite across
+- **C.3.2a:** all five invariants hold on the structural suite across
   ≥300 v1 seeds; the owner's v1 feel-test reports navigation is
-  supported (a known lead always yields an honest heading; `look` is
-  useful; no "I have information I can't act on" stretch).
+  supported (a known lead always yields an honest heading; `look`
+  always answers "which way was I meant to go?"; no "I have information
+  I can't act on" stretch; a player who ignores the turn-1 heading can
+  still recover it).
 - **C.3.2b:** the 2×2 is filled from real play. A clear verdict on v2
   geometry (accept as default / keep parked / reject outright), with
   the reasoning recorded in `PHASE_C3_SPEC.md`.
 
 ---
 
-*Owner review pending. No code until the spec is approved.*
+*Spec FROZEN 2026-08-29 (owner-approved, with Invariant 5 added).
+Implementation begins at build-order step 1 only: `src/nav.py` with
+`bearing()` + `heading_is_honest()` + unit tests. Everything past step 1
+is gated on the v1 feel-test.*

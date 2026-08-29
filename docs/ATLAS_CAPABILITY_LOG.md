@@ -286,7 +286,15 @@ owner's five-expedition feel-test. None routed to Atlas.
 Net C.3.1: **0 of 4 files by Atlas.** #47's helper is the only
 Atlas-sized piece and it couldn't stand alone.
 
-## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~69 files touched
+## Phase C.3.2 (2026-08-29) — navigation affordances
+
+| # | ask | route | outcome |
+|---|---|---|---|
+| 48 | `src/nav.py` — `bearing()` + `heading_is_honest()`, ~72 lines, pure, no imports; + `test_nav.py` (11 tests) | not routed | **HAND** — ~72 lines is just over the reliable line, and `heading_is_honest` is real branching logic (axis-set contradiction test) not a data literal or a dataclass; the paired test file is procedural. A borderline call — could have been *attempted* — but the index-staleness risk plus the logic density made hand-writing the safer path for a load-bearing helper. |
+
+Net C.3.2 so far: **0 of 1.**
+
+## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~70 files touched
 
 9 self-contained new leaf files; every architecture / large-file /
 multi-file / cross-import / mechanical-move change hand-written.

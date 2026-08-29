@@ -97,8 +97,27 @@ doc map below it.**
   early-lead generation guarantee (C.3.2a-5) is likely NOT optional
   (either guarantee an early reachable lead, or stop the generator
   clustering every site near spawn).
-- **Next: owner reviews `PHASE_C3_2_SPEC.md`**, then build order step 1
-  (the `bearing()` + `heading_is_honest()` helpers).
+- **C.3.2 spec FROZEN (owner-approved).** Added **Invariant 5 —
+  Navigation Persistence**: a lead must remain *recoverable* after the
+  player ignores it (the missing loop: turn-1 heading → wander →
+  `look` re-states it → ambient clue reinforces → player reconnects).
+  `look` is the primary persistence channel and the key player-facing
+  change; landmark bearings + clue hints are reinforcement, not
+  mechanisms. C.3.2a-5 rephrased: "the player must be able to encounter
+  **or recover** an actionable signal in the early window without
+  having solved the mystery" (doesn't prescribe site placement). Kept
+  the FACT/LEAD/CONNECTION/OBJECTIVE distinction — **no `NavigationLead`
+  abstraction yet**, let the experiment prove it's needed.
+- **BUILT (build-order step 1, commit pending): `src/nav.py`** —
+  `bearing(from_xy, to_xy)` (pure compass word, ±1 deadzone, y-down =
+  south; consolidates `_mystery_heading` + tui `_compass`) and
+  `heading_is_honest(path, claimed, window=5)` (monotonic-progress
+  test: honest unless the early route *demonstrably reverses* a claimed
+  axis — the v2 "NE into a wall" case). **Ships inert** — nothing calls
+  it yet. `test_nav.py`, 11 tests. 263 + 100 green.
+- **Next: build-order step 2** — piece 0 (validate the ESCAPE-panel
+  route heading via `heading_is_honest`), then pieces 1–3, then tag
+  `v5-phase-c3-2a` and the **owner v1 feel-test**.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug

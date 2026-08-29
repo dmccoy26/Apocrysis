@@ -36,7 +36,7 @@ that baseline.
 
 | attempts | Atlas shipped | Claude hand-wrote after Atlas failed | Atlas-only (no rework) |
 |---|---|---|---|
-| 3 | 0 | 0 (blocked before hand-write) | 0 |
+| 8 | 2 (`base.py`, `worlds/__init__.py`) | 4 (rename ×2 blocked, `world.py`, seam bundle) | 2 |
 
 ## RESOLVED (2026-08-29) — `atlas scan` was broken; fixed this session
 
@@ -55,6 +55,32 @@ fresh index. The Definition store tracks callables, not module-level
 no Atlas path**: `atlas rename` won't see it, and per-file `atlas
 request` can only touch one file at a time (breaking importers →
 rollback). Filed in `atlas-self` (`1ba1bf47`).
+
+## Phase A.0 seam creation (2026-08-29) — partial success
+
+Model: `qwen2.5-coder-32b-instruct`. Index fresh (scan fixed).
+
+| # | ask | route | workflow | outcome | notes |
+|---|---|---|---|---|---|
+| 5 | create all 5 seam files at once | `atlas request --file ×5 --create --force --run-tests` | (bundled, id unknown) | **REJECTED — "No repair implementation found"** | ~7 min of `full_file` generation; debug.log shows the model returning 14–44-char completions (empty/refusal) for most files. The `--create` **coherence** fixes (`3e4fe5c`/`e6b0b5c`) fixed bundling/feed-forward; they did **not** make the local model able to author 5 new files in one workflow. |
+| 6 | create **one** file `src/worlds/base.py` (frozen dataclass, 15 lines) | `atlas request --file … --create --force` | `f8200b43` | **SHIPPED** ✓ | Exact, verbatim. Auto-committed `73d8ed2`. First genuine Atlas authoring success on this repo. |
+| 7 | create **one** file `src/worlds/__init__.py` (1-line docstring) | same | `f00581a3` | **SHIPPED** ✓ | Exact. Auto-committed `3a49bd6`. |
+| 8 | create **one** file `src/worlds/silence/world.py` (imports + `World(...)` call with imported constants) | same | `03388152` | **REJECTED-WRONG** | Model produced a **`dict` literal with `None` values** instead of `World(...)`, and **dropped both `import` lines**. It "simplified" a constructor-call-with-imports into a bare dict. Hand-written. |
+
+### Boundary, sharpened
+
+- **Single new file, self-contained (a dataclass, a constant, a
+  docstring): Atlas can do it now.** New since v4.
+- **Single new file that must `import` and then *call* something with
+  the imported names: still fails** — the model flattens it to a
+  literal. `world.py`, `silence/__init__.py`, `test_worlds.py`
+  hand-written.
+- **Multi-file `--create` (>2 files): fails outright** on this repo +
+  model.
+
+Net Phase A.0: `base.py` + `worlds/__init__.py` by Atlas; the 3 files
+with real wiring by hand. Filed `atlas-self`: `--create` multi-file
+generation + the import-then-construct failure mode.
 
 ## Original blocker writeup (for the record)
 

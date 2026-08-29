@@ -255,7 +255,17 @@ So C.3.2 is **mostly a surfacing + validation experiment with a small
 generator guarantee**, not a generation rewrite (see the doc's
 "What this means for C.3.2" for the ordered candidate pieces).
 
-## C.3.2 — navigational affordances (SPEC PENDING, after the investigation)
+## C.3.2 — navigational affordances
+
+> **Spec authored: `PHASE_C3_2_SPEC.md`** (2026-08-29, owner review
+> pending). C.3.2a = v1 affordances (4 ordered pieces + a graph-honest
+> `bearing()` helper); C.3.2b = replay the feel-test on v2. The result
+> is a 2×2 (v1/v2 × old-nav/affordances), and the comparison that
+> matters is **v1-affordances vs v2-affordances**. **Invariant 4** was
+> added: navigation signals must correspond to actual `MapGraph`
+> topology — prose and generation don't independently agree, the claim
+> is validated against the realised graph. The three invariants below
+> are restated verbatim in that spec.
 
 **Irregular geography is only useful if the world provides enough
 information for the player to navigate it.**

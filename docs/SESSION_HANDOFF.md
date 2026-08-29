@@ -59,22 +59,35 @@ doc map below it.**
   Terrain is completely inert for navigation (no roads, no directional
   types). The strongest actionable signal (found survey map) is a
   random loot drop.
-- **C.3.2 — navigational affordances** is therefore **mostly a
-  surfacing + validation experiment with a small generator guarantee**,
-  not a generation rewrite. Ordered candidate pieces in the inventory
-  doc's "What this means for C.3.2": (1) give landmarks a bearing +
-  make `look` re-report them; (2) validate the spawn→gap bearing
-  against `MapGraph` at gen; (3) wire the nav clues to a soft map hint;
-  (4) only then a generator early-lead guarantee. Recommendation:
-  scope C.3.2 around 1–3 on **v1**, then re-test the v2 mask *after*.
-- Three testable story-agnostic invariants recorded in
-  `PHASE_C3_SPEC.md` § C.3.2: (1) lead before obstacle, (2) leads must
-  survive geography, (3) navigation must stay actionable. Plus the
-  distinction **a lead ≠ information** (`F_OBSTACLE` is information;
-  "route lies north-east" is a lead). Prohibited: guaranteeing a
-  settlement distance / a story location near spawn.
-- **Next: author the C.3.2 spec** against the inventory's findings →
-  owner review → implement.
+- **C.3.2 spec authored — `PHASE_C3_2_SPEC.md`** (owner review
+  pending, NO CODE yet). C.3.2 = a **navigation-information feature**,
+  not a map-gen feature. Two stages:
+  - **C.3.2a — v1 affordances**, 4 ordered pieces + a graph-honest
+    `bearing()` helper: (1) landmark → bearing + remembered; (2) `look`
+    reframed to "is there something worth orienting toward from here?"
+    (not a GPS, only earned leads); (3) validate the baked spawn→gap
+    bearing against `MapGraph` at gen; (4) ambient clues → soft
+    directional hint, only if 1–3 don't clear the bar. No early-lead
+    *generation* guarantee unless 1–4 still starve the early window.
+  - **C.3.2b — replay the feel-test on v2** (no new code). Fill a 2×2
+    (v1/v2 × old-nav/affordances); the comparison that matters is
+    **v1-affordances vs v2-affordances**.
+- **Invariant 4 (new, the hard C.3.2 contract):** navigation signals
+  must correspond to actual `MapGraph` topology — prose and generation
+  don't independently agree, the claim is validated against the
+  realised graph. Failed checks are *corrected* (honest heading /
+  regenerate), never suppressed. Joins invariants 1–3 (lead before
+  obstacle / leads survive geography / navigation stays actionable) and
+  the **lead ≠ information** distinction.
+- **Guardrails:** don't buff the survey map (stays a loot drop); don't
+  pin geometry; don't call the generator "solved" (Invariant 4 is
+  permanent); balance FROZEN; v1 gen byte-identical except piece 3's
+  one conditional string.
+- **Blocking C.3.2b:** mechanism variety (`DIS_FEW_REMAINS` → only
+  `mountain_pass`). Pick one of: play a campaign forward /
+  `--force-mechanism` debug flag / a 2nd DiscoveryTemplate.
+- **Next: owner reviews `PHASE_C3_2_SPEC.md`**, then build order step 1
+  (the `bearing()` + `heading_is_honest()` helpers).
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug
@@ -103,6 +116,10 @@ doc map below it.**
 4a. `NAV_SIGNAL_INVENTORY.md` — 26 player-facing signals classified
    `observable → interpretable → actionable`. Feeds C.3.2. Conclusion:
    surfacing + validation problem, not a generator problem.
+4b. `PHASE_C3_2_SPEC.md` — the navigation-affordance experiment.
+   C.3.2a (v1, 4 ordered pieces) → C.3.2b (v2 replay, 2×2). Invariant
+   4 = signals must match `MapGraph` topology. **Owner review pending;
+   no code yet.**
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the old fully-inverted-pipeline vision
    — **superseded** by C.3.2's navigational-affordance framing.

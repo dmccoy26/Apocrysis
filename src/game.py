@@ -6,6 +6,7 @@ import random
 from src.constants import (
     BASE_MAP_SIZE, MAP_GROWTH_PER_LEVEL, MAX_MAP_SIZE, DAY_COMPRESSION_SCALE,
 )
+from src.worlds.silence import SILENCE
 from src.io_console import ConsoleIO
 from src.items import Backpack, ARMOR_SLOTS
 from src.objectives import Goal
@@ -50,13 +51,14 @@ class Apocrysis(
 
     prize_for_next_game = False
 
-    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0):
+    def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, world=None):
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical
         # to the original bare print()/input() calls - a TUI
         # (src/tui.py's TextualIO) passes its own instead. Every
         # mixin call site uses self.io.say()/self.io.ask()/
         # self.io.ask_yes_no() instead of bare print()/input().
         self.io = io if io is not None else ConsoleIO()
+        self.world = world if world is not None else SILENCE
 
         # v3 SPRINT: no player_class param - every new game starts as
         # the easiest tier's representative class (initialize_player()

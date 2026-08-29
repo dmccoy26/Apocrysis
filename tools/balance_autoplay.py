@@ -135,6 +135,7 @@ class Metrics:
         self.has_flashlight_at_end = False
         self.reached_night = False
         self.mechanism = None                    # v4: this expedition's escape mechanism
+        self.mystery_solved = False               # v4: obstacle opened + hypothesis confirmed (even if the bot later died)
         self.searches_issued = 0                 # v4: `search` commands the bot issued
         self.spawn_to_objective_distance = None   # shortest-path steps from spawn to the escape tile (or town center) at game end
         self.tiles_moved = 0                    # count of turns where current_position actually changed
@@ -588,7 +589,12 @@ class BotIO:
         # what's the current objective tile?
         target = None
         do_here = None
+        # transportation adds a second requirement store (require2); the
+        # bot visits + searches it like the others so it picks up the
+        # second part before stepping onto the plane.
         roles = ["closed", "route", "require"]
+        if "require2" in m.sites:
+            roles.append("require2")
         for role in roles:
             if role not in self._m_searched:
                 target = m.sites[role]
@@ -678,12 +684,28 @@ class BotIO:
         return random.choice(legal) if legal else 'n'
 
 
-def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False):
+def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False,
+                  force_mechanism=None):
     io = BotIO(max_turns=max_turns, verbose=verbose)
-    player = Apocrysis(
-        "BalanceBot", level=level, expeditions_completed=expeditions_completed,
-        seed=seed, io=io,
-    )
+    # v4: --force-mechanism pins every game to one escape family (for a
+    # per-family solve/survival check). Prime the shuffle-bag so
+    # choose_mechanism() has exactly one candidate left, the same trick
+    # the test suite's _force_mechanism helper uses.
+    _saved_used = list(getattr(Apocrysis, "_used_mechanisms", []) or [])
+    _saved_last = getattr(Apocrysis, "_last_family", None)
+    if force_mechanism:
+        from src.escape import MECHANISMS as _M
+        Apocrysis._used_mechanisms = [k for k in _M if k != force_mechanism]
+        Apocrysis._last_family = None
+    try:
+        player = Apocrysis(
+            "BalanceBot", level=level, expeditions_completed=expeditions_completed,
+            seed=seed, io=io,
+        )
+    finally:
+        if force_mechanism:
+            Apocrysis._used_mechanisms = _saved_used
+            Apocrysis._last_family = _saved_last
     io.player = player
     io.metrics.starting_level = level
 
@@ -705,6 +727,14 @@ def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False):
 
     if getattr(player, 'mystery', None) is not None:
         io.metrics.mechanism = player.mystery.mechanism
+        # v4: did the bot actually SOLVE the investigation (open the
+        # obstacle / restore the route + confirm the hypothesis), even
+        # if it then died on the walk out? This is the "can the bot
+        # solve this family" signal, separate from survival.
+        _mk = player.mystery.knowledge
+        io.metrics.mystery_solved = bool(
+            player.mystery.obstacle_open
+            and _mk.hypothesis_state() == "confirmed")
 
     # Compute spawn-to-objective distance after the game loop finishes.
     # v4: the objective is the escape tile; fall back to the Town
@@ -963,6 +993,30 @@ def print_report(all_metrics, games, level, expeditions_completed, max_turns):
         mechs = Counter(m.mechanism for m in won_metrics if getattr(m, 'mechanism', None))
         if mechs:
             print("  by mechanism: " + ", ".join(f"{k} {v}" for k, v in mechs.most_common()))
+
+    # v4: per-mechanism campaign-goal breakdown. The "goal" of every
+    # expedition is to reconstruct the Escape Proof and take the route;
+    # `mystery_solved` is that goal reached (obstacle open + hypothesis
+    # confirmed), counted even when the bot then died on the walk out -
+    # so a family that plays fine but is hard to survive (by design,
+    # e.g. time-pressure) reads as high-solved / lower-survived rather
+    # than looking broken. Over a large run (e.g. --games 10000) this is
+    # the table to watch when a new mechanism lands.
+    by_mech = defaultdict(list)
+    for m in all_metrics:
+        if getattr(m, 'mechanism', None):
+            by_mech[m.mechanism].append(m)
+    if by_mech:
+        print("\nPer-mechanism (campaign goal = solve the Escape Proof + take the route):")
+        print(f"  {'mechanism':18s} {'n':>5} {'solved':>8} {'survived':>9} {'median turns':>13}")
+        for name in sorted(by_mech, key=lambda k: -len(by_mech[k])):
+            ms = by_mech[name]
+            n = len(ms)
+            solved = sum(1 for x in ms if getattr(x, 'mystery_solved', False))
+            survived = sum(1 for x in ms if x.outcome == "won")
+            med = statistics.median([x.turns for x in ms]) if ms else 0
+            print(f"  {name:18s} {n:>5} {solved / n * 100:>7.1f}% "
+                  f"{survived / n * 100:>8.1f}% {med:>13.0f}")
 
     turns = [m.turns for m in all_metrics]
     levels = [m.final_level for m in all_metrics]
@@ -1373,6 +1427,9 @@ def main():
     parser.add_argument("--campaign", action="store_true", help="simulate full campaigns (consecutive expeditions, one persisting character per run) instead of isolated single games")
     parser.add_argument("--campaign-runs", type=int, default=10, help="number of independent campaign playthroughs to simulate (default: 10, only used with --campaign)")
     parser.add_argument("--campaign-max-attempts", type=int, default=50, help="max retry attempts allowed at a single expedition tier before giving up on that campaign run (default: 50, only used with --campaign)")
+    parser.add_argument("--force-mechanism", type=str, default=None,
+                        help="pin every game to one escape mechanism (e.g. airfield_plane, "
+                             "tidal_causeway) - for a per-family solve/survival check")
     args = parser.parse_args()
 
     if args.campaign:
@@ -1391,7 +1448,7 @@ def main():
         seed = None if args.seed is None else args.seed + i
         metrics = play_one_game(
             args.level, args.expeditions_completed, seed, args.max_turns,
-            verbose=args.verbose,
+            verbose=args.verbose, force_mechanism=args.force_mechanism,
         )
         all_metrics.append(metrics)
         print(f"game {i + 1}/{args.games}: {metrics.outcome} in {metrics.turns} turns, "

@@ -14,6 +14,14 @@ from src.escape import MECHANISMS
 from src.items import Item
 
 
+def _and_list(names):
+    """['a', 'b'] -> 'the a and the b'; ['a'] -> 'the a'."""
+    xs = [f"the {n}" for n in names]
+    if len(xs) <= 1:
+        return xs[0] if xs else ""
+    return ", ".join(xs[:-1]) + (" and " if len(xs) == 2 else ", and ") + xs[-1]
+
+
 class MysteryMixin:
 
     def _mystery(self):
@@ -32,7 +40,27 @@ class MysteryMixin:
             return m.obstacle_open
         if m.power_role:
             return m.power_restored
-        return self._mystery_has_item()
+        # transportation: a checklist - the machine runs once you're
+        # carrying every part. Single-item mechanisms fall through the
+        # same call (one-entry list).
+        return self._mystery_has_all_items()
+
+    def _mystery_required_items(self):
+        """Every item this mechanism's obstacle needs. A list of one for
+        the single-item families; two (or more) for transportation."""
+        m = self._mystery()
+        if m is None:
+            return []
+        return list(m.requirement_items) or (
+            [m.requirement_item] if m.requirement_item else [])
+
+    def _mystery_missing_items(self):
+        have = {getattr(it, 'name', None) for it in self.backpack.items}
+        return [n for n in self._mystery_required_items() if n not in have]
+
+    def _mystery_has_all_items(self):
+        req = self._mystery_required_items()
+        return bool(req) and not self._mystery_missing_items()
 
     def _mystery_role_at(self, x, y):
         m = self._mystery()
@@ -206,11 +234,32 @@ class MysteryMixin:
             self.backpack.add_item(Item(m.requirement_item))
             _pl = m.site_labels.get('power', 'where it is needed')
             _dest = "head back to it" if not m.power_role else f"take it to {_pl}"
+            if m.requirement_items:
+                # transportation: name the machine, not "back to it" -
+                # and mention the other part if it's still outstanding.
+                _still = [n for n in self._mystery_required_items()
+                          if n != m.requirement_item and n in self._mystery_missing_items()]
+                _dest = (f"take it to {m.site_labels.get('route', 'the machine')}"
+                         + (f" - you still need the {_still[0]} too" if _still else ""))
             self.announce_event(
                 f"you have the {m.requirement_item}",
                 f"This is what gets you past the blocked route - {_dest}.",
                 kind="objective",
             )
+        # transportation: the second parallel part, at the require2 site.
+        if (role == 'require2' and 'E_require2_b' in m.knowledge.found
+                and not m.obstacle_open):
+            _item2 = self._mystery_required_items()[-1]
+            if _item2 in self._mystery_missing_items():
+                self.backpack.add_item(Item(_item2))
+                _still = [n for n in self._mystery_missing_items() if n != _item2]
+                _tail = (f" - you still need the {_still[0]}" if _still
+                         else " - that's everything the plane needs")
+                self.announce_event(
+                    f"you have the {_item2}",
+                    f"Take it to {m.site_labels.get('route', 'the machine')}{_tail}.",
+                    kind="objective",
+                )
         # Infrastructural: applying the fix at the dependency site.
         power_restore_fired = False
         if role == m.power_role and not m.power_restored and self._mystery_has_item():
@@ -239,8 +288,18 @@ class MysteryMixin:
                 # taken it and used it - skip that one line on revisit.
                 if eid == 'E_require_b' and _fix_done and m.requirement_item:
                     continue
+                # transportation: same for the second store, once its
+                # part is in the pack or already fitted.
+                if (eid == 'E_require2_b' and m.requirement_items
+                        and self._mystery_required_items()[-1] not in self._mystery_missing_items()):
+                    continue
                 self.io.say(f"  {m.knowledge.evidence[eid].text}")
-            if role == 'require' and _fix_done and m.requirement_item:
+            if role in ('require', 'require2') and m.requirement_items:
+                _left = [] if m.obstacle_open else self._mystery_missing_items()
+                self.io.say("  Nothing more to take here."
+                            if not _left else
+                            "  Nothing more here - you still need " + _and_list(_left) + ".")
+            elif role == 'require' and _fix_done and m.requirement_item:
                 self.io.say("  Nothing more to take here - you've already got what this place had.")
             if m.controls and role == 'require' and not m.obstacle_open:
                 self.io.say("  Work them one at a time - pull <name> and watch the reservoir.")
@@ -275,6 +334,14 @@ class MysteryMixin:
             self.io.say(
                 "Too deep to wade, and nothing to move here. Whatever holds "
                 "this water back is set from the control room, not here.")
+        elif m.requirement_items and not m.obstacle_open:
+            _miss = self._mystery_missing_items()
+            if _miss:
+                self.io.say(
+                    "You climb up and try the starter. Nothing. It still needs "
+                    + _and_list(_miss) + " before it'll run.")
+            else:
+                self.io.say("You've got everything it needs - fit it and go.")
         elif not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
         self._mystery_progress_flare(_hyp_before, _facts_before)
@@ -330,18 +397,26 @@ class MysteryMixin:
         if not self._mystery_obstacle_ready():
             if m.power_role:
                 self.io.say("The gate has no power. Nothing you do here changes that.")
+            elif m.requirement_items:
+                _miss = self._mystery_missing_items()
+                self.io.say("The plane still needs " + _and_list(_miss) + "."
+                            if _miss else "The plane still won't start.")
             else:
                 self.io.say(f"You can't get past it without the {m.requirement_item}.")
             return
         if not m.power_role:
+            _consume = set(self._mystery_required_items()) or {m.requirement_item}
             self.backpack.items = [it for it in self.backpack.items
-                                   if getattr(it, 'name', None) != m.requirement_item]
+                                   if getattr(it, 'name', None) not in _consume]
         m.obstacle_open = True
         game_cell = self.map[oy][ox]
         if isinstance(game_cell, dict):
             game_cell['obstacle'] = False
         if m.power_role:
             _how = "The gate has power now. It grinds open."
+        elif m.requirement_items:
+            _how = MECHANISMS.get(m.mechanism, {}).get(
+                'assemble_desc', "You fit the parts. The machine is ready.")
         else:
             _how = (f"You come back with the {m.requirement_item}. It works."
                     if m.saw_obstacle else f"The {m.requirement_item} does it.")

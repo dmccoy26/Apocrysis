@@ -21,6 +21,27 @@ different-feeling escape stories from a small set of mechanisms* — not
   the 5 validation categories, directional-truth spec, build-priority
   sequence). Doc-only, no code. Committed.
 
+- [x] **Phase 2 — transportation (`airfield_plane`).** Hand-written
+  (Atlas tried the MECHANISMS entry twice, both proposals diffed
+  against a stale index and would have reverted the require2 work —
+  rejected, entry hand-written; also rejected one stale
+  `mystery_apply_fix` workflow left over from a prior session).
+  `Mystery.requirement_items` (order-free checklist) + validate +
+  save/load round-trip; `build_mystery` places the plane nearest the
+  gap and a `require2` field-store side-trip, adds `E_require2_a/b`;
+  `_mystery_has_all_items` / `_mystery_missing_items` on the mixin,
+  obstacle opens on the full checklist, `mystery_bump_obstacle` /
+  `mystery_clear_obstacle` name the missing part(s) and use
+  `assemble_desc`; a transportation branch in `_objective_steps`
+  (one line per part with its own ✓/▸ + heading). Bot: visits
+  `require2`; `--force-mechanism` flag + a per-mechanism campaign-goal
+  table (`mystery_solved` = Escape Proof reached even if the bot then
+  died) + `mystery_solved` metric. Forced 100-game: 86% solved / 85%
+  survived / median 41, 10/10 deaths zombie combat. Unforced 300-game:
+  85.3% survival, 0 timeouts, 44/44 deaths zombie combat,
+  `airfield_plane` 92.6% solved. 154 tests + 40 subtests green.
+  Committed.
+
 Phases, in order:
 
 1. **Scenario library** (first-class, not filler). **DONE** — see above.

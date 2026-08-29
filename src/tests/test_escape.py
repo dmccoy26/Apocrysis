@@ -226,6 +226,52 @@ class TestEscapeGeneration(unittest.TestCase):
         self.assertTrue(m.obstacle_open)
         self.assertTrue(g._mystery_obstacle_ready())
 
+    def test_airfield_plane_two_item_checklist(self):
+        from src.items import Item
+        g = self._force_mechanism("airfield_plane", seed=2)
+        m = g.mystery
+        self.assertEqual(m.family, "transportation")
+        self.assertEqual(m.requirement_items, ["propeller", "can of avgas"])
+        self.assertIn("require2", m.sites)
+        self.assertNotEqual(m.sites["require"], m.sites["require2"])
+        # F_REQUIRE still has >=2 evidence routes
+        routes = [e for e in m.knowledge.evidence.values() if "F_REQUIRE" in e.supports]
+        self.assertGreaterEqual(len(routes), 2)
+        # one item is not enough
+        g.backpack.add_item(Item("propeller"))
+        self.assertFalse(g._mystery_obstacle_ready())
+        # both items: the checklist is complete, obstacle opens on a bump
+        g.backpack.add_item(Item("can of avgas"))
+        self.assertTrue(g._mystery_obstacle_ready())
+        g.current_position = m.obstacle_tile
+        g.mystery_clear_obstacle()
+        self.assertTrue(m.obstacle_open)
+        # both parts consumed
+        held = {getattr(it, "name", None) for it in g.backpack.items}
+        self.assertNotIn("propeller", held)
+        self.assertNotIn("can of avgas", held)
+
+    def test_airfield_plane_items_are_order_free(self):
+        g = self._force_mechanism("airfield_plane", seed=6)
+        m = g.mystery
+        # arrive at the two stores in reverse order; both hand over a part
+        for role in ("require2", "require"):
+            g.current_position = m.sites[role]
+            g.mystery_arrive(*g.current_position)
+        held = {getattr(it, "name", None) for it in g.backpack.items}
+        self.assertEqual(held & {"propeller", "can of avgas"},
+                         {"propeller", "can of avgas"})
+
+    def test_airfield_plane_round_trips_requirement_items(self):
+        import os, tempfile
+        os.chdir(tempfile.mkdtemp())
+        g = self._force_mechanism("airfield_plane", seed=8)
+        g.save_game("plane.json")
+        loaded = Apocrysis.load_game("plane.json")
+        self.assertEqual(loaded.mystery.requirement_items,
+                         ["propeller", "can of avgas"])
+        self.assertIn("require2", loaded.mystery.sites)
+
     def test_mystery_round_trips_through_save_load(self):
         import os
         import tempfile

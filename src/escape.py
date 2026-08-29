@@ -164,6 +164,24 @@ MECHANISMS = {
         "d_route": "The way out isn't a road you can find on your own - it's whatever the people on the other end of that channel tell you.",
         "route_reveal_ev": "The channel crackles, then a voice - clear, close. They read you an emergency access road up the {bearing} ridge, a track that was never on any map. It's marked for you now.",
     },
+    "airfield_plane": {
+        "name": "the airstrip",
+        "family": "transportation", "discovery": "find_object",
+        "reasoning": "sequence", "resolution": "repair", "confirmation": "traversal",
+        "closed": "Every road out ends the same way - a checkpoint, a slide, a bridge dropped in the river. Nothing is driving out.",
+        "route": "A crop-duster sits tied down on a grass strip where the valley opens up. Small - barely two seats - but it flies, and the strip runs right to where the ridge drops away.",
+        "obstacle": "The plane won't start. The propeller is off the shaft entirely, and both fuel gauges read empty.",
+        "require": "The propeller is racked on the wall of the hangar by the strip, wrapped in a blanket.",
+        "item": "propeller",
+        "require2": "A drum of avgas and a hand pump stand in the field store at the edge of the strip.",
+        "item2": "can of avgas",
+        "obstacle_desc": "The crop-duster is airworthy but grounded - no propeller fitted, no fuel in the tanks.",
+        "escape_desc": "The prop's on and the tanks are full. The engine turns over twice and catches. You taxi to the end of the strip, open the throttle, and lift off over the ridge. This is the way out.",
+        "roles": {"closed": "the blocked checkpoint", "route": "the airstrip",
+                  "obstacle": "the grounded plane", "require": "the hangar",
+                  "require2": "the field store"},
+        "assemble_desc": "You wrestle the propeller onto the shaft and pin it, then pump both tanks full from the drum. The engine catches on the second turn - it's ready to fly.",
+    },
 }
 
 _MECH_ORDER = list(MECHANISMS)
@@ -224,7 +242,10 @@ class Mystery:
         self.obstacle_tile = None  # (x, y) - blocked until cleared
         self.obstacle_open = False
         self.escape_tile = None    # (x, y) - reaching it (cleared + confirmed) wins
-        self.requirement_item = None   # item name the player must acquire + use
+        self.requirement_item = None   # item name the player must acquire + use (primary)
+        self.requirement_items = []    # transportation: EVERY item the machine needs, order-free.
+                                       # [] or [requirement_item] means "single-item" - unchanged
+                                       # behaviour for the other 8 mechanisms.
         self.saw_obstacle = False
         self.escaped = False
         # role -> list of evidence ids observed/searchable at that site
@@ -254,6 +275,13 @@ class Mystery:
             problems.append("power_role set but no such site")
         if self.controls and self.correct_control not in self.controls:
             problems.append("experimental: correct_control not among controls")
+        # transportation: a checklist of >1 parallel items needs a
+        # require2 site and every entry non-empty.
+        if len(self.requirement_items) > 1:
+            if any(not it for it in self.requirement_items):
+                problems.append("transportation: an empty requirement item")
+            if 'require2' not in self.sites:
+                problems.append("transportation: >1 requirement item but no require2 site")
         # Classification must come from the closed vocabularies - catches
         # a typo in a new MECHANISMS entry before a player sees it.
         for attr, vocab in (
@@ -302,6 +330,7 @@ class Mystery:
             "obstacle_open": self.obstacle_open,
             "escape_tile": list(self.escape_tile) if self.escape_tile else None,
             "requirement_item": self.requirement_item,
+            "requirement_items": list(self.requirement_items),
             "saw_obstacle": self.saw_obstacle,
             "escaped": self.escaped,
             "site_evidence": {r: list(v) for r, v in self._site_evidence.items()},
@@ -330,6 +359,7 @@ class Mystery:
         m.obstacle_open = d.get("obstacle_open", False)
         m.escape_tile = tuple(d["escape_tile"]) if d.get("escape_tile") else None
         m.requirement_item = d.get("requirement_item")
+        m.requirement_items = list(d.get("requirement_items", []))
         m.saw_obstacle = d.get("saw_obstacle", False)
         m.escaped = d.get("escaped", False)
         m._site_evidence = {r: list(v) for r, v in d.get("site_evidence", {}).items()}
@@ -517,19 +547,30 @@ def build_mystery(game):
     _rest = [s for s in sites if s != role_closed] or [sites[0]]
 
     # 'route' - the site that turns "wander" into "head for the way
-    # out": low detour, in the middle band of the spawn->exit run.
-    _band = sorted((s for s in _rest
-                    if 0.25 * _sp_ex <= _from_spawn(s) <= 0.85 * _sp_ex),
-                   key=_detour)
-    role_route = (_band[0] if _band
-                  else (sorted(_rest, key=_detour)[0] if _rest else role_closed))
+    # out". Transportation: the machine (the plane) sits at the valley's
+    # edge, so its site is the one NEAREST the carved gap - "head for the
+    # airstrip" and "head for the way out" are the same vector (pacing
+    # invariant 3d). Everyone else: low detour, middle band of the
+    # spawn->exit run.
+    _transport = bool(spec.get('item2'))
+    if _transport:
+        role_route = min(_rest, key=lambda s: abs(s[0] - ex) + abs(s[1] - ey))
+    else:
+        _band = sorted((s for s in _rest
+                        if 0.25 * _sp_ex <= _from_spawn(s) <= 0.85 * _sp_ex),
+                       key=_detour)
+        role_route = (_band[0] if _band
+                      else (sorted(_rest, key=_detour)[0] if _rest else role_closed))
     _rest = [s for s in _rest if s != role_route] or [role_route]
 
-    # 'require' - a real side-trip is fine, a straight shot off-axis is
-    # not; cap the detour.
-    _side = sorted((s for s in _rest if _detour(s) <= game.map_size * 0.5),
-                   key=_detour) or sorted(_rest, key=_detour)
-    role_require = _side[0]
+    # 'require' (+ 'require2' for transportation) - a real side-trip is
+    # fine, a straight shot off-axis is not; cap the detour.
+    def _pick_side(pool):
+        ranked = (sorted((s for s in pool if _detour(s) <= game.map_size * 0.5),
+                         key=_detour) or sorted(pool, key=_detour))
+        return ranked[0]
+
+    role_require = _pick_side(_rest)
 
     m.sites = {
         'closed': role_closed,
@@ -538,6 +579,10 @@ def build_mystery(game):
         'require': role_require,
     }
     m.requirement_item = spec["item"]
+    m.requirement_items = ([spec["item"]] + [spec["item2"]]) if _transport else []
+    if _transport:
+        _rest2 = [s for s in _rest if s != role_require] or [role_require]
+        m.sites['require2'] = _pick_side(_rest2)
 
     # World grammar: each role-site is a NAMED place, not a generic
     # building. The evidence chain references these same names ("the
@@ -547,9 +592,9 @@ def build_mystery(game):
     # building". Tagged on the tile; mystery_arrive leads with it.
     roles = spec.get("roles", {})
     m.site_labels = {}
-    for role in ('closed', 'route', 'require'):
+    for role in ('closed', 'route', 'require', 'require2'):
         label = roles.get(role)
-        if label:
+        if label and role in m.sites:
             m.site_labels[role] = label
             sx_, sy_ = m.sites[role]
             cell = game.map[sy_][sx_]
@@ -631,6 +676,15 @@ def build_mystery(game):
         Evidence('E_confirm', spec["escape_desc"], supports=['F_ROUTE'],
                  location='escape', method='observe'),
     ]
+    if _transport:
+        # transportation: the second parallel requirement. The route
+        # site (the airstrip) briefs BOTH stores; the require2 site
+        # itself holds the item. Both support F_REQUIRE ("the machine
+        # needs things", plural).
+        ev.append(Evidence('E_require2_a', spec['require2'], supports=['F_REQUIRE'],
+                           location='route', method='search'))
+        ev.append(Evidence('E_require2_b', f"You find the {spec['item2']} here.",
+                           supports=['F_REQUIRE'], location='require2', method='search'))
     if _reveal:
         # E_route_b names the route ("try the emergency access road") -
         # a leak before radio contact. Drop it; F_ROUTE is carried by

@@ -285,6 +285,44 @@ def _objective_steps(p, m, k):
                 out.append(f"  [{_DIM}]☐ {label}[/]")
         return out
 
+    # --- transportation family (airfield_plane): the way out is a
+    # machine that needs a checklist of parts, fetched in any order.
+    req_items = getattr(m, "requirement_items", None) or []
+    if len(req_items) > 1:
+        held = {getattr(it, "name", None) for it in p.backpack.items}
+        roles_for = {req_items[0]: "require"}
+        for extra in req_items[1:]:
+            roles_for[extra] = "require2"
+        if "F_REQUIRE" in known:
+            steps.append((True, "found out what the machine needs"))
+        for it_name in req_items:
+            r = roles_for.get(it_name, "require")
+            got = (it_name in held) or m.obstacle_open
+            steps.append((got, f"got the {it_name}",
+                          f"go to {place(r, 'where it is kept')}{heading(r)} for the {it_name}"))
+        steps.append((m.obstacle_open, "fitted the parts and started the engine",
+                      f"bring the parts to {place('route', 'the machine')} and start it"))
+        _can_leave = confirmed and m.obstacle_open
+        steps.append((m.escaped, f"escaped by {mech_name}",
+                      "type `escape` to leave" if _can_leave else f"escaped by {mech_name}"))
+        out = [f"[b]ESCAPE — {mech_name}[/b]"]
+        hyp = getattr(k, "hypothesis", None)
+        hstate = k.hypothesis_state() if hyp else "unknown"
+        if hyp and hstate in ("suspected", "confirmed"):
+            tag = "you think" if hstate == "suspected" else "you know"
+            out.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
+        hot = next((i for i, s in enumerate(steps) if not s[0]), None)
+        for i, s in enumerate(steps):
+            dn, label = s[0], s[1]
+            todo = s[2] if len(s) > 2 else label
+            if dn:
+                out.append(f"  [green]✓[/green] {label}")
+            elif i == hot:
+                out.append(f"  [yellow]▸[/yellow] [yellow]{todo}[/]")
+            else:
+                out.append(f"  [{_DIM}]☐ {label}[/]")
+        return out
+
     # 2b. infrastructural / informational: the dependency
     if m.power_role and ("F_POWER" in known):
         steps.append((True,

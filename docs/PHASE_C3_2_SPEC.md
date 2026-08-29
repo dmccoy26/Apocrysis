@@ -393,17 +393,16 @@ Decide when C.3.2b starts; it is not part of C.3.2a.
 
 1. ~~`bearing()` + `heading_is_honest()` in `src/nav.py` + tests.~~ ✅ `2c1cc4d`
 2. ~~C.3.2a piece 0 (graph-honest ESCAPE-panel route heading).~~ ✅ `3fe0485`
-3. ~~C.3.2a piece 2 (`look` recovers the route direction).~~ ✅ `5cd5da6`
-4. **→ Step A: the controlled `look` test** (see "The gate" below) —
-   once. Feels good → keep, add no more `look`. Feels gamey → tune it.
-5. **Step B: play v1 normally** (BlueNoodle archetype). Works → done
-   with C.3.2a. Another wandering/death case → piece 1.
-6. C.3.2a piece 1 (landmark bearings) — the passive channel we're
-   missing. Only if 5 shows normal play still fails.
-7. C.3.2a piece 4 (ambient clue → soft hint, *reinforcing an
-   established lead only*) — only if still needed after piece 1.
-8. C.3.2a-5 (site distribution / early-lead reachability) — last, only
-   if the player still can't *encounter* anything.
+3. ~~C.3.2a piece 2 (`look` recovers the route direction).~~ ✅ `5cd5da6` — **DONE, validated in real play**
+4. ~~Scale investigation~~ ✅ `SCALE_REPORT.md` (`tools/scale_report.py`)
+   — the solve circuit outgrows the survival budget by mid-campaign.
+5. **→ Author the C.3.2a-5 spec** against `SCALE_REPORT.md`: keep an
+   appropriate density of actionable destinations as the map grows
+   (not by shrinking maps, not by clustering on spawn). Owner review.
+6. Implement C.3.2a-5. Re-run `scale_report.py`. Owner feel-test.
+7. C.3.2a piece 1 (landmark bearings) — PARKED, only if the player
+   still can't *recover direction* after C.3.2a-5.
+8. C.3.2a piece 4 (clue reinforcement) — PARKED, after piece 1.
 9. C.3.2a piece 3 (evidence spawn→gap bearing validation) +
    golden-fixture update. Tag `v5-phase-c3-2a`.
 10. Variety fix (one of the three options).
@@ -515,42 +514,43 @@ recoverability)**.
 
 ## The gate — revised after BlueNoodle (2026-08-29)
 
-`look` is **one recovery mechanism, proven to work technically, not
-proven players will use it** — not "the solution." The gate is now
-two cheap steps, in order:
+### Where it stands (2026-08-29, after BlueNoodle runs 1–4 + the scale report)
 
-### Step A — the controlled `look` test (once, closes the experimental question)
+- **Piece 0** — shipped, guardrail, near-no-op (measured).
+- **Piece 2 (`look`) — DONE.** Validated in real play: BlueNoodle (the
+  "never interrogates" archetype) used it twice unprompted on map 4
+  and acted on it. **No more `look` machinery.**
+- **Pieces 1 and 4 — PAUSED.** Not abandoned. They answer "I know
+  where to go, how do I recover the direction?" — real, but no longer
+  the priority.
+- **`SCALE_REPORT.md` (200 seeds/depth, not one playthrough) is the
+  finding:** the *nearest* meaningful site stays ~5 tiles from spawn at
+  every depth, but the *solve circuit* (spawn → touch every site)
+  balloons p50 20 → 60 tiles, and the fraction of maps whose circuit
+  alone exceeds a fresh survivor's whole movement budget goes
+  0 % → 24 % (depth 4) → 74 % (depth 12). Site density collapses 5.5×.
+  **By mid-campaign most maps can't be *completed* by a survivor
+  without inherited supplies, independent of navigation.** The
+  roguelite loop masked this until BlueNoodle died at depth 3.
 
-Reproduce the bad behaviour, don't play well:
+### The priority: C.3.2a-5, reframed
 
-1. Fresh v1 expedition (`python3 apocrysis.py`).
-2. Read the initial ESCAPE direction, then **wander away from it** for
-   ~20–40 turns.
-3. **No `search` / `journal` / `remember` / `inspect`.**
-4. `look` once, thoroughly disoriented. Follow the recovered direction.
+> **How does the generator keep an appropriate density of actionable
+> destinations as the geography expands** — so the solve circuit stays
+> within a fresh survivor's movement budget at every campaign depth?
 
-Record: did the direction land immediately? did you encounter
-meaningful terrain / a site / a landmark before resources got
-dangerous? lost, or merely off-course? — and: does `look` feel like a
-**diegetic recovery** ("you get your bearings") or a **GPS button** you
-hammer every few tiles?
+Constraints for that spec:
+- `map growth` is **FROZEN** → the lever is *maintain density*, not
+  *shrink maps*.
+- **Do not cluster every site near spawn** — that recreates the
+  "nothing to explore" problem (and `near` is already flat; it's `far`
+  / `circuit` that balloon).
+- Candidate levers (undecided): scale settlement count with area; bound
+  the site-placement region; cap `TOWN_DISTANCE_GROWTH_PER_LEVEL`;
+  spread a mystery's sites across multiple settlements.
 
-- `look` feels good → **keep it, add no more `look` machinery.** Go to
-  step B.
-- `look` feels gamey → stop, tune `look`, add nothing else.
-
-### Step B — play v1 normally (the BlueNoodle archetype)
-
-Ordinary play, follow leads, don't force the wander.
-
-- Normal play works for the archetype → **done with C.3.2a for now.**
-  The passive channels (piece 0 heading + survey map) are carrying it.
-- Normal play produces another wandering / death case →
-  **piece 1 (landmark bearings)** is next — it's the passive channel
-  we're missing (a bearing that *arrives while playing*, no command).
-- Then, and only then, revisit **piece 4** (clue reinforcement — under
-  the "reinforces an established lead, not a compass on every clue"
-  constraint) and **C.3.2a-5** (site distribution).
+Author the C.3.2a-5 spec against `SCALE_REPORT.md` → owner review →
+implement. Pieces 1 / 4 stay parked until that lands and is re-tested.
 
 ## Acceptance
 

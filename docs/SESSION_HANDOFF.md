@@ -185,12 +185,28 @@ doc map below it.**
   the killer is **map area scaling the wander-to-settlement cost**.
   Strongest signal yet for **C.3.2a-5**; also raises whether `map_size`
   should grow unbounded (balance-FROZEN).
+- **SCALE INVESTIGATION DONE — `docs/SCALE_REPORT.md`** (200 seeds ×
+  8 depths, `tools/scale_report.py`; not one playthrough). Finding:
+  the *nearest* meaningful site stays ~5 tiles from spawn at every
+  depth, but the *solve circuit* (spawn → touch every site) balloons
+  p50 20 → 60 tiles, and the fraction of maps whose circuit alone
+  exceeds a fresh survivor's whole movement budget goes
+  **0% → 24% (depth 4) → 74% (depth 12)**. Site density collapses 5.5×
+  (fixed ~5 sites, 5× area). **By mid-campaign most maps can't be
+  *completed* by a survivor without inherited supplies — independent of
+  navigation.** The roguelite loop masked it until BlueNoodle died at
+  depth 3.
+- **Sequence now:** piece 0 ✅ → piece 2 ✅ (DONE, validated) →
+  **C.3.2a-5 is the priority**, reframed: *how does the generator keep
+  actionable-destination density as geography expands?* `map growth`
+  is FROZEN → lever is maintain density, NOT shrink maps, NOT cluster
+  on spawn. Pieces 1 & 4 PARKED until C.3.2a-5 lands + re-tested.
+- **Next: author the C.3.2a-5 spec** against `SCALE_REPORT.md` → owner
+  review → implement → re-run `scale_report.py`.
 - **Two QoL bug-fixes shipped** (separate track from C.3.2):
   `8bec163` empty ammo no longer alarm-red for a benched weapon;
   `1ce5f3a` `eq N` / `wr W2` / `drop N` by pack slot number + the pack
   list now numbers each line (`[3]`, `[5-7]` for contiguous runs).
-- **Next: owner runs Step A** (or keeps playing). The map-scale death
-  makes C.3.2a-5 the likely next real change.
 - **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
   route (`mountain_pass`) so every fresh campaign's expedition 1 is
   identical; contaminated this feel-test (a symptom of the name bug
@@ -219,10 +235,12 @@ doc map below it.**
 4a. `NAV_SIGNAL_INVENTORY.md` — 26 player-facing signals classified
    `observable → interpretable → actionable`. Feeds C.3.2. Conclusion:
    surfacing + validation problem, not a generator problem.
-4b. `PHASE_C3_2_SPEC.md` — the navigation-affordance experiment.
-   C.3.2a (v1, 4 ordered pieces) → C.3.2b (v2 replay, 2×2). Invariant
-   4 = signals must match `MapGraph` topology. **Owner review pending;
-   no code yet.**
+4b. `PHASE_C3_2_SPEC.md` — the navigation experiment. Pieces 0 + 2
+   shipped & validated; `look` is DONE. Now pivoting to C.3.2a-5
+   (density as maps grow) per the scale report.
+4c. `SCALE_REPORT.md` — 200 seeds × 8 depths. The solve circuit
+   outgrows the survival budget by mid-campaign; site density
+   collapses 5.5×. The basis for the C.3.2a-5 spec.
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the old fully-inverted-pipeline vision
    — **superseded** by C.3.2's navigational-affordance framing.

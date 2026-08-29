@@ -217,6 +217,8 @@ class MysteryMixin:
             used = self.__class__._used_mechanisms = []
         if m.mechanism not in used:
             used.append(m.mechanism)
+        # schema invariant 3a: the next expedition avoids this family
+        self.__class__._last_family = m.family
         self.io.say(
             f"\nYou found the way out - {m.knowledge.hypothesis.statement.rstrip('.')}. "
             "Not because anything told you, but because you worked out "

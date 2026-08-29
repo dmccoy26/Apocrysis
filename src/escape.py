@@ -29,6 +29,8 @@ from src.knowledge import Knowledge, Fact, Evidence, Deduction, Hypothesis
 MECHANISMS = {
     "mountain_pass": {
         "name": "the old mountain pass",
+        "family": "spatial", "discovery": "find_named_place",
+        "reasoning": "locate", "resolution": "clear", "confirmation": "traversal",
         "closed": "The road out of the valley is choked with abandoned vehicles, bumper to bumper for miles. Nothing is driving out that way.",
         "route": "There's an old foot pass over the ridge - the ranger maps still show it.",
         "obstacle": "The pass trailhead is behind a locked forestry gate.",
@@ -41,6 +43,8 @@ MECHANISMS = {
     },
     "rail_tunnel": {
         "name": "the railway tunnel",
+        "family": "spatial", "discovery": "find_document",
+        "reasoning": "locate", "resolution": "clear", "confirmation": "traversal",
         "closed": "The main bridge over the river is down - dropped into the water, deliberately by the look of the charges still wired to what's left.",
         "route": "The rail line runs through a tunnel in the eastern hills - it comes out beyond the river entirely.",
         "obstacle": "The tunnel mouth is caved in. Not impassable, but not walkable either without clearing it.",
@@ -53,6 +57,8 @@ MECHANISMS = {
     },
     "service_route": {
         "name": "the dam service road",
+        "family": "infrastructural", "discovery": "observe_anomaly",
+        "reasoning": "locate", "resolution": "operate", "confirmation": "traversal",
         "closed": "The reservoir has come up over the valley road. It's a lake now, not a road.",
         "route": "There's a service road along the downstream face of the dam that stays above the water line.",
         "obstacle": "The service road is closed by a gate at the dam end.",
@@ -66,6 +72,8 @@ MECHANISMS = {
     },
     "boat_crossing": {
         "name": "the boat crossing",
+        "family": "transportation", "discovery": "find_object",
+        "reasoning": "corroborate", "resolution": "operate", "confirmation": "traversal",
         "closed": "Every road inland is blocked - checkpoints, wrecks, one of them still burning.",
         "route": "The marina still has boats in their slips. Water doesn't have checkpoints.",
         "obstacle": "The boats are dry - no fuel in any of the tanks.",
@@ -79,6 +87,8 @@ MECHANISMS = {
     },
     "evac_corridor": {
         "name": "the evacuation corridor",
+        "family": "sequential", "discovery": "find_document",
+        "reasoning": "sequence", "resolution": "open", "confirmation": "traversal",
         "closed": "The interstate on-ramp is collapsed - a whole overpass down across all the lanes.",
         "route": "There was a signed evacuation corridor on the surface streets, running north out of town.",
         "obstacle": "The corridor is barricaded where it leaves the built-up area - a checkpoint that was never taken down.",
@@ -112,9 +122,17 @@ CONFIRMATION_PATTERNS = (
     'traversal', 'new_information', 'environmental', 'external_response', 'corroboration',
 )
 
-def choose_mechanism(rng, already_used):
-    """Shuffle-bag: no repeat until the pool is exhausted."""
-    pool = [m for m in _MECH_ORDER if m not in already_used] or _MECH_ORDER
+
+def choose_mechanism(rng, already_used, last_family=None):
+    """Shuffle-bag on the mechanism NAME (no repeat until the pool is
+    exhausted); additionally, don't hand the player the same story
+    family two expeditions running (schema invariant 3a) - unless that
+    would leave nothing to pick."""
+    pool = [m for m in _MECH_ORDER if m not in already_used] or list(_MECH_ORDER)
+    if last_family is not None:
+        varied = [m for m in pool if MECHANISMS[m].get('family') != last_family]
+        if varied:
+            pool = varied
     return rng.choice(pool)
 
 
@@ -162,6 +180,16 @@ class Mystery:
             problems.append("hypothesis.confirmed_by is not a real evidence id")
         if self.obstacle_tile is None or self.escape_tile is None:
             problems.append("missing obstacle or escape tile")
+        # Classification must come from the closed vocabularies - catches
+        # a typo in a new MECHANISMS entry before a player sees it.
+        for attr, vocab in (
+            ("family", STORY_FAMILIES), ("discovery", DISCOVERY_PATTERNS),
+            ("reasoning", REASONING_PATTERNS), ("resolution", RESOLUTION_PATTERNS),
+            ("confirmation", CONFIRMATION_PATTERNS),
+        ):
+            val = getattr(self, attr)
+            if val is not None and val not in vocab:
+                problems.append(f"{attr} {val!r} is not in the vocabulary")
         if problems:
             raise RuntimeError("escape mystery failed validation: " + "; ".join(problems))
 
@@ -348,8 +376,17 @@ def build_mystery(game):
     Called from world_mixin.generate_map() for non-slice games."""
     rng = game.rng
     m = Mystery()
-    m.mechanism = choose_mechanism(rng, getattr(game.__class__, '_used_mechanisms', []))
+    m.mechanism = choose_mechanism(
+        rng,
+        getattr(game.__class__, '_used_mechanisms', []),
+        last_family=getattr(game.__class__, '_last_family', None),
+    )
     spec = MECHANISMS[m.mechanism]
+    m.family = spec.get('family')
+    m.discovery = spec.get('discovery')
+    m.reasoning = spec.get('reasoning')
+    m.resolution = spec.get('resolution')
+    m.confirmation = spec.get('confirmation')
 
     spawn = game.current_position
     reachable = _reachable_from(game, spawn)

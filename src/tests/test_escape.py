@@ -5,7 +5,11 @@ import unittest
 from collections import deque
 
 from src.game import Apocrysis
-from src.escape import MECHANISMS, choose_mechanism
+from src.escape import (
+    MECHANISMS, choose_mechanism,
+    STORY_FAMILIES, DISCOVERY_PATTERNS, REASONING_PATTERNS,
+    RESOLUTION_PATTERNS, CONFIRMATION_PATTERNS,
+)
 
 
 class _IO:
@@ -129,6 +133,39 @@ class TestEscapeGeneration(unittest.TestCase):
             used.append(p)
         self.assertEqual(sorted(picks), sorted(MECHANISMS),
                          "each mechanism used exactly once before any repeat")
+
+    def test_every_mechanism_declares_a_valid_classification(self):
+        # Escape Story schema v1 - each MECHANISMS entry names a family
+        # and the four patterns, all from the closed vocabularies.
+        axes = [
+            ("family", STORY_FAMILIES), ("discovery", DISCOVERY_PATTERNS),
+            ("reasoning", REASONING_PATTERNS), ("resolution", RESOLUTION_PATTERNS),
+            ("confirmation", CONFIRMATION_PATTERNS),
+        ]
+        for name, spec in MECHANISMS.items():
+            for key, vocab in axes:
+                self.assertIn(spec.get(key), vocab, f"{name}.{key}")
+
+    def test_choose_mechanism_avoids_repeating_the_previous_family(self):
+        import random
+        rng = random.Random(1)
+        used, last_family = [], None
+        for _ in range(12):
+            m = choose_mechanism(rng, used, last_family)
+            fam = MECHANISMS[m]["family"]
+            # only enforce when another family was actually available
+            others = {MECHANISMS[x]["family"] for x in MECHANISMS} - {last_family}
+            if last_family is not None and others:
+                self.assertNotEqual(fam, last_family)
+            if m not in used:
+                used.append(m)
+            last_family = fam
+
+    def test_generated_mystery_carries_its_classification(self):
+        game = Apocrysis("EscClass", seed=4, io=_IO())
+        m = game.mystery
+        self.assertIn(m.family, STORY_FAMILIES)
+        self.assertIn(m.resolution, RESOLUTION_PATTERNS)
 
     def test_mystery_round_trips_through_save_load(self):
         import os

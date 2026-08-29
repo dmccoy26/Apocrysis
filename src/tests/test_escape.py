@@ -202,6 +202,29 @@ class TestEscapeGeneration(unittest.TestCase):
         self.assertFalse(g._mystery_has_item())      # consumed there
         self.assertTrue(g._mystery_obstacle_ready())  # gate now openable
 
+    def test_dam_valves_obvious_control_is_never_the_answer(self):
+        for seed in range(20):
+            g = self._force_mechanism("dam_valves", seed=seed)
+            m = g.mystery
+            self.assertTrue(m.controls)
+            self.assertIn(m.correct_control, m.controls)
+            self.assertNotEqual(m.correct_control, "the main sluice")
+
+    def test_dam_valves_opens_from_the_control_room_not_the_obstacle(self):
+        g = self._force_mechanism("dam_valves", seed=1)
+        m = g.mystery
+        # no item to carry; the obstacle is not "ready" by walking in
+        self.assertFalse(g._mystery_obstacle_ready())
+        g.current_position = m.sites["require"]
+        # wrong control: truthful consequence, obstacle stays shut
+        g.mystery_pull_control("main sluice")
+        self.assertFalse(m.obstacle_open)
+        self.assertIn("the main sluice", m.controls_tried)
+        # right control: opens
+        g.mystery_pull_control(m.correct_control.split()[-1])
+        self.assertTrue(m.obstacle_open)
+        self.assertTrue(g._mystery_obstacle_ready())
+
     def test_mystery_round_trips_through_save_load(self):
         import os
         import tempfile

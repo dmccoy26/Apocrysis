@@ -120,6 +120,25 @@ MECHANISMS = {
         "generator_ev": "The generator's fuel gauge sits on empty. It will not turn over dry.",
         "power_restored_desc": "The generator catches and runs. Downriver, the tunnel gate's panel lights up.",
     },
+    "dam_valves": {
+        "name": "the lower valley road",
+        "family": "experimental", "discovery": "observe_anomaly",
+        "reasoning": "revise", "resolution": "operate", "confirmation": "environmental",
+        "closed": "The main road out is gone - a whole hillside came down across it.",
+        "route": "There's a lower road that runs under the dam and out through the far end of the valley. It's still there, under the water.",
+        "obstacle": "The lower road is under the reservoir. The water level is held by the dam and set from the control room.",
+        "require": "The dam control room holds the gates for the whole reservoir - a bank of controls.",
+        "item": None,
+        "obstacle_desc": "The lower road runs straight down into the reservoir. Too deep to wade.",
+        "escape_desc": "The water's dropped off the lower road. It runs on out through the end of the valley, wet but clear.",
+        "roles": {"closed": "the landslide", "route": "the lower road",
+                  "obstacle": "the flooded road", "require": "the dam control room"},
+        "controls": ["the main sluice", "the east intake", "the west intake"],
+        "obvious_control": "the main sluice",
+        "control_wrong_obvious": "Water roars away downstream - but the level behind the dam doesn't move. The main sluice feeds the river below, not the valley reservoir.",
+        "control_wrong_other": "The gate grinds open. The reservoir drops a hand's width, then holds. This one only takes part of it.",
+        "control_correct": "The gate opens and stays open. Behind the dam the reservoir starts falling in earnest - and out on the lower road, the water pulls back off the tarmac.",
+    },
 }
 
 _MECH_ORDER = list(MECHANISMS)
@@ -208,6 +227,8 @@ class Mystery:
             problems.append("missing obstacle or escape tile")
         if self.power_role and self.power_role not in self.sites:
             problems.append("power_role set but no such site")
+        if self.controls and self.correct_control not in self.controls:
+            problems.append("experimental: correct_control not among controls")
         # Classification must come from the closed vocabularies - catches
         # a typo in a new MECHANISMS entry before a player sees it.
         for attr, vocab in (
@@ -489,13 +510,24 @@ def build_mystery(game):
         _paint_terrain_near(game, m.sites['route'], 'water', 3, _protected_xy)
         _paint_terrain_near(game, m.obstacle_tile, 'water', 2, _protected_xy)
 
+    # Experimental family (dam_valves): no fetch item - the obstacle is
+    # opened by working out which control does it, from the control
+    # room. The obvious control is never the right one.
+    if spec.get('controls'):
+        m.controls = list(spec['controls'])
+        m.correct_control = rng.choice(
+            [c for c in m.controls if c != spec.get('obvious_control')])
+
     # --- build the Escape Proof ---
     k = m.knowledge
+    _req_line = (f"The thing needed to get past it exists - a {spec['item']}, "
+                 f"and you know where." if spec.get('item')
+                 else "What clears it is something you have to work out on the spot.")
     F = {
         'F_CLOSED': "The usual way out is closed.",
         'F_ROUTE': f"There is another route out: {spec['name']}.",
         'F_OBSTACLE': "That route is blocked by something that can be cleared or opened.",
-        'F_REQUIRE': f"The thing needed to get past it exists - a {spec['item']}, and you know where.",
+        'F_REQUIRE': _req_line,
     }
     for fid, s in F.items():
         k.add_fact(Fact(fid, s))
@@ -518,7 +550,11 @@ def build_mystery(game):
                  location='obstacle', method='observe'),
         Evidence('E_require_a', spec["require"], supports=['F_REQUIRE'],
                  location='obstacle', method='search'),
-        Evidence('E_require_b', f"You find the {spec['item']} here.",
+        Evidence('E_require_b',
+                 (f"A bank of controls: {', '.join(spec['controls'])}. "
+                  "One of them sets the valley reservoir - but which?"
+                  if spec.get('controls')
+                  else f"You find the {spec['item']} here."),
                  supports=['F_REQUIRE'], location='require', method='search'),
         Evidence('E_confirm', spec["escape_desc"], supports=['F_ROUTE'],
                  location='escape', method='observe'),

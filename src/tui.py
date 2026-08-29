@@ -223,6 +223,32 @@ def _objective_steps(p, m, k):
     # 2. what blocks it
     if "F_OBSTACLE" in known or m.saw_obstacle:
         steps.append((True, "found what blocks the route"))
+
+    # --- experimental family (dam_valves): no fetch, no dependency -
+    # you have to work out which control it is by trying them.
+    if m.controls:
+        if "F_REQUIRE" in known:
+            steps.append((True, f"found {place('require', 'the controls')}"))
+        steps.append((m.obstacle_open,
+                      "worked out which control clears the way"))
+        steps.append((m.obstacle_open, "opened the way through"))
+        steps.append((m.escaped, f"escaped by {mech_name}"))
+        out = [f"[b]ESCAPE — {mech_name}[/b]"]
+        hyp = getattr(k, "hypothesis", None)
+        hstate = k.hypothesis_state() if hyp else "unknown"
+        if hyp and hstate in ("suspected", "confirmed"):
+            tag = "you think" if hstate == "suspected" else "you know"
+            out.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
+        hot = next((i for i, (d, _) in enumerate(steps) if not d), None)
+        for i, (dn, label) in enumerate(steps):
+            if dn:
+                out.append(f"  [green]✓[/green] {label}")
+            elif i == hot:
+                out.append(f"  [yellow]▸[/yellow] [yellow]{label}[/]")
+            else:
+                out.append(f"  [{_DIM}]☐ {label}[/]")
+        return out
+
     # 2b. infrastructural: the dependency
     if m.power_role and ("F_POWER" in known):
         steps.append((True, f"learned it's powered from {place('power', 'somewhere else')}"))

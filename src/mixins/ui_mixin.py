@@ -39,6 +39,9 @@ class UIMixin:
         if m is not None:
             if m.obstacle_open and m.knowledge.hypothesis_state() == 'confirmed' and not m.escaped:
                 bar.insert(1, "ESCAPE")
+            elif m.controls and here == 'require' and not m.obstacle_open:
+                untried = [c for c in m.controls if c not in m.controls_tried]
+                bar.insert(1, "pull <" + " / ".join(c.split()[-1] for c in (untried or m.controls)) + ">")
             elif here == m.power_role and self._mystery_has_item() and not m.power_restored:
                 bar.insert(1, "(walk in - the fuel goes here)")
             elif getattr(m, 'saw_obstacle', False) and not m.obstacle_open and self._mystery_obstacle_ready():
@@ -359,6 +362,10 @@ class UIMixin:
                 # Suspected/Unknown for one thing.
                 parts = command.split(maxsplit=1)
                 self.knowledge_inspect(parts[1] if len(parts) > 1 else "")
+            elif (command.split(maxsplit=1) or [''])[0] in ('pull', 'try', 'operate'):
+                # experimental family: `pull <control>` at the control room
+                parts = command.split(maxsplit=1)
+                self.mystery_pull_control(parts[1] if len(parts) > 1 else "")
             elif (command.split() or [''])[0] in ('take', 'get', 'grab', 'pickup') or command.startswith('pick up'):
                 # v4: a player who finds a note/record and types
                 # "take note". Evidence isn't carried - what you learn
@@ -716,6 +723,7 @@ class UIMixin:
             "  Act",
             "    take            pick something up off the ground",
             "    open            open or clear the thing in your way",
+            "    pull <thing>    work a control / lever / valve",
             "    escape          leave the valley, once you're ready",
             "    search          go over a place again (usually not needed)",
             "",

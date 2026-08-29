@@ -20,13 +20,16 @@ class MysteryMixin:
         return getattr(self, 'mystery', None)
 
     def _mystery_obstacle_ready(self):
-        """Can the obstacle be opened? For a plain (spatial) mystery
-        that's 'do you carry the requirement item'; for the
-        infrastructural family it's 'is the dependency satisfied'
-        (m.power_restored) - the item was consumed elsewhere."""
+        """Can the obstacle be opened by walking into it?
+          spatial        - do you carry the requirement item
+          infrastructural - is the dependency satisfied (m.power_restored)
+          experimental   - never here; it opens from the control room
+                           via `pull` (m.obstacle_open mirrors that)"""
         m = self._mystery()
         if m is None:
             return False
+        if m.controls:
+            return m.obstacle_open
         if m.power_role:
             return m.power_restored
         return self._mystery_has_item()
@@ -81,9 +84,15 @@ class MysteryMixin:
                 "You'll have to sort out what's wrong there. Marked on your map.",
                 kind="lead")
         if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
-            self.announce_event(
-                f"the {m.requirement_item} is kept at {m.site_labels['require']}",
-                "It's marked on your map now.", kind="lead")
+            if m.controls:
+                self.announce_event(
+                    f"whatever clears the way is set from {m.site_labels['require']}",
+                    "You'll have to work out which control. Marked on your map.",
+                    kind="lead")
+            else:
+                self.announce_event(
+                    f"the {m.requirement_item} is kept at {m.site_labels['require']}",
+                    "It's marked on your map now.", kind="lead")
 
         now = k.hypothesis_state()
         if now != hyp_before and k.hypothesis is not None:
@@ -133,7 +142,8 @@ class MysteryMixin:
         for eid in m._site_evidence.get(role, []):
             if self._mystery_reveal(eid):
                 any_new = True
-        if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
+        if (role == 'require' and m.requirement_item and 'E_require_b' in m.knowledge.found
+                and not self._mystery_has_item()):
             self.backpack.add_item(Item(m.requirement_item))
             _pl = m.site_labels.get('power', 'where it is needed')
             _dest = "head back to it" if not m.power_role else f"take it to {_pl}"
@@ -171,6 +181,10 @@ class MysteryMixin:
             self.io.say(
                 f"You have the {m.requirement_item}. The gate is electrically "
                 f"operated - there's nowhere to use it here.")
+        elif m.controls and not m.obstacle_open:
+            self.io.say(
+                "Too deep to wade, and nothing to move here. Whatever holds "
+                "this water back is set from the control room, not here.")
         elif not revealed:
             self.io.say("It's still blocked. You need the way past it first.")
         self._mystery_progress_flare(_hyp_before, _facts_before)
@@ -197,7 +211,8 @@ class MysteryMixin:
         for eid in m._site_evidence.get(role, []):
             if self._mystery_reveal(eid):
                 any_new = True
-        if role == 'require' and 'E_require_b' in m.knowledge.found and not self._mystery_has_item():
+        if (role == 'require' and m.requirement_item and 'E_require_b' in m.knowledge.found
+                and not self._mystery_has_item()):
             self.backpack.add_item(Item(m.requirement_item))
             self.announce_event(
                 f"you have the {m.requirement_item}",
@@ -241,6 +256,45 @@ class MysteryMixin:
                     if m.saw_obstacle else f"The {m.requirement_item} does it.")
         self.announce_event("the way is open", _how,
                             "The route ahead is clear - keep going.", kind="objective")
+
+    def mystery_pull_control(self, arg):
+        """Experimental family: `pull <control>` at the control room.
+        The evidence never lied - the player's reading of it did. The
+        obvious control is wrong and says WHY; the player revises and
+        tries again. The right one opens the obstacle from here."""
+        m = self._mystery()
+        if m is None or not m.controls:
+            self.io.say("There's nothing here to pull.")
+            return
+        role = self._mystery_role_at(*self.current_position)
+        if role != 'require':
+            self.io.say("The controls for that are back at the control room.")
+            return
+        arg = (arg or "").strip().lower()
+        match = next((c for c in m.controls
+                      if arg and (arg in c.lower() or c.lower() in arg)), None)
+        if match is None:
+            self.io.say("The controls here: " + ", ".join(m.controls)
+                        + ".  (try `pull <name>`)")
+            return
+        if m.obstacle_open:
+            self.io.say("The water's already down. No need to touch anything else.")
+            return
+        spec = MECHANISMS[m.mechanism]
+        if match == m.correct_control:
+            m.obstacle_open = True
+            ox, oy = m.obstacle_tile
+            cell = self.map[oy][ox]
+            if isinstance(cell, dict):
+                cell['obstacle'] = False
+            self.announce_event("the way is open", spec['control_correct'],
+                                "The lower road is clear - go.", kind="objective")
+        else:
+            if match not in m.controls_tried:
+                m.controls_tried.append(match)
+            key = ('control_wrong_obvious' if match == spec.get('obvious_control')
+                   else 'control_wrong_other')
+            self.io.say(spec[key])
 
     def mystery_try_escape(self):
         m = self._mystery()

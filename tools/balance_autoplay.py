@@ -598,10 +598,19 @@ class BotIO:
                     return "search"
                 break
         else:
+            # Experimental family: the obstacle opens from the control
+            # room (the 'require' site) by pulling the right control.
+            # The bot already reads m.sites directly, so it reads the
+            # answer too - a comprehension proxy, not a solver of the
+            # 'which one' puzzle (that's the human test's job).
+            if getattr(m, "controls", None) and not m.obstacle_open:
+                if p.current_position == m.sites["require"]:
+                    return f"pull {m.correct_control}"
+                target = m.sites["require"]
             # Infrastructural family: carry the requirement item to the
             # power site (the game consumes it there and restores power)
             # BEFORE the obstacle will open.
-            if getattr(m, "power_role", None) and not m.power_restored:
+            elif getattr(m, "power_role", None) and not m.power_restored:
                 target = m.sites[m.power_role]
             elif not m.obstacle_open:
                 target = m.obstacle_tile  # stepping onto it clears it with the item

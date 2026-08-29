@@ -242,6 +242,34 @@ All of Phase A's **architecture and wiring** has been Claude's. Atlas
 has been a competent typist for the isolated, fully-specified leaf
 files.
 
+## Phase B (2026-08-29) — the roguelite inheritance loop
+
+| # | ask | route | outcome | notes |
+|---|---|---|---|---|
+| 31 | `src/survivor_knowledge.py` — a small class (`has`/`learn`/`snapshot`/`restore`), self-contained | `atlas request --create --force` | **SHIPPED verbatim** ✓ (`b0fa752`) | 7th leaf file. Same shape as `world_investigation.py`. |
+| 32 | `src/worlds/silence/lore.py` — `from src.worlds.base import SurvivorLore` + a 3-entry list | `atlas request --create --force` | **REJECTED** | The import-then-use shape again (`dbc93715`, 4th repro). Hand-written. |
+| 33–40 | the campaign/survivor profile split (`persistence_mixin` 570 ln), the death lifecycle (`cli.py` mid-loop + `tui.py`), `SurvivorLore` dataclass, all 3 lore triggers + effects (`escape.py` 940 ln, `mystery_mixin` 700, `ui_mixin` 900), surfacing, ~30 tests | not routed | **HAND** | all large-file edits / cross-module / mid-function restructure / procedural |
+
+Net Phase B: **1 of ~12 files by Atlas** (`survivor_knowledge.py`).
+Same story as Phase A — the leaf class, yes; the profile-format change,
+the lifecycle restructure, the per-lore engine hooks, no.
+
+## Cumulative (Phase A + B) — Atlas shipped 8 of ~55 files touched
+
+7 self-contained new leaf files (`worlds/base.py` v1, `worlds/__init__.py`,
+`truth.py`, `world_investigation.py`, `survivor_knowledge.py`) + 2 small
+edits (`game.py` world param, `campaign.py` milestones). Note
+`worlds/base.py` has since been hand-edited 4 more times (fields added
+each phase) — Atlas did only its first version.
+
+**The stable finding across two phases:** Atlas (32B local coder) can
+type a fully-specified, self-contained file up to ~60 lines, or make a
+small unambiguous edit to a file under ~350 lines. It cannot do
+architecture, multi-file changes, large-file edits, cross-module-import
+new files, mid-function restructures, or procedural test modules.
+Every design decision and every load-bearing change across both phases
+has been Claude's.
+
 ## Running tally after A.0 + A.1 + A.2
 
 **Atlas shipped, no rework:** `worlds/base.py` (v1), `worlds/__init__.py`,

@@ -257,3 +257,23 @@ the rest is large-file wiring — hand-written, logged.
 > couple of concrete survival lessons that make specific expeditions
 > read more clearly, and is dropped at the depth the campaign reached.
 > Dying costs the run, not the campaign.
+
+---
+
+## As built (2026-08-29) — see `PHASE_B_COMPLETE.md`
+
+Shipped as specced. **240 tests + 100 subtests green.** Build order
+followed (B.1a profile split → B.1b lifecycle → B.2a lore data +
+interpreter → B.2b the 3 entries one at a time, each with its own test
++ balance check → B.2c surfacing → exit-condition test).
+
+Notable as-built points (full list in `PHASE_B_COMPLETE.md`):
+- profile file is now `{campaign, survivor}`; `load_profile` migrates
+  legacy flat profiles; `apply_profile` flattens internally.
+- the profile file keys on the *campaign* (founder's name); the
+  survivor display name changes independently.
+- `COMMAND_FREQUENCY` removes exactly one `radio_tower` `search` step
+  (`E_route_a` → `observe`); `RESERVOIR_CONTROLS` is purely
+  informational (rewrites `E_require_b.text`, touches nothing else).
+- `INFECTED_AND_NOISE` / `CORRIDOR_CHECKPOINTS` remain un-shipped.
+- Atlas shipped 1 of ~12 files (`survivor_knowledge.py`).

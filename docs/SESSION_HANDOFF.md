@@ -78,20 +78,24 @@ invariants, §4 = which primitives generalise vs need extending),
 (`docs/MECHANISM_EXPERIMENTAL.md`) are the two genuinely-different
 grammars built so far.
 
-## >> THE IMMEDIATE NEXT STEP: `69d78812` — the three-mystery playtest
+## >> THE THREE-MYSTERY PLAYTEST (`69d78812` / `9ae794b9`): **PASSED 2026-08-28**
 
-Three families now exist (spatial, infrastructural, experimental), so
-the **phase gate is runnable**. Hand a human one generated mystery of
-each family, **blind** (don't say which). Per run, the 7-question
-table in `PLAYER_UNDERSTANDING.md` ("the three-mystery test"), then
-the gold question: *"what did you think the game wanted you to figure
-out?"* Three answers like "A: find something / B: figure out what
-powers something / C: figure out which control matters" = pass →
-the investigation game exists. If confused about the *kind* of
-problem, the banners or objective phrasing aren't working yet.
+Three families played blind by a human, over two rounds (round 1
+exposed an action-affordance gap, 5 fixes landed, round 2 confirmed):
+
+- **A `mountain_pass` (spatial):** WON clean, no mechanic confusion.
+- **B `power_station` (infrastructural):** WON.
+- **C `dam_valves` (experimental):** solved via `pull` after the recap.
+
+Each reads as a different *kind* of problem — the objective panel
+alone distinguishes them (`got the forestry gate key` / `restored
+power at the hydro station` / `worked out which control clears the
+way`). **Apocrysis generates different problems, not different
+scenery.** Tier-2 families are unblocked: `ea1d52be` informational,
+`17f2a0ca` transportation, `5761c63f` time-pressure.
 
 Balance is **FROZEN** (Atlas decision recorded) — do NOT tune combat
-or resources off the bot. This playtest replaces another sweep.
+or resources off the bot. This playtest replaced another sweep.
 
 **Harness ready:** `python3 tools/playtest_three.py shuffle` runs one
 blind mystery; do it 3×. `A`/`B`/`C` force spatial/infrastructural/
@@ -142,12 +146,18 @@ Two more fixes for the B friction (pushed, 145+40 green):
   the power site (`mystery_apply_fix`): applies the fix like
   auto-on-arrival, or points forward if already done.
 
-**Still open:** (a) run **A (`mountain_pass`, spatial)** — never
-tested, the control case; (b) optional re-run of B to confirm the two
-new fixes smooth it; (c) cosmetic: power site keeps its `!` after
-`power_restored` (`_mystery_site_mark`, should clear); (d) papercuts:
-`equip <n>` fails from the command line (only works inside `i`);
-empty-Enter → "Unknown command: ''". Balance stays FROZEN.
+### Round 3 — A `mountain_pass` (spatial): **WON** turn 120
+
+Clean. Got the key, objective panel tracked it, walked to the gate →
+opened → confirmed → escaped. No mechanic confusion. 120 turns is a
+big 18×18 map + wandering, not stuck-ness. **Gate passed.**
+
+**Still open (all minor / post-gate):** (a) cosmetic: power site keeps
+its `!` after `power_restored` (`_mystery_site_mark`, should clear);
+(b) papercuts: `equip <n>` fails from the command line (only works
+inside `i`); empty-Enter → "Unknown command: ''" (folds into the
+MOVE/TYPE input rework the user wants — arrows move, box always
+typeable); (c) start Tier-2 families. Balance stays FROZEN.
 
 ## Design rules (settled — don't relitigate)
 

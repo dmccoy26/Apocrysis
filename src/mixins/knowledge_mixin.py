@@ -102,28 +102,6 @@ class KnowledgeMixin:
 
     # ---- inspect ------------------------------------------
 
-    def _look_recall_bearing(self):
-        # C.3.2 piece 2 (Invariant 5): re-surface the direction to the
-        # way out so a wandering player recovers the objective without
-        # discovering anything new.
-        m = getattr(self, 'mystery', None)
-        if m is None:
-            return
-        site = m.sites.get('route')
-        if not site:
-            return
-        from src.escape import MECHANISMS
-        spec = MECHANISMS.get(m.mechanism, {})
-        known = m.knowledge.facts_known()
-        if spec.get('reveals_route') and 'F_ROUTE' not in known:
-            return
-        from src.nav import honest_bearing
-        d = honest_bearing(self.current_position, tuple(site), self.map, self.map_size)
-        if not d:
-            return
-        what = spec.get('name', 'the way out') if 'F_ROUTE' in known else 'the way out'
-        self.io.say(f'You get your bearings. {what[:1].upper()}{what[1:]} lies to the {d}.')
-    
     def knowledge_inspect(self, target):
         k = self.ensure_knowledge()
         target = (target or "").strip().lower()
@@ -212,3 +190,25 @@ class KnowledgeMixin:
         else:
             self.io.say(f"Open {terrain or 'ground'}. Nothing here that matters.")
         self._look_recall_bearing()
+
+    def _look_recall_bearing(self):
+        # C.3.2 piece 2 (Invariant 5): re-surface the direction to the
+        # way out so a wandering player recovers the objective without
+        # discovering anything new.
+        m = getattr(self, 'mystery', None)
+        if m is None:
+            return
+        site = m.sites.get('route')
+        if not site:
+            return
+        from src.escape import MECHANISMS
+        spec = MECHANISMS.get(m.mechanism, {})
+        known = m.knowledge.facts_known()
+        if spec.get('reveals_route') and 'F_ROUTE' not in known:
+            return
+        from src.nav import honest_bearing
+        d = honest_bearing(self.current_position, tuple(site), self.map, self.map_size)
+        if not d:
+            return
+        what = spec.get('name', 'the way out') if 'F_ROUTE' in known else 'the way out'
+        self.io.say(f'You get your bearings. {what[:1].upper()}{what[1:]} lies to the {d}.')

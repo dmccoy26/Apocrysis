@@ -45,9 +45,19 @@ a fresh session.**
 - **Atlas**: 3/~9 A.0 files by Atlas (incl. `game.py` param, first-try —
   new capability). Large-file / multi-file edits still fail. 4 gaps
   filed in `atlas-self` (`dbc93715`/`f7ee975b`/`c4b89284`/`1ba1bf47`).
-- **Next**: PAUSED for owner review of the step-5 engine diff. Then
-  Phase A.1 — `WorldFact` DAG (`worlds/silence/truth.py`, The Cordon,
-  CH1+CH2) beside the knowledge model.
+- **Phase A.1 DONE** (`docs/PHASE_A1_TRUTH.md`; commits `9af4a4d` /
+  `6331d4c` / `4b9d851`). `src/worlds/silence/truth.py` — `WorldFact`
+  (own frozen dataclass, NOT a `knowledge.Fact` subclass) +
+  `WORLD_FACTS` = 9 authored facts, CH1 (disappearance) + CH2 (dead),
+  3 milestones (M1/M2/M4). Content only, wired to nothing.
+  `test_world_truth.py` = 9 integrity tests. **187 + 100 green.**
+- **Atlas**: shipped `truth.py` near-verbatim (its biggest
+  self-contained new file here); rejected the DFS test file
+  (hand-written). 5 `atlas-self` gap todos filed total.
+- **Next**: PAUSED for owner review of the authored A.1 DAG. Then
+  Phase A.2 — `DiscoveryTemplate` binding a `WorldFact` to a MECHANISMS
+  family + `build_mystery(target_fact=…)`; the `MechanismFamily`
+  refactor happens here, only as far as `DiscoveryTemplate` needs.
 
 ---
 

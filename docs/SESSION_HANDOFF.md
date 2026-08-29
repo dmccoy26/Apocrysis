@@ -49,16 +49,29 @@ doc map below it.**
   worldgen/* never import the engine; balance FROZEN.
 - **Atlas**: 9 of ~69 files across A+B+C, all leaf files. 13 `atlas-self`
   capability todos; `atlas scan` crash fixed (`zork`).
-- **Next**: **C.3.2 — navigational affordances.** Premise: *give the
-  player reasons to navigate the irregular space*, not "make it less
-  confusing" and not "make it wider". Candidate story-agnostic
-  invariant: every expedition exposes ≥1 meaningful navigational lead
-  in the early window. **Blocking C.3.2:** fix mechanism variety —
-  `DIS_FEW_REMAINS` has one route (`mountain_pass`) so every fresh
-  campaign's expedition 1 is identical; contaminated this feel-test.
-  Then: author the C.3.2 spec → owner review → implement. Parked
-  alternatives: A.0.1 (encounters), roadmap B.3 (valley file), native
-  modal `wi` screen.
+- **Next step is NOT the C.3.2 spec.** First: **the navigational-signal
+  inventory** — a small design investigation. Question: *what
+  information does Apocrysis currently give the player that can
+  legitimately function as a navigational lead?* Inventory every signal
+  (terrain, settlements, prose, map, facts, radio, bearings, objective
+  panel…) and classify each `observable → interpretable → actionable`.
+  Likely finding: the generator may not be the primary problem — the
+  game may already carry the information and fail to turn it into
+  direction. Deliverable: a short doc feeding the C.3.2 spec. See
+  `PHASE_C3_SPEC.md` § "Pre-C.3.2 investigation".
+- **Then C.3.2 — navigational affordances** (spec after the inventory).
+  Three testable story-agnostic invariants already recorded in
+  `PHASE_C3_SPEC.md` § C.3.2: (1) lead before obstacle, (2) leads must
+  survive geography, (3) navigation must stay actionable. Plus the
+  distinction **a lead ≠ information** (`F_OBSTACLE` is information;
+  "route lies north-east" is a lead). Prohibited: guaranteeing a
+  settlement distance / a story location near spawn.
+- **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
+  route (`mountain_pass`) so every fresh campaign's expedition 1 is
+  identical; contaminated this feel-test (a symptom of the name bug
+  blocking saves, now fixed).
+- Parked alternatives: A.0.1 (encounters), roadmap B.3 (valley file),
+  native modal `wi` screen.
 
 ---
 

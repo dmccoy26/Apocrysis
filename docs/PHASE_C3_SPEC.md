@@ -186,68 +186,139 @@ Two things that are NOT the finding:
   `F_OBSTACLE` — the game had the information and failed to make it a
   navigational affordance.
 
-### What was learned (the experiment succeeded as an experiment)
+### A clean negative result (not a failed experiment)
 
-- The irregular geometry is **perceptually real** — the player noticed
-  it immediately and named it. That's the good half.
-- The failure is that the rest of the world doesn't give that geometry
-  meaning. The next experiment's job is **navigational information
-  density**, not a less-complicated boundary and not more square
-  footage.
-- The C.3 architecture (both generators behind one `MapGenerator` API,
-  reversible by a one-line default) did its job: a negative result
-  cost one `_default_mapgen` line, not a phase.
+Keep the four claims separate:
+
+| claim | verdict |
+|---|---|
+| **C.3 architecture** — `worldgen/` + `MapGraph` + reversible variants behind one API | **good.** Worth building. A negative geography result cost one `_default_mapgen` line, not a phase. |
+| **C.3 v2 geography** — the grown irregular valley as it stands | **rejected.** |
+| **C.3 hypothesis** — "irregular geography by itself makes exploration feel more place-like" | **disproved by the playtest.** |
+| **What it revealed** — geometry needs navigational *affordances*, not merely irregular boundaries | **the actual finding, and the basis for C.3.2.** |
+
+The irregular geometry is **perceptually real** — the player noticed it
+immediately and named it. That's the good half. The failure is that
+the rest of the world doesn't give that geometry meaning.
 
 ### Actions
 
-1. `_default_mapgen` stays `"v1"`. v2 kept parked (not deleted) —
-   the boundary-growth code is the substrate for C.3.2.
+1. `_default_mapgen` stays `"v1"` (production default). v2 kept as a
+   **rejected experiment / reference implementation** (not deleted) —
+   the boundary-growth code is C.3.2's substrate.
 2. **Do not** revert the C.3 architecture or the tag
    `v5-phase-c-foundation`.
-3. The "fully-inverted pipeline" idea (old C.3.2) is **superseded** —
-   there's no point inverting a pipeline whose geography doesn't yet
-   earn navigation.
-4. Next: **C.3.2 — navigational affordances** (below).
-5. **Blocking C.3.2:** fix mechanism variety first (see
-   `## Contamination: mechanism variety` below). Three `mountain_pass`
-   runs in a row were contaminating the geography read.
+3. **Do not tune the current irregular mask.** The run exposed two
+   separable effects — (a) concavity → repeated boundary collisions,
+   (b) the world doesn't communicate enough to exploit the geometry.
+   Widening the valley or trimming dead ends would make the bad
+   behaviour less painful without answering whether irregular geography
+   is useful at all. That's a worse result than a clean rejection.
+4. The "fully-inverted pipeline" idea (old C.3.2) is **superseded** —
+   no point inverting a pipeline whose geography doesn't yet earn
+   navigation.
+5. **Next step is NOT the C.3.2 spec.** First do the small design
+   investigation below (`## Pre-C.3.2 investigation`). Then author the
+   C.3.2 spec against its findings → owner review → implement.
+6. **Also blocking C.3.2:** fix mechanism variety (see
+   `## Contamination: mechanism variety`). Three `mountain_pass` runs
+   in a row contaminated the geography read.
 
-## C.3.2 — navigational affordances (next experiment, SPEC PENDING)
+## Pre-C.3.2 investigation — the navigational-signal inventory
 
-Premise: *give the player reasons to navigate the irregular space*,
-not "make the space less confusing".
+Before any generator work, answer one architectural question:
 
-Target loop the world should support as the player moves:
+> **What information does Apocrysis currently give the player that can
+> legitimately function as a navigational lead?**
+
+Inventory every existing signal — terrain, terrain transitions,
+buildings, settlements ("rooftops in the distance"), the escape
+mechanisms, investigation facts (`F_*`), world prose, map visibility /
+the found survey map, landmarks, the radio mechanism, compass bearings
+on leads, the objective panel — and classify each on:
 
 ```
-terrain → landmark → direction / implication → decision → destination
+observable  →  interpretable  →  actionable
 ```
 
-instead of the observed:
+- **observable** — the player can perceive it exists
+- **interpretable** — the player can tell what kind of thing it is
+- **actionable** — it gives the player a direction to move *now*
 
-```
-terrain → terrain → mountain → mountain → terrain
-```
+The likely finding: the generator may not be the primary problem. The
+game may already carry plenty of raw information and simply fail to
+turn it into direction. That makes the C.3.2 spec much sharper — it may
+be a surfacing/prose change, not a generation change.
 
-Candidate generator-level invariant (story-agnostic — the generator
-guarantees *geography*, never knows what it *means*):
+Deliverable: a short doc (`docs/NAV_SIGNAL_INVENTORY.md` or similar),
+owner-reviewed, feeding the C.3.2 spec.
 
-> **Every expedition must expose at least one meaningful navigational
-> lead within the early exploration window.**
+## C.3.2 — navigational affordances (SPEC PENDING, after the investigation)
 
-A lead is anything that turns "wander" into "head that way": a
-settlement, a distinctive terrain transition, a road/trail, a visible
-structure on the skyline, a mystery site, a signal — the list stays
-open. The generator only has to guarantee the player *encounters
-meaningful geography early*; the story layer decides what any given
-lead means. This is compatible with the `MapGraph` + `worlds/` split
-already in place.
+**Irregular geography is only useful if the world provides enough
+information for the player to navigate it.**
 
-Do NOT bake "settlement within N tiles" into the generator — that
-freezes today's gameplay assumptions into geometry.
+The v1/v2 evidence (table below) gives three distinct, testable,
+story-agnostic constraints. A "lead" here is anything that turns
+"wander" into "head that way" — a settlement direction, a road that
+visibly continues, a distant landmark, a sign, a radio transmission, a
+terrain transition, a discovered site, an investigation deduction. The
+list stays open; the story layer decides what any given lead *means*.
 
-Spec to be authored, owner-reviewed, then implemented — same discipline
-as every C phase.
+> **Invariant 1 — Lead before obstacle.** Every expedition must expose
+> at least one meaningful navigational lead within the early
+> exploration window, and a blocking / obstructive site must not become
+> the player's first meaningful information without an existing lead
+> that gives it context.
+>
+> **Invariant 2 — Leads must survive geography.** If a player-facing
+> lead establishes a destination and a directional heading, the
+> generated geography must provide a traversable route consistent with
+> that heading. A valid destination elsewhere on the map is
+> insufficient if following the communicated direction immediately
+> runs into an impassable boundary.
+>
+> **Invariant 3 — Navigation must stay actionable.** Between receiving
+> a lead and reaching its destination the geography may require
+> exploration or route-finding, but must not repeatedly invalidate the
+> lead's implied direction through arbitrary boundary collisions.
+
+**A lead is not the same thing as information.** `F_OBSTACLE` is
+information — a locked gate the player found. "The evacuation route
+lies to the north-east" is a lead — it gives an actionable direction
+immediately. Information becomes useful only once connected to other
+knowledge; a lead is directional on contact. This distinction matters
+for the investigation system's future design too, not just the map.
+
+**Prohibited solutions.** Do not guarantee a particular settlement
+distance from spawn. Do not embed a specific story location near spawn.
+The requirement is *navigational affordance*, not a prescribed layout —
+solving it by pinning geometry just optimises the generator around
+today's implementation.
+
+### Empirical motivation — v1 vs v2, same terrain, same player behaviour
+
+Two expeditions, both `mountain_pass`, both ~15×15 mostly-forest,
+player used no investigation commands in either, both wandered ~20
+turns before the first discovery:
+
+| | **v1** (`apocrysis_playlog_20260829_154304.txt`) | **v2** (`apocrysis_playlog_20260829_152820.txt`) |
+|---|---|---|
+| first discovery | settlement at turn 22 — **all three route facts at once** (`F_OBSTACLE`, `F_REQUIRE`, `F_ROUTE`), a heading, and a plan | **obstacle** at turn 21 — `F_OBSTACLE` only, no context |
+| next ~50 turns | key at t24, straight walk to the gate t26–37 | ~40 turns bouncing off the irregular boundary, still `F_OBSTACLE` only |
+| first real lead | turn 22 (58 % — but the run was short *because* it went well) | turn 70 (64 %) |
+| total turns / tiles | 38 / 24 | 109 / 76 |
+| end HP | 23/105 | 26/105 |
+| "north-east edge" heading | actionable — walk north-east on the rectangle | invalidated — north-east was a mountain wall |
+
+Same noticeboard text, same player, same terrain palette. v1 produced
+an actionable route at the first discovery; v2 produced an isolated
+obstacle followed by boundary friction. That is the whole finding, and
+it is unusually clean.
+
+*(v1 is the bar, and it's not a high one: that run finished at 23 HP
+with fatigue pinned at 100 the whole back half and a −50 HP zombie hit
+at the gate. "Functional, not comfortable.")*
 
 ## Contamination: mechanism variety (fix before C.3.2)
 

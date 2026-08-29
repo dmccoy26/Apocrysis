@@ -153,10 +153,12 @@ class MysteryMixin:
                 kind="objective",
             )
         # Infrastructural: applying the fix at the dependency site.
+        power_restore_fired = False
         if role == m.power_role and not m.power_restored and self._mystery_has_item():
             self.backpack.items = [it for it in self.backpack.items
                                    if getattr(it, 'name', None) != m.requirement_item]
             m.power_restored = True
+            power_restore_fired = True
             self.announce_event(
                 "the generator is running",
                 MECHANISMS[m.mechanism].get(
@@ -164,6 +166,18 @@ class MysteryMixin:
                 kind="objective",
             )
         self._mystery_progress_flare(_hyp_before, _facts_before)
+
+        if not any_new and not power_restore_fired and role in m.sites and role != 'escape':
+            label = m.site_labels.get(role)
+            if label:
+                self.io.say(f"{label.capitalize()}.")
+            for eid in m._site_evidence.get(role, []):
+                if eid in m.knowledge.found:
+                    self.io.say(f"  {m.knowledge.evidence[eid].text}")
+            if m.controls and role == 'require' and not m.obstacle_open:
+                self.io.say("  Work them one at a time - pull <name> and watch the reservoir.")
+            elif m.power_role and role == 'power' and not m.power_restored and not self._mystery_has_item():
+                self.io.say(f"  The generator needs the {m.requirement_item} - it is kept at {m.site_labels.get('require', 'the store')}.")
 
     def mystery_bump_obstacle(self):
         m = self._mystery()

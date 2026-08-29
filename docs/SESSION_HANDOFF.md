@@ -1,21 +1,71 @@
 # Session handoff — Apocrysis v4
 
-Last updated 2026-08-28 (evening). **Read this first in a fresh session.**
+Last updated **2026-08-29** (late — end of the kid-playtest session,
+start of the overnight scenario-expansion build). **Read this first in
+a fresh session.**
+
+---
+
+## >> START HERE — 2026-08-29 overnight build
+
+**The plan for tonight is `docs/NIGHT_BUILD_PLAN.md`** (mirrored from
+the rev-3 artifact). One-line version: *make Apocrysis produce many
+different-feeling escape stories from a small set of mechanisms* — not
+"add two more puzzle types."
+
+Phases, in order:
+
+1. **Scenario library** (first-class, not filler). `docs/SCENARIO_SEEDS.md`
+   already has a ~45-seed first draft — bring it up to the full 16-field
+   schema (add **story signature**, `duplicate-of`, kid rating). Plus
+   `docs/SCENARIO_EXPANSION.md` capturing the levels-of-randomness /
+   variety-rules / validation direction.
+2. **Transportation** — `airfield_plane`, two parallel `requirement_items`
+   (a checklist, vs infra's serial chain). Spec: `docs/MECHANISM_TRANSPORTATION.md`.
+3. **Time-pressure** — `tidal_causeway`, diegetic `deadline` from when
+   `F_ROUTE` lands, escalating tide banners, **soft failure** (route
+   reopens next low tide). Spec: write `docs/MECHANISM_TIME_PRESSURE.md`.
+4. **Directional-truth audit** — build-time assertion: any compass word
+   in generated evidence must match the vector to the site it names.
+5. **Variety rules B + C** *(if runway)* — recent-scenario history +
+   story-signature dedup, persisted like the family history.
+
+**Forks resolved:** two-item assembly · soft failure · leave
+`boat_crossing` alone.
+
+**FROZEN (do not touch):** combat numbers · hunger/thirst decay ·
+encounter rate · loot rate · map growth · a hard movement cap at 0/0.
+No fetch reskins. No engine rewrite. No assist mode.
+
+**`git stash@{0}`** — a rough first pass at the transportation code
+(`requirement_items` field + `validate` + `build_mystery` site
+placement). Predates the rev-3 design; `git stash show -p stash@{0}` to
+mine it or `git stash drop` and rebuild from the doc.
+
+**Atlas can't edit this repo** — failed the `airfield_plane` MECHANISMS
+entry tonight (hung, killed). Every code change this session and last
+was hand-written. Route only tiny `MECHANISMS` dict entries + library
+classification through Atlas; hand-write everything else.
+
+---
 
 ## Where things are
 
 - **Working tree:** `projects/apocrysis/version-4/` (only v4 copy;
   `version-1..3/` are read-only clones).
 - **Branch:** `version-4`, pushed to `github.com/dmccoy26/Apocrysis`.
-  HEAD: `d5a517b` (or later).
+  HEAD: `252db78` (or later).
 - **Run:** `python3 apocrysis.py` (TUI) · `--classic` · `--slice`
   (tutorial) · `--test` · `--log` (session transcript).
 - **Tests:** `python3 apocrysis.py --test` (unittest) **and**
-  `.venv/bin/python -m pytest -q` from the Atlas repo root — **145
-  pass + 40 subtests.** Run both; the unittest runner misses async-TUI
-  thread-context bugs that pytest catches.
+  `.venv/bin/python -m pytest -q` from the Atlas repo root — **151
+  pass + 40 subtests** (2026-08-29). Run both; the unittest runner
+  misses async-TUI thread-context bugs that pytest catches.
 - **Harnesses:** `tools/balance_autoplay.py` (v4-aware bot + full
   report), `tools/mystery_solver.py`, `tools/slice_playtest.py`.
+- **Playtest harness:** `tools/playtest_three.py <mechanism>|shuffle` —
+  forces a mechanism (bypasses `choose_mechanism`); for the blind
+  gate. Normal play is `apocrysis.py`.
 
 ## What v4 is
 
@@ -245,13 +295,27 @@ mystery, died anyway. Fixes:
   re-arm >45. NO movement cap - starvation stays HP attrition, just
   made legible.
 
-**Kid result:** BlueNoodle won 2 expeditions back to back after these
-landed (was dying to "solved it, couldn't get out" / "couldn't find
-the fuel" / "died one tile short").
+**Kid result (2026-08-29):** BlueNoodle (hardcore) won 3 expeditions
+after the fixes, then died to an Armored Zombie on map 3 — permadeath,
+character gone. Each death was survival-layer (starving, weak weapon),
+not mystery confusion. Follow-ups shipped:
+- `cde361a` — HUD + end screen show **map level** (`expeditions_completed
+  + 1` and the map size). Dad's tracking how far the kid gets.
+- `aa73a64` — route-step objective line is now `▸ head for the way out
+  (SW)` with a compass bearing, not the directionless `▸ found a way
+  toward another route` (a kid did the whole fuel chain then couldn't
+  find the tunnel).
+
+**Confirmed by the kid playtests, don't rebuild:** the escalating
+warnings all fire correctly and a 7-year-old ignores every one of
+them. That's the answer to "does this game need an assist mode" —
+maybe, but the user said **no assist mode**. The game stays as-is;
+he dies a lot and has fun.
 
 **Still open:** (a) cosmetic: power site keeps its `!` after
-`power_restored`; (b) `m.escape_kind` for transportation/environmental;
-(c) Tier-2: `17f2a0ca` transportation, `5761c63f` time-pressure.
+`power_restored`; (b) `m.escape_kind` for transportation/environmental
+(deferred — not in transportation v1); (c) tonight's build — see
+**>> START HERE** at the top.
 
 ## Design rules (settled — don't relitigate)
 
@@ -271,34 +335,35 @@ the fuel" / "died one tile short").
    found map reveals the whole valley; named places not generic
    buildings; `rest` costs 45 min; goal/task system removed.
 
-## Open todos (`atlas todo list`)
+## Open todos
 
-- `ea1d52be` informational family · `17f2a0ca` transportation ·
-  `5761c63f` time-pressure (Tier-2, after the playtest passes)
-- `9779d49f` NEW DISCOVERY banner (per-fact, one per arrival)
-- `c359b1bb` render the map at larger scale (small grid in a big panel)
-- `7d6046d3` evidence↔escape direction validator · `a4a11df6` terrain
-  affinity for the non-water mechs · `45ba6b67` hunting for food ·
-  `91161490` backpack-full `[1] drop / [2] leave` prompt
-- Deferred: `6cffc528` (tier-1 same-family scenarios — scenery only)
+The `atlas todo list` for this workspace is **stale** — a months-old
+design-doc paste, never reconciled; most items are done or garbage
+fragments. Ignore it; don't `atlas todo next`. Real open work:
 
-## Atlas
+- **Tonight:** `17f2a0ca` transportation · `5761c63f` time-pressure ·
+  `66dbacb5` scenario library (see **>> START HERE**).
+- Post-tonight machinery (seeded in `SCENARIO_SEEDS.md`, ranked): the
+  corroboration gate, region mutation, `escape_kind=vehicle`.
+- Minor/cosmetic: power-site `!` clears after `power_restored` ·
+  `9779d49f` NEW DISCOVERY banner · `c359b1bb` bigger map render.
+- **Not doing:** `6cffc528` / `e2850fa5` Tier-1 fetch reskins — cut.
+  `461878aa` campaign narrative — needs a design conversation first.
 
-Model: `qwen2.5-coder-32b-instruct` (local). **Reliably authors** small
-localised edits (a few fields, a string, a constant, a short block —
-authored 6+ this session). **Cannot** touch a large method
-(`generate_map`, `build_mystery`, `_render_map_lines`) without
-rewriting the region. **New failure mode 2026-08-28:** a large data
-block (a 21-key `MECHANISMS` dict entry) *hung* the model for ~30 min
-producing zero bytes — had to `kill` the process. So: keep Atlas
-requests to a handful of fields; hand-write anything bigger.
+## Atlas — does not work here
 
-Workflow: `atlas request "<precise spec>" --file <f>` → `atlas review
-<id>` (read the diff) → `atlas approve <id>` (auto-commits as "Atlas
-repair: FEATURE_REQUEST (<id>)"). Approve runs the pytest suite 3×;
-**trust it** — its rollbacks this session were catching real
-regressions. Reproduce with `.venv/bin/python -m pytest -q` before
-assuming a flake.
+`qwen2.5-coder-32b-instruct` (local). **Failed every non-trivial task
+against this repo** — 6+ times, two models, down to "add two keys to a
+dict". `escape.py` / `tui.py` / `mystery_mixin.py` / `ui_mixin.py` /
+`game.py` all exceed its context, so it emits whole-file rewrites and
+self-rejects, or hangs on a big dict literal. **Every code change this
+session and last was hand-written.**
+
+Only attempt Atlas for: a tiny `MECHANISMS` dict entry, an isolated
+data addition, scenario-library classification. Route those through
+`atlas request → review → approve`, inspect the diff, reject a
+rewrite. Hand-write everything in `build_mystery`, the mixins, the TUI,
+save/load, turn hooks.
 
 ## Session history (for context; detail in git log + Claude memory)
 
@@ -317,9 +382,19 @@ PLAYER_UNDERSTANDING, typed banners) → `ce54c4a`..`d5a517b`
 
 ## Design docs
 
-`ESCAPE_WORLD_DESIGN_ASSESSMENT.md` · `VERSION_4_BUILD_ORDER.md` ·
-`PHASE0_KNOWLEDGE_MODEL.md` · `V3_ASSUMPTION_AUDIT.md` ·
-`SLICE_PLAYTEST_MECHANICAL.md` · `BALANCE_BASELINE_2026-08-28.md`
-(frozen sweep + regression re-run) · `ESCAPE_STORY_LIBRARY.md` ·
-`ESCAPE_STORY_SCHEMA.md` · `PLAYER_UNDERSTANDING.md` ·
-`MECHANISM_INFRASTRUCTURAL.md` · `MECHANISM_EXPERIMENTAL.md`.
+**Read for tonight:** `NIGHT_BUILD_PLAN.md` (the plan) ·
+`SCENARIO_SEEDS.md` (~45-seed library, first draft) ·
+`SCENARIO_EXPANSION.md` (levels-of-randomness / variety-rules
+direction) · `MECHANISM_TRANSPORTATION.md` (airfield_plane spec).
+
+**Standing:** `ESCAPE_STORY_SCHEMA.md` (families, patterns, invariants
+incl. **3d mystery-to-exit continuity** and **no vocab leak**) ·
+`PLAYER_UNDERSTANDING.md` (the UX rules) · `PACING_MYSTERY_TO_EXIT.md`
+(levers A + B, done) · `MECHANISM_INFORMATIONAL.md` /
+`MECHANISM_INFRASTRUCTURAL.md` / `MECHANISM_EXPERIMENTAL.md` ·
+`ESCAPE_STORY_LIBRARY.md` · `BALANCE_BASELINE_2026-08-28.md` (the
+frozen numbers).
+
+**Background:** `ESCAPE_WORLD_DESIGN_ASSESSMENT.md` ·
+`VERSION_4_BUILD_ORDER.md` · `PHASE0_KNOWLEDGE_MODEL.md` ·
+`V3_ASSUMPTION_AUDIT.md` · `SLICE_PLAYTEST_MECHANICAL.md`.

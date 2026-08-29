@@ -72,6 +72,19 @@ different-feeling escape stories from a small set of mechanisms* — not
   across 200 seeds. +2 tests (60-seed sweep, catches-a-lie). 160 tests
   + 100 subtests green. Committed.
 
+- [x] **Phase 5 — variety rules B + C.** `escape.py`: `story_signature()`
+  (`family|dependency-class|exit-type` string) + `choose_mechanism` now
+  takes `recent_mechanisms` / `recent_signatures` and applies Rule A
+  (no back-to-back family), B (not one of the last 2 mechanisms), C
+  (not one of the last 2 signatures) — each only when it leaves a
+  candidate. `Apocrysis._recent_mechanisms` / `_recent_signatures`
+  class rings (length 2), updated on escape next to `_last_family`,
+  persisted through the profile like `73ff535`. Over a simulated 400-
+  expedition campaign, A-B-A mechanism repeats dropped 10 → 0. +4
+  tests. 164 tests + 100 subtests green. Unforced 300-game bot: 87.7%
+  survival, 0 timeouts, 100% combat deaths, and a visibly more even
+  mechanism spread. Committed.
+
 Phases, in order:
 
 1. **Scenario library** (first-class, not filler). **DONE** — see above.
@@ -113,8 +126,8 @@ classification through Atlas; hand-write everything else.
 - **Run:** `python3 apocrysis.py` (TUI) · `--classic` · `--slice`
   (tutorial) · `--test` · `--log` (session transcript).
 - **Tests:** `python3 apocrysis.py --test` (unittest) **and**
-  `.venv/bin/python -m pytest -q` from the Atlas repo root — **151
-  pass + 40 subtests** (2026-08-29). Run both; the unittest runner
+  `.venv/bin/python -m pytest -q` from the Atlas repo root — **164
+  pass + 100 subtests** (2026-08-29, post-overnight-build). Run both; the unittest runner
   misses async-TUI thread-context bugs that pytest catches.
 - **Harnesses:** `tools/balance_autoplay.py` (v4-aware bot + full
   report), `tools/mystery_solver.py`, `tools/slice_playtest.py`.
@@ -168,7 +181,7 @@ Docs: `ESCAPE_STORY_LIBRARY.md` (10 families + ~24 scenarios),
 invariants, §4 = which primitives generalise vs need extending),
 `PLAYER_UNDERSTANDING.md` (the UX rules — read this).
 
-**7 mechanisms, by family:**
+**10 mechanisms, by family:**
 
 | mechanism | family | player question |
 |---|---|---|
@@ -178,10 +191,18 @@ invariants, §4 = which primitives generalise vs need extending),
 | evac_corridor | sequential | (light) |
 | **power_station** | **infrastructural** | what dependency makes this work? (gate ← hydro ← fuel; fuel applied at the generator, not the gate) |
 | **dam_valves** | **experimental** | which of these controls is it? (the obvious one is never right; pulling it says why) |
+| **radio_tower** | **informational** | what can I learn that I couldn't see? (fuel the transmitter; a voice reads you a road that was never on the map) |
+| **airfield_plane** | **transportation** | the way out is a machine — what does it need? (propeller + avgas, a two-box checklist, fetched in any order) |
+| **tidal_causeway** | **time_pressure** | what must I finish before it changes? (cross before the tide; soft failure — wait out the flood, go on the next low tide) |
 
-`power_station` (`docs/MECHANISM_INFRASTRUCTURAL.md`) and `dam_valves`
-(`docs/MECHANISM_EXPERIMENTAL.md`) are the two genuinely-different
-grammars built so far.
+Six genuinely-different grammars now: `power_station`
+(`MECHANISM_INFRASTRUCTURAL.md`), `dam_valves`
+(`MECHANISM_EXPERIMENTAL.md`), `radio_tower`
+(`MECHANISM_INFORMATIONAL.md`), `airfield_plane`
+(`MECHANISM_TRANSPORTATION.md`), `tidal_causeway`
+(`MECHANISM_TIME_PRESSURE.md`), plus spatial. Variety rules A+B+C keep
+consecutive expeditions from repeating a family, a mechanism, or a
+story shape (`SCENARIO_EXPANSION.md` §3).
 
 ## >> THE THREE-MYSTERY PLAYTEST (`69d78812` / `9ae794b9`): **PASSED 2026-08-28**
 

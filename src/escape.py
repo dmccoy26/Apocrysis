@@ -225,16 +225,54 @@ CONFIRMATION_PATTERNS = (
 )
 
 
-def choose_mechanism(rng, already_used, last_family=None):
+def story_signature(mechanism):
+    """The player-facing SHAPE of a mechanism, coarser than its name:
+    (family, dependency-class, exit-type) as a '|'-joined string.
+    `key->gate`, `fuel->gate` and `battery->gate` all reduce to the
+    same signature, so variety Rule C can steer away from repeating a
+    shape even across different mechanism names (SCENARIO_EXPANSION.md
+    §3). A string so it round-trips through JSON cleanly."""
+    spec = MECHANISMS.get(mechanism, {})
+    if spec.get('controls'):
+        dep = 'control-choice'
+    elif spec.get('item2'):
+        dep = 'checklist'
+    elif spec.get('power_role'):
+        dep = 'restore-chain'
+    elif spec.get('item'):
+        dep = 'single-item'
+    else:
+        dep = 'none'
+    exit_type = ('revealed-route' if spec.get('reveals_route')
+                 else 'crossing' if spec.get('deadline_turns')
+                 else 'gap')
+    return f"{spec.get('family')}|{dep}|{exit_type}"
+
+
+def choose_mechanism(rng, already_used, last_family=None,
+                     recent_mechanisms=(), recent_signatures=()):
     """Shuffle-bag on the mechanism NAME (no repeat until the pool is
-    exhausted); additionally, don't hand the player the same story
-    family two expeditions running (schema invariant 3a) - unless that
-    would leave nothing to pick."""
+    exhausted), then three variety filters, each applied only if it
+    leaves something to pick (SCENARIO_EXPANSION.md §3):
+      A - not the same story family two expeditions running (3a);
+      B - not one of the last couple of mechanisms (stops
+          power_station -> dam_valves -> power_station);
+      C - not one of the last couple of story SIGNATURES (stops
+          three 'fetch an item, open a gate' shapes in a row even
+          when the mechanism names differ)."""
     pool = [m for m in _MECH_ORDER if m not in already_used] or list(_MECH_ORDER)
     if last_family is not None:
         varied = [m for m in pool if MECHANISMS[m].get('family') != last_family]
         if varied:
             pool = varied
+    recent_mechanisms = set(recent_mechanisms or ())
+    fresh = [m for m in pool if m not in recent_mechanisms]
+    if fresh:
+        pool = fresh
+    recent_signatures = set(recent_signatures or ())
+    unshaped = [m for m in pool if story_signature(m) not in recent_signatures]
+    if unshaped:
+        pool = unshaped
     return rng.choice(pool)
 
 
@@ -583,6 +621,8 @@ def build_mystery(game):
         rng,
         getattr(game.__class__, '_used_mechanisms', []),
         last_family=getattr(game.__class__, '_last_family', None),
+        recent_mechanisms=getattr(game.__class__, '_recent_mechanisms', ()),
+        recent_signatures=getattr(game.__class__, '_recent_signatures', ()),
     )
     spec = MECHANISMS[m.mechanism]
     m.family = spec.get('family')

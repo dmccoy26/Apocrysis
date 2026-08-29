@@ -38,6 +38,11 @@ class Apocrysis(
     # repeat until the pool is exhausted). Class-level, like
     # prize_for_next_game.
     _used_mechanisms = []
+    # v4 variety rules B + C: a short ring of the last couple of
+    # mechanisms and of their story signatures, so consecutive
+    # expeditions don't just alternate two scenarios or repeat a shape.
+    _recent_mechanisms = []
+    _recent_signatures = []
 
     # v4: the fresh-start ration every non-slice game begins with, so
     # a game doesn't open in a food/water deficit. load_game() and

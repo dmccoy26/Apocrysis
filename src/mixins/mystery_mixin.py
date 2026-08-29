@@ -641,6 +641,15 @@ class MysteryMixin:
             used.append(m.mechanism)
         # schema invariant 3a: the next expedition avoids this family
         self.__class__._last_family = m.family
+        # variety rules B + C: keep the last 2 mechanisms and the last 2
+        # story signatures so the generator can steer away from them.
+        from src.escape import story_signature
+        _rm = list(getattr(self.__class__, '_recent_mechanisms', []) or [])
+        _rm.append(m.mechanism)
+        self.__class__._recent_mechanisms = _rm[-2:]
+        _rs = list(getattr(self.__class__, '_recent_signatures', []) or [])
+        _rs.append(story_signature(m.mechanism))
+        self.__class__._recent_signatures = _rs[-2:]
         _stmt = m.knowledge.hypothesis.statement.rstrip('.')
         if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
             self.io.say(

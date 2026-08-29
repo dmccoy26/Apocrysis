@@ -50,6 +50,15 @@ def _reachable(game, start, goal):
 
 class TestEscapeGeneration(unittest.TestCase):
 
+    def setUp(self):
+        import src.game as gmod
+        for attr in ("_used_mechanisms", "_last_family",
+                     "_recent_mechanisms", "_recent_signatures"):
+            setattr(gmod.Apocrysis, attr,
+                    None if attr == "_last_family" else [])
+
+    tearDown = setUp
+
     def test_every_seed_produces_a_valid_reachable_mystery(self):
         for seed in range(40):
             with self.subTest(seed=seed):
@@ -171,6 +180,9 @@ class TestEscapeGeneration(unittest.TestCase):
         from src.escape import MECHANISMS
         import src.game as gmod
         gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != name]
+        gmod.Apocrysis._last_family = None
+        gmod.Apocrysis._recent_mechanisms = []
+        gmod.Apocrysis._recent_signatures = []
         try:
             g = Apocrysis("Force", seed=seed, io=_IO())
             self.assertEqual(g.mystery.mechanism, name)
@@ -178,6 +190,8 @@ class TestEscapeGeneration(unittest.TestCase):
         finally:
             gmod.Apocrysis._used_mechanisms = []
             gmod.Apocrysis._last_family = None
+            gmod.Apocrysis._recent_mechanisms = []
+            gmod.Apocrysis._recent_signatures = []
 
     def test_power_station_builds_the_dependency_chain(self):
         g = self._force_mechanism("power_station")
@@ -271,6 +285,57 @@ class TestEscapeGeneration(unittest.TestCase):
         self.assertEqual(loaded.mystery.requirement_items,
                          ["propeller", "can of avgas"])
         self.assertIn("require2", loaded.mystery.sites)
+
+    def test_variety_rule_b_avoids_recent_mechanisms(self):
+        import random
+        rng = random.Random(3)
+        for _ in range(30):
+            pick = choose_mechanism(rng, [], None,
+                                    recent_mechanisms=["power_station", "dam_valves"])
+            self.assertNotIn(pick, ("power_station", "dam_valves"))
+
+    def test_variety_rule_c_avoids_recent_signatures(self):
+        from src.escape import story_signature
+        import random
+        rng = random.Random(4)
+        sig = story_signature("mountain_pass")  # spatial|single-item|gap
+        for _ in range(30):
+            pick = choose_mechanism(rng, [], None, recent_signatures=[sig])
+            self.assertNotEqual(story_signature(pick), sig)
+
+    def test_variety_rules_relax_when_the_pool_would_empty(self):
+        # every filter is "apply only if it leaves something" - forcing
+        # still works even when B and C both point at the one candidate.
+        from src.escape import story_signature
+        import random
+        only = "power_station"
+        used = [k for k in MECHANISMS if k != only]
+        pick = choose_mechanism(random.Random(0), used, "infrastructural",
+                                recent_mechanisms=[only],
+                                recent_signatures=[story_signature(only)])
+        self.assertEqual(pick, only)
+
+    def test_variety_history_round_trips(self):
+        import os, tempfile
+        os.chdir(tempfile.mkdtemp())
+        import src.game as gmod
+        gmod.Apocrysis._recent_mechanisms = ["radio_tower", "airfield_plane"]
+        gmod.Apocrysis._recent_signatures = ["informational|restore-chain|revealed-route",
+                                             "transportation|checklist|gap"]
+        try:
+            g = Apocrysis("Var", seed=1, io=_IO())
+            g.save_profile("p.json")
+            prof = Apocrysis.load_profile("p.json")
+            gmod.Apocrysis._recent_mechanisms = []
+            gmod.Apocrysis._recent_signatures = []
+            g2 = Apocrysis("Var", seed=2, io=_IO())
+            g2.apply_profile(prof)
+            self.assertEqual(gmod.Apocrysis._recent_mechanisms,
+                             ["radio_tower", "airfield_plane"])
+            self.assertEqual(len(gmod.Apocrysis._recent_signatures), 2)
+        finally:
+            gmod.Apocrysis._recent_mechanisms = []
+            gmod.Apocrysis._recent_signatures = []
 
     def test_directional_truth_holds_across_many_seeds(self):
         # build_mystery runs _assert_directional_truth before returning;

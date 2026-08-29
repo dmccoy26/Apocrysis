@@ -422,6 +422,8 @@ class PersistenceMixin:
             # one expedition per sitting got the same mechanism twice.
             "used_mechanisms": list(getattr(self.__class__, "_used_mechanisms", []) or []),
             "last_family": getattr(self.__class__, "_last_family", None),
+            "recent_mechanisms": list(getattr(self.__class__, "_recent_mechanisms", []) or []),
+            "recent_signatures": list(getattr(self.__class__, "_recent_signatures", []) or []),
         }
 
         with open(filename, 'w') as f:
@@ -518,6 +520,10 @@ class PersistenceMixin:
             self.__class__._used_mechanisms = list(_um)
         if profile.get("last_family") is not None:
             self.__class__._last_family = profile["last_family"]
+        if profile.get("recent_mechanisms") is not None:
+            self.__class__._recent_mechanisms = list(profile["recent_mechanisms"])
+        if profile.get("recent_signatures") is not None:
+            self.__class__._recent_signatures = list(profile["recent_signatures"])
         self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
         self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time
         self.level = profile.get("level", self.level)

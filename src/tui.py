@@ -230,7 +230,8 @@ def _objective_steps(p, m, k):
         if "F_REQUIRE" in known:
             steps.append((True, f"found {place('require', 'the controls')}"))
         steps.append((m.obstacle_open,
-                      "worked out which control clears the way"))
+                      "worked out which control clears the way",
+                      "try the controls one at a time - pull each"))
         steps.append((m.obstacle_open, "opened the way through"))
         steps.append((m.escaped, f"escaped by {mech_name}"))
         out = [f"[b]ESCAPE — {mech_name}[/b]"]
@@ -239,12 +240,14 @@ def _objective_steps(p, m, k):
         if hyp and hstate in ("suspected", "confirmed"):
             tag = "you think" if hstate == "suspected" else "you know"
             out.append(f"  [{_DIM}]{tag}:[/] {hyp.statement}")
-        hot = next((i for i, (d, _) in enumerate(steps) if not d), None)
-        for i, (dn, label) in enumerate(steps):
+        hot = next((i for i, s in enumerate(steps) if not s[0]), None)
+        for i, s in enumerate(steps):
+            dn, label = s[0], s[1]
+            todo = s[2] if len(s) > 2 else label
             if dn:
                 out.append(f"  [green]✓[/green] {label}")
             elif i == hot:
-                out.append(f"  [yellow]▸[/yellow] [yellow]{label}[/]")
+                out.append(f"  [yellow]▸[/yellow] [yellow]{todo}[/]")
             else:
                 out.append(f"  [{_DIM}]☐ {label}[/]")
         return out
@@ -264,10 +267,12 @@ def _objective_steps(p, m, k):
                       f"reached {place('require', 'where it is kept')}"))
     # 5. got it
     if "F_REQUIRE" in known or has_item:
-        steps.append((has_item, f"got the {item}"))
+        steps.append((has_item, f"got the {item}",
+                      f"reach {place('require', 'where it is kept')} and pick up the {item}"))
     # 5b. infrastructural: apply the fix
     if m.power_role and ("F_REQUIRE" in known or has_item):
-        steps.append((m.power_restored, f"restored power at {place('power', 'the source')}"))
+        steps.append((m.power_restored, f"restored power at {place('power', 'the source')}",
+                      f"get the {item} to {place('power', 'the power source')}"))
     # 6. open the way
     steps.append((m.obstacle_open, "opened the way through"))
     # 7. escape
@@ -275,14 +280,16 @@ def _objective_steps(p, m, k):
 
     out = [f"[b]ESCAPE — {mech_name}[/b]"]
     # highlight the first not-done step
-    hot = next((i for i, (d, _) in enumerate(steps) if not d), None)
-    for i, (dn, label) in enumerate(steps):
+    hot = next((i for i, s in enumerate(steps) if not s[0]), None)
+    for i, s in enumerate(steps):
+        dn, label = s[0], s[1]
+        todo = s[2] if len(s) > 2 else label
         if dn:
             out.append(f"  [green]✓[/green] {label}")
         elif i == hot:
             star = confirmed and m.obstacle_open and "escaped" in label
             mark = "[b yellow]★[/]" if (star or "escaped" in label and confirmed) else "[yellow]▸[/]"
-            out.append(f"  {mark} [yellow]{label}[/]")
+            out.append(f"  {mark} [yellow]{todo}[/]")
         else:
             out.append(f"  [{_DIM}]☐ {label}[/]")
     return out

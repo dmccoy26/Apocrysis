@@ -205,6 +205,81 @@ across the campaign (§3, §4).
 
 ---
 
+## 2B. Architectural principle — the seven layers (2026-08-29)
+
+Locked after a full code-level read (`docs/STRUCTURE_ASSESSMENT.md`).
+The engine should keep these **conceptually separate**, even while most
+of them are static for World 1:
+
+```
+TRUTH        what is actually true about the world?          ← authored
+   │
+HISTORY      what happened before the player arrived?         ← authored causal model
+   │
+STATE        what is true about the world right now?          ← mostly generated / static
+   │
+EXPERIENCE   what physical situation does the player meet?    ← procedural
+   │
+EVIDENCE     what traces of history/state can be observed?    ← procedural
+   │
+KNOWLEDGE    what does the player conclude?                   ← player-driven
+   │
+ACTION       what does the player do?                         ← player-driven
+   │
+STORY LEDGER what happened during THIS playthrough?           ← recorded
+```
+
+**This is not the architecture of the eventual story engine. It is the
+architecture of World 1's transition into that engine.** The current
+code intertwines these layers because Apocrysis grew organically; that
+is acceptable as long as the new seams don't deepen the tangle. The
+future engine makes more of the *middle* (STATE / EXPERIENCE / EVIDENCE)
+dynamic — World 1 gets to keep them baked.
+
+The mixin `Apocrysis` class is ugly but does **not** currently violate
+this boundary in a way that blocks the roadmap, so it stays. The danger
+would be a new giant abstraction to "fix" it. Make the new boundaries
+**data-oriented** instead:
+
+```
+World                          Engine                   Campaign
+ ├── Truth                      ├── knowledge             ├── investigation
+ ├── Causal history             ├── mystery generation    ├── survivors
+ ├── Discovery grammar          ├── world generation      ├── ledger
+ ├── geography vocabulary       ├── persistence           └── current world state
+ └── world-specific rules       ├── survival
+                                └── presentation
+```
+
+The single most consequential architectural change is making **"The
+Silence" a thing passed *into* the engine** rather than something the
+engine implicitly assumes (the `worlds/` seam, Phase A.0). Everything
+after that can grow organically. The codebase does not need to become a
+beautiful generalised engine now — it needs to become *capable of
+becoming one* without making World 1 impossible to ship.
+
+### Phasing this maps to
+
+| layer work | phase |
+|---|---|
+| `worlds/` seam · `WorldFact` beside the knowledge model · `DiscoveryTemplate` · competing hypotheses · World Investigation persistence · `MechanismFamily` **only as far as `DiscoveryTemplate` needs** | **Phase A** |
+| `src/worldgen/` · topology/graph generation replacing rectangular-map assumptions · causal-model → consequence → trace pipeline · the real mystery solver | **Phase C** |
+| `WorldState` transitions · reactive actors · faction behaviour · player-caused mysteries · simulation-driven branching | **Later** (post-Phase E) |
+
+### Pre-Phase-A cleanup (obsolete weight, not a refactor)
+
+"Don't refactor prematurely" and "remove dead weight" are not in
+tension. Before Phase A.0, establish a clean baseline:
+
+1. verify slice mode has no remaining callers
+2. delete the slice implementation + its `slice_mode` guards
+3. split `test_apocrysis.py` (1990 lines) with **no behaviour change**
+4. run the full suite (`--test` + pytest)
+5. commit that as the clean baseline
+6. then begin Phase A.0
+
+---
+
 ## 3. Architecture: fixed truth + procedural discovery
 
 ### 3.1 World truth = a DAG of `WorldFact`s

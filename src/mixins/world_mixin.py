@@ -127,8 +127,33 @@ class WorldMixin:
         # Town Center. Decoy settlements are best-effort only.
         gen.ensure_reachable(self.current_position, town_center)
 
-        # Zombie placement (frozen balance) - unchanged shape.
+        # C.2: the connectivity graph. Nodes = spawn, the exit, every
+        # mystery site, the real town centre. Reachability becomes a
+        # property we assert, not one we hope for, and the zombie-free
+        # corridor is a graph query.
         spawn = self.current_position
+        from src.worldgen.graph import MapGraph
+        _nodes = {'spawn': spawn}
+        if town_center is not None:
+            _nodes['town'] = tuple(town_center)
+        _mystery_nodes = []
+        if self.mystery is not None:
+            _nodes['exit'] = self.mystery.escape_tile
+            _mystery_nodes.append('exit')
+            for _role, _xy in self.mystery.sites.items():
+                _nodes[f'site_{_role}'] = _xy
+                _mystery_nodes.append(f'site_{_role}')
+        _required = list(_mystery_nodes) + (['town'] if 'town' in _nodes else [])
+        self._map_graph = MapGraph(self.map, self.map_size, _nodes)
+        _blocked = [nm for nm in self._map_graph.unreachable_from('spawn')
+                    if nm in _required]
+        if _blocked:
+            raise RuntimeError(
+                "generate_map(): connectivity graph - unreachable required "
+                f"node(s): {_blocked}"
+            )
+
+        # Zombie placement (frozen balance) - unchanged shape.
         total_tiles = self.map_size ** 2
         num_zombies = int(total_tiles * ZOMBIE_MAP_DENSITY)
 
@@ -136,16 +161,13 @@ class WorldMixin:
         attempts = 0
         max_attempts = max(200, num_zombies * 20)
 
-        # v4: never bury a mystery site / obstacle / escape tile - OR
-        # the route to one - under a zombie.
+        # v4: never bury a mystery site / obstacle / escape tile - OR the
+        # zombie-free corridor to one - under a zombie. Same BFS tiles as
+        # the old N-separate-walks approach, now one graph query.
         protected = set()
         if self.mystery is not None:
-            targets = list(self.mystery.sites.values()) + [self.mystery.escape_tile]
-            protected = set(targets)
-            for t in targets:
-                path = gen.mystery_bfs_path(spawn, t)
-                if path:
-                    protected.update(path)
+            protected = set(self.mystery.sites.values()) | {self.mystery.escape_tile}
+            protected |= self._map_graph.critical_path_tiles('spawn', *_mystery_nodes)
 
         while placed_zombies < num_zombies and attempts < max_attempts:
             attempts += 1

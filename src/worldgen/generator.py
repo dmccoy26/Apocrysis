@@ -191,28 +191,6 @@ class MapGenerator:
                 "could not be guaranteed after carving a path"
             )
 
-    def mystery_bfs_path(self, start, goal):
-        g = self.g
-        n = g.map_size
-        prev = {start: None}
-        q = deque([start])
-        while q:
-            cur = q.popleft()
-            if cur == goal:
-                path = []
-                while cur is not None:
-                    path.append(cur)
-                    cur = prev[cur]
-                return path
-            x, y = cur
-            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < n and 0 <= ny < n and (nx, ny) not in prev:
-                    c = g.map[ny][nx]
-                    if isinstance(c, dict) and c.get('terrain') not in IMPASSABLE_TERRAIN:
-                        prev[(nx, ny)] = cur
-                        q.append((nx, ny))
-        return None
 
     # ---- the base-map pipeline ----------------------------------
 

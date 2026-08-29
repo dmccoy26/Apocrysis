@@ -129,5 +129,38 @@ class TestReachabilitySweep(unittest.TestCase):
                     f"seed {seed}: escape tile unreachable")
 
 
+class TestMapGraph(unittest.TestCase):
+    def test_graph_over_a_tiny_hand_map(self):
+        from src.worldgen.graph import MapGraph
+        # 5x5, ring of mountain, plain interior, one wall at x=2
+        n = 5
+        grid = [[{"terrain": "mountain"} for _ in range(n)] for _ in range(n)]
+        for y in range(1, 4):
+            for x in range(1, 4):
+                grid[y][x] = {"terrain": "plain"}
+        grid[1][2] = grid[2][2] = grid[3][2] = {"terrain": "river"}  # wall
+        g = MapGraph(grid, n, {"a": (1, 1), "b": (3, 3), "c": (1, 3)})
+        self.assertFalse(g.reachable("a", "b"))     # wall between
+        self.assertTrue(g.reachable("a", "c"))      # same side
+        self.assertEqual(g.unreachable_from("a"), ["b"])
+        self.assertEqual(g.distance("a", "c"), 2)
+        self.assertIn((1, 2), g.critical_path_tiles("a", "c"))
+
+    def test_generate_map_attaches_a_graph_with_the_expected_nodes(self):
+        g = Apocrysis("Graph", seed=11, io=_IO(), expeditions_completed=3)
+        mg = g._map_graph
+        self.assertIn("spawn", mg.nodes)
+        if g.mystery is not None:
+            self.assertIn("exit", mg.nodes)
+            for role in g.mystery.sites:
+                self.assertIn(f"site_{role}", mg.nodes)
+            # every required node reachable from spawn (else generate
+            # would have raised)
+            self.assertEqual(
+                [n for n in mg.unreachable_from("spawn")
+                 if n.startswith("site_") or n == "exit"],
+                [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

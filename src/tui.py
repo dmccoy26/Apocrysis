@@ -223,11 +223,7 @@ def _objective_steps(p, m, k):
     def place(role, generic):
         return labels.get(role, generic) if role in named else generic
 
-    def heading(role):
-        # compass hint from where the player IS to a known site - a kid
-        # had the objective ("fuel at the ranger depot, marked") and
-        # still couldn't find it on the ASCII map (playtest).
-        xy = getattr(m, "sites", {}).get(role)
+    def _compass(xy):
         if not xy:
             return ""
         px, py = p.current_position
@@ -237,14 +233,26 @@ def _objective_steps(p, m, k):
         d = "-".join(x for x in (ns, ew) if x)
         return f" ({d})" if d else " (near here)"
 
+    def heading(role):
+        # compass hint from where the player IS to a known site - a kid
+        # had the objective ("fuel at the ranger depot, marked") and
+        # still couldn't find it on the ASCII map (playtest).
+        return _compass(getattr(m, "sites", {}).get(role))
+
     item = m.requirement_item
     steps = []
     # 1. the route (skip for informational - the route is unknowable
     # until the response names it, so this step can only ever be the
     # hot line pointing nowhere)
     if not _info:
-        steps.append(("route" in named or "F_ROUTE" in known,
-                      f"found {place('route', 'a way toward another route')}"))
+        _route_done = "route" in named or "F_ROUTE" in known
+        # A kid did the whole fuel/generator chain but never found the
+        # tunnel mouth - the hot line just said "found a way toward
+        # another route" with no place, no direction (playtest). Point
+        # a direction at it even before it's named.
+        steps.append((_route_done,
+                      f"found {place('route', 'a way toward another route')}",
+                      f"head for {place('route', 'the way out')}{heading('route')}"))
     # 2. what blocks it
     if "F_OBSTACLE" in known or m.saw_obstacle:
         steps.append((True, "found what blocks the route"))

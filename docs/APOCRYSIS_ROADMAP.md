@@ -262,9 +262,9 @@ becoming one* without making World 1 impossible to ship.
 
 | layer work | phase |
 |---|---|
-| `worlds/` seam · `WorldFact` beside the knowledge model · `DiscoveryTemplate` · competing hypotheses · World Investigation persistence · `MechanismFamily` **only as far as `DiscoveryTemplate` needs** | **Phase A** |
-| `src/worldgen/` · topology/graph generation replacing rectangular-map assumptions · causal-model → consequence → trace pipeline · the real mystery solver | **Phase C** |
-| `WorldState` transitions · reactive actors · faction behaviour · player-caused mysteries · simulation-driven branching | **Later** (post-Phase E) |
+| `worlds/` seam (`docs/PHASE_A0_SEAM.md`) · `WorldFact` beside the knowledge model · `DiscoveryTemplate` · competing hypotheses · World Investigation persistence · `MechanismFamily` **only as far as `DiscoveryTemplate` needs** | **Phase A** |
+| `src/worldgen/` · topology/graph generation replacing rectangular-map assumptions · causal-model → consequence → trace pipeline · the real mystery solver · **consider** a SQLite-backed `WorldStore` (see `PHASE_A_DECISIONS.md` — only once World 1's persistent shape is known) | **Phase C** |
+| `WorldState` transitions · reactive actors · faction behaviour · player-caused mysteries · simulation-driven branching · **ChromaDB** as a semantic index over the authoritative store (never as source of truth) | **Later** (post-Phase E) |
 
 ### Pre-Phase-A cleanup (obsolete weight, not a refactor)
 

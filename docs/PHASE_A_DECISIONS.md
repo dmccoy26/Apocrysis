@@ -13,6 +13,26 @@ Phase A. Decided by the project owner this session.
 | **region stability window** | Draft stands: region stable for a whole campaign, regenerates only on a new campaign. Phase B concern. |
 | **ending shape** (§2.6) | Leaning locked for structure: truth at the command centre **+** a settlement that held as the final act. Content is Phase E. |
 
+## Storage / database — decided: NOT now (2026-08-29)
+
+- **No database in Phase A–B.** World content (facts, evidence
+  definitions, mechanisms, encounters, history/truth) stays ordinary
+  Python data structures behind the `World` seam.
+- The existing persistence boundary (`save_game`/`load_game` +
+  `save_profile`/`apply_profile`) is adequate and stays.
+- **SQLite-backed `WorldStore`** is a **Phase C+** consideration —
+  revisit once World 1's persistent truth/history/state has a known
+  shape, so it's an architectural *consequence*, not a guess. SQLite
+  (embedded, transactional, single-file, no server) is the candidate,
+  not a client/server DB. It would let the engine *operate on* the
+  world rather than *be* the world's storage; and a structured world
+  state is also the substrate a future generated world would need.
+- **ChromaDB / vector store**: later still, and **only as a semantic
+  index over an authoritative store**, never as the source of truth.
+  Use "SQLite says the player knows X; ChromaDB helps find what's
+  *relevant* to consider" — not "the vector DB says the player knows X".
+- A.0 guardrail: Atlas must not introduce any storage abstraction.
+
 ## Not yet decided (still open, don't need them for Phase A)
 
 - ending: authored-canonical vs player-choice

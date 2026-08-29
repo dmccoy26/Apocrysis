@@ -99,6 +99,27 @@ MECHANISMS = {
         "roles": {"closed": "a collapsed overpass", "route": "an evacuation-route sign",
                   "obstacle": "barricade", "require": "the police station"},
     },
+    "power_station": {
+        "name": "the road tunnel",
+        "family": "infrastructural", "discovery": "observe_anomaly",
+        "reasoning": "infer", "resolution": "repair", "confirmation": "environmental",
+        "closed": "Every road out ends the same way - a slide, a checkpoint, a bridge dropped in the river. Nothing is driving out.",
+        "route": "There's a road tunnel bored straight through the ridge - it comes out on the far side of the mountains.",
+        "obstacle": "The tunnel is closed by a heavy electric gate, and the gate is dead. No power, no way to raise it.",
+        "require": "Fuel drums are stored at the highway works yard.",
+        "item": "jerrycan of fuel",
+        "obstacle_desc": "A heavy electric vehicle gate seals the tunnel mouth. The control panel is unlit.",
+        "escape_desc": "The gate grinds up. The tunnel runs level and straight through the ridge, and there is light at the far end.",
+        "roles": {"closed": "a blocked checkpoint", "route": "the tunnel mouth",
+                  "obstacle": "the tunnel gate", "require": "the works yard",
+                  "power": "the hydro station"},
+        "power_role": "power",
+        "power_fact": "The tunnel gate's power comes from the hydro station downriver.",
+        "power_obstacle_ev": "The gate is electric and its panel is stone dead. A cable run leaves it heading downriver - the power comes from somewhere else.",
+        "power_site_ev": "A heavy cable leaves the switch room here, strung on poles toward the ridge tunnel.",
+        "generator_ev": "The generator's fuel gauge sits on empty. It will not turn over dry.",
+        "power_restored_desc": "The generator catches and runs. Downriver, the tunnel gate's panel lights up.",
+    },
 }
 
 _MECH_ORDER = list(MECHANISMS)

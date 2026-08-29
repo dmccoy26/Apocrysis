@@ -283,6 +283,11 @@ class Mystery:
 
     def __init__(self):
         self.mechanism = None
+        # A.2: the authored WorldFact this mystery was generated to
+        # surface, or None for a plain random expedition. A tag only -
+        # the mystery is still solved by its own evidence; nothing in
+        # the build reads this. See docs/PHASE_A2_DISCOVERY.md.
+        self.world_fact_id = None
         self.family = None          # STORY_FAMILIES value
         self.discovery = None       # DISCOVERY_PATTERNS value
         self.reasoning = None       # REASONING_PATTERNS value
@@ -374,6 +379,7 @@ class Mystery:
     def to_dict(self):
         return {
             "mechanism": self.mechanism,
+            "world_fact_id": self.world_fact_id,
             "family": self.family,
             "discovery": self.discovery,
             "reasoning": self.reasoning,
@@ -406,6 +412,7 @@ class Mystery:
         if not d:
             return m
         m.mechanism = d.get("mechanism")
+        m.world_fact_id = d.get("world_fact_id")
         m.family = d.get("family")
         m.discovery = d.get("discovery")
         m.reasoning = d.get("reasoning")
@@ -612,18 +619,32 @@ def _paint_terrain_near(game, center, terrain, count, protected):
         game.map[y][x]['terrain'] = terrain
 
 
-def build_mystery(game):
+def build_mystery(game, target_fact=None):
     """Populate game.knowledge and return a Mystery for this expedition.
-    Called from world_mixin.generate_map()."""
+    Called from world_mixin.generate_map().
+
+    A.2: if `target_fact` is a WorldFact id with a DiscoveryTemplate on
+    `game.world`, the mechanism is chosen to carry that fact (and
+    stamped on `m.world_fact_id`) instead of the random variety roll.
+    The mystery is otherwise built and solved exactly the same way -
+    `target_fact` never enters the evidence. See PHASE_A2_DISCOVERY.md.
+    """
     rng = game.rng
     m = Mystery()
-    m.mechanism = choose_mechanism(
-        rng,
-        getattr(game.__class__, '_used_mechanisms', []),
-        last_family=getattr(game.__class__, '_last_family', None),
-        recent_mechanisms=getattr(game.__class__, '_recent_mechanisms', ()),
-        recent_signatures=getattr(game.__class__, '_recent_signatures', ()),
-    )
+    _routes = None
+    if target_fact is not None:
+        _routes = getattr(game.world, 'discovery_templates', {}).get(target_fact)
+    if _routes:
+        m.mechanism = rng.choice(_routes).mechanism
+        m.world_fact_id = target_fact
+    else:
+        m.mechanism = choose_mechanism(
+            rng,
+            getattr(game.__class__, '_used_mechanisms', []),
+            last_family=getattr(game.__class__, '_last_family', None),
+            recent_mechanisms=getattr(game.__class__, '_recent_mechanisms', ()),
+            recent_signatures=getattr(game.__class__, '_recent_signatures', ()),
+        )
     spec = MECHANISMS[m.mechanism]
     m.family = spec.get('family')
     m.discovery = spec.get('discovery')

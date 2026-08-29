@@ -7,6 +7,7 @@ migrated to read them off `game.world` (Phase A.0 step 5). Nothing in
 here imports from the engine - a World is data the engine reads.
 """
 from src.worlds.base import World
+from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
 
 
 # Tile vocabulary -------------------------------------------------------
@@ -65,4 +66,5 @@ SILENCE = World(
         "place_name_fallback": "THE VALLEY",
         "leave_verb": "leave the valley",
     },
+    discovery_templates=DISCOVERY_TEMPLATES,
 )

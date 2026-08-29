@@ -190,16 +190,25 @@ think · WHAT NEXT → objectives panel. If the player must remember a
 fact to operate the game, the UI remembers it for them. Investigation
 hard, interface easy.
 
-**Escape story library** — `docs/ESCAPE_STORY_LIBRARY.md` rewritten
-around the 10-family reasoning matrix. Atlas todos, continuity-key
-`escape-story-library`: `9ab1b420` (Story Library v1 schema — DO
-FIRST, gates the rest), then `e2850fa5` / `c67cbd25` / `ea1d52be` /
-`e0475adf` / `17f2a0ca` / `5761c63f`.
+**Escape story matrix** — `docs/ESCAPE_STORY_LIBRARY.md` (10-family
+reasoning matrix + scenarios), `docs/ESCAPE_STORY_SCHEMA.md` (v1
+DONE, `e18264b` — vocabularies, `Mystery` classification fields,
+`choose_mechanism` no-back-to-back-family, primitives §4),
+`docs/PLAYER_UNDERSTANDING.md` (ambient/interrupt, four panels, the
+5-state loop, no vocab leakage). Typed banners shipped (`8c0d3d4`).
 
-Still open: `c359b1bb` (render the map at larger scale), `7d6046d3`
-(evidence-vs-escape direction validator), `a4a11df6` (terrain affinity
-for the non-water mechanisms), `45ba6b67` (hunting for food),
-`91161490` (backpack-full [1]/[2] prompt). `atlas todo list`.
+NEXT — the Tier-2 mechanism todos (continuity-key
+`escape-story-library`): `e2850fa5` (7 tier-1 scenarios) then
+`c67cbd25` environmental / `ea1d52be` informational / `e0475adf`
+weird / `17f2a0ca` transportation / `5761c63f` time-pressure. Each
+extends one primitive per schema §4. Then `9ae794b9` — the
+3-radically-different-mysteries comprehension playtest (the phase
+gate, replaces another sweep).
+
+Also open: `c359b1bb` (bigger map render), `9779d49f` (NEW DISCOVERY
+banner), `7d6046d3` (evidence↔escape direction validator), `a4a11df6`
+(terrain affinity, non-water mechs), `45ba6b67` (hunting), `91161490`
+(backpack-full prompt). `atlas todo list`.
 
 ## Open questions for the next playtest (the human's to answer)
 

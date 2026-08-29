@@ -370,6 +370,23 @@ class UIMixin:
                 # infrastructural family: `use fuel` / `fill generator` at the power site
                 parts = command.split(maxsplit=1)
                 self.mystery_apply_fix(parts[1] if len(parts) > 1 else "")
+            elif command.isdigit() or (command[:1] == 'w' and command[1:].isdigit()):
+                # numbered equip straight from the "> " prompt - the same
+                # [1] / [W1] slots the `i` inventory view lists.
+                weapons = list(self.backpack.weapons)
+                armor = list(self.backpack.armor)
+                if command.isdigit():
+                    n = int(command)
+                    if 1 <= n <= len(weapons):
+                        self.equip_weapon(weapons[n - 1].name)
+                    else:
+                        self.io.say(f"No weapon [{n}]. Type `i` to see what you're carrying.")
+                else:
+                    n = int(command[1:])
+                    if 1 <= n <= len(armor):
+                        self.equip_armor(armor[n - 1].name)
+                    else:
+                        self.io.say(f"No armor [W{n}]. Type `i` to see what you're carrying.")
             elif (command.split() or [''])[0] in ('take', 'get', 'grab', 'pickup') or command.startswith('pick up'):
                 # v4: a player who finds a note/record and types
                 # "take note". Evidence isn't carried - what you learn
@@ -718,7 +735,7 @@ class UIMixin:
             "  See & understand",
             "    m       the map",
             "    l       look around where you are",
-            "    i       inventory  (pick a number to equip)",
+            "    i       inventory  (then a number, or type the number straight)",
             "    j       journal - what you've discovered",
             "    t       think - what you currently believe",
             "    inspect <thing>   how certain are you? (e.g. 'inspect the way out')",
@@ -739,7 +756,8 @@ class UIMixin:
             "    punch           attack unarmed",
             "    reload          reload your weapon",
             "",
-            "  Equipment  (mostly done through the inventory - `i`)",
+            "  Equipment",
+            "    1 2 3 ...         equip that weapon from `i`   (W1 W2 = armor)",
             "    equip <weapon>   wear <armor>   drop <thing>   craft <recipe>",
             "",
             "  q or x            quit",

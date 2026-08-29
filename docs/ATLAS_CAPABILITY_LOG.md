@@ -254,15 +254,23 @@ Net Phase B: **1 of ~12 files by Atlas** (`survivor_knowledge.py`).
 Same story as Phase A — the leaf class, yes; the profile-format change,
 the lifecycle restructure, the per-lore engine hooks, no.
 
-## Cumulative (Phase A + B) — Atlas shipped 8 of ~55 files touched
+## Phase C (2026-08-29) — geography (C.1 + C.2 + C.4)
 
-7 self-contained new leaf files (`worlds/base.py` v1, `worlds/__init__.py`,
-`truth.py`, `world_investigation.py`, `survivor_knowledge.py`) + 2 small
-edits (`game.py` world param, `campaign.py` milestones). Note
-`worlds/base.py` has since been hand-edited 4 more times (fields added
-each phase) — Atlas did only its first version.
+| # | ask | route | outcome |
+|---|---|---|---|
+| 41 | `src/worldgen/reachable.py` — pure BFS + `shortest_path`, ~45 lines | `atlas request --create --force` | **SHIPPED verbatim** ✓ (9th leaf file) |
+| 42 | `src/worldgen/graph.py` — `from src.worldgen.reachable import …` + `MapGraph` class | `atlas request --create --force` | **REJECTED** (import-then-use + length; 5th repro) |
+| 43+ | `worldgen/generator.py` (330-line verbatim move), the `generate_map` rewrite (258→55 lines) + 10 helper deletions, the `MapGraph` wiring, the structural suite | not routed | **HAND** — large-file / multi-file / mechanical-move |
 
-**The stable finding across two phases:** Atlas (32B local coder) can
+Net Phase C so far: **1 of ~7 files by Atlas** (`reachable.py`).
+C.3 (the inverted pipeline) is deferred — its own reviewed pass.
+
+## Cumulative (Phase A + B + C) — Atlas shipped 9 of ~65 files touched
+
+9 self-contained new leaf files; every architecture / large-file /
+multi-file / cross-import / mechanical-move change hand-written.
+
+**The stable finding across three full phases:** Atlas (32B local coder) can
 type a fully-specified, self-contained file up to ~60 lines, or make a
 small unambiguous edit to a file under ~350 lines. It cannot do
 architecture, multi-file changes, large-file edits, cross-module-import

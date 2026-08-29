@@ -238,3 +238,76 @@ large-file / multi-file — hand-written, logged.
 C.0 spec (this) → **C.1** extraction (byte-identical) → **C.2** graph
 guarantee layer → **C.4** structural suite → *freeze C.1–C.2–C.4* →
 then a separate reviewed pass for **C.3**.
+
+---
+
+## As built (2026-08-29) — C.1 + C.2 + C.4 shipped, C.3 deferred
+
+Tag: `v5-phase-c-foundation`. **247 tests + 100 subtests green.**
+
+### C.1 — `worldgen/` extraction ✓
+
+`src/worldgen/`: `reachable.py` (Atlas, verbatim — pure BFS +
+`shortest_path`), `generator.py` (`MapGenerator` — the terrain / zone /
+boundary / spawn / settlement pipeline **moved verbatim** from
+`world_mixin.generate_map`, `self.X` → `self.g.X`). `world_mixin` 1130
+→ 714 lines; `generate_map` is now a ~55-line orchestrator
+(`worldgen.generate` → `build_mystery` → abandonment →
+`ensure_reachable` → graph → zombies). 10 gen-only helpers deleted from
+the mixin.
+
+**Byte-identical**: a golden fixture (21 pre-refactor maps, all
+`expeditions_completed` tiers) — 0 mismatches on spawn, archetype, town
+centre, the full terrain grid, and the full zone grid. RNG stream
+untouched.
+
+### C.2 — `MapGraph` guarantee layer ✓
+
+`src/worldgen/graph.py`: `MapGraph(grid, n, nodes)` — nodes →
+BFS-distance edges; `reachable` / `distance` / `unreachable_from` /
+`critical_path_tiles`. `generate_map` builds it over
+`{spawn, town, exit, site_<role>…}` after the mystery is embedded;
+an unreachable *required* node now raises `RuntimeError` with the node
+name (was a silent possibility). The zombie-free corridor is
+`graph.critical_path_tiles('spawn', *mystery_nodes)` — the same BFS
+tiles the old N-separate-`_mystery_bfs_path`-walks produced
+(byte-identity re-verified).
+
+### C.4 — deterministic structural suite ✓
+
+`src/tests/test_worldgen_structure.py`: golden fixture · same-seed →
+same map · same-seed → same graph · `worldgen` never imports the engine
+(AST) · `MapGraph` unit tests · a **300-seed × 5-tier sweep** —
+every mystery site, escape tile, and real town centre reachable from
+spawn; boundary ring intact bar the one carved gap; no generation
+exception.
+
+### C.3 — the inverted pipeline — DEFERRED (its own reviewed pass)
+
+Not implemented this pass. It is a **branch, not a patch** (roadmap
+§5), it changes what maps *feel* like, and validating "the frozen
+balance still holds" needs **human playtesting**, not just green
+tests. The foundation it needs now exists: the `worldgen` seam, the
+`MapGraph`, and a deterministic test harness. C.3's own plan:
+
+1. `worldgen` gains a `topology.py` — build a `MapGraph` **first**
+   (spawn, exit, N site slots, settlement slots), from the chapter's
+   critical-path budget and the mechanism's declared geography needs.
+2. `terrain.py` realises that graph as an **irregular playable mask**
+   on the 34×34 array (flood-fill a valley, mountain-fill the rest) —
+   the boundary becomes the mask perimeter, not the array edge.
+3. `escape._carve_escape_pass` is rewritten against the mask perimeter;
+   `build_mystery`'s `_detour` / `_from_spawn` pacing heuristics become
+   graph-native path budgeting.
+4. `DiscoveryTemplate` / `MECHANISMS` gain **declarative** geography
+   needs (`needs_perimeter="water"`, `needs_gorge`, …) — a *mechanism*
+   property, never a `WorldFact` one (contract 4).
+5. `build_mystery` v2 with a compat bridge so the 10 current mechanisms
+   keep working through the transition.
+6. Acceptance test: *the same generated valley hosts ≥2 different
+   mysteries and feels like a different expedition each time.*
+7. Balance: a full `balance_autoplay.py` campaign sweep + a human
+   playtest pass before C.3 is accepted.
+
+C.3 should be its own spec section + sign-off, exactly as each Phase A/B
+step was.

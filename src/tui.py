@@ -754,10 +754,12 @@ class ApocrysisApp(App):
             c = "red" if n <= 0 else "grey85"
             return f"[{_DIM}]{label}[/] [{c}]{n}[/]"
 
+        _map_lvl = getattr(p, "expeditions_completed", 0) + 1
         lines = [
             f"[bold]{p.name}[/bold]   [{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
             f"[{pcol}]{glyph} {phase.upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
             f"Turn {getattr(p, 'turns', 0)}[/]",
+            f"[{_DIM}]Map {_map_lvl} · {p.map_size}×{p.map_size}[/]",
             "",
             f"[{_HDR}]EQUIPMENT[/]",
             eq_line,

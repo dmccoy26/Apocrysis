@@ -510,7 +510,12 @@ class UIMixin:
     def _render_end_screen(self):
         won = getattr(self, 'won', False)
         k = getattr(self, 'knowledge', None)
+        # on a win finish_expedition() has already incremented the
+        # counter (this run is done); on a death it hasn't (they died
+        # ON this one).
+        _map_lvl = self.expeditions_completed if won else self.expeditions_completed + 1
         stats = [
+            f"map level           {_map_lvl}",
             f"turns survived      {getattr(self, 'turns', 0)}",
             f"days survived       {self.day}",
             f"final level         {self.level}",

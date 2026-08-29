@@ -16,6 +16,14 @@ class WorldInvestigation:
         self._facts = {f.id: f for f in facts}
         self._status = {}  # fid -> KNOWN | SUSPECTED ; absent means UNKNOWN
 
+    def fact(self, fid):
+        return self._facts.get(fid)
+
+    def all_facts(self):
+        """Every WorldFact, in authored order. Read-only view for
+        presentation code - which must not re-derive DAG rules itself."""
+        return list(self._facts.values())
+
     def status(self, fid):
         return self._status.get(fid, UNKNOWN)
 

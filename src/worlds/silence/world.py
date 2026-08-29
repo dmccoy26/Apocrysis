@@ -66,6 +66,13 @@ SILENCE = World(
     prose={
         "place_name_fallback": "THE VALLEY",
         "leave_verb": "leave the valley",
+        # World Investigation screen: player-facing name + question per
+        # thread. The player never sees the raw thread id.
+        "thread_titles": {
+            "disappearance": ("THE SILENCE", "Where did the people go?"),
+            "dead": ("THE INFECTED", "What are they, and where did they start?"),
+            "response": ("THE RESPONSE", "Who ordered it, and why?"),
+        },
     },
     discovery_templates=DISCOVERY_TEMPLATES,
     world_facts=WORLD_FACTS,

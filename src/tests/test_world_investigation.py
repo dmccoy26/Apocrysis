@@ -136,8 +136,13 @@ class TestResolutionHook(_ProfileTest):
             Apocrysis._world_investigation.get("DIS_ORGANISED"), KNOWN)
 
     def test_solving_an_untagged_mystery_flips_nothing(self):
+        # every fact already known -> next_target() is None -> generate_map
+        # produces an ordinary (untagged) mystery
+        Apocrysis._world_investigation = {f.id: KNOWN for f in WORLD_FACTS}
         g = Apocrysis("Hook2", seed=4, io=_IO())
-        m = g.mystery  # the random one from generate_map, world_fact_id is None
+        Apocrysis._world_investigation = {}  # clear so the assertion below is meaningful
+        g.world_investigation.restore({"status": {}})
+        m = g.mystery
         self.assertIsNone(m.world_fact_id)
         for eid in list(m.knowledge.evidence):
             m.knowledge.discover(eid)
@@ -145,6 +150,69 @@ class TestResolutionHook(_ProfileTest):
         g.current_position = m.escape_tile
         g.mystery_try_escape()
         self.assertEqual(Apocrysis._world_investigation, {})
+
+
+class TestInvestigationScreen(_ProfileTest):
+    def test_screen_shows_thread_titles_and_known_statements(self):
+        g = Apocrysis("Scr", seed=1, io=_IO())
+        g.world_investigation.mark_known("DIS_FEW_REMAINS")
+        g.io.log.clear()
+        g.world_investigation_screen()
+        out = "\n".join(g.io.log)
+        self.assertIn("THE SILENCE", out)          # thread title, not "disappearance"
+        self.assertIn("THE INFECTED", out)
+        self.assertIn("Most people left", out)     # the known fact's statement
+        self.assertIn("1/4", out)                  # disappearance progress
+
+    def test_screen_never_leaks_schema_vocabulary(self):
+        g = Apocrysis("Scr2", seed=1, io=_IO())
+        for f in WORLD_FACTS:
+            g.world_investigation.mark_known(f.id)
+        g.io.log.clear()
+        g.world_investigation_screen()
+        out = "\n".join(g.io.log).lower()
+        for banned in ("disappearance", "thread", "chapter=", "world_fact",
+                       "milestone=", "f_closed"):
+            self.assertNotIn(banned, out)
+
+    def test_screen_hides_unknown_fact_statements(self):
+        g = Apocrysis("Scr3", seed=1, io=_IO())  # nothing known
+        g.io.log.clear()
+        g.world_investigation_screen()
+        out = "\n".join(g.io.log)
+        self.assertNotIn("Most people left", out)   # unknown -> not spoiled
+        self.assertIn("more to piece together", out)
+
+
+class TestInvestigationDrivenTargeting(_ProfileTest):
+    def test_expeditions_target_facts_in_dag_order_with_no_repeat_family(self):
+        from src.escape import MECHANISMS
+
+        Apocrysis._world_investigation = {}
+        targets, families = [], []
+        for i in range(6):
+            g = Apocrysis("Camp", seed=100 + i, io=_IO())
+            m = g.mystery
+            self.assertIsNotNone(m.world_fact_id, "expedition should be targeted")
+            targets.append(m.world_fact_id)
+            fam = MECHANISMS[m.mechanism]["family"]
+            families.append(fam)
+            # simulate solving it
+            g.world_investigation.mark_known(m.world_fact_id)
+            Apocrysis._world_investigation = g.world_investigation.snapshot()["status"]
+            Apocrysis._last_family = fam
+
+        self.assertEqual(targets[:4], [
+            "DIS_FEW_REMAINS", "DIS_MOVED_TOGETHER",
+            "DIS_ROUTES_PREPARED", "DIS_ORGANISED",
+        ])
+        for a, b in zip(families, families[1:]):
+            self.assertNotEqual(a, b, f"back-to-back story family: {families}")
+
+    def test_targeting_stops_when_the_dag_is_exhausted(self):
+        Apocrysis._world_investigation = {f.id: KNOWN for f in WORLD_FACTS}
+        g = Apocrysis("Done", seed=7, io=_IO())
+        self.assertIsNone(g.mystery.world_fact_id)
 
 
 if __name__ == "__main__":

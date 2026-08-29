@@ -635,7 +635,13 @@ def build_mystery(game, target_fact=None):
     if target_fact is not None:
         _routes = getattr(game.world, 'discovery_templates', {}).get(target_fact)
     if _routes:
-        m.mechanism = rng.choice(_routes).mechanism
+        # A.4.2: the targeted path bypasses choose_mechanism's variety
+        # rules, so honour the one that matters most here - don't repeat
+        # the previous expedition's story family - when a route allows.
+        _last_family = getattr(game.__class__, '_last_family', None)
+        _varied = [t for t in _routes
+                   if MECHANISMS.get(t.mechanism, {}).get('family') != _last_family]
+        m.mechanism = rng.choice(_varied or list(_routes)).mechanism
         m.world_fact_id = target_fact
     else:
         m.mechanism = choose_mechanism(

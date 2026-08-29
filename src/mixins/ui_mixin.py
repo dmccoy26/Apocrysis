@@ -69,6 +69,7 @@ class UIMixin:
         cmd_list.append("look (l)")
         cmd_list.append("search (sr)")
         cmd_list.append("journal (j)")
+        cmd_list.append("investigation (wi)")
         cmd_list.append("remember (rem)")
         cmd_list.append("inspect [thing]")
         if getattr(self, 'mystery', None) is not None:
@@ -252,7 +253,7 @@ class UIMixin:
 
             _free = ('m', 'map', 'i', 'inv', 'inventory', 'st', 'stats',
                      'h', '?', 'help', 'commands', 'q', 'quit', 'x',
-                     'exit', 'exit game', 'log')
+                     'exit', 'exit game', 'log', 'wi', 'investigation')
             if command and command not in _free:
                 self.turns = getattr(self, 'turns', 0) + 1
 
@@ -283,6 +284,8 @@ class UIMixin:
                 'w': lambda: self.move_and_search('w'),
                 'm': self.print_map,
                 'map': self.print_map,
+                'wi': self.world_investigation_screen,
+                'investigation': self.world_investigation_screen,
                 'i': self.display_inventory,
                 'inv': self.display_inventory,
                 'inventory': self.display_inventory,
@@ -805,6 +808,48 @@ class UIMixin:
             self.equip_weapon(w[int(pick) - 1].name)
         else:
             self.io.say("Nothing selected.")
+
+    def world_investigation_screen(self):
+        """A.4.1 - what this campaign has pieced together about the
+        world. Reads WorldInvestigation; never re-derives the DAG.
+        Player-facing text only - thread titles + fact statements, no
+        schema vocabulary."""
+        wi = getattr(self, "world_investigation", None)
+        if wi is None or not wi.all_facts():
+            self.io.say("\nYou don't have enough yet to say what happened here.")
+            return
+        titles = self.world.prose.get("thread_titles", {})
+        prog = wi.thread_progress()
+        ms = len(wi.milestones_known())
+
+        self.io.say(f"\n{BOLD}{CYAN}╔═══ THE APOCRYSIS ═══╗{RESET}")
+        self.io.say(f"  {ms} milestone{'s' if ms != 1 else ''} understood")
+        seen_threads = []
+        for f in wi.all_facts():
+            if f.thread not in seen_threads:
+                seen_threads.append(f.thread)
+        for thread in seen_threads:
+            known, total = prog.get(thread, (0, 0))
+            title, question = titles.get(thread, (thread.upper(), ""))
+            bar_n = 12
+            filled = 0 if not total else round(bar_n * known / total)
+            bar = "█" * filled + "░" * (bar_n - filled)
+            self.io.say(f"\n  {BOLD}{title}{RESET}   {bar}  {known}/{total}")
+            if question:
+                self.io.say(f"  {question}")
+            unknown = 0
+            for f in wi.all_facts():
+                if f.thread != thread:
+                    continue
+                st = wi.status(f.id)
+                if st == "unknown":
+                    unknown += 1
+                    continue
+                mark = "✓" if st == "known" else "·"
+                self.io.say(f"    {mark} {f.statement}")
+            if unknown:
+                self.io.say(f"    ? {unknown} more to piece together")
+        self.io.say("")
 
     def stats(self):
         self.io.say("\n--- Player Stats ---")

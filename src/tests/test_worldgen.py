@@ -291,11 +291,17 @@ class TestSettlementGeneration(unittest.TestCase):
 class TestChunkBasedTerrain(unittest.TestCase):
     def test_terrain_forms_contiguous_chunks_not_a_checkerboard(self):
         from src.constants import CHUNK_SIZE
+        from src.game import Apocrysis as _A
+        from src.worlds.silence.truth import WORLD_FACTS
         # Force a non-water mechanism: build_mystery's _paint_terrain_near
         # deliberately drops small water patches for boat/dam mysteries
         # (world coherence), which is not what this test is about - and
         # which mechanism a bare seed picks shifts whenever MECHANISMS
-        # grows.
+        # grows. Mark every WorldFact known so A.4.2 targeting is off and
+        # the choose_mechanism patch below is what decides the mechanism.
+        _saved = dict(_A._world_investigation)
+        _A._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+        self.addCleanup(lambda: setattr(_A, "_world_investigation", _saved))
         with patch("builtins.print"), \
              patch("src.escape.choose_mechanism", return_value="mountain_pass"):
             game = Apocrysis("ChunkTest", map_size=20, seed=1)

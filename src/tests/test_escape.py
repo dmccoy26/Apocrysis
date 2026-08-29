@@ -178,11 +178,17 @@ class TestEscapeGeneration(unittest.TestCase):
 
     def _force_mechanism(self, name, seed=0):
         from src.escape import MECHANISMS
+        from src.worlds.silence.truth import WORLD_FACTS
         import src.game as gmod
         gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != name]
         gmod.Apocrysis._last_family = None
         gmod.Apocrysis._recent_mechanisms = []
         gmod.Apocrysis._recent_signatures = []
+        # A.4.2: generate_map() now targets the next un-known WorldFact.
+        # Mark them all known so next_target() is None and the random
+        # (choose_mechanism) path runs, which _used_mechanisms controls.
+        _saved_wi = dict(gmod.Apocrysis._world_investigation)
+        gmod.Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
         try:
             g = Apocrysis("Force", seed=seed, io=_IO())
             self.assertEqual(g.mystery.mechanism, name)
@@ -192,6 +198,7 @@ class TestEscapeGeneration(unittest.TestCase):
             gmod.Apocrysis._last_family = None
             gmod.Apocrysis._recent_mechanisms = []
             gmod.Apocrysis._recent_signatures = []
+            gmod.Apocrysis._world_investigation = _saved_wi
 
     def test_power_station_builds_the_dependency_chain(self):
         g = self._force_mechanism("power_station")

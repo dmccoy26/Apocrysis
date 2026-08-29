@@ -263,8 +263,16 @@ class WorldMixin:
         # (build_mystery may carve one gap in the boundary ring for the
         # actual escape route - mountain-boundary Phase 3.)
         from src.escape import build_mystery
+        # A.4.2: each expedition targets the next un-known WorldFact
+        # whose prerequisites are met (WorldInvestigation.next_target()).
+        # None once the CH1/CH2 DAG is exhausted -> build_mystery takes
+        # the ordinary random path.
+        _target = None
+        _wi = getattr(self, 'world_investigation', None)
+        if _wi is not None:
+            _target = _wi.next_target()
         try:
-            self.mystery = build_mystery(self)
+            self.mystery = build_mystery(self, target_fact=_target)
         except RuntimeError as exc:
             # A mystery that fails its own validation is a generation
             # bug - surface it in tests, but never ship a broken map to

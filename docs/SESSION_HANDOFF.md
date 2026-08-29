@@ -197,13 +197,24 @@ DONE, `e18264b` — vocabularies, `Mystery` classification fields,
 `docs/PLAYER_UNDERSTANDING.md` (ambient/interrupt, four panels, the
 5-state loop, no vocab leakage). Typed banners shipped (`8c0d3d4`).
 
-NEXT — the Tier-2 mechanism todos (continuity-key
-`escape-story-library`): `e2850fa5` (7 tier-1 scenarios) then
-`c67cbd25` environmental / `ea1d52be` informational / `e0475adf`
-weird / `17f2a0ca` transportation / `5761c63f` time-pressure. Each
-extends one primitive per schema §4. Then `9ae794b9` — the
-3-radically-different-mysteries comprehension playtest (the phase
-gate, replaces another sweep).
+**Balance is FROZEN** (atlas decision recorded) — no more combat/
+resource tuning off the bot. `PLAYER_UNDERSTANDING.md` Rule 5:
+objective + banners say WHAT STATE / WHY, never HOW.
+
+NEXT — Tier-2 mechanisms, ordered by how much they expand the
+player's mental model:
+1. **`c67cbd25` infrastructural (power_station) — IN PROGRESS.**
+   `docs/MECHANISM_INFRASTRUCTURAL.md` = full design. Done:
+   `Mystery.power_role`/`power_restored` (`ce54c4a`). TODO: the
+   `power_station` MECHANISMS entry, `build_mystery` 5th-role wiring,
+   `mystery_mixin` (apply the fuel at the generator, not the gate;
+   obstacle opens on `power_restored`), tui objective/marker.
+2. `e0475adf` experimental — the other high-value one.
+3. `ea1d52be` informational · `17f2a0ca` transportation ·
+   `5761c63f` time-pressure.
+Then `69d78812` — the three-mystery blind comprehension playtest
+(the phase gate; needs ≥2 families = spatial + infrastructural).
+Deferred: `6cffc528` (tier-1 same-family scenarios — scenery only).
 
 Also open: `c359b1bb` (bigger map render), `9779d49f` (NEW DISCOVERY
 banner), `7d6046d3` (evidence↔escape direction validator), `a4a11df6`

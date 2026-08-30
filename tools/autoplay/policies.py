@@ -1,18 +1,18 @@
-"""Baseline autoplay policies — decide only from a `Perception`.
+"""Autoplay policies — decide only from a `Perception`.
 
-Instrument-phase set only:
-
-    random    legal random walk; always fights. The null baseline.
-    survival  eat/drink/medicine/fight/loot when the HUD says so;
-              no objective-seeking at all.
-    explorer  survival, plus: when nothing is urgent, head for the
-              nearest unseen edge of the map. Models the run-5/6
-              "loot every building" loop.
-
-The `objective` and `humanlike` policies are deliberately NOT here —
-an objective-seeking policy's behaviour depends on what spatial
-language the redesign introduces, so it is built after the design
-pass (docs/AUTOPLAY_STRATEGY.md, "Sequencing").
+    random     legal random walk; always fights. The null baseline.
+    survival   eat/drink/medicine/fight/loot when the HUD says so;
+               no objective-seeking at all.
+    explorer   survival, plus: when nothing is urgent, head for the
+               nearest unseen edge of the map. Models the run-5/6
+               "loot every building" loop.
+    resource   a trying survival player (rests, eats early).
+    objective  survival, plus: pursue the objective USING PERCEIVED
+               TEXT ONLY — head for a mystery marker ('!'/'+') visible
+               on the rendered map / named in the ESCAPE panel; when
+               none is visible, search where useful, else explore.
+               For the spatial-language / navigation investigation
+               (docs/DESIGN_SPATIAL_LANGUAGE.md, docs/AUTOPLAY_STRATEGY).
 
 A policy never sees `player`. It sees `Perception` and returns a
 command string / a combat letter / a yes-no.
@@ -154,8 +154,91 @@ class ResourcePolicy(ExplorerPolicy):
         return None
 
 
+class ObjectivePolicy(ExplorerPolicy):
+    """Pursues the objective from PERCEIVED information only.
+
+    A player who has learned about a lead sees a '!' (or '+' for an
+    opened route) marker on the map, and the ESCAPE panel names a
+    place + says "marked on your map" / "close now" / "the marker's in
+    sight". This policy acts on exactly that: BFS toward the nearest
+    visible marker. When it can't see one, it does NOT get to cheat
+    (no `m.sites`) - it searches a mystery-ish tile if the panel hints
+    one is near, otherwise it explores. The runner records whether
+    each move actually closed distance to the real objective."""
+    name = "objective"
+
+    def __init__(self, rng=None):
+        super().__init__(rng)
+        self._target = None       # committed destination (hysteresis)
+        self._seen = set()        # tiles stood on
+
+    # only-when-desperate survival, so pursuit dominates the trace
+    def _survival_command(self, per):
+        h = per.hud
+        if h["health"] <= 0.30 * h["max_health"] and h["medicine"] > 0:
+            return "med"
+        if h["hunger"] <= 18 and h["food"] > 0:
+            return "eat"
+        if h["thirst"] <= 18 and h["water"] > 0:
+            return "drink"
+        return None
+
+    def _structures(self, per):
+        """Visible non-ground glyphs a player would read as places worth
+        entering (buildings / town features) - where leads are learned."""
+        return per.glyph_positions("HRSBT#b") + per.glyph_positions("oc")
+
+    def on_command(self, per):
+        here = per.player_xy
+        self._seen.add(here)
+        cmd = self._survival_command(per)
+        if cmd:
+            return cmd
+
+        # commit to one destination until reached or it disappears
+        # (hysteresis - stops the bounce between equidistant markers)
+        if self._target is not None:
+            if self._target == here or self._target in self._seen:
+                self._target = None
+            else:
+                step = _bfs_first_step(per, {self._target})
+                if step:
+                    return step
+                self._target = None   # unreachable now, re-pick
+
+        # 1. a *fresh* lead marker on the map -> pick the nearest one
+        #    we haven't already stood on
+        markers = [m for m in per.glyph_positions("!+") if m not in self._seen]
+        if markers:
+            px, py = here
+            self._target = min(markers, key=lambda m: abs(px-m[0]) + abs(py-m[1]))
+            step = _bfs_first_step(per, {self._target})
+            if step:
+                return step
+            return "search"
+        # a marker we're standing next to -> search it
+        if any(abs(here[0]-mx) + abs(here[1]-my) <= 1
+               for mx, my in per.glyph_positions("!+")):
+            return "search"
+
+        # 2. no marker -> leads live in structures; go to the nearest
+        #    unvisited one and search on arrival
+        structs = [s for s in self._structures(per) if s not in self._seen]
+        if structs:
+            px, py = here
+            self._target = min(structs, key=lambda s: abs(px-s[0]) + abs(py-s[1]))
+            step = _bfs_first_step(per, {self._target})
+            if step:
+                return step
+            return "search"
+
+        # 3. nothing to aim at -> reveal more map
+        step = _bfs_first_step(per, per.unseen_frontier())
+        return step or self._random_step(per)
+
+
 _REGISTRY = {p.name: p for p in (RandomPolicy, SurvivalPolicy, ExplorerPolicy,
-                                 ResourcePolicy)}
+                                 ResourcePolicy, ObjectivePolicy)}
 
 
 def make(name, rng=None):

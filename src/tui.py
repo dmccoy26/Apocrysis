@@ -221,6 +221,14 @@ _FACT_LABEL = {
 }
 
 
+# A/B switch for the navigation investigation (docs/AUTOPLAY_STRATEGY.md,
+# docs/DESIGN_SPATIAL_LANGUAGE.md). "landmark" = the approach ladder
+# (marker-in-sight -> close-now -> marked-on-map -> bearing). "cardinal"
+# = the pre-redesign bare bearing, for the A arm of the A/B. Default
+# landmark; the harness sets it.
+_SPATIAL_MODE = "landmark"
+
+
 def _route_heading(here, dest, grid, n):
     """C.3.2 piece 0 — the graph-honest compass suffix (" (north-east)")
     for a checklist "head for …" line. `nav.honest_bearing` does the
@@ -273,6 +281,8 @@ def _objective_steps(p, m, k):
         if not xy:
             return ""
         bearing = _route_heading(p.current_position, xy, p.map, p.map_size)
+        if _SPATIAL_MODE == "cardinal":
+            return bearing            # bare bearing only (the A arm)
         hx, hy = p.current_position
         dist = abs(xy[0] - hx) + abs(xy[1] - hy)
         vr = getattr(p, "visibility_radius", 3)

@@ -393,6 +393,39 @@ class WorldMixin:
                         "ground. Keep the open country at your back.",
                         kind="warning")
 
+    def _spot_leads(self):
+        """docs/DESIGN_SPATIAL_LANGUAGE.md - the approach beat. When a
+        mystery site you've LEARNED about (its '!' marker is already on
+        the map) first comes within sight, name it in the event stream -
+        "you can make out the ranger station ahead" - so the marker on
+        the map connects to a thing you're walking toward. One line per
+        site."""
+        m = getattr(self, 'mystery', None)
+        if m is None:
+            return
+        seen = getattr(self, '_leads_spotted', None)
+        if seen is None:
+            seen = self._leads_spotted = set()
+        px, py = self.current_position
+        r = self.visibility_radius
+        named = getattr(self, '_mystery_named', set())
+        for role, xy in m.sites.items():
+            if role in seen or xy is None:
+                continue
+            if abs(xy[0] - px) + abs(xy[1] - py) > r:
+                continue
+            # only if the player already has the marker (knows the fact
+            # / has been there) - _mystery_site_mark decides that; reuse
+            # its answer rather than re-deriving.
+            if not self._mystery_site_mark(*xy):
+                continue
+            seen.add(role)
+            label = m.site_labels.get(role)
+            if label and role not in named:
+                self.announce_event(f"you can make out {label} ahead",
+                                    "It's the marked spot - head for it.",
+                                    kind="discovery", level=1)
+
 
     def finish_expedition(self, reason="found the way out"):
         """Shared win finalisation for BOTH v4 win paths - the
@@ -756,6 +789,7 @@ class WorldMixin:
 
         self._spot_landmarks()
         self._spot_threats()
+        self._spot_leads()
 
         # v4 Phase C: generated-mystery site arrival (blurb + observe
         # evidence). Runs alongside normal loot/encounters, not instead.

@@ -137,5 +137,29 @@ places `combat_mixin` reads them (extract the magic numbers to
 
 ---
 
+## STATUS — SHIPPED (2026-08-30, `a82b31b`)
+
+- `src/combat_forecast.py` — Monte Carlo (300 sims) over a faithful
+  copy of the round loop. **Private `random.Random()` stream** — a test
+  asserts it never perturbs the global `random` the real fight uses.
+- `combat_mixin._encounter_card` + `_weapon_stats_window`. The
+  `[w]` window lists fight % for every carried weapon and equips one
+  before the fight (no turn passes).
+- `io_console` / `tui` `ask_combat_letter` — accepts `f/e/w` **and**
+  `y/n` aliases (old habit + the existing yes/n tests keep working).
+- **Bot unchanged:** `BotIO` has no `ask_combat_letter` → `_encounter_card`
+  returns via the old `ask_yes_no` *before* importing or running the
+  forecast. RNG-neutral (the bot's own run-to-run noise is ±2 %).
+- Weak-weapon nudge removed (folded into the verdict line).
+- Drift guard (`test_combat_forecast.py`): forecast within ~14 points
+  of the real `encounter_zombie` loop run headless. 308 + 100 green.
+
+Deferred, unchanged: the dangerous-enemy reward bonus (a balance
+change, its own experiment).
+
+Next: resume the `--dev` playtest with the card in place.
+
+---
+
 *Player-information layer. The combat math is frozen and untouched;
 this exposes what it already computes.*

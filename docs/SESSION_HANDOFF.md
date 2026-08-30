@@ -180,6 +180,17 @@ full 25-expedition campaigns through the finale:
 Owner decisions: wrong-rung cost = narrative-only; BROADCAST gets a
 cold acknowledgement; cause = regional bio-containment research station.
 
+### >> Combat information layer SHIPPED (`a82b31b`, `COMBAT_INFO_SPEC.md`)
+
+From playtest run 3 (died to an Elite Heavy with only "Do you want to
+fight?"). The encounter prompt is now an information card: threat tier,
+fight %, escape %, weapon verdict, `[w]` weapon-stats window (fight %
+for every carried weapon, equip before the fight). `combat_forecast.py`
+Monte-Carlos the real round loop on a private RNG stream — **no combat/
+escape/XP/loot math changed**, bot RNG-neutral (no `ask_combat_letter`
+→ old yes/no path). Drift-guarded. Dangerous-enemy reward bonus still
+deferred (that's a balance change).
+
 ### >> NEXT — the blind playtest (`docs/DEV_PLAYTEST.md`)
 
 The arc is mechanically complete; nobody has played it as a story.

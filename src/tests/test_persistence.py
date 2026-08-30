@@ -185,21 +185,15 @@ class TestHardcoreProfiles(unittest.TestCase):
     for a hardcore character who died.
     """
 
-    def setUp(self):
-        # list_profile_names()/load_profile_by_name()/delete_profile()
-        # all read/write the LITERAL "apocrysis_profile.json" (the
-        # legacy default filename) in the current directory, not a
-        # caller-supplied path - unlike TestProfilePersistence above,
-        # these tests can't just pick a distinctly-named file to avoid
-        # colliding with a real project's own apocrysis_profile.json.
-        # Run from an isolated temp directory instead.
-        self._orig_cwd = os.getcwd()
-        self._tmpdir = tempfile.mkdtemp()
-        os.chdir(self._tmpdir)
-
-    def tearDown(self):
-        os.chdir(self._orig_cwd)
-        shutil.rmtree(self._tmpdir, ignore_errors=True)
+    # list_profile_names()/load_profile_by_name()/delete_profile() work
+    # on the profile directory under APOCRYSIS_HOME, which conftest.py
+    # points at a fresh per-test temp dir - so these tests are already
+    # isolated. _pf() resolves a bare profile name to where it actually
+    # lands, for the on-disk assertions.
+    @staticmethod
+    def _pf(name):
+        from src import runtime_paths
+        return runtime_paths.resolve("player", name)
 
     def test_profile_filename_for_name_slugifies_unsafe_characters(self):
         self.assertEqual(
@@ -283,7 +277,7 @@ class TestHardcoreProfiles(unittest.TestCase):
             legacy_player = Apocrysis("LegacySurvivor", map_size=8, seed=1)
         legacy_player.save_profile("apocrysis_profile.json")
 
-        per_name_file = profile_filename_for_name("LegacySurvivor")
+        per_name_file = self._pf(profile_filename_for_name("LegacySurvivor"))
         self.assertFalse(os.path.exists(per_name_file))
 
         migrated = Apocrysis.load_profile_by_name("LegacySurvivor")
@@ -304,8 +298,8 @@ class TestHardcoreProfiles(unittest.TestCase):
 
         doomed.delete_profile()
 
-        self.assertFalse(os.path.exists(doomed_file))
-        self.assertTrue(os.path.exists(survivor_file))
+        self.assertFalse(os.path.exists(self._pf(doomed_file)))
+        self.assertTrue(os.path.exists(self._pf(survivor_file)))
 
 
 if __name__ == "__main__":

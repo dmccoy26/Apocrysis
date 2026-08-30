@@ -1,8 +1,11 @@
 __pycache__/
 *.pyc
+.DS_Store
 
-# Save files (runtime game state, not source)
-*.json
+# All runtime-generated state (saves, profiles, play logs, telemetry).
+# src/runtime_paths.py routes everything Apocrysis writes at run time
+# under this one root - nothing runtime-generated lands in the repo.
+.apocrysis/
 
 # Atlas's own tooling output for this project (bugs/decisions/lessons/
 # repair history) - not game source, kept out of this repo
@@ -12,7 +15,4 @@ memory/
 
 # Local balance-test output, not source
 balance_sweep_out/
-
-# Human play-session transcripts (src/playlog.py output) - runtime, not source
-apocrysis_playlog_*.txt
-.dev_playtest_profile.json
+graphify-out/

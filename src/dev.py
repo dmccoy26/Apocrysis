@@ -8,18 +8,22 @@ inventory, survivor progression, loot, hunger/thirst, map-gen rules,
 encounter rates, difficulty are all untouched - the C.3.2a-7 supply
 floor applies exactly as it would at that real depth).
 
-Persistence is sandboxed to DEV_PROFILE_PATH and wiped each run, so a
+Persistence is sandboxed to dev_profile_path() and wiped each run, so a
 dev session can never read or overwrite a real campaign profile.
 """
 import os
 from collections import namedtuple
 
 from src.campaign import _CHAPTER_BOUNDS, CHAPTER_TITLES
+from src.runtime_paths import dev_profile_path
 from src.worlds.silence import SILENCE
 
 DevConfig = namedtuple("DevConfig", "seed chapter finale")
 
-DEV_PROFILE_PATH = os.path.join(os.getcwd(), ".dev_playtest_profile.json")
+# The `--dev` sandbox profile - wiped each run (reset_sandbox), never a
+# real campaign file. Lives under the runtime-data root like everything
+# else Apocrysis writes. Call dev_profile_path() (re-exported here) at
+# use time so an APOCRYSIS_HOME override is always honoured.
 
 # The finale expedition establishes these itself - never pre-mark them.
 _FINALE_FACTS = {"RESP_THE_ORDER", "RESP_THE_CHOICE"}
@@ -73,7 +77,8 @@ def banner(cfg, depth):
 
 def reset_sandbox():
     try:
-        os.path.exists(DEV_PROFILE_PATH) and os.remove(DEV_PROFILE_PATH)
+        _p = dev_profile_path()
+        os.path.exists(_p) and os.remove(_p)
     except OSError:
         pass
 

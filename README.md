@@ -29,10 +29,24 @@ python3 apocrysis.py --dev --chapter 3   # drop in at the start of a chapter, sy
 python3 apocrysis.py --mapgen landscape  # experimental wide-valley map generator (default: v1)
 ```
 
-Interactive play writes a plain-text transcript
-(`apocrysis_playlog_<timestamp>.txt`) automatically — one file per
-session, each expedition appended. Toggle it in game with `log`, or
-suppress it with `--no-log`.
+Interactive play writes a plain-text transcript automatically — one
+file per session, each expedition appended. Toggle it in game with
+`log`, or suppress it with `--no-log`.
+
+Everything Apocrysis writes at run time lives under one directory,
+`.apocrysis/` (git-ignored), never scattered into the project root:
+
+```
+.apocrysis/
+├── player/            per-campaign profiles (identity, progression, investigation)
+├── saves/             full-state session saves (named slots)
+└── logs/
+    ├── sessions/      play-session transcripts
+    └── telemetry/     bot-run / analysis output (opt-in)
+```
+
+Set `APOCRYSIS_HOME` to relocate the whole tree (the test suite points
+it at a per-test temp dir). See [`src/runtime_paths.py`](src/runtime_paths.py).
 
 `--mapgen` selects the map generator: `v1` (default, shipped), `v2`
 (an irregular-valley experiment, **rejected** — kept for comparison),

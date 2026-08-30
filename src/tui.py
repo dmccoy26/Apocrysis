@@ -791,9 +791,9 @@ class ApocrysisApp(App):
         if self._dev is not None:
             # --dev: synthetic coherent state at a chosen chapter, then
             # the normal game. Sandboxed - never reads a real profile.
-            from src.dev import synthetic_state, DEV_PROFILE_PATH
+            from src.dev import synthetic_state, dev_profile_path
             from src.mixins.persistence_mixin import _profile_flat
-            _saved = Apocrysis.load_profile(DEV_PROFILE_PATH)  # only after a dev death
+            _saved = Apocrysis.load_profile(dev_profile_path())  # only after a dev death
             if _saved is not None:
                 _f = _profile_flat(_saved)
                 Apocrysis._world_investigation = dict(_f.get("world_investigation", {}) or {})
@@ -844,13 +844,14 @@ class ApocrysisApp(App):
     def _save_or_delete_profile(self):
         p = self.player
         if self._dev is not None:
-            from src.dev import DEV_PROFILE_PATH
+            from src.dev import dev_profile_path
+            _dev_profile = dev_profile_path()
             if p.health <= 0:
                 Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
-                Apocrysis.persist_new_survivor(DEV_PROFILE_PATH, "Dev", False,
+                Apocrysis.persist_new_survivor(_dev_profile, "Dev", False,
                                                p.expeditions_completed)
             else:
-                p.save_profile(DEV_PROFILE_PATH)
+                p.save_profile(_dev_profile)
             return
         campaign_file = profile_filename_for_name(self._name or p.name)
         if p.health <= 0:

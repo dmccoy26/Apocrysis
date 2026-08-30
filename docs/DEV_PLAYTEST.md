@@ -48,9 +48,11 @@ count or milestone ids change.
   rules, encounter rates, or difficulty. The C.3.2a-7 supply floor
   (`depth_supply_bonus`) applies exactly as it would for a real
   survivor arriving at that depth — nothing more.
-- **Sandboxed persistence.** All saves go to `.dev_playtest_profile.json`
-  (git-ignored), wiped at the start of every dev run. A dev session
-  can never read or overwrite a real campaign profile.
+- **Sandboxed persistence.** All saves go to
+  `.apocrysis/player/dev_playtest_profile.json` (git-ignored;
+  `runtime_paths.dev_profile_path()`), wiped at the start of every dev
+  run. A dev session can never read or overwrite a real campaign
+  profile.
 - **No alternate gameplay path.** After the drop-in, it is the same
   `run_game_loop`. A death hands to a fresh survivor at the same depth
   (the normal lifecycle, sandboxed) so the section stays playable

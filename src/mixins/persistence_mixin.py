@@ -6,6 +6,7 @@ import json
 import os
 import re
 
+from src import runtime_paths
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
@@ -205,6 +206,7 @@ class PersistenceMixin:
         return zombie
 
     def save_game(self, filename="apocrysis_save.json"):
+        filename = runtime_paths.resolve("save", filename)
         data = {
             "name": self.name,
             "player_class": self.player_class,
@@ -266,7 +268,8 @@ class PersistenceMixin:
 
     def _prompt_delete_save(self):
         try:
-            save_files = [f for f in os.listdir(".") if f.endswith(".json")]
+            save_files = [f for f in os.listdir(runtime_paths.saves_dir())
+                          if f.endswith(".json")]
         except OSError:
             save_files = []
 
@@ -282,6 +285,7 @@ class PersistenceMixin:
         self.delete_save(slot_name)
 
     def delete_save(self, filename="apocrysis_save.json"):
+        filename = runtime_paths.resolve("save", filename)
         if os.path.exists(filename):
             os.remove(filename)
             self.io.say(f"Saved game deleted from {filename}.")
@@ -290,6 +294,7 @@ class PersistenceMixin:
 
     @classmethod
     def load_game(cls, filename="apocrysis_save.json"):
+        filename = runtime_paths.resolve("save", filename)
         if not os.path.exists(filename):
             return None
             
@@ -402,6 +407,7 @@ class PersistenceMixin:
     # on every launch when a profile already exists.
 
     def save_profile(self, filename=DEFAULT_PROFILE_FILENAME):
+        filename = runtime_paths.resolve("player", filename)
         # Phase B: one file, two logical records.
         #   SURVIVOR  - identity + progression + gear + physical state;
         #               replaced wholesale when a survivor dies.
@@ -463,6 +469,7 @@ class PersistenceMixin:
 
     @staticmethod
     def load_profile(filename=DEFAULT_PROFILE_FILENAME):
+        filename = runtime_paths.resolve("player", filename)
         if not os.path.exists(filename):
             return None
 
@@ -482,7 +489,8 @@ class PersistenceMixin:
         load_profile_by_name()).
         """
         names = []
-        for path in sorted(glob.glob("apocrysis_profile_*.json")):
+        _pat = os.path.join(runtime_paths.player_dir(), "apocrysis_profile_*.json")
+        for path in sorted(glob.glob(_pat)):
             name = _profile_name(PersistenceMixin.load_profile(path))
             if name and name not in names:
                 names.append(name)
@@ -510,7 +518,7 @@ class PersistenceMixin:
 
         legacy = cls.load_profile(DEFAULT_PROFILE_FILENAME)
         if legacy is not None and _profile_name(legacy) == name:
-            with open(per_name_file, 'w') as f:
+            with open(runtime_paths.resolve("player", per_name_file), 'w') as f:
                 json.dump(legacy, f, indent=2)   # already normalised to {campaign, survivor}
             return legacy
 
@@ -536,13 +544,13 @@ class PersistenceMixin:
         for a hardcore character who died, so the next launch can't
         reload a dead hardcore run under this name.
         """
-        filename = profile_filename_for_name(self.name)
+        filename = runtime_paths.resolve("player", profile_filename_for_name(self.name))
         if os.path.exists(filename):
             os.remove(filename)
 
         legacy = self.load_profile(DEFAULT_PROFILE_FILENAME)
         if legacy is not None and _profile_name(legacy) == self.name:
-            os.remove(DEFAULT_PROFILE_FILENAME)
+            os.remove(runtime_paths.resolve("player", DEFAULT_PROFILE_FILENAME))
 
     def apply_profile(self, profile):
         """

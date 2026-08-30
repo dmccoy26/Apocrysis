@@ -651,9 +651,12 @@ class UIMixin:
         if getattr(self, 'playlog', None) is not None:
             return None
         import datetime
+        from src import runtime_paths
         from src.playlog import PlayLog, TeeIO
         if path is None:
-            path = f"apocrysis_playlog_{datetime.datetime.now():%Y%m%d_%H%M%S}.txt"
+            path = runtime_paths.resolve(
+                "session_log",
+                f"apocrysis_playlog_{datetime.datetime.now():%Y%m%d_%H%M%S}.txt")
         self.playlog = PlayLog(path, self)
         if not isinstance(self.io, TeeIO):
             self.io = TeeIO(self.io, self.playlog)

@@ -54,8 +54,10 @@ def _dev_main(start_log=False, dev=None):
     """`--dev` classic path: fresh survivor at a synthetic narrative
     point, sandboxed persistence. See src/dev.py / docs/DEV_PLAYTEST.md."""
     from src.dev import (synthetic_state, banner, reset_sandbox,
-                         equip_for_depth, DEV_PROFILE_PATH)
+                         equip_for_depth)
+    from src.runtime_paths import dev_profile_path
     reset_sandbox()
+    _dev_profile = dev_profile_path()
     depth, wi_status = synthetic_state(dev)
     print(banner(dev, depth))
 
@@ -83,12 +85,12 @@ def _dev_main(start_log=False, dev=None):
             # on, so the section is still playable through a death.
             Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
             Apocrysis.persist_new_survivor(
-                DEV_PROFILE_PATH, "Dev", False, player.expeditions_completed)
+                _dev_profile, "Dev", False, player.expeditions_completed)
             wi_status = dict(Apocrysis._world_investigation)
             depth = player.expeditions_completed
             print("\n(dev: survivor lost - a fresh one takes up the same point)\n")
             continue
-        player.save_profile(DEV_PROFILE_PATH)   # sandbox only
+        player.save_profile(_dev_profile)   # sandbox only
         from src.constants import CAMPAIGN_LENGTH
         if player.expeditions_completed >= CAMPAIGN_LENGTH:
             break   # finished the arc from this drop-in point
@@ -96,7 +98,7 @@ def _dev_main(start_log=False, dev=None):
         if cont not in ("y", "yes"):
             break
         from src.mixins.persistence_mixin import _profile_flat
-        _f = _profile_flat(Apocrysis.load_profile(DEV_PROFILE_PATH) or {})
+        _f = _profile_flat(Apocrysis.load_profile(_dev_profile) or {})
         wi_status = dict(_f.get("world_investigation", {}) or {})
         depth = _f.get("expeditions_completed", depth)
 

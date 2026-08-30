@@ -2,12 +2,12 @@
 
 Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
 rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
-**C.3.2a-5 line CLOSED (C.3.2a-7 inheritance-scaled supply, shipped).
-Ending LOCKED. CH3–FIN AUTHORED — the full 25-expedition "The Cordon"
-arc is in (23 WorldFacts, 8 milestones, bot completes 7/8). Active work
-= the 3 Phase E endgame SYSTEMS (competing hypotheses / bespoke finale
-/ ending choice).** **Read this whole DIRECTION block first, then the
-doc map.**
+**THE FULL WORLD-1 ARC IS PLAYABLE START TO FINISH.** C.3.2a-5 closed
+(C.3.2a-7 supply scaling). CH3–FIN authored (23 WorldFacts, "The
+Cordon"). Phase E shipped (E.1 hypothesis ladder / E.2 bespoke finale /
+E.3 BROADCAST-or-PROTECT ending). 300+100 green; bot completes 4/4 full
+25-expedition campaigns. What's left is polish + a human blind
+playtest. **Read this whole DIRECTION block first, then the doc map.**
 
 ---
 
@@ -156,29 +156,39 @@ walks clean end-to-end via `next_target()`; every fact bound via
 **7/8 full 25-expedition campaigns completed** (1 at the known
 expedition-9 combat wall). 281+100 green.
 
-### >> THE ACTIVE WORK — Phase E, SPEC'D (`PHASE_E_SPEC.md`)
+### >> PHASE E SHIPPED — the full arc is playable start to finish
 
-Three endgame systems, one spec, build **E.1 → E.2 → E.3**:
-- **E.1 — competing regional hypothesis + wrong-commitment beat.** A
-  4-rung wrong-assumptions ladder (`REGIONAL_HYPOTHESES` in
-  `worlds/silence/`), `WorldInvestigation.current_hypothesis()` derived
-  from milestone state, a `kind="correction"` "★ YOU HAD IT WRONG"
-  banner when a rung falls, a working-theory line on the `wi` screen.
-  **NOT a `knowledge.py` change** (that layer is per-mystery; this is
-  campaign-level). Rungs fall on M1 / M5 / M6 / FIN.
-- **E.2 — the bespoke final expedition** (25). `build_finale()` off a
-  fixed compound archetype (command centre / mast / consolidation
-  point / checkpoint road), `escape_kind="checkpoint"`. Converges the
-  investigation, doesn't restart it.
-- **E.3 — the ending choice.** Numbered prompt at the checkpoint acting
-  on `RESP_THE_CHOICE`: BROADCAST vs PROTECT. Two authored endings +
-  branch-aware `campaign_retrospective`; `campaign.ending` persists.
+All three (`PHASE_E_SPEC.md` STATUS), 300+100 green, bot completes 4/4
+full 25-expedition campaigns through the finale:
+- **E.1** (`82b1c1b`) — `worlds/silence/hypotheses.py` `REGIONAL_HYPOTHESES`
+  (4 rungs, break on M1/M5/M6/M10). `WorldInvestigation.current_hypothesis()`
+  + `hypothesis_broken_by()` (pure derivation). `kind="correction"`
+  "YOU HAD IT WRONG" banner once per rung. Working theory on the `wi`
+  screen + TUI strip. `RESP_THE_ORDER` promoted to milestone M10. **Not
+  a `knowledge.py` change.**
+- **E.2** (`47ac8d2`) — `generate_map` routes expedition 25 to a
+  finale-stamped mystery on `RESP_THE_CHOICE`, `m.is_finale` +
+  `escape_kind="checkpoint"` + compound labels. `_mystery_mark_world_fact`
+  establishes `RESP_THE_ORDER` alongside (its milestone + the final
+  correction). *(Deferred: a dedicated finale map archetype — E.2 uses
+  the normal generator + fixed target + labels.)*
+- **E.3** (`47ac8d2`) — `_finale_choice()` numbered BROADCAST/PROTECT
+  prompt (3 tries → protect). `campaign.ENDINGS` + `campaign_ending()`,
+  two authored endings + branch-aware retrospective. `campaign.ending`
+  persisted + restored, no re-prompt on relaunch.
 
-**Owner review gate + 3 open decisions in the spec:** (1) does a wrong
-rung cost anything mechanical, or narrative-only (rec: narrative-only);
-(2) is BROADCAST received / does the wider world answer (rec: a cold
-acknowledgement, so it's a real act); (3) cause specifics (rec:
-regional bio-containment research station).
+Owner decisions: wrong-rung cost = narrative-only; BROADCAST gets a
+cold acknowledgement; cause = regional bio-containment research station.
+
+### >> WHAT'S LEFT for World 1 — polish, not blockers
+
+`ROADMAP_STATUS.md`: the arc plays end to end. Remaining is quality:
+Phase D (world conditions / region mutation / `escape_kind` variety),
+the parked nav pieces 1/4, long-campaign loot balance, the
+`DIS_FEW_REMAINS`→only-`mountain_pass` variety fix, a dedicated finale
+map archetype, an NPC-adjacent arrival scene at the consolidation
+point. **A human blind playtest of the full arc is the highest-value
+next step.**
 
 Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.

@@ -28,37 +28,22 @@ chapter-intro lines; the WorldFact DAG covers **CH1 + CH2 only**
 | bucket | state | size | note |
 |---|---|---|---|
 | ~~Pick the ending~~ | ✅ **DECIDED 2026-08-29** | — | Truth A "The Cordon"; **authored-canonical ending + one final binary choice** (broadcast the truth outward vs protect the settlement's silence). `PHASE_A_DECISIONS.md` / `WORLD_TRUTH_CANDIDATES.md`. Gate cleared — CH3–FIN authoring unblocked once C.3.2a-5 lands. |
-| **Scale viability — C.3.2a-5** | **content-lever search EXHAUSTED** (`SCALE_REPORT.md`: lever matrix + Gate 8 + C.3.2a-6, all falsified) | — | **Gate, now a campaign-design decision not a generator one.** Three experiments converge: the required circuit can't be made to fit a fixed survival budget as the map grows (rearranging → viable to depth ~4–6; adding scaled structure → fixes emptiness, worsens viability; shrinking/clustering forbidden). **The survival envelope is the wall.** Next: formally bound supported depth to 0–N ≈ 5–6; expeditions N…25 a deliberately different format (inherited-supply / authored escalation / distinct mode). Owner picks the format. |
+| ~~Scale viability — C.3.2a-5~~ | ✅ **RESOLVED (C.3.2a-7)** | — | Content levers exhausted (lever matrix + Gate 8 + C.3.2a-6 all falsified — `SCALE_REPORT.md`). Fixed structurally: `game.depth_supply_bonus` scales starting food/water + win prize with campaign depth → `ratio p90 < 1` through depth 12, zero campaign-bot regression. Deep expeditions inheritance-scaled by design. |
 | ~~Story content CH3–5 + finale~~ | ✅ **AUTHORED 2026-08-30** | — | `truth.py` 9 → 23 `WorldFact`s; 14 on the RESPONSE thread across CH3-FIN; 8 milestones; every fact `DiscoveryTemplate`-bound; DAG walks clean; 56/56 targeted mysteries valid. `PHASE_A1_TRUTH.md` CH3-FIN section. |
-| **Competing hypotheses + wrong-commitment arc** (Phase E.2) | 0 % | medium-large | engine change: `knowledge.py` `self.hypothesis` → a competing set + a correction beat |
-| **The final expedition** (Phase E.3) | 0 % | medium-large | bespoke, less procedural, realised from the player's own discoveries; the designed truth revealed; the ending choice acting on `RESP_THE_CHOICE` |
+| ~~Competing hypotheses + wrong-commitment arc~~ (E.1) | ✅ **DONE 2026-08-30** | — | `worlds/silence/hypotheses.py` 4-rung ladder + `current_hypothesis()` + correction banner. NOT a `knowledge.py` change (campaign-level, not per-mystery). |
+| ~~The final expedition + ending choice~~ (E.2/E.3) | ✅ **DONE 2026-08-30** | — | expedition 25 routes to a finale-stamped mystery; `_finale_choice()` BROADCAST/PROTECT; two authored endings; `campaign.ending` persists. Bot completes 4/4. |
 | ~~Campaign 10 → 25~~ | ✅ **DONE 2026-08-30** | — | `CAMPAIGN_LENGTH = 25` + `DIFFICULTY_RAMP_LENGTH = 10` (curve decoupled from arc length); `campaign.py` 6 chapters + `_CHAPTER_BOUNDS` + `chapter_for_expedition`. Bot completes 7/8 full runs. |
 | **Phase D — world conditions + region mutation + `escape_kind`** | 0 % | large | roadmap puts it on the path to E; arguably deferrable for a *rough* first arc |
 | **Nav affordances — C.3.2 pieces 1 / 4** | parked | small | only if navigation still needs it after C.3.2a-5 |
 | **Long-campaign balance** | untuned | medium | a survivor 15 expeditions deep without dying is drowning in inherited loot (BlueNoodle had 4 guns at expedition 4). `_prize_bonus` + inheritance compound. |
 
-## Bottom line
+## Bottom line (2026-08-30)
 
-**The engine is ~done. Two of five chapters are authored and playable.
-Roughly 55–70 % of the total build remains**, and it is front-loaded
-with two gates:
-
-1. ~~**Decide the ending**~~ — ✅ done 2026-08-29 (authored-canonical A +
-   one final binary choice).
-2. ~~**Land C.3.2a-5**~~ — ✅ **RESOLVED (C.3.2a-7, shipped).** Content
-   levers exhausted (lever matrix + Gate 8 + C.3.2a-6 all falsified);
-   fixed with a campaign-structure change instead — an
-   inheritance-scaled supply floor (`game.depth_supply_bonus`) that
-   keeps `ratio p90 < 1` through depth 12, zero campaign-bot
-   regression. Deep expeditions are inheritance-scaled by design.
-
-After the gates, the bulk is **authoring** (CH3–FIN ≈ 15 facts + all
-their evidence / templates / prose) plus **three endgame systems**
-(competing hypotheses, the bespoke final expedition, the ending).
-Phase D and the parked nav pieces are quality layers the arc could ship
-without.
-
-### Minimum path to "playable start to finish, even if rough"
+**The full World-1 arc is playable start to finish.** All five chapters
++ the finale are authored (23 `WorldFact`s); `CAMPAIGN_LENGTH = 25`; the
+finale routes to a bespoke command-centre expedition ending on the
+BROADCAST-or-PROTECT choice with two authored endings. 300+100 tests
+green; the bot completes 4/4 full 25-expedition campaigns.
 
 ```
 pick the ending                       ✅ Truth A, authored + one choice
@@ -69,7 +54,17 @@ author CH3–FIN facts + templates + prose      ✅ 23 WorldFacts, DAG clean
       ↓
 CAMPAIGN_LENGTH = 25  +  5-chapter grouping   ✅ + DIFFICULTY_RAMP_LENGTH
       ↓
-a minimal final expedition (truth reveal + one ending choice)   ← ACTIVE (Phase E)
+finale + ending choice (E.1/E.2/E.3)          ✅ shipped
 ```
 
-Everything else is polish on that skeleton.
+### What's left — polish, not blockers
+
+- **A human blind playtest of the full 25-expedition arc** — highest value.
+- Phase D (world conditions / region mutation / `escape_kind` variety).
+- Parked nav pieces 1/4; the `DIS_FEW_REMAINS`→only-`mountain_pass`
+  variety fix (every fresh campaign's expedition 1 is identical).
+- Long-campaign loot balance (inherited loot compounds past ~exp 10).
+- A dedicated finale map *archetype* (E.2 uses the normal generator +
+  a fixed target + labels); an NPC-adjacent arrival scene at the
+  consolidation point.
+- The known expedition-9 combat-power wall (bot gets stuck there ~1/8).

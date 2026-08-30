@@ -231,6 +231,29 @@ cross-module — hand-write. Log per `ATLAS_CAPABILITY_LOG.md`.
 
 ---
 
-*Spec only. Build E.1 → E.2 → E.3 after owner review. Balance frozen.
-No NPC behaviour, no world_conditions, no knowledge.py change for
-World 1.*
+## STATUS — ALL THREE SHIPPED (2026-08-30)
+
+Owner decisions: wrong-rung cost = **narrative-only**; BROADCAST gets
+**a cold acknowledgement**; cause = **regional bio-containment research
+station**. All folded into the endings/evidence text.
+
+| | commit | as built |
+|---|---|---|
+| **E.1** | `82b1c1b` | `worlds/silence/hypotheses.py` `REGIONAL_HYPOTHESES` (4 rungs, break on M1/M5/M6/M10). `WorldInvestigation.current_hypothesis()` + `hypothesis_broken_by()` — pure derivation, round-trips free. `mystery_mixin` fires a `kind="correction"` "YOU HAD IT WRONG" banner once per rung. `wi` screen + TUI strip show the working theory. `RESP_THE_ORDER` promoted to a milestone (M10). **Not a `knowledge.py` change.** Sim: 4 beats fire in ladder order. |
+| **E.2** | `47ac8d2` | `generate_map` routes expedition 25 to a finale-stamped mystery targeting `RESP_THE_CHOICE` (never the random roll). `m.is_finale` + `escape_kind="checkpoint"` + compound site labels. `_mystery_mark_world_fact` establishes `RESP_THE_ORDER` alongside, firing its milestone + the final correction. Finale-specific solved texture. |
+| **E.3** | `47ac8d2` | `_finale_choice()` — numbered BROADCAST/PROTECT prompt, 3 tries → default protect. `campaign.ENDINGS` + `campaign_ending()`; two authored ~2-screen endings + branch-aware retrospective. `_campaign_ending` class var persisted (`ending` key) + restored by `apply_profile` — no re-prompt on relaunch. |
+
+**300 + 100 green.** Bot completes 4/4 full 25-expedition campaigns
+through the finale. Balance frozen throughout.
+
+**The full World-1 arc is playable start to finish with an ending.**
+
+Deferred (not blocking a playable arc): a dedicated finale map
+*archetype* (E.2 uses the normal generator + a fixed target + labels —
+the compound is described, not laid out); NPC behaviour at the
+consolidation point (a static arrival scene would be polish).
+
+---
+
+*All three shipped. Balance frozen. No NPC behaviour, no
+world_conditions, no knowledge.py change for World 1.*

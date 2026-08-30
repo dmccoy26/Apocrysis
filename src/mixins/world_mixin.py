@@ -105,6 +105,14 @@ class WorldMixin:
         _wi = getattr(self, 'world_investigation', None)
         if _wi is not None:
             _target = _wi.next_target()
+        # E.2: the last expedition is the bespoke finale - the regional
+        # command centre. It always targets RESP_THE_CHOICE (converging
+        # the whole investigation), never the random roll.
+        _finale = (self.expeditions_completed >= CAMPAIGN_LENGTH - 1
+                   and _wi is not None
+                   and _wi.fact('RESP_THE_CHOICE') is not None)
+        if _finale:
+            _target = 'RESP_THE_CHOICE'
 
         # C.3.1: guarantee a mystery instead of tuning toward one. v2's
         # irregular valley can occasionally grow too cramped for the
@@ -132,6 +140,28 @@ class WorldMixin:
             self.io.say(f"(world generation note: {_mystery_exc})")
         if self.mystery is not None:
             self.knowledge = self.mystery.knowledge
+
+        # E.2: stamp the finale onto the built mystery - a distinct
+        # frame over the same generated map. The command compound, the
+        # antenna mast, the checkpoint road out (no mountain gap here).
+        if _finale and self.mystery is not None:
+            m = self.mystery
+            m.is_finale = True
+            m.escape_kind = 'checkpoint'
+            _finale_labels = {
+                'route': 'the antenna mast',
+                'power': 'the regional command centre',
+                'require': 'the compound fuel store',
+                'require2': 'the motor pool',
+                'closed': 'the checkpoint gate',
+            }
+            for _role, _lab in _finale_labels.items():
+                if _role in m.sites:
+                    m.site_labels[_role] = _lab
+                    _sx, _sy = m.sites[_role]
+                    _c = self.map[_sy][_sx]
+                    if isinstance(_c, dict):
+                        _c['site_label'] = _lab
 
         # v4 (todo 7db3c4b5): variable abandonment - a generated CAUSE
         # for every building/settlement tile being empty.
@@ -310,10 +340,14 @@ class WorldMixin:
                 f"expeditions - the outbreak is finally behind you. "
                 f"CAMPAIGN COMPLETE!{RESET}\n"
             )
-            from src.campaign import campaign_retrospective
-            self.io.say(campaign_retrospective(getattr(self.__class__, '_used_mechanisms', [])))
-            self.io.say(f"\n{BOLD}A hero's stash of supplies awaits your next game.{RESET}\n")
-            self.io.say(f"{BOLD}Your story in this outbreak ends here.{RESET}\n")
+            # E.3: the finale (mystery_mixin._finale_choice) already
+            # printed the chosen ending + the retrospective. Otherwise
+            # (the bot / a non-finale completion) print the plain one.
+            if not getattr(self.__class__, '_campaign_ending', None):
+                from src.campaign import campaign_retrospective
+                self.io.say(campaign_retrospective(
+                    getattr(self.__class__, '_used_mechanisms', [])))
+            self.io.say(f"\n{BOLD}Your story in this outbreak ends here.{RESET}\n")
             self.backpack.food += 10
             self.backpack.water += 10
             self.backpack.medicine += 5

@@ -61,6 +61,43 @@ def chapter_intro(expeditions_completed, milestones_known=0):
     return f"-- Expedition {n} of {CAMPAIGN_LENGTH} --\n{_CHAPTERS[ch - 1]}"
 
 
+# E.3 - the two authored endings. The choice lands at the checkpoint
+# road out of the command compound, once RESP_THE_ORDER and
+# RESP_PEOPLE_ALIVE are established. Neither is "correct".
+ENDINGS = {
+    "broadcast": (
+        "You bring the command centre's transmitter up and send it all "
+        "out past the cordon - the seal order, the signature, the date it "
+        "was written. A voice answers, eventually. Flat. It acknowledges "
+        "receipt and nothing else.",
+        "Protocol Seven is on record now, outside the line, where it "
+        "can't be filed as a success. What that changes, you won't be "
+        "here to see. The people who held the consolidation point have "
+        "lost their silence - the cordon knows exactly where they are. "
+        "You told the truth, and it cost them.",
+    ),
+    "protect": (
+        "You stand in the command centre with the order in your hand and "
+        "the transmitter warm, and you switch it off. You walk out past "
+        "the empty checkpoint without sending anything.",
+        "Protocol Seven stays a success on someone's ledger. The people "
+        "who held the line keep their silence and their chance. The truth "
+        "of what was done here leaves the valley only with you - one "
+        "survivor, carrying it, unheard. Maybe that was the kinder thing. "
+        "Maybe it was just the safer one.",
+    ),
+}
+
+
+def campaign_ending(choice, used_mechanisms):
+    """The finale screen for a chosen ending, then the ordinary
+    what-you-did retrospective underneath."""
+    lead, body = ENDINGS.get(choice, ENDINGS["protect"])
+    parts = [lead, "", body, "", "--", "",
+             campaign_retrospective(used_mechanisms)]
+    return "\n".join(parts)
+
+
 def campaign_retrospective(used_mechanisms):
     """Printed at CAMPAIGN_LENGTH: what the player actually did, read
     back to them. The revelation the design asked for is 'here is the

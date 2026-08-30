@@ -593,6 +593,27 @@ class MysteryMixin:
         self._mystery_after_power_restored()
         self._mystery_progress_flare(_hyp_before, _facts_before)
 
+    def _mystery_mark_world_fact(self, fid):
+        """Mark a WorldFact KNOWN and fire its milestone / ladder-
+        correction banners once (the not-known -> known transition).
+        Used by the finale (E.2) to establish RESP_THE_ORDER alongside
+        the mystery's own world_fact_id."""
+        _wi = getattr(self, 'world_investigation', None)
+        if _wi is None or _wi.fact(fid) is None or _wi.is_known(fid):
+            return
+        _wi.mark_known(fid)
+        self.__class__._world_investigation = _wi.snapshot()['status']
+        _learned = list(getattr(self, '_expedition_learned', []))
+        _learned.append(fid)
+        self._expedition_learned = _learned
+        _fact = _wi.fact(fid)
+        if _fact is not None and _fact.milestone:
+            self.announce_event(_fact.statement, kind="milestone")
+        _rung = _wi.hypothesis_broken_by(fid)
+        if _rung is not None:
+            self.announce_event(_rung.statement, _rung.corrected_to,
+                                kind="correction")
+
     def mystery_try_escape(self):
         m = self._mystery()
         if m is None:
@@ -638,6 +659,12 @@ class MysteryMixin:
         # marks that fact KNOWN. Deliberately simple - one isolated
         # transition, so evidence/provenance logic can replace it later
         # without touching anything else. See PHASE_A3_INVESTIGATION.md.
+        # E.2: the finale establishes RESP_THE_ORDER too (the seal
+        # order + the signature at the command centre) - fire its beats
+        # before the main RESP_THE_CHOICE resolution below.
+        if getattr(m, 'is_finale', False) and getattr(self, 'world_investigation', None):
+            self._mystery_mark_world_fact('RESP_THE_ORDER')
+
         _milestone_line = None
         _correction = None
         if getattr(m, 'world_fact_id', None) and getattr(self, 'world_investigation', None):
@@ -685,8 +712,16 @@ class MysteryMixin:
         # A.5.3: the signpost beat - MYSTERY SOLVED - then the texture
         # prose, then (if any) the milestone. One coherent hierarchy.
         _mech_name = MECHANISMS.get(m.mechanism, {}).get('name', 'the way out')
-        self.announce_event(_mech_name, f"{_stmt}.", kind="solved")
-        if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
+        if getattr(m, 'is_finale', False):
+            self.announce_event("the regional command centre",
+                                f"{_stmt}.", kind="solved")
+            self.io.say(
+                "\nThe command centre is quiet and the transmitter is "
+                "warm. The order is on the desk where it was left, with "
+                "the signature and the date. Outside the compound the "
+                "checkpoint gate stands open, and the road past it is "
+                "clear. There is nothing left to work out.\n")
+        elif MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
             self.io.say(
                 f"\nYou found the way out - {_stmt}. You worked out that "
                 "someone was still listening, brought the tower back, and "
@@ -716,4 +751,36 @@ class MysteryMixin:
                     _ll = list(getattr(self, '_expedition_lore_learned', []))
                     _ll.append(_lore_id)
                     self._expedition_lore_learned = _ll
-        self.finish_expedition(reason="found the way out")
+        if getattr(m, 'is_finale', False):
+            self._finale_choice()
+        self.finish_expedition(
+            reason="carried the truth out" if getattr(m, 'is_finale', False)
+            else "found the way out")
+
+    def _finale_choice(self):
+        """E.3: the one authored binary choice, at the checkpoint road
+        out of the command compound. Numbered prompt, never free text.
+        Records campaign.ending so a relaunched completed campaign shows
+        the resolved state and never re-prompts."""
+        if getattr(self.__class__, "_campaign_ending", None):
+            return
+        self.announce_event(
+            "THE TRANSMITTER STILL REACHES OUT",
+            "The command centre's antenna can still send past the cordon.",
+            "  1) BROADCAST - send the seal order and the signature out. "
+            "The truth of Protocol Seven leaves the valley. The people "
+            "who held the line lose their silence.",
+            "  2) PROTECT  - walk out without transmitting. Protocol "
+            "Seven stays filed a success. The settlement keeps its "
+            "silence and its chance.",
+            kind="objective")
+        pick = ""
+        for _ in range(3):
+            pick = (self.io.ask("Broadcast, or protect? (1 / 2): ") or "").strip()
+            if pick in ("1", "2"):
+                break
+        choice = "broadcast" if pick == "1" else "protect"
+        self.__class__._campaign_ending = choice
+        from src.campaign import campaign_ending
+        used = list(getattr(self.__class__, "_used_mechanisms", []) or [])
+        self.io.say("\n" + campaign_ending(choice, used) + "\n")

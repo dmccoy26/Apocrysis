@@ -74,6 +74,10 @@ class Apocrysis(
     # B.1b: how many survivors this campaign has lost (drives the next
     # survivor's name). Campaign-level.
     _survivors_lost = 0
+    # E.3: the ending chosen at the finale ("broadcast" | "protect" |
+    # None). Campaign-level; persisted so a completed campaign never
+    # re-prompts.
+    _campaign_ending = None
     # C.3: which map generator to use. "v1" is the frozen rectangular
     # pipeline; "v2" is the irregular-valley experiment. Default stays
     # "v1" until C.3 is accepted. A constructor arg overrides this;

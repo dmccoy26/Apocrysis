@@ -21,7 +21,7 @@ DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
 _CAMPAIGN_KEYS = (
     "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
     "recent_mechanisms", "recent_signatures", "world_investigation",
-    "survivor_knowledge", "survivors_lost",
+    "survivor_knowledge", "survivors_lost", "ending",
 )
 
 
@@ -494,6 +494,10 @@ class PersistenceMixin:
             "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
             # B.1b: how many survivors this campaign has lost.
             "survivors_lost": int(getattr(self.__class__, "_survivors_lost", 0) or 0),
+            # E.3: the ending the player chose at the finale, if any -
+            # so a relaunched completed campaign shows the resolved
+            # state and never re-prompts.
+            "ending": getattr(self.__class__, "_campaign_ending", None),
         }
 
         with open(filename, 'w') as f:
@@ -603,6 +607,7 @@ class PersistenceMixin:
                 self.survivor_knowledge.restore(_sk)
         if profile.get("survivors_lost") is not None:
             self.__class__._survivors_lost = int(profile["survivors_lost"])
+        self.__class__._campaign_ending = profile.get("ending")
 
         self.name = profile.get("name", self.name)
         self.player_class = profile.get("player_class", self.player_class)

@@ -2,11 +2,12 @@
 
 Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
 rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
-**C.3.2a-5: lever matrix → owner verdict → Gate 8 experiment RAN →
-hypothesis FALSIFIED (`c2c36db`). Ending LOCKED (Truth A, authored +
-one final choice).** Next owner gate: pick the post-Gate-8 hypothesis
-(`SCALE_REPORT.md § Gate 8`). **Read this whole DIRECTION block first,
-then the doc map.**
+**C.3.2a-5: lever matrix → Gate 8 FALSIFIED → C.3.2a-6 (scaled
+structure) FALSIFIED. Three experiments converge: the survival
+envelope is the wall at deep depth. Active gate = a campaign-design
+decision (bound supported depth to 0–N≈6). Ending LOCKED (Truth A,
+authored + one final choice).** **Read this whole DIRECTION block
+first, then the doc map.**
 
 ---
 
@@ -105,25 +106,38 @@ depths 0–12). Full result: `SCALE_REPORT.md § Gate 8`.
   `("cap",C)` ceiling forms (legacy int-target path untouched);
   `scale_report.py` has `meaningful_fraction` + `--gate8`.
 
-**→ NEXT EXPERIMENT SPEC'D: `PHASE_C3_2_6_SPEC.md` — "Scaled
-Investigation Structure" (owner-set 2026-08-30).** Tests the causal
-conclusion Gate 8 reached: *what if the story itself grows with the
-world?* A `_lever_scaled_beats` flag (default off) inserts `k` extra
-**genuine intermediate required beats** (§3 defines "genuine" — load-
-bearing, on-corridor, real content, spaced) where `k = f(map)`; sweep
-`fixed@1/2` (controls) · `log` · `sqrt` · `linear`. New metric:
-`required_story_nodes / √playable` — reported raw, not targeted.
-§7 acceptance / §8 falsification (each failure routes to a specific
-next move — the big one: if structural growth alone can't clear depth
-12 without infeasible/backtrack blow-up → **formally bound supported
-depth to 0–N≈6** as a campaign-design decision). Explicitly NOT
-combined with a survival-envelope change or the Gate 8 ceiling — tests
-structural growth ALONE.
+**→ C.3.2a-6 "Scaled Investigation Structure" (`PHASE_C3_2_6_SPEC.md`)
+SPEC'D, BUILT, RAN, FALSIFIED** (`c2c36db`+…, 250 seeds/depth). Full
+result: `SCALE_REPORT.md § Scaled investigation structure`.
+`_lever_scaled_beats` flag inserts `k=f(map)` genuine on-spine required
+beats. **§7: no form passes** (no scaled form, no `fixed` control).
+**The finding is sharper than a null:** scaled beats **fix the
+emptiness problem** (`meaningful_fraction` d12 0.54→0.74, `nodes/√`
+held flat) but **worsen viability** (`ratio p90` d12 1.53→1.75) —
+every required beat is +2–4 required tiles and the budget counts
+tiles, not meaning. Scaling form irrelevant (`fixed/log/sqrt/linear`
+fail identically — the sign is wrong).
 
-**NEXT owner gate:** review `PHASE_C3_2_6_SPEC.md` → build
-`_lever_scaled_beats` + the beat construct + the `--gate6` sweep
-(all hand-written, past Atlas ceilings) → run → §7/§8 verdict → STOP.
-Nothing about this line touches combat / hunger / thirst / loot /
+**Three experiments now converge (C.3.2a-5 / Gate 8 / C.3.2a-6): the
+survival envelope IS the wall at deep depth. There is no content-side
+lever left.** The next move is a **campaign-design decision**:
+
+### >> THE ACTIVE GATE — bound supported depth
+
+Formally bound "supported depth" to **0–N ≈ 5–6** (baseline `ratio p90`
+crosses 1.0 at depth ~2–3, distributed investigation held it under 1.0
+through depth 4). Expeditions past N become a **deliberately different
+format** — inherited-supply-balanced / authored escalation / a distinct
+late-game mode — NOT procedurally-equivalent survival runs. This is
+`ROADMAP_STATUS.md`'s open question ("is a 25-expedition campaign
+supposed to have 25 procedurally-equivalent survival expeditions?")
+answered **no**, on evidence. **Owner decides the format for N…25**,
+then CH3–FIN authoring (ending already locked) can proceed against a
+real structure. `_lever_scaled_beats` is kept as a decoupled
+content/texture option for the 0–N range (fixes emptiness, free where
+the circuit already fits) — its own small ship/no-ship call.
+
+Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.
 
 ### >> The OTHER gate — pick the ending — ✅ DONE (2026-08-29)

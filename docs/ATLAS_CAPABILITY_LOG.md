@@ -51,8 +51,16 @@ external repo, zero Atlas surface.**
   to the map that represent the character that accompanies it"). A
   3-line edit, but `ui_mixin.py` is 870 lines — past the edit wall
   (log: A.4 #27, A.5). Hand-written; not routed (would only re-confirm
-  a known gap). The forthcoming `_lever_scaled_beats` build is
-  `escape.py` (940 ln) + `scale_report.py` sweep — both known walls.
+  a known gap).
+- **C.3.2a-6 build (`c2c36db`+…), all hand-written:** `escape.py`
+  `_scaled_beat_count` + `_place_scaled_beats` (~70 lines of new
+  placement logic inside a 1000-line module) and `scale_report.py`
+  `--gate6` (`GATE6_VARIANTS`, `run_gate6`, `_gate6_verdict`, two new
+  metric columns — ~120 lines procedural). Both known walls. The
+  experiment then falsified its own hypothesis. **Second full
+  measure→falsify cycle this session, zero Atlas surface.** Cumulative
+  across the C.3.2a-5 line: two experiment builds + two harness
+  extensions + the research judgement, none of it Atlas-shaped.
 
 ## Operating protocol (this run)
 

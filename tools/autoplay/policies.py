@@ -237,8 +237,29 @@ class ObjectivePolicy(ExplorerPolicy):
         return step or self._random_step(per)
 
 
+class ObjectiveRestPolicy(ObjectivePolicy):
+    """ObjectivePolicy + the single rule the fatigue investigation
+    needs: rest when exhausted, otherwise pursue the objective. For
+    separating 'the fatigue model is unsustainable' from 'a naive
+    player never rests' (docs/FATIGUE_INVESTIGATION_RESULTS.md)."""
+    name = "objective_rest"
+
+    def _survival_command(self, per):
+        h = per.hud
+        if h["health"] <= 0.30 * h["max_health"] and h["medicine"] > 0:
+            return "med"
+        if h["fatigue"] > 82:
+            return "rest"
+        if h["hunger"] <= 18 and h["food"] > 0:
+            return "eat"
+        if h["thirst"] <= 18 and h["water"] > 0:
+            return "drink"
+        return None
+
+
 _REGISTRY = {p.name: p for p in (RandomPolicy, SurvivalPolicy, ExplorerPolicy,
-                                 ResourcePolicy, ObjectivePolicy)}
+                                 ResourcePolicy, ObjectivePolicy,
+                                 ObjectiveRestPolicy)}
 
 
 def make(name, rng=None):

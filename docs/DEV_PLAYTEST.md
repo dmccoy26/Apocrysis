@@ -81,3 +81,68 @@ place.
 
 That log — not another metric — drives the visual-language spec
 (`[[apocrysis_visual_language_direction]]` in Claude's memory).
+
+---
+
+## Playtest run log
+
+Player-evidence only. **No fixes are made from these during the
+playtest** — fixing individual symptoms now would contaminate the
+thing we are trying to learn. The runs are accumulating into a single
+coherent picture, recorded at the bottom of this log.
+
+### Run 5 — CH3 jump-in (`--dev --seed 12345 --chapter 3`)
+
+**Primary finding: navigation failure, 5/5 runs.**
+
+- Intended escape: south-west.
+- Player movement: east ×6, north ×20.
+- The ESCAPE panel displayed the correct heading every turn.
+- Player never formed a hypothesis or reached the investigation
+  response (`THE RESPONSE 0/14`, hypothesis `unknown`).
+- Conclusion: directional text is not functioning as a navigation
+  affordance.
+
+**Secondary findings**
+
+1. **Fatigue presentation / system.** Fatigue reached 100% around
+   turn 14 and stayed there for ~78 turns. The HUD displayed the full
+   fatigue bar as green. May be a presentation inversion, a missing
+   recovery affordance, or both. Do not diagnose/fix during playtest.
+2. **Combat / escape incoherence.** SEVERE / EXTREME threats continued
+   to show ~50% escape. Player correctly selected escape twice; both
+   failed, forcing combat and ultimately killing the run. Confirms the
+   already-deferred hypothesis: threat assessment and escape
+   probability are communicating contradictory recommendations.
+   Separate post-playtest combat-model experiment.
+3. **Town Center.** Explicitly framed as containing "the most
+   information in one place." Produced no evidence, fact, or hypothesis
+   movement. Potential mismatch between narrative promise and
+   mechanical payoff. Important for the post-playtest spatial/story
+   design pass.
+4. **CH3 encounter / pacing.** ~12 zombie encounters / 91 turns, most
+   LOW-threat / overkill. Fatigue accumulated without meaningful
+   recovery. Potentially contributing to the fatigue problem and
+   making movement/combat feel mechanically repetitive.
+5. **Minor.** Multiple weapons acquired without meaningful equipment
+   decisions. Double-eat at the resource cap wasted food.
+
+No changes made. Working tree remains clean.
+
+---
+
+## The picture forming across runs 1–5
+
+We are no longer accumulating unrelated bugs. The simulation contains
+interesting things — the SW heading, the Town Center, the
+investigation, the threat assessment, the fatigue state all exist —
+but the player is not being given a strong enough language for
+recognizing what matters and acting on it. The player's experience is
+not communicating: *this is important; do this; go there; pay
+attention now.*
+
+This is why the attention-system idea is potentially far more
+fundamental than "make zombie text red." **Do not build it yet.**
+Run 6 (CH5), then FIN, then the straight-through campaign. Then design
+the language from what the game is demonstrably failing to
+communicate, rather than guessing.

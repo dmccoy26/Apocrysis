@@ -490,12 +490,27 @@ def _investigation_strip(p):
     if lore_n:
         head += f"   [cyan]● {lore_n}[/cyan]"
     out = [head]
+    # B3: which thread THIS expedition advances - so `THE RESPONSE 0/14`
+    # is a live objective, not a scoreboard. The mystery is bound to one
+    # WorldFact (generate_map targets wi.next_target()); that fact's
+    # thread is what this run is piecing together.
+    _m = getattr(p, "mystery", None)
+    _active_thread = None
+    _fid = getattr(_m, "world_fact_id", None) if _m is not None else None
+    if _fid:
+        _f = wi.fact(_fid) if hasattr(wi, "fact") else None
+        _active_thread = getattr(_f, "thread", None)
     for thread, (known, total) in wi.thread_progress().items():
-        title = titles.get(thread, (thread.upper(), ""))[0]
+        title, question = titles.get(thread, (thread.upper(), ""))
         n = 4
         filled = 0 if not total else round(n * known / total)
         bar = "█" * filled + "░" * (n - filled)
-        out.append(f"  {title}   {bar}  {known}/{total}")
+        mark = "[yellow]▸[/yellow] " if thread == _active_thread else "  "
+        out.append(f"{mark}{title}   {bar}  {known}/{total}")
+    if _active_thread:
+        _q = titles.get(_active_thread, ("", ""))[1]
+        out.append(f"  [{_DIM}]this run:[/] {_q}"
+                   if _q else f"  [{_DIM}]this run advances this thread[/]")
     # E.1: the working theory, one line, wrapped short.
     _hyp = wi.current_hypothesis() if hasattr(wi, "current_hypothesis") else None
     if _hyp is not None:

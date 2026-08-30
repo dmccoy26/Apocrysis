@@ -167,10 +167,6 @@ class Metrics:
         self.final_armor_count = 0
         self.death_cause = None                 # only set when outcome == 'died'
         self._last_damage_event = None          # internal, feeds death_cause
-        self.goals_completed = 0
-        self.goals_total = 0
-        self.tasks_completed = 0
-        self.tasks_total = 0
 
     def observe_line(self, text):
         m = _ENCOUNTER_RE.match(text)
@@ -779,22 +775,10 @@ def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False,
     io.metrics.map_size = player.map_size
     io.metrics.final_settlement_explored = player.settlement_explored
 
-    # Objective/quest system (item 6): src/objectives.py defines only
-    # two generic dataclasses (Goal, Task) - there's no separate
-    # narrative/quest system to check. game.py seeds 6 fixed Goals
-    # every game (eat/drink/medicine/kill/explore/reach_town), and
-    # ui_mixin.py's run_game_loop() rolls a 10% chance per turn to add
-    # a dynamic Task (objectives_mixin.py's _generate_dynamic_tasks());
-    # goal completion is auto-checked every turn via _auto_check_goals(),
-    # but task completion has no such auto-check anywhere in the
-    # codebase (complete_task() is only ever called from the
-    # interactive 'ct [idx]' console command) - so tasks_completed
-    # below is expected to be 0/low even in a long run, honestly, not
-    # a harness bug.
-    io.metrics.goals_total = len(player.goals)
-    io.metrics.goals_completed = sum(1 for g in player.goals if g.completed)
-    io.metrics.tasks_total = len(player.tasks)
-    io.metrics.tasks_completed = sum(1 for t in player.tasks if t.completed)
+    # Objective/quest system: the legacy Goal/Task systems were removed
+    # (docs/OBJECTIVES_AUDIT.md). Player intent is the investigation +
+    # the expedition mystery; there is no generic quest bookkeeping to
+    # sample here.
 
     regions = _settlement_regions(player)
     io.metrics.settlements_on_map = len(regions)
@@ -1227,19 +1211,6 @@ def print_report(all_metrics, games, level, expeditions_completed, max_turns):
     print(f"  Town Center discovered (any tile visited)           : {tc_discovered}/{games}  # real vs decoy distinction blocked on Q6")
     print(f"  Town Center reached at game end                     : {tc_reached}/{games}")
     print(f"  Games that explored a settlement (win-gate met)     : {explored_settlement}/{games}")
-
-    # Objective/quest system (item 6) - see play_one_game's comment on
-    # why tasks_completed is expected to stay low: nothing in the
-    # codebase auto-completes a Task the way _auto_check_goals() does
-    # for Goals.
-    total_goals = sum(m.goals_total for m in all_metrics)
-    completed_goals = sum(m.goals_completed for m in all_metrics)
-    total_tasks = sum(m.tasks_total for m in all_metrics)
-    completed_tasks = sum(m.tasks_completed for m in all_metrics)
-    print("\nEngine Goal/Task telemetry (generic bookkeeping, not expedition progress):")
-    print(f"  Goals completed : {completed_goals}/{total_goals} ({(completed_goals / total_goals * 100) if total_goals else 0:.0f}%)")
-    print(f"  Tasks completed : {completed_tasks}/{total_tasks} ({(completed_tasks / total_tasks * 100) if total_tasks else 0:.0f}%) "
-          f"- tasks are dynamically added but never auto-completed by the engine")
 
     # Loot acquired vs consumed (item 7).
     print("\nLoot economy (acquired vs consumed, real backpack-stock units):")

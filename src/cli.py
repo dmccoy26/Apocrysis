@@ -403,11 +403,5 @@ def run_tests():
     test_zombie.take_damage(damage)
     assert test_zombie.health < initial_z_health, "Zombie health should decrease after taking weapon damage"
     assert 0 <= ap_battle.health <= 100, "Player health must remain within valid bounds"
-    
-    # Test Task System Integration
-    ap_tasks = Apocrysis("TaskTest", map_size=5, seed=1)
-    ap_tasks.add_task("Clear Camp", "Defeat nearby threats.", task_type="combat")
-    assert len(ap_tasks.tasks) == 1
-    assert ap_tasks.tasks[0].title == "Clear Camp"
-    
+
     print("All tests passed!")

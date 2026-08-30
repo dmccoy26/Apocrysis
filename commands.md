@@ -113,10 +113,11 @@ Crafted weapons have a chance to come out as a higher-quality
 
 ## Goals & tasks
 
-Removed in v4. The goal/task checklist is replaced by the investigation
-interface (`journal` / `remember` / `inspect`). The `go` / `goals` /
-`complete` / `ts` / `ct` commands still parse but operate on an empty
-list.
+Removed. The goal/task checklist (and its `go` / `goals` / `complete` /
+`ts` / `ct` commands) was replaced by the investigation interface
+(`journal` / `remember` / `inspect` / `wi`) and the expedition
+objective. The `Goal` / `Task` classes were deleted in the 1c cleanup
+(`docs/OBJECTIVES_AUDIT.md`).
 
 ## Save & quit
 

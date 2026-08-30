@@ -7,7 +7,6 @@ import os
 import re
 
 from src.items import MeleeWeapon, RangedWeapon, Armor
-from src.objectives import Goal, Task
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
 
@@ -229,7 +228,6 @@ class PersistenceMixin:
             "day_phase": self.day_phase,
             "visibility_radius": self.visibility_radius,
             "has_flashlight": self.has_flashlight,
-            "last_action": self.last_action,
             "visited": [list(pos) for pos in self.visited],
             "backpack_food": self.backpack.food,
             "backpack_water": self.backpack.water,
@@ -239,8 +237,6 @@ class PersistenceMixin:
             "equipped_weapon": None,
             "armor": [],
             "equipped_armor": {},
-            "goals": [{"title": g.title, "description": g.description, "completed": g.completed, "reward_type": g.reward_type, "reward_amount": g.reward_amount, "goal_type": getattr(g, 'goal_type', "")} for g in self.goals],
-            "tasks": [{"title": t.title, "description": t.description, "completed": t.completed, "reward_type": t.reward_type, "reward_amount": t.reward_amount, "task_type": getattr(t, 'task_type', "")} for t in self.tasks],
             "status_effects": self.status_effects,
             "map": self._serialize_map(),
             "town_known": self.town_known,
@@ -330,7 +326,6 @@ class PersistenceMixin:
         player.day_phase = data.get("day_phase", "day")
         player.visibility_radius = data.get("visibility_radius", 3)
         player.has_flashlight = data.get("has_flashlight", False)
-        player.last_action = data.get("last_action", "")
         player.town_known = data.get("town_known", False)
         player.map_revealed = data.get("map_revealed", False)
 
@@ -384,46 +379,9 @@ class PersistenceMixin:
 
         _restore_equipped_armor(player, data.get("equipped_armor"))
 
-
-        # Real bug found live: this used to APPEND the save's goals
-        # onto whatever fresh __init__ already created, duplicating
-        # every goal a save actually has (e.g. "Reach the Town
-        # Center" once from __init__, once again from the save file).
-        # A save with a real "goals" key is a complete snapshot of
-        # what the player's goals actually were - it should replace
-        # the fresh set, not blend with it. An older save with no
-        # "goals" key at all (saved before goal persistence existed)
-        # still falls back to the fresh __init__ goals untouched.
-        if "goals" in data:
-            player.goals = [
-                Goal(
-                    title=g_data["title"],
-                    description=g_data.get("description", ""),
-                    completed=g_data.get("completed", False),
-                    reward_type=g_data.get("reward_type", "health"),
-                    reward_amount=g_data.get("reward_amount", 5),
-                    goal_type=g_data.get("goal_type", "")
-                )
-                for g_data in data["goals"]
-            ]
-
-        # Same pattern as goals: a save with a "tasks" key is a
-        # complete snapshot of what the player's tasks actually were.
-        # Replace the fresh __init__ tasks rather than appending to
-        # avoid duplication. Older saves without a "tasks" key fall
-        # back to the fresh __init__ tasks untouched.
-        if "tasks" in data:
-            player.tasks = [
-                Task(
-                    title=t_data["title"],
-                    description=t_data.get("description", ""),
-                    completed=t_data.get("completed", False),
-                    reward_type=t_data.get("reward_type", "xp"),
-                    reward_amount=t_data.get("reward_amount", 10),
-                    task_type=t_data.get("task_type", "")
-                )
-                for t_data in data["tasks"]
-            ]
+        # audit 1c: the Goal/Task systems were removed. Obsolete
+        # "goals" / "tasks" / "last_action" keys in an old save are
+        # discarded at this boundary - nothing reads them now.
 
         player.status_effects = data.get("status_effects", {})
 

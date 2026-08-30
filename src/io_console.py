@@ -1,7 +1,7 @@
 # v3 SPRINT step 6: the I/O seam. print()/input() calls are scattered
 # across CombatMixin (fight/flee), PersistenceMixin (save/delete
-# filename prompts), ObjectivesMixin (goal-title prompts), UIMixin,
-# and ActionsMixin - not just UIMixin, which is why a real TUI (see
+# filename prompts), UIMixin, and ActionsMixin - not just UIMixin,
+# which is why a real TUI (see
 # src/tui.py) can't just swap that one mixin's rendering. Every mixin
 # call site uses self.io.say()/self.io.ask()/self.io.ask_yes_no()
 # instead of bare print()/input().

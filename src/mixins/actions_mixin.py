@@ -144,7 +144,6 @@ class ActionsMixin:
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)
-            self._check_and_complete_goals("eat")
         else:
             self.io.say("You have no food.")
 
@@ -179,13 +178,11 @@ class ActionsMixin:
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)
-            self._check_and_complete_goals("drink")
         elif self._at_natural_water():
             # Scoop from the lake/river. Less clean than stored water
             # (no heal) but it's always there - a proper drink.
             self.thirst = min(100, self.thirst + 15)
             self.io.say("You drink from the water. It's not clean, but it's water.")
-            self._check_and_complete_goals("drink")
         else:
             self.io.say("You have no water, and there's none to drink here.")
 
@@ -198,7 +195,6 @@ class ActionsMixin:
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)
-            self._check_and_complete_goals("medicine")
         else:
             self.io.say("You have no medicine.")
 
@@ -460,7 +456,6 @@ class ActionsMixin:
                 if piece:
                     piece.durability = piece.max_durability
             self.io.say('You use the repair kit to service your equipped weapon and armor - durability fully restored.')
-            self._check_and_complete_goals('craft')
             return
 
         # Add result
@@ -481,7 +476,6 @@ class ActionsMixin:
             self.io.say(f"Crafted a {new_item.name}, but your pack is full - it was lost. Drop something first next time.")
         else:
             self.io.say(f"Crafted a {new_item.name}!")
-        self._check_and_complete_goals("craft")
 
     def _roll_craft_quality(self):
         # Skill-based crafting quality: dexterity-scaled odds of a

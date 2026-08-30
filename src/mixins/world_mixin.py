@@ -495,7 +495,6 @@ class WorldMixin:
                 f"\n{BOLD}{GREEN}You {reason}. You WIN this expedition!{RESET}\n"
             )
             self.io.say(f"{BOLD}A stash of supplies awaits your next game.{RESET}\n")
-        self._check_and_complete_goals("reach_town")
 
 
 

@@ -9,11 +9,9 @@ from src.constants import (
 from src.worlds.silence import SILENCE
 from src.io_console import ConsoleIO
 from src.items import Backpack, ARMOR_SLOTS
-from src.objectives import Goal
 
 from src.mixins.actions_mixin import ActionsMixin
 from src.mixins.combat_mixin import CombatMixin
-from src.mixins.objectives_mixin import ObjectivesMixin
 from src.mixins.persistence_mixin import PersistenceMixin
 from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
@@ -49,7 +47,6 @@ class Apocrysis(
     PersistenceMixin,
     CombatMixin,
     WorldMixin,
-    ObjectivesMixin,
     UIMixin,
     ActionsMixin,
     KnowledgeMixin,
@@ -200,14 +197,12 @@ class Apocrysis(
             setattr(self.backpack, _k, _v + _bonus)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
-        # v4 (V3_ASSUMPTION_AUDIT #1/#8): the hard-coded goal list and
-        # the dynamic task system are gone - player intent in v4 is
-        # expressed through investigation (journal / remember /
-        # inspect), not a checklist. The lists stay (empty) for
-        # save-file compatibility and the harmless no-op goal/task
-        # methods.
-        self.goals = []
-        self.tasks = []
+        # v4 (V3_ASSUMPTION_AUDIT #1/#8) / audit 1c: the hard-coded goal
+        # list and the dynamic task system are gone - player intent is
+        # expressed through the investigation (journal / remember /
+        # inspect / wi) and the expedition objective, not a checklist.
+        # The Goal/Task classes and ObjectivesMixin were removed in 1c;
+        # obsolete goals/tasks keys in an old save are simply ignored.
         self.won = False  # Win condition tracker
 
         # v4 (todo 8f9ec034): finding a map item reveals the whole
@@ -253,9 +248,6 @@ class Apocrysis(
         self.generate_map()
         self.visited = {self.current_position}
         self.tile_event_cooldowns = {}
-
-        # Action tracking for automatic goal completion
-        self.last_action = ""
 
         # v4: expedition turn counter (every command the player issues
         # in run_game_loop). Shown in the stats panel so time cost is

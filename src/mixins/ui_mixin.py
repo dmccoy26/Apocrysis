@@ -255,15 +255,6 @@ class UIMixin:
                 else:
                     right_lines.append("No weapons in inventory.")
 
-                # Tasks Section (Dynamic Objectives)
-                active_tasks = [t for t in self.tasks if not t.completed]
-                if active_tasks:
-                    right_lines.append("")
-                    right_lines.append("--- Active Tasks ---")
-                    for i, task in enumerate(active_tasks):
-                        reward_info = f"+{task.reward_amount} {task.reward_type}"
-                        right_lines.append(f"  [{i+1}] {task.title} ({reward_info})")
-
                 right_lines.append("")
                 right_lines.append("What would you like to do?")
                 for c in cmd_list:
@@ -296,9 +287,6 @@ class UIMixin:
 
             if getattr(self, 'playlog', None) is not None:
                 self.playlog.command(command)
-
-            # Track action for automatic goal completion
-            self.last_action = self._map_command_to_action(command)
 
             old_stats = {
                 "health": self.health,
@@ -354,11 +342,6 @@ class UIMixin:
                 'sv': lambda: self.save_game(self.io.ask("Enter save slot name (e.g., 'Slot1'): ") + ".json"),
                 'ds': self._prompt_delete_save,
                 'delete save': self._prompt_delete_save,
-                'go': lambda: self.add_goal(self.io.ask("Goal title: "), goal_type=self.io.ask("Goal type (eat/drink/medicine/craft/kill/reach_town): ").lower()),
-                'goals': self.list_goals,
-                'complete': self._prompt_complete_goal,
-                'ts': self.list_tasks,
-                'ct': self._prompt_complete_task,
                 # v4 Phase B knowledge interface (KnowledgeMixin).
                 'journal': self.knowledge_journal,
                 'j': self.knowledge_journal,
@@ -519,12 +502,6 @@ class UIMixin:
                 self.io.say(f"Unknown command: '{command}'. Type 'help' for available commands.")
 
             self.print_stat_changes(old_stats)
-
-            # v4 (V3_ASSUMPTION_AUDIT #1/#8): the goal/task system is
-            # replaced by the investigation interface. _auto_check_goals
-            # is a harmless no-op on the now-empty goal list; the
-            # dynamic task generator is gone entirely.
-            self._auto_check_goals()
 
             # docs/DESIGN_SPATIAL_LANGUAGE.md - objective lifecycle:
             # NEW -> ACTIVE -> DISTRACTED -> REMINDER -> URGENT ->
@@ -1142,19 +1119,3 @@ class UIMixin:
             self.io.say("Equipped Weapon: None")
         for slot, piece in self.equipped_armor.items():
             self.io.say(f"Equipped Armor ({slot}): {piece.name if piece else 'None'}")
-
-    def _map_command_to_action(self, command):
-        if command in ('eat', 'ea'): return 'eat'
-        if command in ('drink', 'dr'): return 'drink'
-        if command.startswith(('craft', 'cr')): return 'craft'
-        if command in ('fight', 'f', 'punch', 'p'): return 'kill'
-        if command == 'm': return 'map'
-        if command in ('n', 's', 'e', 'w'): return 'move'
-        if command in ('rest', 'r'): return 'rest'
-        if command.startswith(('wear', 'wr')): return 'equip'
-        if command.startswith(('dropa', 'da')): return 'drop'
-        if command.startswith(('equip', 'eq')): return 'equip'
-        if command.startswith('drop'): return 'drop'
-        if command.startswith('reload'): return 'reload'
-        return ''
-

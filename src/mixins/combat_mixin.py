@@ -55,7 +55,6 @@ class CombatMixin:
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
                 self._clear_defeated_zombie_tile(zombie)
-                self._check_and_complete_goals("kill")
             else:
                 # Zombie's turn to attack
                 dodge_chance = min(0.5, self.dexterity / 150)
@@ -201,7 +200,6 @@ class CombatMixin:
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
                 self._clear_defeated_zombie_tile(zombie)
-                self._check_and_complete_goals("kill")
                 return
 
             # Zombie's turn to attack if it is still alive

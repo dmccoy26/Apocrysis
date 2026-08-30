@@ -233,13 +233,6 @@ class TestCombatV3(unittest.TestCase):
     def test_status_effect_damage_expires_after_its_duration(self):
         # Real bug fixed this sprint: effects previously never expired
         # (countdown decremented but the key was never removed at 0).
-        # Pre-complete the "kill" goal so its +5 health reward on
-        # defeating the zombie doesn't mask the Bleeding damage in the
-        # final health check below.
-        for goal in self.game.goals:
-            if goal.goal_type == "kill":
-                goal.completed = True
-
         self.game.status_effects["Bleeding"] = 1
         health_before = self.game.health
 

@@ -1,18 +1,78 @@
 # Design Decision Record — the Armored Zombie at expedition tier 2
 
-**Status:** OPEN. This blocks the `combat_forecast.py` rewrite, which
-blocks the attention implementation (`DESIGN_PASS.md`). No code until
-this and the escape-signal question below are decided.
+**Status: DECIDED (2026-08-30). → `A` + `P(escape)` locked as a
+first-class forecast signal.** Next artifact is
+`DESIGN_ESCAPE_MODEL.md` (Phase 2), **not** `combat_forecast.py` yet.
 
-## The decision
+## Decision
 
-> **Is the Armored Zombie at expedition tier 2 an intended avoidance
-> threat, or a premature hard wall?**
+> **A — The tier-2 Armored Zombie stays, as an intentional *avoidance*
+> threat. Avoidance becomes a legitimate, reliable gameplay response.**
+>
+> **YES — `P(escape)` becomes a first-class, calibrated forecast
+> consequence signal, regardless of anything else.**
+
+**Design intent, recorded:** the T2 Armored is an *"engage or evade"*
+enemy, not a *"don't fight this"* enemy. An appropriately-equipped T2
+survivor is **not expected to defeat it reliably**; they are expected
+to *recognise* the threat, *assess* their state, and have a *credible
+opportunity to disengage*. Later progression turns the same creature
+from "avoid" into "possibly fight." This gives Apocrysis a new
+progression axis:
+
+```
+recognise → avoid → prepare → eventually overcome
+```
+
+rather than `encounter → calculate DPS → fight`. The interesting
+decision is **fight / flee / accept the risk** — Apocrysis must not
+become a game where the answer to a scary zombie is always "run."
+
+**The Armored's ~0% win property is NOT to be softened** to make the
+numbers prettier. If it is the early "you are not ready for this"
+creature, being unbeatable at T2 is correct. **The failure is the
+50/50 escape**, not the 0% fight.
+
+## Locked consequences
+
+1. `P(escape)` becomes a first-class combat-forecast signal.
+2. Escape probability is **derived from encounter + player state**
+   (zombie speed class, player Dexterity, fatigue, HP fraction, and
+   whether the encounter offers room to run) — never a constant,
+   never derived from `threat_tier`.
+3. The Armored's low fight probability is not softened to flatter the
+   forecast.
+4. Escape must be **reliable enough for an unprepared survivor** that
+   "don't fight" is a real strategy, not a coin flip.
+5. Earlier armor progression is a **Phase-2 balance lever** — its
+   purpose is a *gradually improving fight option*, NOT "armor so you
+   can finally survive the Armored."
+6. Attention communicates the distinction between **dangerous to
+   fight** and **difficult to escape**. `L3 CRITICAL` shifts meaning:
+   from "this will kill you" to *"your intended response has become
+   critical"* — an Armored with `0% fight / 92% escape` in the open is
+   `L2`; the same Armored while wounded/exhausted in a confined space
+   (`0% fight / 18% escape`) is `L3`.
+7. The forecast rewrite happens **after** the Phase-2 model/balance
+   decisions — the frozen sequencing holds.
+
+**Not chosen:** B (armor-piercing counter — solves a different, more
+conventional problem and would obscure whether avoidance works); C
+(move Armored later — relocates the wall, adds no verb); D (hybrid) —
+D may still *emerge* as a Phase-2 balancing refinement inside A if
+simulations show a milder early plated enemy makes the ramp cleaner,
+but it is not the primary decision and does not defer this one.
+
+---
+
+## The decision (context, as posed)
+
+> **Was: is the Armored Zombie at expedition tier 2 an intended
+> avoidance threat, or a premature hard wall?**
 
 The experiments (`COMBAT_MODEL_EXPERIMENTS.md`,
-`COMBAT_EXP{1,2,3}_RESULTS.md`) have finished discovering the problem.
-This record is where the design decides what game Apocrysis wants to
-be.
+`COMBAT_EXP{1,2,3}_RESULTS.md`) finished discovering the problem. This
+record is where the design decided what game Apocrysis wants to be.
 
 ## The evidence
 
@@ -71,7 +131,7 @@ second locked question).
 | **C** | **Move Armored (and its 0.5 reduction) later** | Gate `ArmoredZombie` in the composition table to a tier where armor development + weapon damage give a fair fight (exp 3 suggests ~tier 8–9, where it eases to proposed-HIGH). Optionally also make armor develop earlier so the gate can be sooner. | Simplest. But leaves tiers 4–8 (the "wall") still hard from Heavy/Elite unless those move too. Doesn't add a new strategic dimension — Apocrysis stays fight-or-die. |
 | **D** | **Hybrid: a weak early Armored → the full hard-counter later** | A tier-2 "Scavenger in plates" with `damage_reduction ≈ 0.2` and less HP — a *costly* fight (proposed MODERATE/HIGH), not a wall. The `0.5` / 120-HP Armored is gated to a later tier as the intended hard counter. | Two enemy definitions to author and balance. But it lets the ramp keep a plated enemy early for texture without the cliff, and preserves the hard-counter role for when the player can meet it. |
 
-## Recommendation (not the decision)
+## Recommendation (the one the decision followed)
 
 **A + the escape-signal fix**, with **C's armor-development change as
 support.**

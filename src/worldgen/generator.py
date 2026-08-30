@@ -12,6 +12,7 @@ from collections import deque
 
 from src.constants import (
     IMPASSABLE_TERRAIN,
+    BASE_MAP_SIZE,
     BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
     CHUNK_SIZE, MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS,
@@ -402,6 +403,18 @@ class MapGenerator:
             MAX_SETTLEMENTS,
             1 + g.expeditions_completed // SETTLEMENTS_PER_EXPEDITIONS,
         )
+
+        # --- C.3.2a-5 lever A/B (docs/PHASE_C3_2_5_LEVER_MATRIX.md) ---
+        # measurement-only, all default off; baseline byte-identical.
+        _cap = getattr(g, "_lever_cap_town_dist", None)          # lever 3
+        if _cap is not None:
+            min_distance = min(min_distance, _cap)
+        if getattr(g, "_lever_settlements_by_area", False):      # lever 1
+            _base_area = BASE_MAP_SIZE * BASE_MAP_SIZE
+            num_settlements = max(
+                1, min(8, round(g.map_size * g.map_size / _base_area)))
+        # -----------------------------------------------------------
+
         real_settlement_index = g.rng.randrange(num_settlements)
 
         settlement_order = [i for i in range(num_settlements) if i != real_settlement_index]

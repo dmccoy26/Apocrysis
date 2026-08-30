@@ -59,6 +59,15 @@ class Apocrysis(
     # tools/geo_compare.py flips the class default for its bot runs.
     _default_mapgen = "v1"
 
+    # C.3.2a-5 lever A/B (docs/PHASE_C3_2_5_LEVER_MATRIX.md). MEASUREMENT
+    # ONLY - all off by default, generation is byte-identical to
+    # baseline with these unset. tools/lever_matrix.py flips them per
+    # variant. Never combined; never a shipped default.
+    _lever_settlements_by_area = False   # lever 1
+    _lever_bound_gap = None              # lever 2: int target gap distance
+    _lever_cap_town_dist = None          # lever 3: int cap on town min-dist
+    _lever_spread_sites = False          # lever 4
+
     # v4: the fresh-start ration every game begins with, so a game
     # doesn't open in a food/water deficit. load_game() and
     # apply_profile() subtract this back off before their own additive

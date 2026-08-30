@@ -573,7 +573,23 @@ def _carve_escape_pass(game, reachable):
                 all_gaps.append((bx, by, ix, iy))
 
     reachable_gaps = [g for g in all_gaps if (g[2], g[3]) in reachable]
-    if reachable_gaps:
+    _bound = getattr(game, "_lever_bound_gap", None)   # C.3.2a-5 lever 2
+    if reachable_gaps and _bound is not None:
+        # measurement-only (docs/PHASE_C3_2_5_LEVER_MATRIX.md): keep the
+        # gap within a bounded traversable distance of the required-
+        # investigation endpoint (the nearest-buildings centroid),
+        # independent of map size. The bound is a sweep parameter.
+        _bs = _building_sites(game, reachable)[:3]
+        if _bs:
+            ax = sum(p[0] for p in _bs) / len(_bs)
+            ay = sum(p[1] for p in _bs) / len(_bs)
+        else:
+            ax, ay = sx, sy
+        bx, by, ix, iy = min(
+            reachable_gaps,
+            key=lambda g: abs((abs(g[2] - ax) + abs(g[3] - ay)) - _bound),
+        )
+    elif reachable_gaps:
         # A gap at a MODERATE remove from spawn - a journey, not a
         # half-map hike on a 34^2 (pacing invariant 3d). Sort by
         # spawn distance and take the ~65th-percentile gap rather than
@@ -725,7 +741,18 @@ def build_mystery(game, target_fact=None):
                          key=_detour) or sorted(pool, key=_detour))
         return ranked[0]
 
-    role_require = _pick_side(_rest)
+    def _staging(pool):
+        # C.3.2a-5 lever 4 (measurement-only): put the require site on
+        # the way from the route toward the exit - a staging point
+        # between the investigation and the escape, shortening the
+        # require->obstacle leg without a retrace.
+        rx, ry = role_route
+        mx, my = (rx + ex) / 2, (ry + ey) / 2
+        return min(pool or _rest,
+                   key=lambda s: abs(s[0] - mx) + abs(s[1] - my))
+
+    _spread = getattr(game, "_lever_spread_sites", False)
+    role_require = _staging(_rest) if _spread else _pick_side(_rest)
 
     m.sites = {
         'closed': role_closed,
@@ -737,7 +764,7 @@ def build_mystery(game, target_fact=None):
     m.requirement_items = ([spec["item"]] + [spec["item2"]]) if _transport else []
     if _transport:
         _rest2 = [s for s in _rest if s != role_require] or [role_require]
-        m.sites['require2'] = _pick_side(_rest2)
+        m.sites['require2'] = _staging(_rest2) if _spread else _pick_side(_rest2)
     if _deadline:
         # time-pressure: the tide is OUT when the mystery starts - the
         # causeway tile is passable. There is nothing to unlock; the

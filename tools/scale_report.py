@@ -45,22 +45,44 @@ MECH_ROTATION = [
 _ALL_FACTS_KNOWN = {f.id: "known" for f in WORLD_FACTS}
 
 
-def _forced_game(seed, depth, mech):
-    _gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != mech]
-    _gmod.Apocrysis._last_family = None
-    _gmod.Apocrysis._recent_mechanisms = []
-    _gmod.Apocrysis._recent_signatures = []
-    _gmod.Apocrysis._world_investigation = dict(_ALL_FACTS_KNOWN)
+_LEVER_DEFAULTS = {"_lever_settlements_by_area": False, "_lever_bound_gap": None,
+                   "_lever_cap_town_dist": None, "_lever_spread_sites": False}
+
+
+def _forced_game(seed, depth, mech, levers=None):
+    A = _gmod.Apocrysis
+    A._used_mechanisms = [k for k in MECHANISMS if k != mech]
+    A._last_family = None
+    A._recent_mechanisms = []
+    A._recent_signatures = []
+    A._world_investigation = dict(_ALL_FACTS_KNOWN)
+    for k, default in _LEVER_DEFAULTS.items():
+        setattr(A, k, (levers or {}).get(k, default))
     try:
-        g = Apocrysis("Scale", seed=seed, io=_Silent(),
-                      expeditions_completed=depth)
-        return g
+        return Apocrysis("Scale", seed=seed, io=_Silent(),
+                         expeditions_completed=depth)
     finally:
-        _gmod.Apocrysis._used_mechanisms = []
-        _gmod.Apocrysis._world_investigation = {}
-        _gmod.Apocrysis._last_family = None
-        _gmod.Apocrysis._recent_mechanisms = []
-        _gmod.Apocrysis._recent_signatures = []
+        A._used_mechanisms = []
+        A._world_investigation = {}
+        A._last_family = None
+        A._recent_mechanisms = []
+        A._recent_signatures = []
+        for k, default in _LEVER_DEFAULTS.items():
+            setattr(A, k, default)
+
+# the frozen variant set (docs/PHASE_C3_2_5_LEVER_MATRIX.md)
+LEVER_VARIANTS = {
+    "baseline": {},
+    "settlements_scaled": {"_lever_settlements_by_area": True},
+    "escape_gap_bounded@8": {"_lever_bound_gap": 8},
+    "escape_gap_bounded@12": {"_lever_bound_gap": 12},
+    "escape_gap_bounded@16": {"_lever_bound_gap": 16},
+    "escape_gap_bounded@20": {"_lever_bound_gap": 20},
+    "town_distance_capped@12": {"_lever_cap_town_dist": 12},
+    "town_distance_capped@16": {"_lever_cap_town_dist": 16},
+    "town_distance_capped@20": {"_lever_cap_town_dist": 20},
+    "sites_across_settlements": {"_lever_spread_sites": True},
+}
 
 
 # --- the survival budget (docs/PHASE_C3_2_5_SPEC.md, calibrated) -------
@@ -286,6 +308,14 @@ def measure(game):
     circ, bt, ok = required_circuit(game)
     playable = len(reach)
     dsc = dest_settlement_count(game)
+
+    # the leg this experiment is trying to move
+    rto = None
+    if m is not None and "require" in m.sites and getattr(m, "obstacle_tile", None):
+        p = shortest_path(grid, n, tuple(m.sites["require"]),
+                          tuple(m.obstacle_tile))
+        rto = (len(p) - 1) if p is not None else None
+
     return {
         "map": n,
         "playable": playable,
@@ -299,9 +329,63 @@ def measure(game):
         "ratio": (circ / USABLE_BUDGET) if ok else None,
         "over_budget": (circ is not None and circ > USABLE_BUDGET),
         "infeasible": (m is None) or not ok,
+        "req_to_obstacle": rto,
         "legs": circuit_legs(game),
         "ep": endpoint_dists(game),
     }
+
+
+def _cell(rows):
+    """Summarise one (variant, depth) into the matrix metric dict."""
+    circ = [r["circuit"] for r in rows]
+    bt = [r["backtrack"] for r in rows]
+    rto = [r["req_to_obstacle"] for r in rows]
+    return {
+        "n": len(rows),
+        "dens": round(statistics.mean(r["dens"] for r in rows), 2),
+        "dst_1k": round(statistics.mean(r["dest_density"] for r in rows), 3),
+        "circ_p50": round(_p(circ, .5), 1),
+        "circ_p90": round(_p(circ, .9), 1),
+        "req_obst_p50": round(_p(rto, .5), 1),
+        "req_obst_p90": round(_p(rto, .9), 1),
+        "ratio_p90": round(_p([r["ratio"] for r in rows], .9), 3),
+        "pct_over_budget": round(
+            100 * sum(1 for r in rows if r["over_budget"]) / len(rows), 1),
+        "backtrack_p50": round(_p(bt, .5), 3),
+        "backtrack_p90": round(_p(bt, .9), 3),
+        "infeasible_pct": round(
+            100 * sum(1 for r in rows if r["infeasible"]) / len(rows), 2),
+    }
+
+
+def run_lever_matrix(games, depths):
+    import json
+    out = {"budget_usable": USABLE_BUDGET, "games_per_cell": games,
+           "variants": {}}
+    for vname, levers in LEVER_VARIANTS.items():
+        out["variants"][vname] = {}
+        for d in depths:
+            rows = [measure(_forced_game(
+                        i, d, MECH_ROTATION[i % len(MECH_ROTATION)], levers))
+                    for i in range(games)]
+            out["variants"][vname][str(d)] = _cell(rows)
+        base = out["variants"]["baseline"]
+        v = out["variants"][vname]
+        d_ref = str(max(depths))
+        print(f"{vname:>26}  d{d_ref}: ratio p90 "
+              f"{v[d_ref]['ratio_p90']:.2f} "
+              f"(base {base[d_ref]['ratio_p90']:.2f})  "
+              f"req->obst p90 {v[d_ref]['req_obst_p90']:.0f} "
+              f"(base {base[d_ref]['req_obst_p90']:.0f})  "
+              f"btrk p90 {v[d_ref]['backtrack_p90']:.2f}  "
+              f"infeas {v[d_ref]['infeasible_pct']:.1f}%  "
+              f"dst/1k {v[d_ref]['dst_1k']:.2f}")
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "lever_matrix.json"), "w") as f:
+        json.dump(out, f, indent=2)
+    print(f"\nwrote {os.path.join(here, 'lever_matrix.json')}")
+    return out
 
 
 def _p(v, q):
@@ -313,12 +397,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--games", type=int, default=300)
     ap.add_argument("--depths", default="0,1,2,3,4,6,9,12")
+    ap.add_argument("--levers", action="store_true",
+                    help="run the C.3.2a-5 lever A/B matrix instead of the "
+                         "single-variant scale report")
     args = ap.parse_args()
     depths = [int(x) for x in args.depths.split(",")]
 
     print(f"budget: gross {GROSS_BUDGET} moves, usable (investigative) "
           f"{USABLE_BUDGET}  [docs/PHASE_C3_2_5_SPEC.md]")
     print()
+
+    if args.levers:
+        run_lever_matrix(args.games, depths)
+        return
 
     per_depth = {}
     per_depth_mech = {}   # (depth, mech) -> rows

@@ -214,7 +214,27 @@ doc map below it.**
   loot changes. Method: refine `scale_report.py` → calibrate budget →
   lever A/B matrix (flags) → owner picks combo → implement → gate →
   fresh-survivor feel-test depth 4/6.
-- **Next: owner reviews `PHASE_C3_2_5_SPEC.md`.**
+- **Spec approved + decomposed** (`3688f2f`). The scaling driver is the
+  **escape gap** (carved at "the far corner"): `spawn→escape` p50
+  12→32; the `require→obstacle` leg scales p50 7→22. Town is NOT on the
+  required circuit → lever 3 (town-distance cap) expected to be weak.
+  Lever 2 refined to **bound the escape-gap span**.
+- **`PHASE_C3_2_5_LEVER_MATRIX.md`** — the Claude-ready experiment
+  packet: hard implementation boundary, 5 variants (baseline + 4
+  levers, `escape_gap_bounded` swept @ 8/12/16/20), measurement-only,
+  baseline byte-identical, stop at review gate.
+- **Lever flags BUILT** (`src/game.py` class attrs, default off; wired
+  into `generator.py` [levers 1,3] + `escape.py` [levers 2,4] behind
+  `getattr` guards). All 280+100 green with flags off (golden fixture
+  intact). `tools/scale_report.py --levers` runs the matrix →
+  `tools/lever_matrix.json`.
+- **Also shipped this session:** map terrain colour (`8bec163`-era,
+  BlueNoodle's ask — forest green / water blue / mountain white etc.);
+  `docs/ROADMAP_STATUS.md` (World 1 arc: engine ~done, 2 of 5 chapters,
+  ~55-70% remains, 2 gates: pick the ending + land C.3.2a-5).
+- **Next: the lever matrix result → owner review → pick a lever.**
+  (Matrix run in progress at session end — check `tools/lever_matrix.json`
+  + `SCALE_REPORT.md` § "Lever matrix".)
 - **Two QoL bug-fixes shipped** (separate track from C.3.2):
   `8bec163` empty ammo no longer alarm-red for a benched weapon;
   `1ce5f3a` `eq N` / `wr W2` / `drop N` by pack slot number + the pack

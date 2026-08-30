@@ -99,20 +99,19 @@ def equip_for_depth(player, depth):
         player.max_health += 5 * bump
     player.health = player.max_health
 
-    # best melee weapon this depth would have unlocked
+    # Assigned DIRECTLY (not via equip_weapon / equip_armor) - those
+    # print through self.io, which raises from on_mount's thread. The
+    # survivor comes in with these already worn.
     _melee = [(n, s) for n, s in LOOT_WEAPON_TABLE.items()
               if s["type"] == "melee" and s.get("min_expedition", 0) <= depth]
     if _melee:
         n, s = max(_melee, key=lambda kv: kv[1]["damage"])
-        player.backpack.add_weapon(MeleeWeapon(n, s["damage"], s["durability"]))
-        player.equip_weapon(n)
+        player.equipped_weapon = MeleeWeapon(n, s["damage"], s["durability"])
 
-    # best body + head armor this depth would have unlocked
     for slot in ("body", "head"):
         cands = [(n, s) for n, s in ARMOR_TABLE.items()
                  if s["slot"] == slot and s.get("min_expedition", 0) <= depth]
         if cands:
             n, s = max(cands, key=lambda kv: kv[1]["reduction"])
-            player.backpack.armor.append(
-                Armor(n, s["reduction"], s["durability"], slot))
-            player.equip_armor(n)
+            player.equipped_armor[slot] = Armor(
+                n, s["reduction"], s["durability"], slot)

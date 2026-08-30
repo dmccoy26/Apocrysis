@@ -25,10 +25,13 @@ fatigue decision 1+2+3 · `E` re-run · `F` navigation). All committed
 authoritative "where we stand". Immediate work: ~~(1a) investigation
 UI~~ ✅ `fd7bd34`; ~~(1b) named physical landmarks~~ ✅ `702ce0d`;
 ~~(1c) remove the legacy Tasks/Goals systems~~ ✅ `fc8c19c`
-(`docs/OBJECTIVES_AUDIT.md` — both were dead; one objective
-architecture now). **→ (1d) a human straight-through playtest of the
-full 25-expedition arc. This is the gate. Stop coding — reopen only
-what the playthrough demonstrates.** Per-expedition observation-log
+(`docs/OBJECTIVES_AUDIT.md`). Housekeeping before 1d: ~~all runtime
+state (saves / profiles / play logs / telemetry) now lives under one
+`.apocrysis/` root~~ ✅ `36e3354` (`src/runtime_paths.py`;
+`APOCRYSIS_HOME` overrides; nothing runtime-generated hits the repo
+root). **→ (1d) a human straight-through playtest of the full
+25-expedition arc. This is the gate. Stop coding — reopen only what
+the playthrough demonstrates.** Per-expedition observation-log
 template is in `docs/AUDIT_STATUS.md` §1d. Only after
 the playtest: the Phase C/D world-gen layer (Phase D conditions/weather,
 finale archetype + NPC scene, `DIS_FEW_REMAINS` bug, `landscape` flip)

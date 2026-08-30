@@ -98,6 +98,18 @@ A player should never be *given* level 5 alone. It's the seasoning.
 
 ## The objective lifecycle (the run-6 fix)
 
+**IMPLEMENTED (`d783db7`) — `mystery_mixin.objective_tick()`.** The
+mystery *is* the objective; "progress" is `_objective_sig()` changing
+(a fact learned / site reached / item taken / way opened / hypothesis
+firmed). ACTIVE→DISTRACTED at 12 idle turns (silent), →REMINDER at 20
+(L1 line naming the next step), →URGENT at 34 or 20+resource-pressure
+(L2 banner). Any progress → silently ACTIVE. Escape → COMPLETE, tick
+stops. `obj_state` is on the player + in the telemetry stream. *Not
+yet built:* URGENT re-fire on a worsening stake; the panel-line
+"you think" integration.
+
+---
+
 An objective is not a static line. It has behavioural priority that
 rises and falls:
 

@@ -59,45 +59,37 @@ produces evidence against it.
 
 ## 1 — Genuinely unfinished implementation
 
-### 1a. Finish the investigation UI
+### 1a. Finish the investigation UI — ✅ DONE (`fd7bd34`, 2026-08-30)
 
-`tui._investigation_strip()` (B3) now shows the milestone count,
-per-thread progress bars, a `▸` on the thread this expedition advances,
-the thread question ("this run: …"), and the working theory ("you
-think: …"). The *mystery* has an OBJECTIVES checklist under it.
+The world-investigation strip and the `wi` screen now let the player
+answer the four questions: **what do I know · what am I missing · what
+should I do next · can this expedition make progress.**
 
-Still missing, for the **world-investigation thread** itself:
+- `WorldFact` gained a short `lead` handle (3–8 words, player voice;
+  all 23 authored). `statement` stays the full conclusion.
+- `tui._investigation_strip()` — the active thread shows its
+  established leads (`✓`, last 3 + "+N earlier"), the thread question,
+  and a **`▸ this run:` line naming the exact fact this expedition
+  establishes** (or `○ next:` if the bound fact is already known).
+- `world_investigation_screen()` — eligible-but-unknown facts are now
+  named as `○ <lead>` (with `<- this expedition` on the bound one)
+  instead of hidden in a count; deeper unknowns stay counted (`? N
+  further, deeper in`); a **NEXT** block points at the single most
+  useful lead. Unknown fact *statements* are still never spoiled.
 
-- a **per-lead checklist** — which specific leads on the active thread
-  are known, which are still out there
-- a **current / hot next step** — the single most useful thing to look
-  for now
-- a clear read of **what this expedition can advance** vs what it
-  can't
+Closes the last presentation piece of the run-6 discovery problem
+(`DEV_PLAYTEST.md`, `NAV_INVESTIGATION_RESULTS.md`). The mystery's own
+OBJECTIVES checklist (the tactical "how") still renders below the strip
+as before.
 
-Target shape (presentation is not the point — the four questions are):
+Original target shape (for reference):
 
 ```text
-INVESTIGATION
-▸ Who ordered it, and why?
-
-LEADS
-✓ damaged relay
-✓ evacuation record
-○ witness at the mill
-○ radio transmission
-
-NEXT
-→ Search the mill
-
-THIS RUN
-Can advance: witness at the mill
+INVESTIGATION   ▸ Who ordered it, and why?
+LEADS   ✓ damaged relay   ✓ evacuation record   ○ witness at the mill
+NEXT    → Search the mill
+THIS RUN   Can advance: witness at the mill
 ```
-
-The player must be able to answer: **what do I know? what am I
-missing? what should I do next? can this expedition make progress?**
-This is the last unclosed piece of the run-6 discovery problem
-(`DEV_PLAYTEST.md`, `NAV_INVESTIGATION_RESULTS.md`).
 
 ### 1b. Finish spatial language
 
@@ -277,9 +269,9 @@ shipped:
 
 ## Bottom line
 
-**Immediate:** finish the investigation UI (1a) and spatial language
-(1b), resolve the legacy Tasks/Goals systems (1c), then run a human
-playtest of the full arc (1d).
+**Immediate:** ~~investigation UI (1a)~~ ✅ → spatial language (1b) →
+resolve the legacy Tasks/Goals systems (1c) → human playtest of the
+full arc (1d).
 
 **After the human playtest:** the Phase C/D world-generation layer
 (section 3) and the parked balance decisions (section 2) — reopened

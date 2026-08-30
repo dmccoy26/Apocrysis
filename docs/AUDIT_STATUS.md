@@ -126,60 +126,70 @@ Not generalised into a landmark *framework* — World-1's ten mechanisms
 each got a specific physical identity. Generalise only if the human
 playtest shows it works. `DESIGN_SPATIAL_LANGUAGE.md`.
 
-### 1c. Clean up the legacy zombie systems
+### 1c. Legacy Goals / Tasks systems — ✅ REMOVED (`fc8c19c`, 2026-08-30)
 
-Unchanged since the audit — no commits touched either.
+Full trace in `docs/OBJECTIVES_AUDIT.md`. The audit's premise ("6
+seeded goals / a 10 %/turn task roll") turned out to be **false** — it
+came from a stale `balance_autoplay.py` comment. Actual state:
 
-- **Dynamic Tasks** (`objectives_mixin._generate_dynamic_tasks`, fires
-  ~10 %/turn) render in the HUD and accumulate forever. `complete_task()`
-  has a full reward switch (xp / health / fatigue / food / water /
-  medicine) that is **only reachable via the interactive `ct [idx]`
-  command** — nothing auto-completes a task, so the reward path is dead
-  in normal play.
-- **Goals** — `commands.md` says the goal/task checklist was "removed
-  in v4". It wasn't: 6 fixed goals are still seeded every expedition
-  and auto-checked "for save-file compatibility", under a UI that no
-  longer surfaces them.
+- **Goals** were never auto-seeded (`self.goals = []`); the only
+  creator was the hidden `go` command. The ~8 `_check_and_complete_
+  goals(...)` calls all iterated an empty list.
+- **Tasks** were 100 % dead — `_generate_dynamic_tasks()` had **zero
+  callers**.
+- "Save-file compatibility" needed nothing: local dev saves, no format
+  version. Obsolete keys are now discarded at the load boundary.
 
-Make this an **architectural decision, not another investigation.**
-The question: **are Tasks and Goals part of version-5's actual player
-model?** If no, remove them. If yes, finish them properly (Tasks need
-auto-completion so the reward path fires). What version-5 must not
-ship is three overlapping objective systems —
+Removed `src/objectives.py`, `src/mixins/objectives_mixin.py`,
+`ObjectivesMixin`, `self.goals/tasks/last_action`, all the goal-check
+calls, the `go/goals/complete/ts/ct` commands, the classic "Active
+Tasks" HUD block, and the goals/tasks save + telemetry. `-160/+21`,
+355 tests, save/load + old-save compat verified.
+
+One objective architecture now:
 
 ```text
-Goals
-Tasks
-Investigation objectives
+WorldFact investigation → threads → leads → expedition objective
+                                              → objective_tick lifecycle
 ```
 
-— when the game has clearly converged on the investigation objective
-as the meaningful player-facing system. This is the oldest untouched
-debt in the repo.
+### 1d. Human playtest of the full arc — ← THE NEXT THING
 
-### 1d. Human playtest of the full arc
+1a / 1b / 1c are done. **1a–1c existed to make this gate passable; 1d
+is the gate.** The bots navigate symbols, not language, so they have
+reached their ceiling: `story_playthrough.py` completes the arc (23/23
+facts, 9/9 milestones, both endings) but only by retrying — 76 %
+expedition death rate, expedition 24 needs ~30 bot attempts. A human
+run is the only evidence for whether the experience actually works.
 
-Not implementation, but the missing **validation milestone**. The bots
-navigate symbols, not language, so they have reached their useful
-ceiling: `story_playthrough.py` completes the arc (23/23 world facts,
-9/9 milestones, both endings) but only by retrying — 76 % expedition
-death rate, expedition 24 needs ~30 bot attempts. A human run is the
-only evidence for whether the whole experience actually works.
+**Stop coding. Play the straight-through 25-expedition campaign** —
+not a bot, not a regression test, not a balance sim. **Do not fix
+anything while playing** (that turns the playtest into another dev
+session). Treat the result as an **observation log, not a bug list**.
 
-**Then stop coding.** Play the straight-through 25-expedition campaign
-— not a bot, not a regression test, not a balance sim. Record what
-surprises, confuses, or frustrates:
+Per expedition, capture:
 
-- "I don't know where I'm supposed to go."
-- "I know where I'm supposed to go but not how."
-- "I didn't realise that was important."
-- "I don't understand why this encounter is dangerous."
-- "I have no idea what I should do this turn."
-- "I keep doing this because the game isn't telling me anything better."
-- "This is tedious." / "This is great."
+```text
+Expedition N
+────────────
+What did I think I was supposed to accomplish?
+Where did I think I needed to go?
+What did I actually do?
+What information made me change direction?
+Did I understand the landmark?
+Did I understand the investigation lead?
+Did I understand why I fought / escaped?
+Did I know why I died?
+Was anything tedious?
+Was anything surprisingly fun?
+```
 
-Those observations are worth more right now than reopening any parked
-model.
+Watch for: "don't know where to go" · "know where but not how" ·
+"didn't realise that mattered" · "don't get why this encounter is
+dangerous" · "no idea what to do this turn" · "doing this because the
+game won't tell me anything better" · "tedious" · "great".
+
+**Then reopen only the problems the playthrough demonstrates.**
 
 ---
 
@@ -278,8 +288,8 @@ shipped:
 ## Bottom line
 
 **Immediate:** ~~investigation UI (1a)~~ ✅ → ~~spatial language (1b)~~
-✅ → resolve the legacy Tasks/Goals systems (1c) → human playtest of
-the full arc (1d).
+✅ → ~~legacy Tasks/Goals cleanup (1c)~~ ✅ → **human playtest of the
+full arc (1d) ← now. Stop coding.**
 
 **After the human playtest:** the Phase C/D world-generation layer
 (section 3) and the parked balance decisions (section 2) — reopened

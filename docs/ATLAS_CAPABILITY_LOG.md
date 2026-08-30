@@ -32,6 +32,16 @@ recurrence marker; cross-refs `2222271b`/`9ecc7f2b`/`dbc93715`).
 tooling is fine; the model ceiling is the constraint. **Cumulative:
 Atlas shipped 9 of ~70 files; the leaf-file-only boundary is stable.**
 
+**As built (`c2c36db`), all hand-written:** the `escape.py`
+`_carve_escape_pass` ceiling-form change (~25 lines inside a 940-line
+module) and the `scale_report.py` extension (`_walk_required` refactor,
+`meaningful_fraction`, `GATE8_VARIANTS`, `run_gate8`, `_gate8_verdict` —
+~130 lines of new procedural analysis code). Both squarely in the
+"cannot" column. The experiment then falsified its own hypothesis —
+which is the point; Atlas has no role in that either (it does not do
+research judgement). **Net: a full measure→falsify research cycle on an
+external repo, zero Atlas surface.**
+
 ## Operating protocol (this run)
 
 1. **Committed clean tree before every `atlas request`.** `git status`

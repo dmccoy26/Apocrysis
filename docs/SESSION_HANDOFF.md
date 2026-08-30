@@ -1,10 +1,12 @@
 # Session handoff — Apocrysis v5
 
-Last updated **2026-08-29** — A + B + C-foundation frozen. C.3 v2
-rejected-as-designed. **C.3.2 nav affordances: pieces 0 + 2 shipped &
-validated. C.3.2a-5 (scale) lever matrix DONE — awaiting owner review
-of which lever(s) to implement.** **Read this whole DIRECTION block
-first in a fresh session, then the doc map.**
+Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
+rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
+**C.3.2a-5: lever matrix → owner verdict → Gate 8 experiment RAN →
+hypothesis FALSIFIED (`c2c36db`). Ending LOCKED (Truth A, authored +
+one final choice).** Next owner gate: pick the post-Gate-8 hypothesis
+(`SCALE_REPORT.md § Gate 8`). **Read this whole DIRECTION block first,
+then the doc map.**
 
 ---
 
@@ -86,30 +88,44 @@ separation (NOT a target distance) + lever 1 demoted to a density
 floor guard only. **Lever 3 RETIRED** (falsified). Do NOT pick a gap
 number/form yet.
 
-**→ Gate 8 spec written: `PHASE_C3_2_5_GATE8_SPEC.md`.** It defines the
-hypothesis precisely, adds a stronger north-star metric
-(`meaningful_fraction` — how much of the required journey runs between
-story sites vs dead wilderness), specifies a 2-variant sweep, and
-states §5 acceptance + §6 falsification. **Nothing ships.**
+**→ Gate 8 spec written (`PHASE_C3_2_5_GATE8_SPEC.md`), experiment RAN,
+hypothesis FALSIFIED** (`c2c36db`, 250 seeds/depth, 10 mechanisms,
+depths 0–12). Full result: `SCALE_REPORT.md § Gate 8`.
 
-**NEXT owner gate:** review `PHASE_C3_2_5_GATE8_SPEC.md`. If OK →
-hand-write the harness extension (`tools/scale_report.py`:
-`meaningful_fraction` + combined-flag sweep) + the relational-bound
-change in `escape.py`, run the experiment, commit the matrix, then
-review §5. Only if §5 is met is an implementation spec written.
-Sequence: `matrix → verdict ✓ → Gate 8 spec ✓ → reviewed experiment →
-§5 review → implementation spec → implement → fresh-survivor validation`.
-Nothing about C.3.2a-5 touches combat / hunger / thirst / loot /
-survivor power / map growth.
+- **§5: no variant passes.** No swept gap bound (`√0.6/√0.8/√1.0`
+  relational or `cap 16/20/24`, ± the `+setts` density floor) gets
+  `ratio p90 < 1` at depths 6–12. Loosest that helps (`√0.6`, `cap16`)
+  still 1.31–1.34 at d12, and pays in density + backtrack.
+- **§6 falsification, path 1.** `spawn→require` column confirms the
+  wash-out: ceiling cuts `require→obstacle` 31→18, lever-4 staging
+  lengthens `spawn→require` to compensate (~29) — net zero on circuit.
+- **What landed:** distributed investigation cleanly clears the gate
+  **through depth 4** (partial win); and the ending decision.
+- **As built:** `escape.py` `_lever_bound_gap` now takes `("sqrt",k)` /
+  `("cap",C)` ceiling forms (legacy int-target path untouched);
+  `scale_report.py` has `meaningful_fraction` + `--gate8`.
 
-### >> The OTHER gate blocking the world-start arc — pick the ending
+**NEXT owner gate:** pick the next hypothesis from `SCALE_REPORT.md §
+Gate 8` "Where the evidence now points" — (1) a required-site count
+that **scales with `map_size`** (story structure grows with the world,
+not just rearranges), (2) formally bound "supported depth" to 0–N (data
+says N ≈ 5–6), or (3) a combination. Then a **new** controlled
+experiment — NOT a patched Gate 8. The valuable artifact here is the
+clean falsification. Nothing about C.3.2a-5 touches combat / hunger /
+thirst / loot / survivor power / map growth.
 
-`ROADMAP_STATUS.md`: CH3-FIN authoring (~15 WorldFacts) + the three
-endgame systems are blocked on **choosing the world truth**
-(`WORLD_TRUTH_CANDIDATES.md` A/B/C — still not chosen). This is a pure
-owner decision; it does not depend on C.3.2a-5. Picking it unblocks a
-large tranche of the remaining world-start-arc content work in
-parallel with the geography experiment.
+### >> The OTHER gate — pick the ending — ✅ DONE (2026-08-29)
+
+**Truth A "The Cordon"; authored-canonical ending + one final binary
+choice** (broadcast the truth outward past the cordon vs protect the
+settlement's silence). Locked in `PHASE_A_DECISIONS.md` /
+`WORLD_TRUTH_CANDIDATES.md` / `ROADMAP_STATUS.md`. CH3–FIN authoring
+(~15 WorldFacts + templates + prose + the RESPONSE thread + the three
+endgame systems) is now unblocked *design-wise* — but still gated on
+C.3.2a-5 landing (no point authoring content for expeditions 4–25 while
+they aren't winnable). Open A-only sub-decisions in
+`WORLD_TRUTH_CANDIDATES.md` (cause specifics; how reachable the "wider
+world" is for the broadcast branch).
 
 After C.3.2a-5 lands: unpark pieces 1 / 4 only if navigation still
 needs it, then the C.3.2b v2 replay (2×2), then the variety fix

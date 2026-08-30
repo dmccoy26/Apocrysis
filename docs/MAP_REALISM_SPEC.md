@@ -164,10 +164,22 @@ post-playtest design pass.**
   screen — landscape. Zero generation change, no coordinate touched,
   fully reversible. `test_ui.py`'s `_tile_char` helper updated for the
   ×2 column. 308+100 green.
-- **1b (true `w×h` grid) / 2 (terrain mass) / 3 (bridges + swim)** —
-  NOT started. Revisit as one design pass after the blind playtest,
-  flag-gated + feel-tested like C.3. Map generation stays frozen until
-  then.
+- **1b / 2 / 3 SHIPPED** (2026-08-30, `feat` `mapgen=landscape`),
+  flag-gated, default off, **v1 byte-identical** (golden fixture green).
+  - 1b: `map_w = round(map_size * MAP_ASPECT[1.6])`, `map_h = map_size`.
+    `game.map_w/map_h` (== `map_size` for v1/v2). generator.py /
+    world_mixin / reachable.py / MapGraph split the two axes.
+  - 2: `_boundary_band` (2-3 thick, thicker corners) + `_mountain_blobs`
+    (seed-and-grow) + `_river_with_bridges` (meandering edge-to-edge
+    river + 2 bridges).
+  - 3: `_try_swim_river` - a WARNING card with the derived odds
+    (55% +dex -fatigue -lowHP, waders +30) + cost, shown before you
+    commit; fail = swept back + HP/fatigue + chance to lose loose
+    medicine/ammo. Landscape-only; v1/v2 rivers stay walls.
+  - `bridge` terrain (`#`, passable). `--mapgen` gains `landscape`.
+    `test_landscape.py` (9). 40/40 landscape maps build a valid
+    reachable mystery. **NEEDS a feel-test at depth 4 + 10 before the
+    default flips** (the C.3 discipline).
 
 ---
 

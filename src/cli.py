@@ -50,7 +50,56 @@ def _resolve_player_identity():
     return name, hardcore, profile
 
 
-def main_tui(start_log=False):
+def _dev_main(start_log=False, dev=None):
+    """`--dev` classic path: fresh survivor at a synthetic narrative
+    point, sandboxed persistence. See src/dev.py / docs/DEV_PLAYTEST.md."""
+    from src.dev import synthetic_state, banner, reset_sandbox, DEV_PROFILE_PATH
+    reset_sandbox()
+    depth, wi_status = synthetic_state(dev)
+    print(banner(dev, depth))
+
+    _log_path = None
+    while True:
+        Apocrysis._world_investigation = dict(wi_status)
+        Apocrysis._survivor_knowledge = []
+        player = Apocrysis("Dev", level=1, seed=dev.seed, hardcore=False,
+                           expeditions_completed=depth, io=None)
+        from src.campaign import chapter_intro
+        _ms = len(player.world_investigation.milestones_known())
+        print(chapter_intro(player.expeditions_completed, _ms))
+        print(" ")
+        if start_log:
+            _p = player.start_playlog(path=_log_path)
+            if _p:
+                _log_path = _p
+                print(f"Play logging on -> {_p}")
+        player.run_game_loop()
+
+        if player.health <= 0:
+            # a death mid-inspection: hand to a fresh survivor at the
+            # same depth (the campaign lifecycle, sandboxed) and carry
+            # on, so the section is still playable through a death.
+            Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
+            Apocrysis.persist_new_survivor(
+                DEV_PROFILE_PATH, "Dev", False, player.expeditions_completed)
+            wi_status = dict(Apocrysis._world_investigation)
+            depth = player.expeditions_completed
+            print("\n(dev: survivor lost - a fresh one takes up the same point)\n")
+            continue
+        player.save_profile(DEV_PROFILE_PATH)   # sandbox only
+        from src.constants import CAMPAIGN_LENGTH
+        if player.expeditions_completed >= CAMPAIGN_LENGTH:
+            break   # finished the arc from this drop-in point
+        cont = input("\n(dev) continue to the next expedition? (y/n): ").strip().lower()
+        if cont not in ("y", "yes"):
+            break
+        from src.mixins.persistence_mixin import _profile_flat
+        _f = _profile_flat(Apocrysis.load_profile(DEV_PROFILE_PATH) or {})
+        wi_status = dict(_f.get("world_investigation", {}) or {})
+        depth = _f.get("expeditions_completed", depth)
+
+
+def main_tui(start_log=False, dev=None):
     # v3 SPRINT step 6: the TUI (src/tui.py's ApocrysisApp) owns its
     # own profile-loading/game construction in on_mount() - the only
     # thing that must happen HERE, in the plain terminal before
@@ -61,6 +110,17 @@ def main_tui(start_log=False):
     # happen inside the TUI without it needing its own terminal
     # prompt before Textual starts).
     from src.tui import ApocrysisApp
+
+    if dev is not None:
+        from src.dev import synthetic_state, banner, reset_sandbox
+        reset_sandbox()
+        depth, _ = synthetic_state(dev)
+        print(banner(dev, depth))
+        input("Press Enter to start the dev playtest... ")
+        app = ApocrysisApp(name="Dev", hardcore=False, start_log=start_log,
+                           dev=dev)
+        app.run()
+        return
 
     name, hardcore, _profile = _resolve_player_identity()
 
@@ -82,7 +142,9 @@ def _next_survivor_name(n):
     return base if wrap == 0 else f"{base} ({wrap + 1})"
 
 
-def main(start_log=False):
+def main(start_log=False, dev=None):
+    if dev is not None:
+        return _dev_main(start_log=start_log, dev=dev)
     # v3 SPRINT step 1: no class prompt (classes are level-based now -
     # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and
     # no re-entering your name/starting-over every launch. A profile

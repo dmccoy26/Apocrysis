@@ -29,10 +29,27 @@ if __name__ == "__main__":
     parser.add_argument("--mapgen", choices=("v1", "v2"), default="v1",
                         help="Map generator: v1 (default, rectangular) or v2 "
                              "(Phase C.3 experiment - irregular valley)")
+    parser.add_argument("--dev", action="store_true",
+                        help="Story-inspection harness: drop into a chosen "
+                             "chapter with synthetic (sandboxed) campaign "
+                             "state. See docs/DEV_PLAYTEST.md.")
+    parser.add_argument("--seed", type=int, default=12345,
+                        help="(--dev) deterministic seed")
+    parser.add_argument("--chapter", type=int, choices=range(1, 7),
+                        help="(--dev) drop in at the start of this chapter (1-6)")
+    parser.add_argument("--finale", action="store_true",
+                        help="(--dev) drop into the finale (expedition 25)")
     args = parser.parse_args()
 
     from src.game import Apocrysis
     Apocrysis._default_mapgen = args.mapgen
+
+    dev_cfg = None
+    if args.dev:
+        from src.dev import DevConfig
+        dev_cfg = DevConfig(seed=args.seed,
+                            chapter=args.chapter or (None if args.finale else 3),
+                            finale=args.finale)
 
     # Logging is on by default for interactive play (feel-tests /
     # playtests need the transcript); --no-log opts out.
@@ -41,6 +58,6 @@ if __name__ == "__main__":
     if args.test:
         run_tests()
     elif args.classic:
-        main(start_log=start_log)
+        main(start_log=start_log, dev=dev_cfg)
     else:
-        main_tui(start_log=start_log)
+        main_tui(start_log=start_log, dev=dev_cfg)

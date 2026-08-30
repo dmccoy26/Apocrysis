@@ -616,13 +616,18 @@ class ApocrysisApp(App):
         Binding("right", "move_direction('e')", "Move east", priority=True),
     ]
 
-    def __init__(self, name=None, level=1, seed=None, hardcore=False, start_log=False):
+    def __init__(self, name=None, level=1, seed=None, hardcore=False,
+                 start_log=False, dev=None):
         super().__init__()
         self._name = name
         self._level = level
         self._seed = seed
         self._hardcore = hardcore
         self._start_log = start_log
+        # --dev: story-inspection harness (src/dev.py). Sandboxed.
+        self._dev = dev
+        if dev is not None:
+            self._seed = dev.seed
         # One transcript file for the whole session - each expedition
         # after the first appends to it (see _game_thread's post-win
         # loop) rather than opening a new timestamped file.
@@ -704,6 +709,26 @@ class ApocrysisApp(App):
         # Instead this just records whether a profile was loaded
         # (self._last_load_was_profile) and leaves emitting the
         # greeting to each caller, which knows its own thread.
+        if self._dev is not None:
+            # --dev: synthetic coherent state at a chosen chapter, then
+            # the normal game. Sandboxed - never reads a real profile.
+            from src.dev import synthetic_state, DEV_PROFILE_PATH
+            from src.mixins.persistence_mixin import _profile_flat
+            _saved = Apocrysis.load_profile(DEV_PROFILE_PATH)  # only after a dev death
+            if _saved is not None:
+                _f = _profile_flat(_saved)
+                Apocrysis._world_investigation = dict(_f.get("world_investigation", {}) or {})
+                depth = _f.get("expeditions_completed", 0)
+            else:
+                depth, _wi = synthetic_state(self._dev)
+                Apocrysis._world_investigation = dict(_wi)
+            Apocrysis._survivor_knowledge = list(
+                getattr(Apocrysis, "_survivor_knowledge", []) or [])
+            self._last_load_was_profile = False
+            return Apocrysis("Dev", level=1, seed=self._dev.seed,
+                             hardcore=False, expeditions_completed=depth,
+                             io=self.io)
+
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
         self._last_load_was_profile = profile is not None
         if profile is not None:
@@ -736,6 +761,15 @@ class ApocrysisApp(App):
 
     def _save_or_delete_profile(self):
         p = self.player
+        if self._dev is not None:
+            from src.dev import DEV_PROFILE_PATH
+            if p.health <= 0:
+                Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
+                Apocrysis.persist_new_survivor(DEV_PROFILE_PATH, "Dev", False,
+                                               p.expeditions_completed)
+            else:
+                p.save_profile(DEV_PROFILE_PATH)
+            return
         campaign_file = profile_filename_for_name(self._name or p.name)
         if p.health <= 0:
             if p.hardcore:

@@ -27,7 +27,7 @@ chapter-intro lines; the WorldFact DAG covers **CH1 + CH2 only**
 
 | bucket | state | size | note |
 |---|---|---|---|
-| **Pick the ending** | not decided | 1 design pass | **Gate.** `WORLD_TRUTH_CANDIDATES.md` A/B/C. Roadmap: "the DAG can't be authored until the ending is chosen." Leaning: truth at a command centre + a settlement as the final act. |
+| ~~Pick the ending~~ | ✅ **DECIDED 2026-08-29** | — | Truth A "The Cordon"; **authored-canonical ending + one final binary choice** (broadcast the truth outward vs protect the settlement's silence). `PHASE_A_DECISIONS.md` / `WORLD_TRUTH_CANDIDATES.md`. Gate cleared — CH3–FIN authoring unblocked once C.3.2a-5 lands. |
 | **Scale viability — C.3.2a-5** | investigation ~25 % (`SCALE_REPORT.md`, `PHASE_C3_2_5_SPEC.md`, lever matrix next) | medium | **Gate.** From depth 3–6 the required circuit outgrows the survival budget — 52 % of depth-6 maps, 74 % at depth 12. A 25-expedition arc is currently unwinnable for a fresh survivor past ~expedition 3. |
 | **Story content CH3–5 + finale** | 0 % | **largest single chunk** | ~15 more `WorldFact`s + `DiscoveryTemplate`s + evidence text + milestones + **THE RESPONSE thread** (only its title string exists today) |
 | **Competing hypotheses + wrong-commitment arc** (Phase E.2) | 0 % | medium-large | engine change: `knowledge.py` `self.hypothesis` → a competing set + a correction beat |
@@ -43,10 +43,11 @@ chapter-intro lines; the WorldFact DAG covers **CH1 + CH2 only**
 Roughly 55–70 % of the total build remains**, and it is front-loaded
 with two gates:
 
-1. **Decide the ending** — design decision, not a build task, but
-   nothing downstream authors efficiently without it.
+1. ~~**Decide the ending**~~ — ✅ done 2026-08-29 (authored-canonical A +
+   one final binary choice).
 2. **Land C.3.2a-5** — without it there is no point authoring content
-   for expeditions 4–25 because they aren't winnable.
+   for expeditions 4–25 because they aren't winnable. Gate 8 experiment
+   (`PHASE_C3_2_5_GATE8_SPEC.md`) is the current step.
 
 After the gates, the bulk is **authoring** (CH3–FIN ≈ 15 facts + all
 their evidence / templates / prose) plus **three endgame systems**

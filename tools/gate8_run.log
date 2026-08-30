@@ -1,0 +1,46 @@
+budget: gross 50 moves, usable (investigative) 32  [docs/PHASE_C3_2_5_SPEC.md]
+
+                   variant   d12 ratio  mean_p50  r->o p90  btrk p90  dst/1k  infeas
+                  baseline        1.53      0.54        31      0.05    0.29    0.0%
+       distributed@sqrt0.6        1.34      0.68        18      0.10    0.17    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+                              - FAIL backtrack: p90 > 1.5x baseline at [9, 12]
+       distributed@sqrt0.8        1.50      0.62        23      0.06    0.20    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+                              - FAIL backtrack: p90 > 1.5x baseline at [1, 9]
+       distributed@sqrt1.0        1.75      0.58        27      0.03    0.34    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 2,3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+         distributed@cap16        1.31      0.74        17      0.09    0.15    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 2,3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+                              - FAIL backtrack: p90 > 1.5x baseline at [6, 9, 12]
+         distributed@cap20        1.44      0.64        20      0.07    0.19    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 1,2,3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+                              - FAIL backtrack: p90 > 1.5x baseline at [9]
+         distributed@cap24        1.50      0.60        23      0.04    0.24    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 1,2,3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+ distributed+setts@sqrt0.8        1.47      0.64        23      0.07    0.22    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+                              - FAIL backtrack: p90 > 1.5x baseline at [1, 9]
+ distributed+setts@sqrt1.0        1.72      0.61        27      0.04    0.44    0.0%
+                              - FAIL gate: ratio p90 >= 1 at depths 3,4,6,9,12
+                              - FAIL meaningful: p50 at [9, 12] below base-d0 0.94 - 0.15
+                              - FAIL density: dens/dst_1k below baseline at [9, 12]
+
+=== GATE 8 §5 verdict ===
+PASSING variant(s): NONE
+-> hypothesis FALSIFIED for these bounds (GATE8_SPEC §6). No swept bound satisfies §5 simultaneously.
+
+wrote /Users/danielmc/Ai_Implementation/Atlas/projects/apocrysis/version-5/tools/gate8_matrix.json

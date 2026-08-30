@@ -11,7 +11,7 @@ Phase A. Decided by the project owner this session.
 | **chapter count / maps-per-chapter** | 5 chapters + finale, ~25 expeditions (roadmap §4). Phase A authors **CH1 + CH2 only** (~10 facts, ~3 milestones). |
 | **what carries on death** (STORY_ENGINE §1D) | Direction confirmed (three persistence tiers: Knowledge always / Narrative selected / Mechanical never), but this is a **Phase B** lock — not authored yet. |
 | **region stability window** | Draft stands: region stable for a whole campaign, regenerates only on a new campaign. Phase B concern. |
-| **ending shape** (§2.6) | Leaning locked for structure: truth at the command centre **+** a settlement that held as the final act. Content is Phase E. |
+| **ending shape** (§2.6) | **LOCKED (2026-08-29).** Truth at the command centre **+** a settlement that held as the final act **+ one authored ending with a single final binary choice** (Candidate A: *broadcast the truth outward past the cordon* vs *protect the settlement's silence*). Not multiple investigation-gated endings. One canonical narrative path; the choice lands at the very end and both branches are authored. Content is Phase E. |
 
 ## Storage / database — decided: NOT now (2026-08-29)
 
@@ -35,7 +35,8 @@ Phase A. Decided by the project owner this session.
 
 ## Not yet decided (still open, don't need them for Phase A)
 
-- ending: authored-canonical vs player-choice
+- ~~ending: authored-canonical vs player-choice~~ **DECIDED 2026-08-29:
+  authored-canonical + one final binary choice (see the table row).**
 - wrong-hypothesis commitment cost (whole expedition vs a correction beat) — Phase E
 - can the player broadcast outward past the cordon — Phase E
 - Survivor Knowledge effect count / strength cap — Phase B

@@ -299,5 +299,114 @@ which, if any, lever deserves an implementation spec.
 
 ---
 
+# Gate 8 — distributed investigation (the combination experiment)
+
+`tools/scale_report.py --gate8`, **250 seeds/depth**, all 10 mechanisms
+rotated. Raw: `tools/gate8_matrix.json`. Spec + acceptance:
+`docs/PHASE_C3_2_5_GATE8_SPEC.md`. **Measurement-only — baseline
+byte-identical (C.1 golden fixture passes); nothing shipped.**
+
+The hypothesis (owner verdict on the lever matrix): **lever 4
+(distributed investigation) + lever 2's mechanism as a *ceiling* on
+pathological separation** — the escape gap kept within a bound that
+grows with the map's *linear* dimension (`k·√playable`), not its area —
+**+ lever 1 as a density-floor guard** (`+setts` rows). Lever 3
+retired. The gap bound swept in both forms; **no value picked in
+advance**.
+
+Each cell: `ratio p90` (circuit p90 / 32 — the gate, < 1) · `mean p50`
+(`meaningful_fraction` — share of the required journey spent within 3
+tiles of a story site / settlement, vs dead wilderness) · `r→o`
+(`require→obstacle` p90) · **`s→req`** (`spawn→require` p90 — the leg
+lever 4 shifts the walking *onto*) · `dst/1k` · `btrk` (backtrack p90).
+
+| variant | d0 | d3 | d4 | d6 | d9 | d12 |
+|---|---|---|---|---|---|---|
+| **baseline** | 0.69·0.94·12·9·5.0·.07 | 1.09·0.67·21·17·0.91·.04 | 1.06·0.66·24·17·0.88·.03 | 1.31·0.55·30·23·0.50·.03 | 1.34·0.55·30·26·0.34·.03 | **1.53·0.54·31·30·0.29·.05** |
+| **distributed@√0.6** | 0.59·1.00·8·11·4.6·.10 | 0.91·0.78·12·17·0.78·.06 | 0.97·0.74·14·18·0.58·.04 | 1.22·0.68·17·25·0.29·.04 | 1.31·0.69·18·27·0.21·.06 | **1.34·0.68·18·29·0.17·.10** |
+| distributed@√0.8 | 0.66·1.00·10·11·4.8·.07 | 1.09·0.72·16·20·0.93·.04 | 1.16·0.68·18·21·0.96·.03 | 1.41·0.63·21·28·0.46·.03 | 1.53·0.60·23·29·0.33·.06 | 1.50·0.62·23·30·0.20·.06 |
+| distributed@√1.0 | 0.75·0.91·13·11·5.5·.05 | 1.25·0.65·21·21·1.21·.03 | 1.28·0.64·22·24·1.16·.03 | 1.59·0.59·27·31·0.64·.02 | 1.56·0.56·27·31·0.49·.03 | 1.75·0.58·27·32·0.34·.03 |
+| **distributed@cap16** | 0.84·0.81·16·11·5.7·.04 | 1.03·0.73·15·18·0.95·.05 | 1.00·0.72·15·18·0.68·.04 | 1.12·0.73·16·24·0.33·.05 | 1.25·0.71·16·27·0.21·.09 | **1.31·0.74·17·29·0.15·.09** |
+| distributed@cap20 | 0.91·0.80·17·12·5.8·.04 | 1.16·0.67·18·21·1.17·.03 | 1.16·0.68·18·21·0.96·.03 | 1.25·0.65·19·25·0.40·.04 | 1.34·0.64·20·28·0.25·.07 | 1.44·0.64·20·30·0.19·.07 |
+| distributed@cap24 | 0.91·0.80·17·12·5.8·.04 | 1.31·0.62·23·21·1.32·.03 | 1.25·0.65·21·23·1.14·.03 | 1.38·0.59·22·26·0.50·.03 | 1.56·0.59·22·28·0.31·.04 | 1.50·0.60·23·31·0.24·.04 |
+| distributed+setts@√0.8 | 0.66·1.00·10·11·4.8·.07 | 1.00·0.79·15·20·1.50·.03 | 1.12·0.69·17·21·1.20·.03 | 1.34·0.69·21·28·0.71·.03 | 1.47·0.61·23·29·0.39·.06 | 1.47·0.64·23·29·0.22·.07 |
+| distributed+setts@√1.0 | 0.75·0.91·13·11·5.5·.05 | 1.12·0.73·18·21·2.04·.03 | 1.28·0.67·21·24·1.41·.03 | 1.44·0.68·19·31·0.92·.02 | 1.56·0.58·23·31·0.62·.03 | 1.72·0.61·27·32·0.44·.04 |
+
+## Verdict — §5 acceptance: **NONE PASS. Hypothesis FALSIFIED (§6, path 1).**
+
+`tools/scale_report.py --gate8` scores every variant against
+`GATE8_SPEC.md` §5 mechanically. **Passing variant(s): NONE.** No swept
+bound — relational or flat, with or without the density floor — gets
+`ratio p90 < 1` at the supported depths (0–12, *not* redefined after
+the fact).
+
+### The wash-out is confirmed, and it is the whole story
+
+Read `r→o` against `s→req`:
+
+- baseline d12: `require→obstacle` 31, `spawn→require` 30.
+- `distributed@√0.6` d12: `require→obstacle` drops to **18** — the gap
+  ceiling is doing exactly what it should — but `spawn→require` stays
+  at **29**, and `ratio p90` only falls 1.53 → 1.34, *still far over 1*.
+- `distributed@√1.0` d6: `spawn→require` **rises** to 31 (baseline 23).
+
+Lever 4's `_staging` places `require` toward the route→exit midpoint.
+That midpoint is *farther from spawn*. So the combination moves the
+walking off `require→obstacle` and onto `spawn→require` — **net zero on
+the circuit**, precisely the lever-matrix finding, now reproduced with
+the ceiling added. The ceiling shortens one leg; the greedy circuit
+lengthens another.
+
+### `meaningful_fraction` rose — but by shrinking the footprint, not filling the world
+
+The distributed variants *do* lift `mean p50` at deep depths (d12:
+0.54 → 0.68 at √0.6, 0.74 at cap16) — but never to the §5 bar (0.79 =
+d0 − 0.15), and they do it while `dst/1k` **falls below baseline**
+(0.29 → 0.15–0.20). That is the "nicer shirt": a larger *fraction* of a
+*smaller* required journey sits near content, while the rest of the
+34² world gets emptier. The `+setts` density floor holds `dst/1k` at or
+above baseline for the √1.0 cases (d12 0.44) but √1.0 is the worst gate
+result (1.72) — density and gate move in opposite directions.
+
+### What did move: the front of the campaign
+
+`√0.6` and `cap16` clear the gate cleanly through **depth 4**
+(0.91–1.03) and are borderline at depth 6 (1.12–1.22). Distributed
+investigation makes expeditions ~0–5 more viable. It does **nothing
+structural for 6–12** — every variant is ≥ 1.25 by depth 9.
+
+### Falsified
+
+> **Distributing the existing required nodes across geography — even
+> with a relational ceiling on the escape gap and a settlement density
+> floor — does not keep the required circuit within the survival budget
+> as the world scales.** The node *count* and node *spacing* are not
+> the free variables that fix depths 6–12. Rearranging a fixed amount
+> of story structure inside a 5×-larger world reaches its limit around
+> depth 4–6.
+
+### Where the evidence now points (next hypothesis — not built)
+
+The amount of **story-bearing geography itself must scale with world
+size**, not just its arrangement. Candidate next experiments, in the
+same discipline (measure → falsify → controlled experiment → implement
+only on evidence):
+
+1. **A mid-journey *required* beat whose count scales with `map_size`**
+   — e.g. one additional required site per ~N tiles of linear growth,
+   so the required circuit gains genuine intermediate structure instead
+   of one longer wilderness leg. This is the "world does more work"
+   reading of lever 4, done properly.
+2. **Formally bound "supported depth" to 0–N** (the data suggests N ≈
+   5–6) and make expeditions past N explicitly inherited-supply-balanced
+   *by design* — a campaign-structure decision, made *after* seeing this
+   result, not a redefinition to rescue a failing experiment.
+3. Some combination: scale story structure through ~depth 6, accept
+   inheritance-balanced past it.
+
+---
+
 *Investigation only. No generator change shipped; all lever flags
-default off; baseline byte-identical.*
+default off; baseline byte-identical. Gate 8 is a clean negative
+result — the valuable artifact is the falsification, not a patched
+experiment.*

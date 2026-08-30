@@ -575,20 +575,35 @@ def _carve_escape_pass(game, reachable):
     reachable_gaps = [g for g in all_gaps if (g[2], g[3]) in reachable]
     _bound = getattr(game, "_lever_bound_gap", None)   # C.3.2a-5 lever 2
     if reachable_gaps and _bound is not None:
-        # measurement-only (docs/PHASE_C3_2_5_LEVER_MATRIX.md): keep the
-        # gap within a bounded traversable distance of the required-
-        # investigation endpoint (the nearest-buildings centroid),
-        # independent of map size. The bound is a sweep parameter.
+        # measurement-only. The gap is kept within a bounded distance of
+        # the required-investigation centroid (nearest-3 buildings).
         _bs = _building_sites(game, reachable)[:3]
         if _bs:
             ax = sum(p[0] for p in _bs) / len(_bs)
             ay = sum(p[1] for p in _bs) / len(_bs)
         else:
             ax, ay = sx, sy
-        bx, by, ix, iy = min(
-            reachable_gaps,
-            key=lambda g: abs((abs(g[2] - ax) + abs(g[3] - ay)) - _bound),
-        )
+        _cd = lambda g: abs(g[2] - ax) + abs(g[3] - ay)
+        if isinstance(_bound, (tuple, list)):
+            # Gate 8 (docs/PHASE_C3_2_5_GATE8_SPEC.md): the bound is a
+            # CEILING, not a target distance. ("sqrt", k) -> ceiling
+            # k*sqrt(playable tiles), so the leg may grow with the map's
+            # linear dimension but not its area; ("cap", C) -> a flat
+            # ceiling (comparison baseline). Take the FARTHEST gap still
+            # under the ceiling (keep the journey), else the closest to it.
+            _kind, _val = _bound[0], _bound[1]
+            _ceil = _val * (len(reachable) ** 0.5) if _kind == "sqrt" else float(_val)
+            _within = [g for g in reachable_gaps if _cd(g) <= _ceil]
+            if _within:
+                bx, by, ix, iy = max(_within, key=_cd)
+            else:
+                bx, by, ix, iy = min(reachable_gaps,
+                                     key=lambda g: abs(_cd(g) - _ceil))
+        else:
+            # legacy int TARGET form (the C.3.2a-5 lever matrix variants,
+            # docs/PHASE_C3_2_5_LEVER_MATRIX.md) - unchanged.
+            bx, by, ix, iy = min(reachable_gaps,
+                                 key=lambda g: abs(_cd(g) - _bound))
     elif reachable_gaps:
         # A gap at a MODERATE remove from spawn - a journey, not a
         # half-map hike on a 34^2 (pacing invariant 3d). Sort by

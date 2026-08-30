@@ -122,20 +122,16 @@ def _seg(grid, n, a, b):
     return shortest_path(grid, n, tuple(a), tuple(b))
 
 
-def required_circuit(game):
-    """Total traversable tiles a survivor must walk to solve THIS
-    mystery, and the backtrack proportion of that walk.
-
-    circuit = spawn -> {route, require, [require2], [power]} nearest-first
-            -> obstacle_tile -> escape_tile
+def _walk_required(game):
+    """The ordered tile list a survivor must walk to solve THIS mystery:
+    spawn -> {route, require, [require2], [power]} nearest-first
+          -> obstacle_tile -> escape_tile.
     (`closed` and the town centre are context, not requirements.)
-
-    Returns (tiles, backtrack_frac, reachable_ok) or (None, None, False)
-    when a required node is unreachable / there is no mystery.
-    """
+    Returns the tile list, or None when a required node is unreachable /
+    there is no mystery."""
     m = getattr(game, "mystery", None)
     if m is None:
-        return None, None, False
+        return None
     grid = _terrain_grid(game)
     n = game.map_size
     spawn = tuple(game.current_position)
@@ -155,8 +151,6 @@ def required_circuit(game):
     if esc:
         tail.append(tuple(esc))
 
-    # greedy nearest-first over the required investigation sites, then
-    # the fixed obstacle -> escape tail.
     all_tiles = []
     cur = spawn
     remaining = list(targets)
@@ -167,21 +161,61 @@ def required_circuit(game):
             if p is not None and (best is None or len(p) < len(best[0])):
                 best = (p, t)
         if best is None:
-            return None, None, False
+            return None
         all_tiles += best[0][1:] if all_tiles else best[0]
         cur = best[1]
         remaining.remove(best[1])
     for t in tail:
         p = _seg(grid, n, cur, t)
         if p is None:
-            return None, None, False
+            return None
         all_tiles += p[1:] if all_tiles else p
         cur = t
+    return all_tiles
 
+
+def required_circuit(game):
+    """Total traversable tiles a survivor must walk, and the backtrack
+    proportion. Returns (tiles, backtrack_frac, reachable_ok) or
+    (None, None, False)."""
+    all_tiles = _walk_required(game)
+    if not all_tiles:
+        return None, None, False
     total = max(0, len(all_tiles) - 1)
     unique = len(set(all_tiles))
     backtrack = round(1 - unique / len(all_tiles), 3) if all_tiles else 0.0
     return total, backtrack, True
+
+
+def meaningful_fraction(game):
+    """Gate 8 north-star (docs/PHASE_C3_2_5_GATE8_SPEC.md): of the tiles
+    on the required journey, what fraction are spent NEAR a meaningful
+    story-bearing location (a mystery role site, the obstacle, the
+    escape, or a settlement) versus traversing content-free wilderness.
+
+    A long `require -> obstacle` wilderness leg drags this DOWN; a dense
+    investigation cluster or a mid-leg staging settlement pushes it UP.
+    Returns a float in [0, 1] or None."""
+    tiles = _walk_required(game)
+    if not tiles:
+        return None
+    m = game.mystery
+    n = game.map_size
+    anchors = {tuple(xy) for xy in m.sites.values()}
+    for role in ("obstacle_tile", "escape_tile"):
+        xy = getattr(m, role, None)
+        if xy:
+            anchors.add(tuple(xy))
+    for y in range(n):
+        for x in range(n):
+            c = game.map[y][x]
+            if isinstance(c, dict) and c.get("terrain") == "town":
+                anchors.add((x, y))
+    R = 3
+    good = sum(1 for t in tiles
+               if any(max(abs(t[0] - a[0]), abs(t[1] - a[1])) <= R
+                      for a in anchors))
+    return round(good / len(tiles), 3)
 
 
 # --- decomposition diagnostics (C.3.2a-5, pre-A/B) -------------------
@@ -330,6 +364,7 @@ def measure(game):
         "over_budget": (circ is not None and circ > USABLE_BUDGET),
         "infeasible": (m is None) or not ok,
         "req_to_obstacle": rto,
+        "meaningful": meaningful_fraction(game),   # Gate 8 north-star
         "legs": circuit_legs(game),
         "ep": endpoint_dists(game),
     }
@@ -340,14 +375,18 @@ def _cell(rows):
     circ = [r["circuit"] for r in rows]
     bt = [r["backtrack"] for r in rows]
     rto = [r["req_to_obstacle"] for r in rows]
+    sreq = [r["ep"].get("require") for r in rows]
     return {
         "n": len(rows),
         "dens": round(statistics.mean(r["dens"] for r in rows), 2),
         "dst_1k": round(statistics.mean(r["dest_density"] for r in rows), 3),
+        "meaningful_p50": round(_p([r["meaningful"] for r in rows], .5), 3),
         "circ_p50": round(_p(circ, .5), 1),
         "circ_p90": round(_p(circ, .9), 1),
         "req_obst_p50": round(_p(rto, .5), 1),
         "req_obst_p90": round(_p(rto, .9), 1),
+        "spawn_req_p50": round(_p(sreq, .5), 1),
+        "spawn_req_p90": round(_p(sreq, .9), 1),
         "ratio_p90": round(_p([r["ratio"] for r in rows], .9), 3),
         "pct_over_budget": round(
             100 * sum(1 for r in rows if r["over_budget"]) / len(rows), 1),
@@ -388,6 +427,121 @@ def run_lever_matrix(games, depths):
     return out
 
 
+# --- Gate 8: the "distributed investigation" experiment ---------------
+#   docs/PHASE_C3_2_5_GATE8_SPEC.md. Two variants (baseline + distributed
+#   = lever 4 spread + lever 2's relational gap ceiling), the gap bound
+#   swept in both forms. `+setts` layers the lever-1 density floor.
+GATE8_VARIANTS = {
+    "baseline": {},
+    "distributed@sqrt0.6": {"_lever_spread_sites": True,
+                            "_lever_bound_gap": ("sqrt", 0.6)},
+    "distributed@sqrt0.8": {"_lever_spread_sites": True,
+                            "_lever_bound_gap": ("sqrt", 0.8)},
+    "distributed@sqrt1.0": {"_lever_spread_sites": True,
+                            "_lever_bound_gap": ("sqrt", 1.0)},
+    "distributed@cap16": {"_lever_spread_sites": True,
+                          "_lever_bound_gap": ("cap", 16)},
+    "distributed@cap20": {"_lever_spread_sites": True,
+                          "_lever_bound_gap": ("cap", 20)},
+    "distributed@cap24": {"_lever_spread_sites": True,
+                          "_lever_bound_gap": ("cap", 24)},
+    "distributed+setts@sqrt0.8": {"_lever_spread_sites": True,
+                                  "_lever_bound_gap": ("sqrt", 0.8),
+                                  "_lever_settlements_by_area": True},
+    "distributed+setts@sqrt1.0": {"_lever_spread_sites": True,
+                                  "_lever_bound_gap": ("sqrt", 1.0),
+                                  "_lever_settlements_by_area": True},
+}
+
+_SUPPORTED_DEPTHS = 12   # the gate applies to depths 0..12 (spec §5.1)
+
+
+def _gate8_verdict(cells, base):
+    """Score one variant's per-depth cells against GATE8_SPEC §5.
+    `cells` / `base` are {depth_str: metric_dict}. Returns (pass_bool,
+    list_of_reason_strings)."""
+    reasons = []
+    depths = sorted((int(d) for d in cells), key=int)
+    supported = [d for d in depths if d <= _SUPPORTED_DEPTHS]
+    deep = [d for d in supported if d >= 9]
+
+    # 1. gate: ratio p90 < 1 at every supported depth
+    bad = [d for d in supported if cells[str(d)]["ratio_p90"] >= 1.0]
+    if bad:
+        reasons.append("FAIL gate: ratio p90 >= 1 at depths "
+                       + ",".join(map(str, bad)))
+    # 2. meaningful geography: deep meaningful_p50 within 0.15 of base d0
+    m0 = base["0"]["meaningful_p50"]
+    mbad = [d for d in deep
+            if cells[str(d)]["meaningful_p50"] < m0 - 0.15]
+    if mbad:
+        reasons.append(f"FAIL meaningful: p50 at {mbad} below base-d0 "
+                       f"{m0:.2f} - 0.15")
+    # 3. density held: dens AND dst_1k >= same-depth baseline at deep
+    dbad = [d for d in deep
+            if cells[str(d)]["dens"] < base[str(d)]["dens"] - 1e-9
+            or cells[str(d)]["dst_1k"] < base[str(d)]["dst_1k"] - 1e-9]
+    if dbad:
+        reasons.append(f"FAIL density: dens/dst_1k below baseline at {dbad}")
+    # 4. backtrack held: p90 <= 1.5x same-depth baseline
+    bbad = [d for d in supported
+            if cells[str(d)]["backtrack_p90"]
+            > 1.5 * max(base[str(d)]["backtrack_p90"], 0.02) + 1e-9]
+    if bbad:
+        reasons.append(f"FAIL backtrack: p90 > 1.5x baseline at {bbad}")
+    # 5. infeasible = 0
+    ibad = [d for d in supported if cells[str(d)]["infeasible_pct"] > 0]
+    if ibad:
+        reasons.append(f"FAIL infeasible: > 0% at {ibad}")
+
+    return (not reasons), (reasons or ["PASS all of GATE8_SPEC §5"])
+
+
+def run_gate8(games, depths):
+    import json
+    out = {"budget_usable": USABLE_BUDGET, "games_per_cell": games,
+           "supported_depths": _SUPPORTED_DEPTHS, "variants": {},
+           "verdict": {}}
+    for vname, levers in GATE8_VARIANTS.items():
+        out["variants"][vname] = {}
+        for d in depths:
+            rows = [measure(_forced_game(
+                        i, d, MECH_ROTATION[i % len(MECH_ROTATION)], levers))
+                    for i in range(games)]
+            out["variants"][vname][str(d)] = _cell(rows)
+    base = out["variants"]["baseline"]
+    d_ref = str(max(depths))
+
+    print(f"{'variant':>26}  {'d'+d_ref+' ratio':>10} {'mean_p50':>9} "
+          f"{'r->o p90':>9} {'s->req p90':>10} {'btrk p90':>9} "
+          f"{'dst/1k':>7} {'infeas':>7}")
+    for vname in GATE8_VARIANTS:
+        c = out["variants"][vname][d_ref]
+        print(f"{vname:>26}  {c['ratio_p90']:>10.2f} "
+              f"{c['meaningful_p50']:>9.2f} {c['req_obst_p90']:>9.0f} "
+              f"{c['spawn_req_p90']:>10.0f} "
+              f"{c['backtrack_p90']:>9.2f} {c['dst_1k']:>7.2f} "
+              f"{c['infeasible_pct']:>6.1f}%")
+        if vname != "baseline":
+            ok, reasons = _gate8_verdict(out["variants"][vname], base)
+            out["verdict"][vname] = {"pass": ok, "reasons": reasons}
+            for r in reasons:
+                print(f"{'':>28}  - {r}")
+
+    passing = [v for v, r in out["verdict"].items() if r["pass"]]
+    print("\n=== GATE 8 §5 verdict ===")
+    print("PASSING variant(s): " + (", ".join(passing) if passing else "NONE"))
+    if not passing:
+        print("-> hypothesis FALSIFIED for these bounds (GATE8_SPEC §6). "
+              "No swept bound satisfies §5 simultaneously.")
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "gate8_matrix.json"), "w") as f:
+        json.dump(out, f, indent=2)
+    print(f"\nwrote {os.path.join(here, 'gate8_matrix.json')}")
+    return out
+
+
 def _p(v, q):
     v = sorted(x for x in v if x is not None)
     return v[min(len(v) - 1, int(len(v) * q))] if v else float("nan")
@@ -400,12 +554,19 @@ def main():
     ap.add_argument("--levers", action="store_true",
                     help="run the C.3.2a-5 lever A/B matrix instead of the "
                          "single-variant scale report")
+    ap.add_argument("--gate8", action="store_true",
+                    help="run the Gate 8 distributed-investigation experiment "
+                         "(docs/PHASE_C3_2_5_GATE8_SPEC.md)")
     args = ap.parse_args()
     depths = [int(x) for x in args.depths.split(",")]
 
     print(f"budget: gross {GROSS_BUDGET} moves, usable (investigative) "
           f"{USABLE_BUDGET}  [docs/PHASE_C3_2_5_SPEC.md]")
     print()
+
+    if args.gate8:
+        run_gate8(args.games, depths)
+        return
 
     if args.levers:
         run_lever_matrix(args.games, depths)

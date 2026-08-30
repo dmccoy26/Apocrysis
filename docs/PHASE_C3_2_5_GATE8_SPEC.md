@@ -259,6 +259,39 @@ harness or edit the 900-line generator module") is filed in
 
 ---
 
+---
+
+## STATUS — experiment RAN, hypothesis FALSIFIED (2026-08-30)
+
+`tools/scale_report.py --gate8`, 250 seeds/depth, 10 mechanisms, depths
+0–12. Raw: `tools/gate8_matrix.json`. Full table + interpretation:
+`SCALE_REPORT.md § Gate 8`.
+
+**§5 verdict: no variant passes.** No swept gap bound — `√0.6 / √0.8 /
+√1.0` relational or `cap 16 / 20 / 24`, with or without the `+setts`
+density floor — gets `ratio p90 < 1` at depths 6–12. The loosest that
+helps (`√0.6`, `cap16`) still sits at 1.31–1.34 at depth 12 and pays in
+density (`dst/1k` 0.29 → 0.15–0.17) and backtrack.
+
+**§6 falsification, path 1.** The `spawn→require` column confirms the
+wash-out: the ceiling cuts `require→obstacle` (31 → 18) but lever 4's
+staging placement lengthens `spawn→require` to compensate (stays ~29) —
+net zero on the circuit. Distributing a *fixed* amount of story
+structure inside a 5×-larger world runs out around depth 4–6.
+
+**What did land:** the ending decision (Truth A, authored-canonical +
+one final choice — `PHASE_A_DECISIONS.md`). And distributed
+investigation cleanly clears the gate through **depth 4** — a real but
+partial result.
+
+**Next (owner gate):** pick the next hypothesis from `SCALE_REPORT.md §
+Gate 8` "Where the evidence now points" — (1) story-structure count
+that scales with `map_size`, (2) formally bound supported depth to
+0–N ≈ 6, or (3) a combination. Then a new controlled experiment. **Not
+a patched Gate 8.**
+
+---
+
 *Hypothesis + experiment spec. Nothing ships. Baseline byte-identical.
 Implementation is a later, separately-reviewed spec — and only if §5 is
 met.*

@@ -273,19 +273,26 @@ elegiac; this wants tension. Biggest rewrite of voice.
 | voice match to current prose | close | close | needs a rewrite |
 | "gamey" finale | medium | low (mood piece) | high (tense set-piece) |
 
-## Open sub-decisions once one is chosen
+## CHOSEN — A "The Cordon" (2026-08-29)
 
-- **The cause specifics.** A: research vs agricultural station. B:
-  installation vs "something older". C: what the study is *of*.
-- **The ending: fixed or player choice?** All three end on a decision;
-  is it authored (one canonical ending) or does the player pick, with
-  the World Investigation state gating which choices are available?
-- **How much the wider world matters.** A: the cordon has ears — can
-  the player act on that? B: is there a "wider world" at all, or is the
-  drift global? C: who is the operation answerable to?
-- **Tone commitment.** B and C pull the writing away from the current
-  elegiac register in opposite directions. A stays closest to what
-  `campaign.py` and the mechanism prose already sound like.
+World truth **A** locked in `PHASE_A_DECISIONS.md` (CH1+CH2 `WorldFact`s
+already authored from it). **Ending: authored-canonical + one final
+binary choice** — the command centre holds the seal order; the last
+transmission leads to a consolidation point that *held*; the final act
+is reaching the first living humans; the single choice is **broadcast
+the truth outward past the cordon vs protect the settlement's silence**.
+Both branches authored; no investigation-gated multi-ending.
+
+## Open sub-decisions (A only; resolve during CH3–FIN authoring)
+
+- **The cause specifics.** Research vs agricultural containment station.
+- **How much the wider world matters.** The cordon "still has ears" —
+  the broadcast branch needs the wider world to be reachable/real
+  enough for that choice to land. Decide the minimum: is it a genuine
+  transmission that gets out, or an act of witness that may not?
+- ~~The ending: fixed or player choice?~~ **DECIDED — fixed narrative,
+  one final binary choice.**
+- **Tone.** A stays in the current elegiac register — no voice rewrite.
 
 ## Recommendation
 

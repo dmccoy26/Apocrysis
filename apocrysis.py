@@ -26,9 +26,11 @@ if __name__ == "__main__":
                         help="(deprecated - logging is on by default now; kept so old commands still work)")
     parser.add_argument("--no-log", dest="no_log", action="store_true",
                         help="Don't auto-write a play log for this session (still toggleable in game with `log`)")
-    parser.add_argument("--mapgen", choices=("v1", "v2"), default="v1",
-                        help="Map generator: v1 (default, rectangular) or v2 "
-                             "(Phase C.3 experiment - irregular valley)")
+    parser.add_argument("--mapgen", choices=("v1", "v2", "landscape"), default="v1",
+                        help="Map generator: v1 (default, square) / v2 "
+                             "(irregular valley, rejected) / landscape "
+                             "(wide grid + terrain mass + rivers/bridges - "
+                             "MAP_REALISM_SPEC, experimental)")
     parser.add_argument("--dev", action="store_true",
                         help="Story-inspection harness: drop into a chosen "
                              "chapter with synthetic (sandboxed) campaign "

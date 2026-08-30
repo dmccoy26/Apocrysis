@@ -4,7 +4,7 @@
 import random
 
 from src.constants import (
-    BASE_MAP_SIZE, MAP_GROWTH_PER_LEVEL, MAX_MAP_SIZE, DAY_COMPRESSION_SCALE,
+    BASE_MAP_SIZE, MAP_GROWTH_PER_LEVEL, MAX_MAP_SIZE, MAP_ASPECT, DAY_COMPRESSION_SCALE,
 )
 from src.worlds.silence import SILENCE
 from src.io_console import ConsoleIO
@@ -164,6 +164,13 @@ class Apocrysis(
                 BASE_MAP_SIZE + expeditions_completed * MAP_GROWTH_PER_LEVEL,
             )
         )
+        # docs/MAP_REALISM_SPEC.md 1b: the "landscape" generator makes the
+        # grid wider than tall (terminal cells are ~2:1, and a valley is
+        # wider than deep). v1 stays square, so map_w == map_h ==
+        # map_size and every existing call site is byte-identical.
+        self.map_h = self.map_size
+        self.map_w = (round(self.map_size * MAP_ASPECT)
+                      if self._mapgen == "landscape" else self.map_size)
 
         self.health = 100
         self.max_health = 100  # Maximum health at the start

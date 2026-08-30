@@ -41,6 +41,7 @@ TERRAIN_COLOR = {
     "forest": GREEN,
     "water": BLUE,
     "river": CYAN,
+    "bridge": "\033[38;5;130m",   # brown - a way across
     "swamp": "\033[33m",   # dim yellow-green
     "building": YELLOW,
     "plain": GREY,
@@ -89,6 +90,8 @@ ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
 BASE_MAP_SIZE = 15
 MAP_GROWTH_PER_LEVEL = 3
 MAX_MAP_SIZE = 34
+# docs/MAP_REALISM_SPEC.md 1b - the "landscape" generator's width:height.
+MAP_ASPECT = 1.6
 # The full World-1 arc: 5 chapters + finale (docs/APOCRYSIS_ROADMAP.md
 # section 9, docs/ROADMAP_STATUS.md). Expeditions 0..DIFFICULTY_RAMP_LENGTH
 # are the fresh-survivor-viable band; past that, deep expeditions are
@@ -167,6 +170,7 @@ TERRAIN_MOVE_MINUTES = {
     'water': 30,
     'mountain': 40,
     'river': 40,
+    'bridge': 15,
     'swamp': 35,
 }
 

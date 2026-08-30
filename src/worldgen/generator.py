@@ -48,26 +48,28 @@ class MapGenerator:
     def _pick_random_walkable_tile(self):
         g = self.g
         margin = 3 if g.map_size >= 10 else 1
-        lo, hi = margin, g.map_size - 1 - margin
+        lo = margin
+        hix, hiy = g.map_w - 1 - margin, g.map_h - 1 - margin
         good_terrain = ('plain', 'building', 'forest')
 
         best = None
         for _ in range(300):
-            x = g.rng.randint(0, g.map_size - 1)
-            y = g.rng.randint(0, g.map_size - 1)
+            x = g.rng.randint(0, g.map_w - 1)
+            y = g.rng.randint(0, g.map_h - 1)
             terrain = g.map[y][x]['terrain']
             if terrain in IMPASSABLE_TERRAIN:
                 continue
-            interior = lo <= x <= hi and lo <= y <= hi
+            interior = lo <= x <= hix and lo <= y <= hiy
             if interior and terrain in good_terrain:
                 return (x, y)
             if best is None or (interior and g.map[best[1]][best[0]]['terrain'] not in good_terrain):
                 best = (x, y)
-        return best if best is not None else (g.map_size // 2, g.map_size // 2)
+        return best if best is not None else (g.map_w // 2, g.map_h // 2)
 
     def _pick_town_position(self, town_size, spawn, min_distance):
         g = self.g
-        max_start = max(0, g.map_size - town_size)
+        max_x = max(0, g.map_w - town_size)
+        max_y = max(0, g.map_h - town_size)
 
         def center_of(top_left):
             return (top_left[0] + town_size // 2, top_left[1] + town_size // 2)
@@ -78,14 +80,14 @@ class MapGenerator:
 
         for _ in range(200):
             candidate = (
-                g.rng.randint(0, max_start),
-                g.rng.randint(0, max_start),
+                g.rng.randint(0, max_x),
+                g.rng.randint(0, max_y),
             )
             if distance_from_spawn(candidate) >= min_distance:
                 return candidate
 
         corners = [
-            (0, 0), (0, max_start), (max_start, 0), (max_start, max_start),
+            (0, 0), (0, max_y), (max_x, 0), (max_x, max_y),
         ]
         return max(corners, key=distance_from_spawn)
 
@@ -98,7 +100,7 @@ class MapGenerator:
 
         for y in range(top_left[1], top_left[1] + size):
             for x in range(top_left[0], top_left[0] + size):
-                if not (0 <= x < g.map_size and 0 <= y < g.map_size):
+                if not (0 <= x < g.map_w and 0 <= y < g.map_h):
                     continue
 
                 dist = abs(x - cx) + abs(y - cy)
@@ -124,9 +126,14 @@ class MapGenerator:
 
     def force_boundary_ring(self):
         g = self.g
-        last = g.map_size - 1
-        for i in range(g.map_size):
-            for (bx, by) in ((i, 0), (i, last), (0, i), (last, i)):
+        lx, ly = g.map_w - 1, g.map_h - 1
+        for i in range(max(g.map_w, g.map_h)):
+            edges = []
+            if i < g.map_w:
+                edges += [(i, 0), (i, ly)]
+            if i < g.map_h:
+                edges += [(0, i), (lx, i)]
+            for (bx, by) in edges:
                 cell = g.map[by][bx]
                 if isinstance(cell, dict):
                     cell['terrain'] = 'mountain'
@@ -146,7 +153,7 @@ class MapGenerator:
             x, y = queue.popleft()
             for dx, dy in ((0, -1), (0, 1), (1, 0), (-1, 0)):
                 nx, ny = x + dx, y + dy
-                if not (0 <= nx < g.map_size and 0 <= ny < g.map_size):
+                if not (0 <= nx < g.map_w and 0 <= ny < g.map_h):
                     continue
                 if (nx, ny) in visited:
                     continue
@@ -193,6 +200,85 @@ class MapGenerator:
                 "could not be guaranteed after carving a path"
             )
 
+
+    # ---- landscape variant: terrain mass + a real river ---------
+    #   docs/MAP_REALISM_SPEC.md problems 2 + 3. Gated on
+    #   variant == "landscape"; v1 never calls any of this.
+
+    def _boundary_band(self, thickness=2):
+        """A mountain BAND, not a 1-tile ring - the valley wall has
+        depth. Thicker at the corners."""
+        g = self.g
+        w, h = g.map_w, g.map_h
+        for y in range(h):
+            for x in range(w):
+                edge = min(x, y, w - 1 - x, h - 1 - y)
+                corner = (min(x, w - 1 - x) < thickness
+                          and min(y, h - 1 - y) < thickness)
+                if edge < thickness or (corner and edge < thickness + 1):
+                    g.map[y][x] = {'terrain': 'mountain', 'content': '-',
+                                   'zone': 'wilderness', 'explored': False}
+
+    def _mountain_blobs(self, count=None):
+        """Interior mountains as connected masses (seed + grow), not the
+        singletons `_pick_terrain` scatters. A mountain outweighs a
+        house."""
+        g = self.g
+        rng = g.rng
+        w, h = g.map_w, g.map_h
+        n = count if count is not None else max(1, (w * h) // 260)
+        for _ in range(n):
+            sx = rng.randint(3, w - 4)
+            sy = rng.randint(3, h - 4)
+            size = rng.randint(5, 11)
+            frontier = [(sx, sy)]
+            grown = 0
+            while frontier and grown < size:
+                cx, cy = frontier.pop(rng.randrange(len(frontier)))
+                if not (2 <= cx < w - 2 and 2 <= cy < h - 2):
+                    continue
+                cell = g.map[cy][cx]
+                if isinstance(cell, dict) and cell.get('terrain') == 'town':
+                    continue
+                g.map[cy][cx] = {'terrain': 'mountain', 'content': '-',
+                                 'zone': 'wilderness', 'explored': False}
+                grown += 1
+                for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                    if rng.random() < 0.55:
+                        frontier.append((cx + dx, cy + dy))
+
+    def _river_with_bridges(self):
+        """One connected river from edge to edge - a genuine boundary
+        the required circuit may have to cross - plus 2 bridges so it
+        never fully seals a region off (docs/MAP_REALISM_SPEC 2b + 3a)."""
+        g = self.g
+        rng = g.rng
+        w, h = g.map_w, g.map_h
+        # a mostly-vertical river: start on the top interior edge, walk
+        # to the bottom, meandering.
+        x = rng.randint(w // 4, 3 * w // 4)
+        path = []
+        for y in range(1, h - 1):
+            for wx in (x, x + 1) if rng.random() < 0.5 else (x,):
+                if 1 <= wx < w - 1:
+                    cell = g.map[y][wx]
+                    if isinstance(cell, dict) and cell.get('terrain') != 'town':
+                        cell['terrain'] = 'river'
+                        cell['content'] = '-'
+                        path.append((wx, y))
+            x += rng.choice((-1, 0, 0, 1))
+            x = max(2, min(w - 3, x))
+        # bridges: 2 river tiles, spaced, turned passable
+        if len(path) >= 6:
+            for frac in (0.33, 0.72):
+                bx, by = path[int(len(path) * frac)]
+                g.map[by][bx] = {'terrain': 'bridge', 'content': '#',
+                                 'zone': 'wilderness', 'explored': False}
+
+    def _landscape_terrain(self):
+        self._boundary_band(thickness=2)
+        self._mountain_blobs()
+        self._river_with_bridges()
 
     # ---- v2: irregular valley mask (C.3 experiment) -------------
 
@@ -328,8 +414,8 @@ class MapGenerator:
         )
 
         chunk_terrain = {}
-        for cy in range(0, g.map_size, CHUNK_SIZE):
-            for cx in range(0, g.map_size, CHUNK_SIZE):
+        for cy in range(0, g.map_h, CHUNK_SIZE):
+            for cx in range(0, g.map_w, CHUNK_SIZE):
                 neighbor_key = None
                 if (cx, cy - CHUNK_SIZE) in chunk_terrain:
                     neighbor_key = (cx, cy - CHUNK_SIZE)
@@ -355,8 +441,8 @@ class MapGenerator:
                     chunk_terrain[k] = _fallback
 
         chunk_zone = {}
-        for cy in range(0, g.map_size, CHUNK_SIZE):
-            for cx in range(0, g.map_size, CHUNK_SIZE):
+        for cy in range(0, g.map_h, CHUNK_SIZE):
+            for cx in range(0, g.map_w, CHUNK_SIZE):
                 nb = None
                 if (cx, cy - CHUNK_SIZE) in chunk_zone:
                     nb = (cx, cy - CHUNK_SIZE)
@@ -378,9 +464,9 @@ class MapGenerator:
                     'content': '-',
                     'explored': False,
                 }
-                for x in range(g.map_size)
+                for x in range(g.map_w)
             ]
-            for y in range(g.map_size)
+            for y in range(g.map_h)
         ]
 
         self.force_boundary_ring()
@@ -389,6 +475,13 @@ class MapGenerator:
         # is placed on it. v1 skips this entirely (frozen).
         if self.variant == "v2":
             self._grow_valley_mask()
+        # landscape: a mountain BAND, interior mountain blobs, and one
+        # connected river with bridges (MAP_REALISM_SPEC 2 + 3). Placed
+        # before the settlements so a settlement can't be split by the
+        # river without a bridge (ensure_reachable + the MapGraph
+        # guarantee back this up).
+        elif self.variant == "landscape":
+            self._landscape_terrain()
 
         spawn = self._pick_random_walkable_tile()
         g.current_position = spawn
@@ -430,11 +523,11 @@ class MapGenerator:
         self.force_boundary_ring()
 
         if town_center is not None and (
-            town_center[0] in (0, g.map_size - 1)
-            or town_center[1] in (0, g.map_size - 1)
+            town_center[0] in (0, g.map_w - 1)
+            or town_center[1] in (0, g.map_h - 1)
         ):
-            tx = min(max(town_center[0], 1), g.map_size - 2)
-            ty = min(max(town_center[1], 1), g.map_size - 2)
+            tx = min(max(town_center[0], 1), g.map_w - 2)
+            ty = min(max(town_center[1], 1), g.map_h - 2)
             g.map[ty][tx] = {'terrain': 'town', 'content': 'T', 'explored': False}
             town_center = (tx, ty)
 

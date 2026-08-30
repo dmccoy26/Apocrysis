@@ -121,7 +121,7 @@ class WorldMixin:
         # shipping a story-less "reach the town" expedition. v1 is frozen
         # and never hits the degenerate path, so the loop runs exactly
         # once for v1 - RNG consumption and byte-identity are unchanged.
-        _max_map_tries = 12 if getattr(self, '_mapgen', 'v1') == 'v2' else 1
+        _max_map_tries = 12 if getattr(self, '_mapgen', 'v1') in ('v2', 'landscape') else 1
         self.mystery = None
         _mystery_exc = None
         for _try in range(_max_map_tries):
@@ -192,7 +192,7 @@ class WorldMixin:
                 _nodes[f'site_{_role}'] = _xy
                 _mystery_nodes.append(f'site_{_role}')
         _required = list(_mystery_nodes) + (['town'] if 'town' in _nodes else [])
-        self._map_graph = MapGraph(self.map, self.map_size, _nodes)
+        self._map_graph = MapGraph(self.map, (self.map_w, self.map_h), _nodes)
         _blocked = [nm for nm in self._map_graph.unreachable_from('spawn')
                     if nm in _required]
         if _blocked:
@@ -202,7 +202,7 @@ class WorldMixin:
             )
 
         # Zombie placement (frozen balance) - unchanged shape.
-        total_tiles = self.map_size ** 2
+        total_tiles = self.map_w * self.map_h
         num_zombies = int(total_tiles * ZOMBIE_MAP_DENSITY)
 
         placed_zombies = 0
@@ -219,8 +219,8 @@ class WorldMixin:
 
         while placed_zombies < num_zombies and attempts < max_attempts:
             attempts += 1
-            x = self.rng.randint(0, self.map_size - 1)
-            y = self.rng.randint(0, self.map_size - 1)
+            x = self.rng.randint(0, self.map_w - 1)
+            y = self.rng.randint(0, self.map_h - 1)
             cell = self.map[y][x]
             if (
                 isinstance(cell, dict)
@@ -301,7 +301,7 @@ class WorldMixin:
         for dy in range(-r, r + 1):
             for dx in range(-r, r + 1):
                 x, y = px + dx, py + dy
-                if not (0 <= x < self.map_size and 0 <= y < self.map_size):
+                if not (0 <= x < self.map_w and 0 <= y < self.map_h):
                     continue
                 if abs(dx) + abs(dy) > r or (x, y) in seen or (x, y) in self.visited:
                     continue
@@ -460,24 +460,82 @@ class WorldMixin:
     # Movement
     # --------------------------------------------------
 
+    def _swim_odds(self):
+        """Estimated chance a swim across succeeds. Derived (not raw):
+        base 55%, + dexterity, - fatigue, - low health, waders a big
+        plus. MAP_REALISM_SPEC 3b."""
+        p = 0.55 + (self.dexterity - 10) * 0.02
+        if self.fatigue > 80:
+            p -= 0.20
+        elif self.fatigue > 50:
+            p -= 0.10
+        if self.health < self.max_health * 0.3:
+            p -= 0.15
+        if getattr(self, 'has_waders', False):
+            p += 0.30
+        return max(0.10, min(0.95, p))
+
+    def _try_swim_river(self, rx, ry):
+        """Offer the swim, show the odds + cost, and resolve it. Returns
+        True if the survivor is now across. Only the landscape generator
+        makes rivers a real boundary - elsewhere a river stays a wall."""
+        if getattr(self, '_mapgen', 'v1') != 'landscape':
+            self.io.say("You can't cross the river here.")
+            return False
+        pct = round(self._swim_odds() * 100)
+        self.announce_event(
+            "THE RIVER",
+            f"Swim across?  ~{pct}% you make it clean.",
+            "Fail and you're swept back to this bank - a hard knock and "
+            "you may lose something loose from your pack. Waders help a lot.",
+            kind="warning")
+        if not self.io.ask_yes_no("Swim for it?"):
+            return False
+        import random as _r
+        self._update_time(45)
+        self.fatigue = min(100, self.fatigue + 15)
+        if _r.random() < self._swim_odds():
+            self.io.say("You get across, soaked and cold but on the far bank.")
+            self.health = max(1, self.health - 3)
+            self.current_position = (rx, ry)
+            self.visited.add((rx, ry))
+            return True
+        # failure - swept back, a knock, maybe a dropped item
+        self.io.say("The current takes you and dumps you back where you started.")
+        self.health = max(1, self.health - _r.randint(8, 16))
+        loose = [k for k in ("medicine", "ammo") if getattr(self.backpack, k, 0) > 0]
+        if loose and _r.random() < 0.4:
+            k = _r.choice(loose)
+            lost = min(getattr(self.backpack, k), _r.randint(1, 3))
+            setattr(self.backpack, k, getattr(self.backpack, k) - lost)
+            self.io.say(f"You lost some {k} to the water.")
+        return False
+
     def move_and_search(self, direction):
         directions = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "w": (-1, 0)}
         dx, dy = directions.get(direction, (0, 0))
         new_x, new_y = self.current_position[0] + dx, self.current_position[1] + dy
 
-        if not (0 <= new_x < self.map_size and 0 <= new_y < self.map_size):
+        if not (0 <= new_x < self.map_w and 0 <= new_y < self.map_h):
             self.io.say("Can't move in that direction.")
             return
 
         destination = self.map[new_y][new_x]
         dest_terrain = destination.get('terrain') if isinstance(destination, dict) else None
 
-        # Impassable terrain (v3 #7) - blocks movement instead of
-        # being walked onto.
-        if dest_terrain in ('mountain', 'river'):
-            last = self.map_size - 1
-            on_boundary = new_x in (0, last) or new_y in (0, last)
-            if dest_terrain == 'mountain' and on_boundary:
+        # MAP_REALISM_SPEC 3b: a river is crossable by swimming - a real
+        # choice with a real cost, shown before you commit. Returns True
+        # if the survivor is now across (fall through to the move),
+        # False if they stayed / declined.
+        if dest_terrain == 'river':
+            if not self._try_swim_river(new_x, new_y):
+                return
+
+        # Mountains stay a hard wall.
+        elif dest_terrain == 'mountain':
+            last_x, last_y = self.map_w - 1, self.map_h - 1
+            on_boundary = new_x in (0, last_x) or new_y in (0, last_y)
+            if on_boundary:
                 # v4: the edge of the world is a moment, not a wall.
                 seen = getattr(self, '_edge_seen', None)
                 if seen is None:
@@ -492,8 +550,7 @@ class WorldMixin:
                 else:
                     self.io.say("The mountains block the way. There's no crossing them.")
             else:
-                label = "mountain" if dest_terrain == 'mountain' else "river"
-                self.io.say(f"You can't cross the {label} here.")
+                self.io.say("You can't cross the mountain here.")
             return
 
         # v4 Phase C: the generated mystery's obstacle blocks the way

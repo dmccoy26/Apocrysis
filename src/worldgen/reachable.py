@@ -5,8 +5,14 @@ from collections import deque
 
 IMPASSABLE = ('mountain', 'river')
 
+def _wh(n):
+    """`n` is either a square side (int) or a (width, height) pair -
+    landscape maps (docs/MAP_REALISM_SPEC.md) pass the pair."""
+    return (n, n) if isinstance(n, int) else (n[0], n[1])
+
 def _passable(grid, n, x, y):
-    if not (0 <= x < n and 0 <= y < n):
+    w, h = _wh(n)
+    if not (0 <= x < w and 0 <= y < h):
         return False
     c = grid[y][x]
     return isinstance(c, dict) and c.get('terrain') not in IMPASSABLE

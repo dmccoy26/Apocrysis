@@ -26,12 +26,13 @@ TERRAIN_SYMBOLS = {
     'plain': '.',
     'mountain': '^',
     'river': '=',
+    'bridge': '#',   # MAP_REALISM_SPEC: a crossing on the river
     'swamp': 's',
 }
 
 TERRAIN_LEGEND = (
     "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
-    "  ^ = mountain (impassable)   = = river (impassable)\n"
+    "  ^ = mountain (impassable)   = = river (swim or bridge)   # = bridge\n"
     "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
     "  P = you   Z = zombie (only shown once you've been there)\n"
     "  ! = a lead you've found   + = the way out, now open"

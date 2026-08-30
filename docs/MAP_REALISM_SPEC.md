@@ -154,6 +154,23 @@ check the combat card got, and the bot needs a swim/bridge heuristic
 
 ---
 
-*Spec only. Map generation is frozen and a prior rework was rejected;
-this needs an explicit owner decision before any build. Fix A (render
-width) is the one low-risk piece that could go in now.*
+## STATUS (2026-08-30)
+
+Owner decision: **Fix A now; Problems 1b / 2 / 3 deferred to the
+post-playtest design pass.**
+
+- **Fix A SHIPPED** (`ui_mixin._render_map_lines`: `line += char + " "`).
+  Each tile renders as glyph + space; a 34×34 array now fills 68×34 on
+  screen — landscape. Zero generation change, no coordinate touched,
+  fully reversible. `test_ui.py`'s `_tile_char` helper updated for the
+  ×2 column. 308+100 green.
+- **1b (true `w×h` grid) / 2 (terrain mass) / 3 (bridges + swim)** —
+  NOT started. Revisit as one design pass after the blind playtest,
+  flag-gated + feel-tested like C.3. Map generation stays frozen until
+  then.
+
+---
+
+*Fix A shipped (render width, low-risk). The rest is deferred - map
+generation is frozen and a prior rework was rejected; the terrain /
+river work waits for the post-playtest design pass.*

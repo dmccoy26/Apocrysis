@@ -85,9 +85,10 @@ class TestRendering(unittest.TestCase):
 
         def _tile_char(lines, tx, ty):
             # The map renders as a bare grid (no header / gutter /
-            # border) - row ty, column tx - but glyphs are ANSI-tinted
-            # now, so strip codes before indexing by visible column.
-            return _ansi.sub("", lines[ty])[tx]
+            # border) - row ty, column tx. Glyphs are ANSI-tinted, so
+            # strip codes; each tile is glyph + space (MAP_REALISM_SPEC
+            # Fix A), so the visible column is tx * 2.
+            return _ansi.sub("", lines[ty])[tx * 2]
 
         self.game.town_known = False
         lines = self.game._render_map_lines()

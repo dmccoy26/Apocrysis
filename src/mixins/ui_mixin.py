@@ -650,9 +650,14 @@ class UIMixin:
         # border and the a1/b2 row/column labels just invited
         # edge-following instead of reading the terrain. The map's own
         # impassable ring - '^' mountains, '=' rivers - is the real
-        # world edge and still renders as terrain below. Every line is
-        # exactly `width` visible chars, so the two-column panel layout
-        # (which measures with _visible_len) still aligns.
+        # world edge and still renders as terrain below.
+        #
+        # MAP_REALISM_SPEC.md Fix A: each tile renders as glyph + space,
+        # so the SQUARE tile array (map_size x map_size) fills a
+        # landscape rectangle on screen instead of a portrait one (a
+        # terminal cell is ~2:1). Every line is exactly `2 * width`
+        # visible chars; the two-column panel layout measures with
+        # _visible_len so it still aligns.
         lines = []
 
         for y, row in enumerate(self.map):
@@ -723,7 +728,7 @@ class UIMixin:
                     mark = self._mystery_site_mark(x, y)
                     if mark:
                         char = mark
-                line += char
+                line += char + " "        # Fix A: glyph + space per tile
             lines.append(line)
 
         return lines

@@ -792,6 +792,63 @@ class UIMixin:
                 return f"{BOLD}{YELLOW}!{RESET}"
         return None
 
+    def perceived_map_grid(self):
+        """The map as a plain-glyph 2D grid — exactly what a player can
+        see this turn, and nothing more. For the autoplay perception
+        boundary (tools/autoplay/): a bot policy pathfinds over THIS,
+        never over the unfogged `self.map`.
+
+        Mirrors `_render_map_lines`'s fog rule (`in_range` = within
+        `visibility_radius` or a found map; else `.` if visited, else
+        ` `) and its glyph choices, but emits no ANSI and no per-turn
+        two-column layout. Keep the fog/glyph logic here in sync with
+        `_render_map_lines` — that method stays the source of truth for
+        what the human sees.
+
+        Returns {"grid": [[glyph, ...], ...] (row-major, grid[y][x]),
+        "player": (x, y), "size": n}. Glyphs: 'P' you · 'Z' a zombie
+        you can see · '!'/'+' a mystery lead / opened route · terrain
+        symbol (world.terrain_symbols) for visible ground · '.' seen
+        before, now fogged · ' ' never seen.
+        """
+        import re as _re
+        _ansi = _re.compile(r"\x1b\[[0-9;]*m")
+        px, py = self.current_position
+        map_revealed = getattr(self, 'map_revealed', False)
+        grid = []
+        for y, row in enumerate(self.map):
+            out_row = []
+            for x, tile in enumerate(row):
+                dist = abs(x - px) + abs(y - py)
+                actually_visible = dist <= self.visibility_radius
+                in_range = actually_visible or map_revealed
+                if (x, y) == (px, py):
+                    out_row.append('P')
+                    continue
+                mark = self._mystery_site_mark(x, y)
+                if mark:
+                    out_row.append(_ansi.sub("", mark) or '!')
+                    continue
+                if isinstance(tile, dict):
+                    if tile.get('terrain') == 'town' and (in_range or self.town_known):
+                        out_row.append(tile.get('content') or 'T')
+                    elif in_range:
+                        _terr = tile.get('terrain')
+                        out_row.append(self.world.terrain_symbols.get(_terr, '.'))
+                    elif (x, y) in self.visited:
+                        out_row.append('.')
+                    else:
+                        out_row.append(' ')
+                elif isinstance(tile, (FreshZombie, RegularZombie, HeavyZombie)):
+                    if actually_visible and (x, y) in self.visited:
+                        out_row.append('Z')
+                    else:
+                        out_row.append('.' if map_revealed else ' ')
+                else:
+                    out_row.append('.' if in_range and (x, y) in self.visited else ' ')
+            grid.append(out_row)
+        return {"grid": grid, "player": (px, py), "size": self.map_size}
+
     # --- the Apocrysis attention language (docs/ATTENTION_SYSTEM_SPEC.md) ---
     # Semantic CLASSES, not alarm levels. (glyph, colour, loud?) - only
     # DANGER and STORY get the full banner; the rest are one coloured,

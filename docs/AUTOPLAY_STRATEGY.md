@@ -1,10 +1,23 @@
 # Autoplay strategy — using bots to game-test Apocrysis
 
-**Status:** proposal. Nothing here is built beyond what already exists
-(`tools/balance_autoplay.py`). Do not start the new work until **run 7**
-(the human straight-through campaign, `docs/DEV_PLAYTEST.md`) is done —
-autoplay is a tool for the *post-playtest* design pass, not a
-substitute for it.
+**Status:** Level 1 (`tools/balance_autoplay.py`) pre-existing. **Level 2
+instrument BUILT** (`tools/autoplay/` + `tools/tui_autoplay.py`, see
+that package's README) — the perception boundary, the received/
+actionable metrics, and the baseline policies (`random` / `survival` /
+`explorer`) only. The `objective` / `humanlike` policies and the
+cardinal-vs-landmark A/B are still deferred to *after* the
+spatial-language design pass — the instrument exists to measure that
+redesign, not to pre-empt it. Level 3 (screenshots) not built.
+
+Run 7 (the human straight-through, `docs/DEV_PLAYTEST.md`) is still the
+next thing and is not substituted by any of this.
+
+**First instrument runs confirm the playtest findings** — `explorer`
+on CH3/CH5: `direction_text_seen` true / `direction_operational`
+**0%**, `objective_reached` **0%**, `hypothesis_corrections_seen`
+**0** across every run, fatigue pinned ~90% of turns in forest
+chapters. The passive-exploration baseline never triggers the ESCAPE
+guidance at all (sites stay undiscovered without deliberate `search`).
 
 ---
 

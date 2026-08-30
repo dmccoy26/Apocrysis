@@ -42,6 +42,18 @@ which is the point; Atlas has no role in that either (it does not do
 research judgement). **Net: a full measure→falsify research cycle on an
 external repo, zero Atlas surface.**
 
+## C.3.2a-6 spec + map entity colour (2026-08-30) — nothing routable
+
+- **`PHASE_C3_2_6_SPEC.md`** ("Scaled Investigation Structure") — design
+  synthesis of the Gate 8 falsification into the next experiment.
+  Design authoring; not an Atlas task.
+- **`ui_mixin._render_map_lines` — `Z` → bold-red** (owner: "add colors
+  to the map that represent the character that accompanies it"). A
+  3-line edit, but `ui_mixin.py` is 870 lines — past the edit wall
+  (log: A.4 #27, A.5). Hand-written; not routed (would only re-confirm
+  a known gap). The forthcoming `_lever_scaled_beats` build is
+  `escape.py` (940 ln) + `scale_report.py` sweep — both known walls.
+
 ## Operating protocol (this run)
 
 1. **Committed clean tree before every `atlas request`.** `git status`

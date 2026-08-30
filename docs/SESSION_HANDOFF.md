@@ -105,14 +105,26 @@ depths 0–12). Full result: `SCALE_REPORT.md § Gate 8`.
   `("cap",C)` ceiling forms (legacy int-target path untouched);
   `scale_report.py` has `meaningful_fraction` + `--gate8`.
 
-**NEXT owner gate:** pick the next hypothesis from `SCALE_REPORT.md §
-Gate 8` "Where the evidence now points" — (1) a required-site count
-that **scales with `map_size`** (story structure grows with the world,
-not just rearranges), (2) formally bound "supported depth" to 0–N (data
-says N ≈ 5–6), or (3) a combination. Then a **new** controlled
-experiment — NOT a patched Gate 8. The valuable artifact here is the
-clean falsification. Nothing about C.3.2a-5 touches combat / hunger /
-thirst / loot / survivor power / map growth.
+**→ NEXT EXPERIMENT SPEC'D: `PHASE_C3_2_6_SPEC.md` — "Scaled
+Investigation Structure" (owner-set 2026-08-30).** Tests the causal
+conclusion Gate 8 reached: *what if the story itself grows with the
+world?* A `_lever_scaled_beats` flag (default off) inserts `k` extra
+**genuine intermediate required beats** (§3 defines "genuine" — load-
+bearing, on-corridor, real content, spaced) where `k = f(map)`; sweep
+`fixed@1/2` (controls) · `log` · `sqrt` · `linear`. New metric:
+`required_story_nodes / √playable` — reported raw, not targeted.
+§7 acceptance / §8 falsification (each failure routes to a specific
+next move — the big one: if structural growth alone can't clear depth
+12 without infeasible/backtrack blow-up → **formally bound supported
+depth to 0–N≈6** as a campaign-design decision). Explicitly NOT
+combined with a survival-envelope change or the Gate 8 ceiling — tests
+structural growth ALONE.
+
+**NEXT owner gate:** review `PHASE_C3_2_6_SPEC.md` → build
+`_lever_scaled_beats` + the beat construct + the `--gate6` sweep
+(all hand-written, past Atlas ceilings) → run → §7/§8 verdict → STOP.
+Nothing about this line touches combat / hunger / thirst / loot /
+survivor power / map growth.
 
 ### >> The OTHER gate — pick the ending — ✅ DONE (2026-08-29)
 
@@ -136,6 +148,10 @@ needs it, then the C.3.2b v2 replay (2×2), then the variety fix
 - **Map terrain colour** (`8bec163`-era) — BlueNoodle's ask. Each tile
   glyph ANSI-tinted by terrain (forest green / water blue / mountain
   white / …). `constants.TERRAIN_COLOR`.
+- **Map entity colour (2026-08-30)** — every map glyph is now tinted to
+  its character, not just terrain: `Z` zombies render bold-red
+  (`ui_mixin._render_map_lines`), matching the existing `P` (health-
+  tinted), town, and `!`/`+` lead markers. Tests strip ANSI, unaffected.
 - **Numbered gear** (`1ce5f3a`) — `eq 3` / `wr W2` / `drop N`; pack
   list numbers each line (`[3]`, `[5-7]` for contiguous runs).
 - **Empty-ammo colour fix** (`8bec163`) — a benched empty gun no longer

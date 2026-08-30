@@ -707,7 +707,10 @@ class UIMixin:
                         char = ' '
                 elif isinstance(tile, (FreshZombie, RegularZombie, HeavyZombie)):
                     if actually_visible and (x, y) in self.visited:
-                        char = 'Z'
+                        # Colour the glyph to its character: a zombie on
+                        # the map reads as a threat at a glance, the same
+                        # way P is tinted by health and terrain by type.
+                        char = f"{BOLD}{RED}Z{RESET}"
                     else:
                         char = '.' if map_revealed else ' '
                 else:

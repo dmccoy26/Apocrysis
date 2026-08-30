@@ -455,9 +455,13 @@ class CombatMixin:
             if piece:
                 damage = piece.absorb(damage)
         self.health -= damage
-        self.io.say(f"The {self.name} takes {damage} damage. Its current health is {self.health}.")
+        # 1d playtest: this used to read "The Cole takes 14 damage. Its
+        # current health is 83." - definite-article + name + "Its",
+        # identical phrasing to a zombie taking a hit, so mid-fight you
+        # couldn't tell who was winning. Player-voiced now.
+        self.io.say(f"You take {damage} damage.  ({max(0, self.health)} HP left)")
         if self.health <= 0:
-            self.io.say(f"The {self.name} has been defeated!")
+            self.io.say("You go down.")
 
     def _clear_defeated_zombie_tile(self, zombie):
         """v4 (todo 93edaf83): a tile-based zombie that's been defeated

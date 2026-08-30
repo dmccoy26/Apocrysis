@@ -1,15 +1,71 @@
 # The Apocrysis Attention System (spec)
 
-Owner-proposed 2026-08-30 from the playtest: colour is currently
-decoration (blue = map goal, red = hungry) and a zombie encounter — one
-of the most consequential moments on the map — renders as ordinary
-white story text. Colour should become the game's **attention
-language**: consistent, semantic, and reserved.
+Owner-proposed 2026-08-30 from the playtest. **The core problem, in the
+owner's words:** *"the game currently presents radically different
+levels of importance using the same visual language."* A movement line
+and an Elite Heavy encounter are both white prose, when mechanically
+one is "continue" and the other is "STOP, make a decision, your life
+depends on it."
 
 > **This is a presentation-layer change. It touches NO balance** —
 > combat, escape odds, encounter rate, loot, hunger/thirst rates,
 > map generation are all untouched. It changes only how events are
 > *labelled and rendered*.
+
+## Scope — the event stream is the point; the HUD is a bonus
+
+The owner's actual ask is **the ongoing story / event feed**: every
+line that scrolls past should tell the player, at a glance, whether
+it's ordinary narration, an objective, a warning, a discovery, a story
+beat, a success, or a life-threatening event — *before* they parse the
+words.
+
+| | | |
+|---|---|---|
+| **Attention System** | the semantic vocabulary (below) | |
+| **Event stream** | **primary application** — build this first | zombie = red, low food/water = orange, objective = blue |
+| **HUD escalation** | secondary application of the same vocabulary | resource numbers shade white → orange → red |
+
+Keep both in this doc, but implement the event stream first. The HUD
+change is useful and consistent but it is not what was asked for.
+
+## Semantic channels, NOT seven alarm levels
+
+The classes are **channels** (what kind of thing is this?), not a
+loudness ladder. Visual prominence is deliberately uneven:
+
+```
+  ‼ DANGER      LOUD        - interrupts, own banner, red
+  ⚠ WARNING     NOTICEABLE  - orange, a clear line, not a banner
+  ◆ OBJECTIVE   PERSISTENT  - blue, and directionally prominent
+                             (the navigation finding: the heading is
+                              shown and ignored - blue must carry weight)
+  ✦ DISCOVERY   ACCENT      - yellow, a coloured word, quiet
+  ◈ STORY       ACCENT      - purple, a coloured word, quiet
+  ✓ SUCCESS     BRIEF       - green, momentary positive feedback
+    NARRATIVE   PLAIN       - white, the default
+```
+
+A purple STORY line must **not** scream just because it's purple. Only
+DANGER interrupts; WARNING is a clear line; OBJECTIVE is persistent;
+the rest are accents on otherwise-normal text. The terminal must not
+become Skittles.
+
+## The deterioration ladder — the clearest first demo
+
+White → orange → red is one intuitive progression the player learns
+immediately:
+
+```
+  Food: 43        white     nothing special
+  Food: 22        orange    becoming a problem
+  Food: 8         orange    still a problem
+  ‼ STARVING      red       a problem RIGHT NOW
+```
+
+Same shape for a zombie: `‼ ZOMBIE ENCOUNTER` on sight is the loudest
+thing the exploration feed ever does — which is correct, because it's
+the most consequential.
 
 ## What already exists (build on this, don't replace it)
 
@@ -110,26 +166,39 @@ transition is unmistakable:
 `Successfully fled` → **SUCCESS**. `Failed to flee` / `critically
 wounded` → **DANGER**. `defeated!` → **SUCCESS**.
 
-## Implementation shape
+## Implementation shape — event stream first
 
-1. `constants.py` — add `ORANGE = "\033[38;5;208m"` (256-colour;
-   falls back to yellow-ish on a 16-colour terminal, acceptable).
+**Phase 1 — the event feed (the actual ask):**
+
+1. `constants.py` — add `ORANGE = "\033[38;5;208m"` (256-colour; falls
+   back acceptably on a 16-colour terminal).
 2. `ui_mixin.announce_event` — remap the `kind` table to the seven
    classes. Keep the old kind strings as **aliases** (`lead`/`discovery`
    → DISCOVERY, `objective` → OBJECTIVE, `solved` → SUCCESS,
-   `milestone`/`correction` → STORY, `warn` → WARNING) so no call site
-   changes in the same commit; then a follow-up sweeps call sites to the
-   new names and splits the few `warn`→`danger` cases.
-3. `combat_mixin._encounter_card` — route the card through
-   `announce_event(kind="danger")` (or a dedicated `_danger_banner`).
-   `Successfully fled` etc. get their classes.
-4. HUD (`tui._status_block` / `_investigation_strip`, classic
-   `_status_block`) — colour resource readouts by the §ladder bands.
-5. `TextualIO` — Textual markup already supports colour; map the ANSI
-   classes to Rich styles once, centrally.
-6. A `test_attention.py` — every `announce_event` kind renders a
-   non-empty glyph + a colour; the seven classes are distinct; `warn`
-   alias still red-family; combat encounter emits a DANGER-classed line.
+   `milestone`/`correction` → STORY, `warn` → WARNING) so **no call
+   site changes in this commit**. Prominence per the "semantic
+   channels" section — only DANGER gets the full `═══` banner; WARNING
+   / SUCCESS / DISCOVERY / STORY are a single coloured, glyph-prefixed
+   line.
+3. `combat_mixin._encounter_card` — the encounter fires a **DANGER**
+   flare (`‼ ZOMBIE ENCOUNTER — <name>`) on sight, then the info card.
+   `Successfully fled` → SUCCESS; `Failed to flee` / `critically
+   wounded` → DANGER; `defeated!` → SUCCESS.
+4. Split the overloaded `warn` at its ~4 call sites: "getting hungry /
+   thirsty / tired / weapon worn" stay WARNING (orange); "starving now
+   / 0 hunger attrition / causeway flooded" become DANGER (red).
+5. Ordinary movement / terrain `io.say` stays NARRATIVE (no change).
+6. `TextualIO` — map the ANSI classes to Rich styles once, centrally.
+7. `test_attention.py` — every class renders a distinct non-empty
+   glyph + colour; `warn` alias still resolves; a zombie encounter
+   emits a DANGER-classed line; a movement line stays plain.
+
+**Phase 2 — the HUD escalation (secondary):** colour the resource
+readouts in `tui._status_block` / classic `_status_block` by the
+deterioration-ladder bands; one transient DANGER line on crossing into
+red, re-armed on recovery (the `_hunger_thirst_warn` pattern).
+
+Phase 2 can wait, or be skipped, without blocking Phase 1.
 
 ## What this is NOT
 
@@ -147,14 +216,16 @@ wounded` → **DANGER**. `defeated!` → **SUCCESS**.
 
 ## Sequencing
 
-The attention system is presentation-only, so it *could* land during
-the playtest without confounding the balance evidence — but it changes
-what the player sees on every turn, so a mid-playtest switch muddies
-"did the player act on the objective?" (was it the blue, or the run?).
-**Recommended: build it right after the current blind playtest, as the
-first piece of the visual-language work** — the playtest's navigation
-finding ("the heading is shown and ignored") is a direct input to how
-prominent OBJECTIVE-blue needs to be.
+Presentation-only, so it *could* land during the playtest without
+confounding the balance evidence — but it changes what the player sees
+every turn, which muddies "did the player act on the objective — was it
+the blue, or the run?". **Recommended: Phase 1 right after the current
+blind playtest, as the first piece of the visual-language work.** The
+navigation finding ("the heading is shown and ignored") is a direct
+input to exactly how prominent OBJECTIVE-blue needs to be — the
+playtest is calibrating that.
+
+Phase 2 (HUD) is optional and can follow whenever.
 
 ---
 

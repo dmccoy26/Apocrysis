@@ -3,6 +3,17 @@
 Owner-frozen. This is an **experiment**, not a solution. Execute it,
 document the matrix, and **stop at the review gate**.
 
+> **Before Task 1:** if the existing implementation differs materially
+> from the lever descriptions below, **do not reinterpret the design —
+> stop and report the discrepancy for owner review.** This matters most
+> for `escape_gap_bounded` and `sites_across_settlements`: they are
+> structural enough that a locally "reasonable" reinterpretation would
+> change what is being measured.
+
+> **After the matrix:** do **not** write the implementation spec.
+> The sequence is: matrix → human interpretation → chosen hypothesis →
+> a new reviewed spec → implementation. The job is measurement only.
+
 ## 0. Implementation boundary (read first)
 
 > You are implementing an experiment, not solving C.3.2a-5.
@@ -120,6 +131,31 @@ are committed. No further C.3.2a-5 work.
 
 Owner reviews the matrix and decides which, if any, lever deserves
 implementation. Only then is an implementation spec written.
+
+---
+
+## STATUS — tasks 1–7 DONE (2026-08-29, commit `265dd80`)
+
+The flags are built (`src/game.py` class attrs, default off; wired into
+`generator.py` levers 1/3 and `escape.py` levers 2/4). The matrix ran
+(220 seeds/depth, 10 mechanisms). Results:
+`tools/lever_matrix.json` + `SCALE_REPORT.md` § "Lever matrix".
+
+**Headline:** no single lever passes the gate.
+- lever 3 (town-distance cap) **FALSIFIED** — retire it.
+- lever 1 (settlements ∝ area) — density up, trek unmoved.
+- lever 2 (escape-gap bound) — the only lever touching the mechanism;
+  decouples `require→obstacle` from map size, but tight bounds crash
+  `dst/1k` below baseline + double backtrack, and even @8 misses the
+  gate at d9–12.
+- lever 4 (sites across settlements) — clean redistribution of the leg
+  (31→21) with no penalties, but the circuit re-routes so the headline
+  ratio is unchanged.
+
+**We are at gate 8: owner review.** Do NOT proceed to an implementation
+spec until the owner picks a hypothesis (likely a combination — a
+looser gap bound + lever 4 + a density floor — but that is the owner's
+call).
 
 ## 9. Task sequence
 

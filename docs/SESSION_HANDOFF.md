@@ -1,250 +1,129 @@
 # Session handoff — Apocrysis v5
 
-Last updated **2026-08-29** — Phases A + B complete and frozen; Phase C
-foundation frozen; **C.3 v2 geography rejected as currently designed by
-the human feel-test; C.3 architecture kept; default stays `v1`.**
-**Read this whole DIRECTION block first in a fresh session, then the
-doc map below it.**
+Last updated **2026-08-29** — A + B + C-foundation frozen. C.3 v2
+rejected-as-designed. **C.3.2 nav affordances: pieces 0 + 2 shipped &
+validated. C.3.2a-5 (scale) lever matrix DONE — awaiting owner review
+of which lever(s) to implement.** **Read this whole DIRECTION block
+first in a fresh session, then the doc map.**
 
 ---
 
-## >> DIRECTION (2026-08-29) — A + B FROZEN, C FOUNDATION FROZEN, C.3 v2 REJECTED-AS-DESIGNED
+## >> DIRECTION (2026-08-29) — the state, top to bottom
 
-- Branch `version-5`. Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
-  `v5-phase-c-foundation`, `v5-phase-c3-experiment`. **252 + 100 green.**
-- **A** (frozen): World seam -> WorldFact DAG -> WorldInvestigation ->
-  targeted mysteries -> milestones -> profile-persistent knowledge.
-- **B** (frozen): roguelite inheritance. Profile {campaign, survivor};
-  death resets the survivor, keeps the campaign; 3 SurvivorLore.
-- **C foundation** (frozen): `src/worldgen/` (`MapGenerator` moved
-  verbatim, byte-identical; `MapGraph` connectivity guarantee). C.4
-  deterministic structural suite.
-- **C.3 experiment — VERDICT IN.** `Apocrysis(mapgen="v1"|"v2")`,
-  default **`"v1"`** (unchanged). **v2 irregular geography = REJECTED
-  AS CURRENTLY DESIGNED** by the owner's feel-test (1 expedition,
-  `apocrysis_playlog_20260829_152820.txt`). The automated envelope
-  held; the human found what it couldn't: **irregularity alone doesn't
-  create meaningful navigation.** Player found an obstacle at turn 21,
-  then spent ~50 turns with no actionable information, bouncing off the
-  irregular boundary, reaching the only landmark at 64 % of the run,
-  arriving resource-depleted. The boundary was **friction, not
-  texture.** Full reasoning + verdict text: `PHASE_C3_SPEC.md`
-  § "The accept/reject gate — VERDICT".
-- **C.3 architecture KEPT.** Negative result cost one `_default_mapgen`
-  line, not a phase. Do NOT revert `v5-phase-c-foundation`; v2 code
-  stays parked as C.3.2's substrate. The old "fully-inverted pipeline"
-  C.3.2 is **superseded**.
-- **C.3.1 DONE (2026-08-29):** the ~1.3% no-mystery v2 maps eliminated
-  (`generate_map()` regenerates until `build_mystery` succeeds, v2
-  only; 0/1500; v1 byte-identical).
-- **Two bugs found+fixed during the feel-test:** survivor name not
-  sanitised → stray `\`/`[` corrupted the Rich HUD, play log and
-  profile slug (`d6e03de`, `clean_display_name`); play log didn't
-  auto-start and the TUI only ever logged expedition 1 (`aeca5c7`,
-  logging on by default, one transcript per session, `--no-log` opts
-  out).
-- **Invariants** (all phases): world investigation is campaign-level;
-  death never mutates the campaign record; SurvivorLore ids are the
-  interface; WorldFact never aware of the generator; worlds/* and
-  worldgen/* never import the engine; balance FROZEN.
-- **Atlas**: 9 of ~69 files across A+B+C, all leaf files. 13 `atlas-self`
-  capability todos; `atlas scan` crash fixed (`zork`).
-- **Navigational-signal inventory — DONE.** `docs/NAV_SIGNAL_INVENTORY.md`
-  (26 signals, classified `observable → interpretable → actionable`;
-  owner review pending). **Conclusion: the generator is not the primary
-  problem.** The game already computes live bearings, has a map-marker
-  system, and generates directional clue text — but gates all of it
-  behind already knowing the fact, never validates a communicated
-  heading against geography, and leaves ambient nav text inert.
-  Terrain is completely inert for navigation (no roads, no directional
-  types). The strongest actionable signal (found survey map) is a
-  random loot drop.
-- **C.3.2 spec authored — `PHASE_C3_2_SPEC.md`** (owner review
-  pending, NO CODE yet). C.3.2 = a **navigation-information feature**,
-  not a map-gen feature. Two stages:
-  - **C.3.2a — v1 affordances**, 4 ordered pieces + a graph-honest
-    `bearing()` helper: (1) landmark → bearing + remembered; (2) `look`
-    reframed to "is there something worth orienting toward from here?"
-    (not a GPS, only earned leads); (3) validate the baked spawn→gap
-    bearing against `MapGraph` at gen; (4) ambient clues → soft
-    directional hint, only if 1–3 don't clear the bar. No early-lead
-    *generation* guarantee unless 1–4 still starve the early window.
-  - **C.3.2b — replay the feel-test on v2** (no new code). Fill a 2×2
-    (v1/v2 × old-nav/affordances); the comparison that matters is
-    **v1-affordances vs v2-affordances**.
-- **Invariant 4 (new, the hard C.3.2 contract):** navigation signals
-  must correspond to actual `MapGraph` topology — prose and generation
-  don't independently agree, the claim is validated against the
-  realised graph. Failed checks are *corrected* (honest heading /
-  regenerate), never suppressed. Joins invariants 1–3 (lead before
-  obstacle / leads survive geography / navigation stays actionable) and
-  the **lead ≠ information** distinction.
-- **Guardrails:** don't buff the survey map (stays a loot drop); don't
-  pin geometry; don't call the generator "solved" (Invariant 4 is
-  permanent); balance FROZEN; v1 gen byte-identical except piece 3's
-  one conditional string.
-- **Blocking C.3.2b:** mechanism variety (`DIS_FEW_REMAINS` → only
-  `mountain_pass`). Pick one of: play a campaign forward /
-  `--force-mechanism` debug flag / a 2nd DiscoveryTemplate.
-- **Expedition 2 (v1, `boat_crossing`, 18×18) confirms the problem is
-  NOT v2-specific:** died turn 99 with ZERO mystery evidence — left
-  spawn turn 1, circled the perimeter, never hit a site (they cluster
-  near spawn by design). ESCAPE panel showed "(north)" from turn 1 +
-  ambient clue "boot prints lead north" at turn 94 — neither reinforced
-  or marked, player acted on neither. So C.3.2a-on-v1 is a real fix,
-  not a warm-up; the 2×2's "v1 old-nav" cell is not a passing baseline.
-  Spec updated: piece 0 (validate the panel route heading), and the
-  early-lead generation guarantee (C.3.2a-5) is likely NOT optional
-  (either guarantee an early reachable lead, or stop the generator
-  clustering every site near spawn).
-- **C.3.2 spec FROZEN (owner-approved).** Added **Invariant 5 —
-  Navigation Persistence**: a lead must remain *recoverable* after the
-  player ignores it (the missing loop: turn-1 heading → wander →
-  `look` re-states it → ambient clue reinforces → player reconnects).
-  `look` is the primary persistence channel and the key player-facing
-  change; landmark bearings + clue hints are reinforcement, not
-  mechanisms. C.3.2a-5 rephrased: "the player must be able to encounter
-  **or recover** an actionable signal in the early window without
-  having solved the mystery" (doesn't prescribe site placement). Kept
-  the FACT/LEAD/CONNECTION/OBJECTIVE distinction — **no `NavigationLead`
-  abstraction yet**, let the experiment prove it's needed.
-- **BUILT (build-order step 1, commit pending): `src/nav.py`** —
-  `bearing(from_xy, to_xy)` (pure compass word, ±1 deadzone, y-down =
-  south; consolidates `_mystery_heading` + tui `_compass`) and
-  `heading_is_honest(path, claimed, window=5)` (monotonic-progress
-  test: honest unless the early route *demonstrably reverses* a claimed
-  axis — the v2 "NE into a wall" case). **Ships inert** — nothing calls
-  it yet. `test_nav.py`, 11 tests. 263 + 100 green.
-- **BUILT step 2 — piece 0 (commit pending):** `tui._route_heading`
-  makes the ESCAPE-panel `heading()` graph-honest (straight-line claim
-  → `shortest_path` authority → substitute the route's honest early
-  heading on a genuine reversal, else unchanged). Applies to
-  route/require/power headings. `test_route_heading.py`, 5 tests.
-  Atlas attempted → REJECTED-UNPARSEABLE (`tui.py` past its ceiling),
-  `atlas-self` `9ecc7f2b`, hand-written.
-  **`heading_is_honest` refined during implementation**: spec's
-  "shares an axis" → a pure **contradiction test** (`window=8`) —
-  subset tests punish BFS L-shapes. Recorded in `PHASE_C3_2_SPEC.md`
-  § "As built".
-- **MEASURED (the gate before piece 3):** the correction fires on
-  **0 % of v1 / ~0.1 % of v2** route headings across ~1840 sampled
-  positions each. **The panel heading was almost never a lie.** The v2
-  friction was the irregular boundary making *greedy movement* annoying
-  while the heading stayed sound (Invariant-3/texture, not
-  Invariant-2/falsehood). Piece 0 is a correct cheap guard; **the real
-  weight is on piece 2 (`look`/persistence) and C.3.2a-5 (site
-  clustering / early-lead recoverability).**
-- **Sequence re-weighted (owner):** piece 0 killed a hypothesis cleanly
-  (claim is truthful, player still can't act on it). New order —
-  piece 0 ✅ → **piece 2 ✅** → **v1 feel-test** → piece 1 (landmarks)
-  if needed → piece 4 (clues) if needed → 2nd feel-test → then decide
-  C.3.2a-5 → piece 3 → v2.
-- **BUILT piece 2 — `look` recovers the route direction (Invariant 5),
-  commit `5cd5da6`.** `knowledge_look` ends with `_look_recall_bearing()`:
-  "You get your bearings. The way out lies to the north-west." —
-  `nav.honest_bearing` from the player's *current* position, so a
-  wanderer types `look` from anywhere and gets a fresh correct heading
-  with zero discovery. Non-informational from turn 1; informational
-  silent until F_ROUTE; silent on the site. Verified live (spawn "(east)"
-  → far corner → `look` "(north-west)").
-  **Atlas SHIPPED it** (`atlas request --file
-  src/mixins/knowledge_mixin.py`, `6ec6269a`, VERIFIED pytest ×3) —
-  first real Apocrysis win since Phase A (small file + verbatim body +
-  one call site). Fixup: method placement. `test_look_recall.py`.
-  277 + 100 green.
-- **`src/nav.py` gained `honest_bearing`** (shared core; `tui._route_heading`
-  is now a thin wrapper). `nav.py` imports `src.worldgen.reachable`.
-- **Re-weighted again (BlueNoodle, 2 v1 wins — 23 & 48 turns, clean,
-  `look` typed ZERO times).** The target player ("moves and fights,
-  never interrogates") navigates by the ESCAPE-panel heading + the
-  survey map. So `look` is now **one recovery mechanism, not the
-  solution** — ranked #4. Channel ranking: (1) persistent passive
-  objective signal [panel heading, piece 0] (2) passive environmental
-  reinforcement [landmark bearings piece 1, clue hints piece 4]
-  (3) map affordances [survey map — keep it a discovery, don't buff]
-  (4) `look` [recovery tool, proven technically, unproven players use
-  it]. NOT concluded: "`look` doesn't work" — BlueNoodle was never
-  lost (selection effect).
-- **Revised gate (in `PHASE_C3_2_SPEC.md` § "The gate"):**
-  - **Step A** — controlled `look` test, once (deliberate wander +
-    `look`). Good → keep, add no more `look`. Gamey → tune it.
-  - **Step B** — play v1 normally. Works for the archetype → done with
-    C.3.2a. Another wandering/death case → **piece 1 (passive landmark
-    bearings)** next. Then piece 4, then C.3.2a-5.
-- **The meta-result:** the geography experiment is now a
-  *player-information* experiment — the map doesn't need to say more,
-  the game needs existing info to persist / reinforce / stay
-  actionable. Stronger than "prettier irregular maps".
-- **PIECE 2 VALIDATED (BlueNoodle run 4).** The son — the "never
-  interrogates" archetype — typed `look` twice unprompted on a 24×24
-  map, got "the way out lies to the east", acted on it. The
-  "players won't use it" worry is at least partly wrong. **But he
-  died** turn 220: map scale (24×24, grows with depth) + airfield_plane
-  (most spread-out mechanism) + settlement ~turn 130 + 170-turn
-  starvation grind + an Elite Armored Zombie. NOT a heading failure —
-  the killer is **map area scaling the wander-to-settlement cost**.
-  Strongest signal yet for **C.3.2a-5**; also raises whether `map_size`
-  should grow unbounded (balance-FROZEN).
-- **SCALE INVESTIGATION DONE — `docs/SCALE_REPORT.md`** (200 seeds ×
-  8 depths, `tools/scale_report.py`; not one playthrough). Finding:
-  the *nearest* meaningful site stays ~5 tiles from spawn at every
-  depth, but the *solve circuit* (spawn → touch every site) balloons
-  p50 20 → 60 tiles, and the fraction of maps whose circuit alone
-  exceeds a fresh survivor's whole movement budget goes
-  **0% → 24% (depth 4) → 74% (depth 12)**. Site density collapses 5.5×
-  (fixed ~5 sites, 5× area). **By mid-campaign most maps can't be
-  *completed* by a survivor without inherited supplies — independent of
-  navigation.** The roguelite loop masked it until BlueNoodle died at
-  depth 3.
-- **Sequence now:** piece 0 ✅ (truthful) → piece 2 ✅ (recoverable,
-  validated) → **C.3.2a-5** (viable destination network at scale).
-  Pieces 1 & 4 PARKED.
-- **C.3.2a-5 SPEC AUTHORED — `PHASE_C3_2_5_SPEC.md`** (spec only, owner
-  review pending). Question: *can the world be physically larger
-  without being proportionally emptier?* — map growth is a feature,
-  not a bug. Central contract: **`required_circuit / survival_budget`
-  at p90**, every supported depth (NOT "maintain density" — that's a
-  diagnostic). `survival_budget` derived from real hunger/thirst
-  mechanics: ~50 moves gross, ~30–35 after combat/return/non-beeline
-  margins (calibrate in impl, don't hard-code). Four levers as a
-  matrix (fix/risk), tested **independently** before any combination:
-  (1) settlements ∝ area (2) bound site-placement region (3) cap
-  `TOWN_DISTANCE_GROWTH_PER_LEVEL` (4) spread sites across settlements.
-  Prohibitions: no spawn-cluster, no shrinking maps, no combat/hunger/
-  loot changes. Method: refine `scale_report.py` → calibrate budget →
-  lever A/B matrix (flags) → owner picks combo → implement → gate →
-  fresh-survivor feel-test depth 4/6.
-- **Spec approved + decomposed** (`3688f2f`). The scaling driver is the
-  **escape gap** (carved at "the far corner"): `spawn→escape` p50
-  12→32; the `require→obstacle` leg scales p50 7→22. Town is NOT on the
-  required circuit → lever 3 (town-distance cap) expected to be weak.
-  Lever 2 refined to **bound the escape-gap span**.
-- **`PHASE_C3_2_5_LEVER_MATRIX.md`** — the Claude-ready experiment
-  packet: hard implementation boundary, 5 variants (baseline + 4
-  levers, `escape_gap_bounded` swept @ 8/12/16/20), measurement-only,
-  baseline byte-identical, stop at review gate.
-- **Lever flags BUILT** (`src/game.py` class attrs, default off; wired
-  into `generator.py` [levers 1,3] + `escape.py` [levers 2,4] behind
-  `getattr` guards). All 280+100 green with flags off (golden fixture
-  intact). `tools/scale_report.py --levers` runs the matrix →
-  `tools/lever_matrix.json`.
-- **Also shipped this session:** map terrain colour (`8bec163`-era,
-  BlueNoodle's ask — forest green / water blue / mountain white etc.);
-  `docs/ROADMAP_STATUS.md` (World 1 arc: engine ~done, 2 of 5 chapters,
-  ~55-70% remains, 2 gates: pick the ending + land C.3.2a-5).
-- **Next: the lever matrix result → owner review → pick a lever.**
-  (Matrix run in progress at session end — check `tools/lever_matrix.json`
-  + `SCALE_REPORT.md` § "Lever matrix".)
-- **Two QoL bug-fixes shipped** (separate track from C.3.2):
-  `8bec163` empty ammo no longer alarm-red for a benched weapon;
-  `1ce5f3a` `eq N` / `wr W2` / `drop N` by pack slot number + the pack
-  list now numbers each line (`[3]`, `[5-7]` for contiguous runs).
-- **Blocking C.3.2:** fix mechanism variety — `DIS_FEW_REMAINS` has one
-  route (`mountain_pass`) so every fresh campaign's expedition 1 is
-  identical; contaminated this feel-test (a symptom of the name bug
-  blocking saves, now fixed).
-- Parked alternatives: A.0.1 (encounters), roadmap B.3 (valley file),
-  native modal `wi` screen.
+**Branch `version-5` (NOT main). All pushed, tree clean. 280 tests +
+100 subtests green.** Tags: `v5-phase-a-complete`, `v5-phase-b-complete`,
+`v5-phase-c-foundation`, `v5-phase-c3-experiment`.
+
+### Frozen and done
+
+- **Phase A** — World seam → `WorldFact` DAG (CH1 + CH2 = 9 facts) →
+  `DiscoveryTemplate` binding → persistent `WorldInvestigation` → `wi`
+  screen → milestone banner → milestone-keyed chapter intros.
+- **Phase B** — roguelite inheritance. `{campaign, survivor}` profile;
+  death resets the survivor, keeps the campaign; 3 `SurvivorLore`
+  (legibility not power).
+- **Phase C foundation** — `src/worldgen/` extraction (byte-identical)
+  + `MapGraph` connectivity guarantee + deterministic structural suite.
+- **Invariants** (never break): world investigation is campaign-level;
+  death never mutates the campaign record; `SurvivorLore` ids are the
+  executable interface; `WorldFact` never aware of the generator;
+  `worlds/*` + `worldgen/*` never import the engine; **balance FROZEN**
+  (combat / hunger-thirst / encounter / loot / map growth / survivor
+  power). No assist mode. Don't un-mixin `Apocrysis`.
+
+### The C.3 line — where geography work stands
+
+- **C.3 v2 (irregular maps) — REJECTED AS CURRENTLY DESIGNED** by the
+  human feel-test. `_default_mapgen` stays `"v1"`. Architecture kept
+  (v2 code parked). *Finding: irregularity alone ≠ meaningful
+  navigation.* Full verdict: `PHASE_C3_SPEC.md`.
+- **C.3.1 DONE** (`42efb63`) — no-mystery v2 maps eliminated.
+- **C.3.2 (navigation affordances) — reframed to a player-information
+  experiment.** Progression:
+  - **piece 0 ✅** (`3fe0485`) — the ESCAPE-panel route heading is
+    graph-honest. Measured near-no-op — the heading was rarely a lie.
+  - **piece 2 ✅** (`5cd5da6`) — `look` re-surfaces the route direction
+    from the player's current position ("You get your bearings. The way
+    out lies to the …"). **Validated in real play** — BlueNoodle (the
+    "never interrogates" archetype) used it twice unprompted. `look` is
+    DONE; no more `look` machinery.
+  - **pieces 1 & 4 (landmark bearings, clue reinforcement) — PARKED.**
+    Real, but not the priority.
+- **C.3.2a-5 (destination-network viability at scale) — the priority.**
+  `SCALE_REPORT.md` (200-250 seeds × 8 depths): the *nearest* site
+  stays ~5 tiles from spawn at every depth, but the **solve circuit
+  outgrows the survival budget** — 52 % of depth-6 maps, 74 % at depth
+  12. The decomposition localised it: **the escape gap** (carved at
+  "the far corner", `escape.py _carve_escape_pass`) is the scaling
+  driver; the `require→obstacle` leg grows p50 7→22.
+  - **Metric contract** (`PHASE_C3_2_5_SPEC.md`): `required_circuit /
+    survival_budget` at **p90**, every supported depth. `survival_budget`
+    ≈ 50 moves gross / ≈ 32 usable (calibrated from the hunger/thirst
+    mechanics; in the tool header). `sites/1k tiles` is a diagnostic,
+    not the requirement. Backtrack (currently ≈ 0) is a quality gate.
+  - **Lever A/B matrix DONE** (`265dd80`, `PHASE_C3_2_5_LEVER_MATRIX.md`
+    packet + `tools/lever_matrix.json` + `SCALE_REPORT.md` § Lever
+    matrix). All 4 lever flags built on `Apocrysis` (default off,
+    baseline byte-identical). **Result: no single lever passes.**
+    - lever 3 (town-distance cap) **FALSIFIED** — `require→obstacle`
+      moves 0. Town isn't on the required circuit. Retire.
+    - lever 1 (settlements ∝ area) — density up, trek unmoved.
+      Density ≠ topology.
+    - lever 2 (escape-gap bound) — the only lever touching the
+      mechanism; decouples `require→obstacle` from map size, but tight
+      bounds crash `dst/1k` below baseline ("nicer shirt" failure) and
+      ~2-4× backtrack; even @8 misses the gate at depths 9-12.
+    - lever 4 (sites across settlements) — cleanly redistributes the
+      leg (31→21) with NO backtrack/density penalty, but the circuit
+      re-routes so the headline ratio is unchanged.
+
+### >> NEXT — the owner gate
+
+**Owner reviews the lever matrix** (`SCALE_REPORT.md` § "Lever matrix")
+and picks a hypothesis — likely a *combination* (a looser escape-gap
+bound + lever 4 to redistribute + a `settlements_scaled` density floor),
+but that is the owner's call. **Do NOT write the implementation spec
+until the owner picks.** The sequence is:
+`matrix → human interpretation → chosen hypothesis → a new reviewed
+spec → implementation`. Nothing about C.3.2a-5 touches combat / hunger
+/ thirst / loot / survivor power.
+
+After C.3.2a-5 lands: unpark pieces 1 / 4 only if navigation still
+needs it, then the C.3.2b v2 replay (2×2), then the variety fix
+(`DIS_FEW_REMAINS` → only `mountain_pass`).
+
+### Also shipped this session (QoL / separate track)
+
+- **Map terrain colour** (`8bec163`-era) — BlueNoodle's ask. Each tile
+  glyph ANSI-tinted by terrain (forest green / water blue / mountain
+  white / …). `constants.TERRAIN_COLOR`.
+- **Numbered gear** (`1ce5f3a`) — `eq 3` / `wr W2` / `drop N`; pack
+  list numbers each line (`[3]`, `[5-7]` for contiguous runs).
+- **Empty-ammo colour fix** (`8bec163`) — a benched empty gun no longer
+  renders "ammo 0/5" in alarm-red; only the equipped weapon does.
+- **Auto-logging** (`aeca5c7`) — play log on by default, one transcript
+  per session, `--no-log` opts out.
+- **Name sanitisation** (`d6e03de`) — `clean_display_name` on entry.
+
+### Roadmap position
+
+`docs/ROADMAP_STATUS.md` — the ~25-expedition World 1 arc: **engine
+~done, 2 of 5 chapters authored (9 of ~24 WorldFacts), ~55-70 %
+remains.** Two gates before content authoring: **(1) pick the ending**
+(`WORLD_TRUTH_CANDIDATES.md` A/B/C — not chosen), **(2) land C.3.2a-5**
+(without it, expeditions 4-25 aren't winnable). Then: author CH3-FIN +
+three endgame systems (competing hypotheses, the bespoke final
+expedition, the ending). Phase D + parked nav pieces are polish.
+
+### Atlas
+
+**10 of ~70 files** shipped across A+B+C+C.3.2. First real win since
+Phase A: piece 2's `_look_recall_bearing` (`6ec6269a`) — recipe =
+**small file (<200 ln) + method body verbatim in the request + one
+call site**. Everything else (large-file, multi-file, cross-import)
+hand-written. `tui.py`/`escape.py`/`world_mixin.py`/`game.py`/
+`ui_mixin.py`/`mystery_mixin.py` all past the whole-file-load ceiling.
+`atlas-self` todos filed through `9ecc7f2b`.
 
 ---
 
@@ -274,8 +153,14 @@ doc map below it.**
    outgrows the survival budget by mid-campaign; site density
    collapses 5.5×. The basis for the C.3.2a-5 spec.
 4d. `PHASE_C3_2_5_SPEC.md` — the destination-network-at-scale spec.
-   `required_circuit / survival_budget` p90 contract; four levers as a
-   matrix. **Owner review pending; spec only.**
+   `required_circuit / survival_budget` p90 contract; four levers.
+4e. `PHASE_C3_2_5_LEVER_MATRIX.md` — the frozen A/B experiment packet
+   (hard boundary, 5 variants, stop at review gate). **Tasks 1-7 DONE.**
+4f. `SCALE_REPORT.md` § "Lever matrix" — the RESULT + per-lever
+   interpretations + falsified list. `tools/lever_matrix.json` = raw.
+   **← owner review gate is here.**
+4g. `ROADMAP_STATUS.md` — where the ~25-expedition World 1 arc stands
+   (engine ~done, 2 of 5 chapters, ~55-70% remains, 2 gates).
 5. `APOCRYSIS_ROADMAP.md` — the overall plan. §2B is the seven-layer
    architecture principle. §5 is the old fully-inverted-pipeline vision
    — **superseded** by C.3.2's navigational-affordance framing.

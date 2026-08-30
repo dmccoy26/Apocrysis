@@ -119,6 +119,54 @@ frame, the bot has the same problem the player does. If the game says
 "head toward the water tower" and the tower is a glyph on the rendered
 map, the bot can pathfind to that glyph.
 
+### The bot does not "understand directions" — it exposes whether a plan can be built
+
+This is the design stance, and it is what makes Level 2 a real test
+rather than a rationalisation:
+
+**The perceived bot is not built to follow instructions. It is built
+to expose whether the information the game presents is enough for an
+agent with no privileged knowledge to form and maintain an actionable
+plan.**
+
+So when the game says *"the evacuation corridor lies south-west,"* the
+bot must **not** silently translate that into a coordinate vector
+because the harness happens to know where the target is. It records
+what it actually received:
+
+```
+objective_text_seen   = true
+destination_named      = false
+spatial_relation       = "south-west"
+reference_frame        = none   ← no cardinal UI, so this relation is
+                                  semantically valid but operationally
+                                  useless
+```
+
+That is precisely what the five failed CH3 runs are telling us. Run 6
+is the other side: `NEW LEAD → Generator Shed → marked on your map →
+checklist → "take it back, west"` gives an agent enough to build and
+hold a plan.
+
+### Information *received* vs. information *actionable*
+
+Every objective-related metric is recorded as a pair — was it
+presented, and was it usable — so a failure separates cleanly into
+"the player wasn't told" vs. "the player was told, but the information
+wasn't usable":
+
+| received | actionable | meaning |
+|---|---|---|
+| `objective_text_seen` | `objective_destination_named` | told there's a goal / told *what/where* it is |
+| `direction_text_seen` | `direction_operational` | a spatial relation was stated / the bot could act on it (a reference frame exists) |
+| `landmark_named` | `landmark_visible` | a landmark was named in text / that landmark is actually on the rendered map |
+| `map_marker_present` | — | the ESCAPE panel / map shows a marker for the destination |
+
+`direction_operational` is the key one for the current problem:
+"south-west" with no compass UI is `direction_text_seen: true,
+direction_operational: false`. A named landmark that the bot can find
+as a glyph is `landmark_named: true, landmark_visible: true`.
+
 ### Policies
 
 Keep them small and named, selectable with `--policy`:
@@ -145,6 +193,11 @@ Per run, machine-readable (JSON lines):
   "turns": 91,
   "objective_text_seen": true,
   "objective_destination_named": false,
+  "direction_text_seen": true,
+  "direction_operational": false,
+  "landmark_named": false,
+  "landmark_visible": false,
+  "map_marker_present": false,
   "objective_reached": false,
   "turns_to_objective": null,
   "turns_pursuing_vs_wandering": [23, 68],

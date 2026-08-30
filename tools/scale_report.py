@@ -707,9 +707,13 @@ def _p(v, q):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--games", type=int, default=300)
-    ap.add_argument("--depths", default="0,1,2,3,4,6,9,12")
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--games", type=int, default=300,
+                    help="seeds sampled per depth (default: 300)")
+    ap.add_argument("--depths", default="0,1,2,3,4,6,9,12",
+                    help="comma-separated expedition depths to measure")
     ap.add_argument("--levers", action="store_true",
                     help="run the C.3.2a-5 lever A/B matrix instead of the "
                          "single-variant scale report")

@@ -269,3 +269,16 @@ def make(name, rng=None):
         raise SystemExit(
             f"unknown policy {name!r}; instrument-phase policies: "
             + ", ".join(sorted(_REGISTRY)))
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(
+        "tools/autoplay/policies.py is a library module, not a runnable command.\n"
+        "It is imported by the autoplay/telemetry CLIs. Run one of those:\n"
+        "  python3 tools/telemetry.py --help\n"
+        "  python3 tools/nav_autoplay.py --help\n"
+        "  python3 tools/resource_autoplay.py --help\n"
+        "  python3 tools/fatigue_autoplay.py --help\n"
+        "  python3 tools/story_playthrough.py --help\n"
+        "See tools/autoplay/README.md for the seam design.")

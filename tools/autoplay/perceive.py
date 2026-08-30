@@ -264,3 +264,16 @@ def build_perception(player, log_lines, turn):
         spatial_relation=_spatial_relation(lines, panel),
         reference_frame=_reference_frame(player),
     )
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(
+        "tools/autoplay/perceive.py is a library module, not a runnable command.\n"
+        "It is imported by the autoplay/telemetry CLIs. Run one of those:\n"
+        "  python3 tools/telemetry.py --help\n"
+        "  python3 tools/nav_autoplay.py --help\n"
+        "  python3 tools/resource_autoplay.py --help\n"
+        "  python3 tools/fatigue_autoplay.py --help\n"
+        "  python3 tools/story_playthrough.py --help\n"
+        "See tools/autoplay/README.md for the seam design.")

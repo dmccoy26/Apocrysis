@@ -167,13 +167,18 @@ def compare(a_rows, b_rows, keys, label_a, label_b):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--games", type=int, default=300)
-    ap.add_argument("--variants", default="v1,v2")
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--games", type=int, default=300,
+                    help="seeds sampled per variant/tier (default: 300)")
+    ap.add_argument("--variants", default="v1,v2",
+                    help="comma-separated mapgen variants to compare")
     ap.add_argument("--max-turns", type=int, default=600)
     ap.add_argument("--gameplay", action="store_true",
                     help="also run the bot (slow) - geometry only by default")
-    ap.add_argument("--exp-tiers", default="0,3,6,9,12")
+    ap.add_argument("--exp-tiers", default="0,3,6,9,12",
+                    help="comma-separated expedition depths to sample")
     args = ap.parse_args()
 
     variants = args.variants.split(",")

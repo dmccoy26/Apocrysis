@@ -143,3 +143,16 @@ class RunRecord:
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), default=str)
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(
+        "tools/autoplay/metrics.py is a library module, not a runnable command.\n"
+        "It is imported by the autoplay/telemetry CLIs. Run one of those:\n"
+        "  python3 tools/telemetry.py --help\n"
+        "  python3 tools/nav_autoplay.py --help\n"
+        "  python3 tools/resource_autoplay.py --help\n"
+        "  python3 tools/fatigue_autoplay.py --help\n"
+        "  python3 tools/story_playthrough.py --help\n"
+        "See tools/autoplay/README.md for the seam design.")

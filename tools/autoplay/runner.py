@@ -194,3 +194,16 @@ def run_one(seed, chapter, policy_name, max_turns=600, nav_phrasing="cardinal"):
         rec.death_cause = "combat-or-attrition"
 
     return rec
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(
+        "tools/autoplay/runner.py is a library module, not a runnable command.\n"
+        "It is imported by the autoplay/telemetry CLIs. Run one of those:\n"
+        "  python3 tools/telemetry.py --help\n"
+        "  python3 tools/nav_autoplay.py --help\n"
+        "  python3 tools/resource_autoplay.py --help\n"
+        "  python3 tools/fatigue_autoplay.py --help\n"
+        "  python3 tools/story_playthrough.py --help\n"
+        "See tools/autoplay/README.md for the seam design.")

@@ -152,8 +152,22 @@ def solve(seed, expeditions=0):
     return ("WIN" if game.won else "no-win", turns[0], m.mechanism)
 
 
-if __name__ == "__main__":
-    n = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+def main():
+    import argparse
+    ap = argparse.ArgumentParser(
+        description=(
+            "Generated-mystery solvability harness. Drives real generated "
+            "maps to a win using ONLY player commands (move / search / "
+            "clear / escape), navigating with BFS, and reports the solve "
+            "rate + turn counts across many seeds - the 'player "
+            "solvability' guarantee from the design doc's Escape Proof "
+            "section."),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("n_seeds", nargs="?", type=int, default=60,
+                    help="number of seeds to solve (default: 60); seed s "
+                         "runs at expeditions_completed = s %% 8")
+    args = ap.parse_args()
+    n = args.n_seeds
     from collections import Counter
     outcomes = Counter()
     wins = []
@@ -170,3 +184,7 @@ if __name__ == "__main__":
     if wins:
         wins.sort()
         print(f"\n  win turns: min {wins[0]}, median {wins[len(wins)//2]}, max {wins[-1]}")
+
+
+if __name__ == "__main__":
+    main()

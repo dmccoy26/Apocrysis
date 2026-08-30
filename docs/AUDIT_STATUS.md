@@ -33,6 +33,30 @@ stands today is fun and understandable.
 
 ---
 
+## Next gate
+
+The next implementation gate is **not** balance or world generation. It
+is **human comprehension and agency**.
+
+The player must be able to:
+
+1. understand the current investigation,
+2. identify what evidence remains,
+3. understand what action can advance it,
+4. understand spatial threats and opportunities,
+5. make meaningful combat / escape / resource decisions,
+6. complete the World-1 arc **without** requiring knowledge of the
+   underlying map markers or bot-specific behaviour.
+
+Once that gate is exercised by a human playthrough, **reopen only the
+problems that playthrough demonstrates.** That is the stopping rule.
+
+Items 1a–1c below exist to make the gate passable; 1d is the gate
+itself. Everything in sections 2–4 stays closed until a human run
+produces evidence against it.
+
+---
+
 ## 1 — Genuinely unfinished implementation
 
 ### 1a. Finish the investigation UI
@@ -51,6 +75,27 @@ Still missing, for the **world-investigation thread** itself:
 - a clear read of **what this expedition can advance** vs what it
   can't
 
+Target shape (presentation is not the point — the four questions are):
+
+```text
+INVESTIGATION
+▸ Who ordered it, and why?
+
+LEADS
+✓ damaged relay
+✓ evacuation record
+○ witness at the mill
+○ radio transmission
+
+NEXT
+→ Search the mill
+
+THIS RUN
+Can advance: witness at the mill
+```
+
+The player must be able to answer: **what do I know? what am I
+missing? what should I do next? can this expedition make progress?**
 This is the last unclosed piece of the run-6 discovery problem
 (`DEV_PLAYTEST.md`, `NAV_INVESTIGATION_RESULTS.md`).
 
@@ -70,6 +115,15 @@ Still missing:
 - the world should communicate **what the player sees**, not merely
   expose a map marker.
 
+Instead of `! MYSTERY SITE`, the player should encounter something
+like:
+
+> A rusted water tower rises beyond the trees. Something about it
+> matches the description in your notes.
+
+The marker can still exist — but the **world description becomes the
+primary information, with the marker as support.**
+
 `DESIGN_SPATIAL_LANGUAGE.md`.
 
 ### 1c. Clean up the legacy zombie systems
@@ -87,9 +141,21 @@ Unchanged since the audit — no commits touched either.
   and auto-checked "for save-file compatibility", under a UI that no
   longer surfaces them.
 
-Decide: do Tasks belong? If yes, wire the lifecycle (auto-completion,
-so the rewards fire). If no, remove both rather than carrying dead
-code. This is now the oldest untouched debt in the repo.
+Make this an **architectural decision, not another investigation.**
+The question: **are Tasks and Goals part of version-5's actual player
+model?** If no, remove them. If yes, finish them properly (Tasks need
+auto-completion so the reward path fires). What version-5 must not
+ship is three overlapping objective systems —
+
+```text
+Goals
+Tasks
+Investigation objectives
+```
+
+— when the game has clearly converged on the investigation objective
+as the meaningful player-facing system. This is the oldest untouched
+debt in the repo.
 
 ### 1d. Human playtest of the full arc
 
@@ -99,6 +165,21 @@ ceiling: `story_playthrough.py` completes the arc (23/23 world facts,
 9/9 milestones, both endings) but only by retrying — 76 % expedition
 death rate, expedition 24 needs ~30 bot attempts. A human run is the
 only evidence for whether the whole experience actually works.
+
+**Then stop coding.** Play the straight-through 25-expedition campaign
+— not a bot, not a regression test, not a balance sim. Record what
+surprises, confuses, or frustrates:
+
+- "I don't know where I'm supposed to go."
+- "I know where I'm supposed to go but not how."
+- "I didn't realise that was important."
+- "I don't understand why this encounter is dangerous."
+- "I have no idea what I should do this turn."
+- "I keep doing this because the game isn't telling me anything better."
+- "This is tedious." / "This is great."
+
+Those observations are worth more right now than reopening any parked
+model.
 
 ---
 
@@ -197,8 +278,14 @@ shipped:
 ## Bottom line
 
 **Immediate:** finish the investigation UI (1a) and spatial language
-(1b), remove the legacy Tasks/Goals systems (1c), then run a human
+(1b), resolve the legacy Tasks/Goals systems (1c), then run a human
 playtest of the full arc (1d).
 
 **After the human playtest:** the Phase C/D world-generation layer
-(section 3) and the parked balance decisions (section 2).
+(section 3) and the parked balance decisions (section 2) — reopened
+only where the playtest produces evidence against them.
+
+Apocrysis is not primarily suffering from missing mechanics. It is
+approaching the more interesting question: **does the player actually
+understand the machinery that's been built?** The Next gate above is
+how we find out.

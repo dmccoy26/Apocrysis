@@ -28,13 +28,32 @@ at the instant of the decision — recorded before the fight resolves.
 So every combat answers: *what did the agent know, what did it decide,
 what actually happened.*
 
-## What the human report derives
+## What the human report derives — "where did the turns go?"
 
-Terrain turn/encounter split · survival-state turn-share + the
-transition histogram · combat composition & outcomes · **weapon
-performance** (wins / avg HP lost / avg rounds per weapon) · **decision
-vs forecast** (fought-% by threat tier, policy mismatch, deaths after
-fighting an EXTREME/SEVERE).
+- **WHERE THE TURNS WENT** — every turn bucketed: moving-to-a-new-tile
+  / revisiting / searching / recovering / in-combat / other, + how many
+  moves were on slow terrain.
+- **TIME / TERRAIN** — per terrain: turns · **in-game minutes spent** ·
+  **minutes per move** (the movement-cost signal — water/swamp run
+  ~1.5× a plain move) · moves / searches / combat / rest / revisit
+  turns *in that terrain*. This is what separates "60 turns in forest
+  because the route crossed it" from "60 turns bouncing between 8
+  forest tiles".
+- **MOVEMENT** — moves, % onto a revisited tile, searches, rests,
+  median max-distance-from-spawn, and the travel:reach ratio
+  (moves / distance actually covered).
+- **SURVIVAL STATE** — band turn-share + the transition histogram.
+- **RESOURCES** — food/water found (**by source**: building /
+  zombie-loot / ground) · consumed · turns-at-zero-in-pack · fatigue
+  recovery events (rests + building).
+- **COMBAT** — composition · outcomes · total damage dealt/received ·
+  **per zombie type** (fights, dmg dealt/taken, avg rounds) · **per
+  weapon** (wins, avg HP lost, avg rounds, total dealt).
+- **DECISION vs FORECAST** — fought-% by threat tier, policy mismatch,
+  deaths after fighting an EXTREME/SEVERE.
+
+Per-turn events also carry `time_min`, `dt_min` (this move's cost),
+and `revisit` (times this tile has been stood on) for offline slicing.
 
 ## First finding (survival policy, small n)
 

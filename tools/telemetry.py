@@ -102,6 +102,9 @@ class TelemetryIO:
         self._pending_combat = None  # dict being filled between decision and next turn
         self._spawn = None
         self._tiles = set()
+        self._visits = defaultdict(int)   # (x,y) -> times stood on
+        self._prev_time_min = None
+        self._recent_combat_turn = -99    # for "food from loot" inference
 
     # -- output --
     def say(self, *a, **k):
@@ -114,16 +117,28 @@ class TelemetryIO:
                     self._combat_line(s)
                 self._resource_line(s)
 
+    def _found_source(self):
+        p = self.player
+        pos = p.current_position
+        cell = p.map[pos[1]][pos[0]]
+        terr = cell.get("terrain") if isinstance(cell, dict) else None
+        if self._pending_combat is not None or self._turn - self._recent_combat_turn <= 1:
+            return "zombie-loot"
+        if terr == "building" or (isinstance(cell, dict) and cell.get("content") in ("H", "R", "S", "B", "T")):
+            return "building"
+        return "ground"
+
     def _resource_line(self, s):
         t = self._turn
         m = _FOUND_QTY.match(s)
         if m:
             self.rec.emit(t, "resource", kind=m.group(1), op="found",
-                          qty=int(m.group(2)))
+                          qty=int(m.group(2)), source=self._found_source())
             return
         m = _FOUND.match(s)
         if m:
-            self.rec.emit(t, "resource", kind=m.group(1), op="found", qty=None)
+            self.rec.emit(t, "resource", kind=m.group(1), op="found", qty=None,
+                          source=self._found_source())
             return
         m = _ATE.match(s)
         if m:
@@ -209,16 +224,24 @@ class TelemetryIO:
         return build_perception(self.player, list(self._buf), self._turn)
 
     def _snapshot_turn(self, per):
+        from src.constants import MINUTES_PER_DAY
         p = self.player
         pos = p.current_position
         if self._spawn is None:
             self._spawn = pos
         self._tiles.add(pos)
+        self._visits[pos] += 1
         cell = p.map[pos[1]][pos[0]]
         terrain = cell.get("terrain") if isinstance(cell, dict) else "zombie-tile"
+        time_min = (p.day - 1) * MINUTES_PER_DAY + p.time_of_day
+        dt = (None if self._prev_time_min is None
+              else max(0, time_min - self._prev_time_min))
+        self._prev_time_min = time_min
         snap = {
             "turn": self._turn, "day": p.day,
             "phase": getattr(p, "day_phase", "night" if p.is_night else "day"),
+            "time_min": time_min, "dt_min": dt,
+            "revisit": self._visits[pos],
             "pos": list(pos), "terrain": terrain,
             "hp": p.health, "max_hp": p.max_health,
             "hunger": p.hunger, "thirst": p.thirst, "fatigue": p.fatigue,
@@ -249,6 +272,7 @@ class TelemetryIO:
     def _begin_combat(self, per, interactive):
         if self._pending_combat is not None:
             self._flush_combat()
+        self._recent_combat_turn = self._turn
         enc = per.encounter or {}
         p = self.player
         self._pending_combat = {
@@ -358,64 +382,165 @@ def run_campaign(rec, policy_name, seed, max_turns=600, max_attempts=6):
 
 
 # ------------------------------------------------------------- report
+_MOVE = set("nsew")
+_RECOVER = {"eat", "drink", "med", "rest"}
+_SLOW_TERRAIN = {"water", "swamp"}
+
+
+def _turn_category(e):
+    a = e.get("action")
+    if a in _MOVE:
+        return "revisiting" if e.get("revisit", 1) > 1 else "moving (new tile)"
+    if a == "search":
+        return "searching"
+    if a in _RECOVER:
+        return "recovering"
+    return "other"
+
+
 def report(events):
     turns = [e for e in events if e["event"] == "turn"]
     combats = [e for e in events if e["event"] == "combat"]
     decisions = [e for e in events if e["event"] == "combat_decision"]
     trans = [e for e in events if e["event"] == "state_transition"]
+    res = [e for e in events if e["event"] == "resource"]
     exp_end = [e for e in events if e["event"] == "expedition_end"]
     camp_end = [e for e in events if e["event"] == "campaign_end"]
 
-    L = []
-    L.append("=" * 64)
-    L.append(" APOCRYSIS TELEMETRY")
-    L.append("=" * 64)
+    key = lambda e: (e["campaign"], e["run"])
+    by_run = defaultdict(list)
+    for e in turns:
+        by_run[key(e)].append(e)
+    for v in by_run.values():
+        v.sort(key=lambda e: e["turn"])
+    combat_turns = {(key(e), e["turn"]) for e in combats}
+
+    L = ["=" * 70, " APOCRYSIS TELEMETRY  -  where did the turns go?", "=" * 70]
     nc = len({e["campaign"] for e in events})
     done = sum(1 for e in camp_end if e.get("reason") == "complete")
-    L.append(f" campaigns: {nc}   completed: {done}   "
-             f"expeditions: {len(exp_end)}")
+    L.append(f" campaigns: {nc}   completed: {done}   expeditions: {len(exp_end)}"
+             f"   turns: {len(turns)}")
     oc = Counter(e["outcome"] for e in exp_end)
-    L.append(f" expedition outcomes: " + "  ".join(f"{k} {v}" for k, v in oc.most_common()))
+    L.append(" expedition outcomes: " + "  ".join(f"{k} {v}" for k, v in oc.most_common()))
+    tpe = [len(v) for v in by_run.values()]
+    if tpe:
+        L.append(f" turns / expedition: median {statistics.median(tpe):.0f}"
+                 f"  (min {min(tpe)}  max {max(tpe)})")
 
-    # --- environment ---
-    L.append("\n ENVIRONMENT")
-    terr = Counter(e["terrain"] for e in turns)
-    enc_terr = Counter(e.get("terrain") for e in combats)
-    L.append(f"   {'terrain':<14} {'turns':>6} {'encounters':>11}")
-    for t, n in terr.most_common():
-        L.append(f"   {t:<14} {n:>6} {enc_terr.get(t, 0):>11}")
-    # max distance from spawn, per expedition
-    per_exp = defaultdict(int)
+    # ---------- WHERE THE TURNS WENT ----------
+    L.append("\n WHERE THE TURNS WENT")
+    cat = Counter()
     for e in turns:
-        per_exp[(e["campaign"], e["run"])] = max(
-            per_exp[(e["campaign"], e["run"])], e["dist_from_spawn"])
-    if per_exp:
-        L.append(f"   max distance from spawn / expedition (median): "
-                 f"{statistics.median(per_exp.values()):.0f} tiles")
+        c = "in combat" if (key(e), e["turn"]) in combat_turns else _turn_category(e)
+        cat[c] += 1
+    tot = sum(cat.values()) or 1
+    for c in ("moving (new tile)", "revisiting", "searching", "recovering",
+              "in combat", "other"):
+        L.append(f"   {c:<20} {cat.get(c, 0):>6}  ({100*cat.get(c, 0)//tot}%)")
+    slow = sum(1 for e in turns if e.get("action") in _MOVE and e["terrain"] in _SLOW_TERRAIN)
+    L.append(f"   ...of which slow-terrain (water/swamp) moves: {slow}")
 
-    # --- survival state ---
+    # ---------- TIME / TERRAIN ----------
+    L.append("\n TIME / TERRAIN  (turns · in-game min · min per move · what happened there)")
+    t_turns, t_min, t_moves, t_search, t_combat, t_recover, t_revisit = \
+        (Counter() for _ in range(7))
+    for run in by_run.values():
+        for i, e in enumerate(run):
+            terr = e["terrain"]
+            t_turns[terr] += 1
+            a = e.get("action")
+            if a in _MOVE:
+                t_moves[terr] += 1
+                if e.get("revisit", 1) > 1:
+                    t_revisit[terr] += 1
+            elif a == "search":
+                t_search[terr] += 1
+            elif a in _RECOVER:
+                t_recover[terr] += 1
+            if (key(e), e["turn"]) in combat_turns:
+                t_combat[terr] += 1
+            # dt_min on the NEXT turn is the cost of this turn's action
+            if i + 1 < len(run) and run[i + 1].get("dt_min"):
+                t_min[terr] += run[i + 1]["dt_min"]
+    L.append(f"   {'terrain':<12} {'turns':>6} {'min':>7} {'min/move':>9} "
+             f"{'moves':>6} {'srch':>5} {'cbt':>4} {'rest':>5} {'revis':>6}")
+    for terr, n in t_turns.most_common():
+        mpm = t_min[terr] / t_moves[terr] if t_moves[terr] else 0
+        L.append(f"   {terr:<12} {n:>6} {t_min[terr]:>7} {mpm:>9.0f} "
+                 f"{t_moves[terr]:>6} {t_search[terr]:>5} {t_combat[terr]:>4} "
+                 f"{t_recover[terr]:>5} {t_revisit[terr]:>6}")
+
+    # ---------- MOVEMENT ----------
+    moves = sum(1 for e in turns if e.get("action") in _MOVE)
+    revis = sum(1 for e in turns if e.get("action") in _MOVE and e.get("revisit", 1) > 1)
+    uniq = [e["unique_tiles"] if "unique_tiles" in e else None for e in exp_end]
+    L.append(f"\n MOVEMENT: {moves} moves   {revis} onto a revisited tile "
+             f"({100*revis//max(1,moves)}%)   "
+             f"{sum(1 for e in turns if e.get('action')=='search')} searches   "
+             f"{sum(1 for e in turns if e.get('action')=='rest')} rests")
+    dist = defaultdict(int)
+    for e in turns:
+        dist[key(e)] = max(dist[key(e)], e["dist_from_spawn"])
+    if dist:
+        L.append(f"   max distance from spawn / expedition (median): "
+                 f"{statistics.median(dist.values()):.0f} tiles   "
+                 f"(travel:reach ratio = moves / that = "
+                 f"{moves / max(1, sum(dist.values())):.1f}x)")
+
+    # ---------- SURVIVAL STATE ----------
     L.append("\n SURVIVAL STATE (turn-share)")
     for axis, bands in (("hp_band", ["healthy", "wounded", "critical"]),
                         ("hunger_band", ["fed", "hungry", "starving"]),
                         ("fatigue_band", ["rested", "fatigued", "exhausted"])):
         c = Counter(e[axis] for e in turns)
-        tot = sum(c.values()) or 1
-        L.append("   " + "  ".join(f"{b} {100*c[b]//tot}%" for b in bands))
+        tt = sum(c.values()) or 1
+        L.append(f"   {axis.split('_')[0]:<9} "
+                 + "  ".join(f"{b} {100*c[b]//tt}%" for b in bands))
     tc = Counter((e["axis"], e["frm"], e["to"]) for e in trans)
     L.append("   transitions: " + ", ".join(
         f"{frm}→{to} ×{n}" for (ax, frm, to), n in tc.most_common(6)))
 
-    # --- combat ---
+    # ---------- RESOURCES ----------
+    L.append("\n RESOURCES")
+    for kind in ("food", "water"):
+        f = [e for e in res if e["kind"] == kind and e["op"] == "found"]
+        c = [e for e in res if e["kind"] == kind and e["op"] == "consumed"]
+        src = Counter(e.get("source") for e in f)
+        empty = sum(1 for e in turns if e.get(kind, 1) == 0)
+        L.append(f"   {kind:<6} found {len(f)} ({dict(src)})   "
+                 f"consumed {len(c)} (~{sum(e['qty'] or 0 for e in c)} units)   "
+                 f"turns at 0 in pack: {empty}")
+    rests = [e for e in res if e["kind"] == "fatigue" and e["op"] == "rest"]
+    blds = [e for e in res if e["kind"] == "fatigue" and e["op"] == "building_recover"]
+    L.append(f"   fatigue recovery: {len(rests)} rests "
+             f"(~{statistics.median([e['qty'] for e in rests]):.0f} each)  "
+             if rests else "   fatigue recovery: 0 rests  ")
+    L[-1] += f"{len(blds)} building-recover events"
+
+    # ---------- COMBAT ----------
     L.append(f"\n COMBAT  ({len(combats)} encounters)")
     zc = Counter(_base(e["zombie"]) for e in combats)
     L.append("   composition: " + "  ".join(f"{k} {v}" for k, v in zc.most_common()))
     outc = Counter(e["outcome"] for e in combats)
-    L.append("   outcomes:    " + "  ".join(f"{k} {v}" for k, v in outc.most_common()))
-    forced = sum(1 for e in combats if e["forced_fight"])
-    L.append(f"   forced fights (escape failed): {forced}")
+    L.append("   outcomes:    " + "  ".join(f"{k} {v}" for k, v in outc.most_common())
+             + f"   forced (escape failed): {sum(1 for e in combats if e['forced_fight'])}")
+    dealt = sum(e["dmg_dealt"] for e in combats)
+    taken = sum(e["dmg_taken"] for e in combats)
+    L.append(f"   damage: dealt {dealt}   received {taken}")
 
-    # --- weapon performance ---
-    L.append("\n WEAPON PERFORMANCE (fights won / avg HP lost / avg rounds)")
+    L.append("\n   per zombie type (fights · dmg dealt/taken · rounds):")
+    byz = defaultdict(list)
+    for e in combats:
+        byz[_base(e["zombie"])].append(e)
+    for z, es in sorted(byz.items(), key=lambda kv: -len(kv[1])):
+        f = [e for e in es if e["decision"] == "fight" or e["forced_fight"]]
+        rr = [e["rounds"] for e in f if e["rounds"]]
+        L.append(f"     {z:<16} {len(f):>3}f  dealt {sum(e['dmg_dealt'] for e in f):>4} "
+                 f"taken {sum(e['dmg_taken'] for e in f):>4}  "
+                 f"{statistics.mean(rr):.1f}r" if rr else
+                 f"     {z:<16} {len(f):>3}f  (no rounds recorded)")
+
+    L.append("\n   per weapon (fights won · avg HP lost · avg rounds · total dealt):")
     byw = defaultdict(list)
     for e in combats:
         if e["decision"] == "fight" or e["forced_fight"]:
@@ -423,29 +548,29 @@ def report(events):
     for w, es in sorted(byw.items(), key=lambda kv: -len(kv[1])):
         wins = sum(1 for e in es if e["outcome"] == "win")
         loss = statistics.mean([e["dmg_taken"] for e in es]) if es else 0
-        rnds = statistics.mean([e["rounds"] for e in es if e["rounds"]]) if any(e["rounds"] for e in es) else 0
-        L.append(f"   {w:<18} {wins}/{len(es):<3}  {loss:>5.0f} HP   {rnds:.1f} rounds")
+        rr = [e["rounds"] for e in es if e["rounds"]]
+        L.append(f"     {w:<18} {wins}/{len(es):<3}  {loss:>5.0f} HP  "
+                 f"{(statistics.mean(rr) if rr else 0):.1f}r  "
+                 f"{sum(e['dmg_dealt'] for e in es)} dealt")
 
-    # --- decision / forecast mismatch ---
+    # ---------- DECISION vs FORECAST ----------
     L.append("\n DECISION vs FORECAST")
     if decisions:
         mm = sum(1 for d in decisions if d["mismatch"])
-        L.append(f"   total decisions: {len(decisions)}   "
-                 f"policy mismatch: {mm} ({100*mm//len(decisions)}%)")
+        L.append(f"   decisions: {len(decisions)}   policy mismatch: {mm} "
+                 f"({100*mm//len(decisions)}%)")
         for tier in ("EXTREME", "SEVERE", "HIGH", "MODERATE", "LOW"):
             ds = [d for d in decisions if (d["threat"] or "").upper() == tier]
             if not ds:
                 continue
             fought = sum(1 for d in ds if d["decision"] == "fight")
-            L.append(f"   {tier:<9} n={len(ds):<3}  fought {fought} "
-                     f"({100*fought//len(ds)}%)   evaded {len(ds)-fought}")
-        # deaths that followed a "should evade" fight
-        death_combats = [e for e in combats if e["outcome"] == "death"]
-        bad = sum(1 for e in death_combats
-                  if e["decision"] == "fight"
+            L.append(f"   {tier:<9} n={len(ds):<3}  fought {100*fought//len(ds)}%   "
+                     f"evaded {100*(len(ds)-fought)//len(ds)}%")
+        dcs = [e for e in combats if e["outcome"] == "death"]
+        bad = sum(1 for e in dcs if e["decision"] == "fight"
                   and (e["threat"] or "").upper() in ("EXTREME", "SEVERE"))
-        L.append(f"   deaths after fighting an EXTREME/SEVERE: {bad} / {len(death_combats)}")
-    L.append("=" * 64)
+        L.append(f"   deaths after fighting an EXTREME/SEVERE: {bad} / {len(dcs)}")
+    L.append("=" * 70)
     return "\n".join(L)
 
 
@@ -458,7 +583,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--campaigns", type=int, default=5)
     ap.add_argument("--policy", default="explorer",
-                    choices=["random", "survival", "explorer"])
+                    choices=["random", "survival", "explorer", "resource", "objective"])
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--max-turns", type=int, default=600)
     ap.add_argument("--jsonl", default=None, help="append the full event trace here")

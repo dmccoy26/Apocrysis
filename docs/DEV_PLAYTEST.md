@@ -326,3 +326,65 @@ a player would. Not understanding why you are somewhere is evidence.
 
 The playtest phase is doing its job: not telling us what code to
 write, but showing us what the game is actually communicating.
+
+---
+
+## Revision to the run 5 finding (owner) — the game gave a coordinate instruction without a coordinate system
+
+**Verified in code:** player-facing navigation is `src/nav.py`
+`bearing()` → cardinal words ("south-west"). The *only* reference
+frame the player is given is the arrow-key legend at the bottom of the
+screen (`↑ north ↓ south ← west → east`). The ASCII map has no compass
+rose, no "north is up" marker, and no landmark tied to the escape
+route. `world_mixin._spot_landmarks()` exists ("a building in the
+distance", "rooftops in the distance") but it is ambient flavour, not
+a directional cue for the objective.
+
+So run 5 should **not** be read as a failed player-navigation test. We
+tested an instruction the game has not made actionable. A player
+should not be expected to translate "go south-west" into "press the
+key that corresponds to south-west" unless the game has taught them
+what south-west means on this screen.
+
+### The finding, revised
+
+Old: *"the heading is shown and ignored."*
+
+New: **abstract cardinal-direction instructions are not sufficient
+navigation affordances. Concrete destinations, landmarks, map markers,
+and actionable objectives are.** This is a stronger finding, and it
+explains run 6: CH5 succeeded not by giving *better directions* but by
+giving a chain of concrete objects and actions — blocked route →
+generator shed → jerrycan → ranger depot → take it to the shed. That
+is human-readable navigation.
+
+### What this implies for the spatial language (post-playtest, not now)
+
+`◆` blue should not mean "here is some directional text." It should
+mean "this is what you are trying to accomplish, and here is how you
+recognise where to go." Three layers:
+
+```
+◆ OBJECTIVE              What am I trying to accomplish?
+📍 DESTINATION / LANDMARK  What am I looking for?
+→ ROUTE / PROXIMITY       Am I getting closer?
+```
+
+Examples of the shift:
+
+```
+current   ◆ The evacuation corridor lies south-west.
+
+better    ◆ EVACUATION CORRIDOR
+          The way out is beyond the forest, past the old water tower.
+          Marked on your map.
+
+best      ◆ EVACUATION CORRIDOR
+          You can see the water tower rising above the trees.
+          Head toward it.
+```
+
+The player then recognises a *thing in the world* rather than needing
+east from west. Cardinal directions can still exist internally; they
+should not be the primary player-facing navigation language unless the
+game gives the player a compass / reference frame.

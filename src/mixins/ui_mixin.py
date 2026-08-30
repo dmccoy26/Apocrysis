@@ -510,6 +510,13 @@ class UIMixin:
             # dynamic task generator is gone entirely.
             self._auto_check_goals()
 
+            # docs/DESIGN_SPATIAL_LANGUAGE.md - objective lifecycle:
+            # NEW -> ACTIVE -> DISTRACTED -> REMINDER -> URGENT ->
+            # COMPLETE. Resurfaces the next step when the investigation
+            # stalls; silent while it's progressing.
+            if command and command not in _free and not getattr(self, 'won', False):
+                self.objective_tick()
+
             if getattr(self, 'playlog', None) is not None:
                 self.playlog.snapshot()
 

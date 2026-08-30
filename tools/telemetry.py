@@ -55,6 +55,29 @@ _GETTING = re.compile(r"^⚠ GETTING (HUNGRY|THIRSTY)")
 _WEARING_DOWN = re.compile(r"is wearing you down")
 
 
+# --------------------------------------------------------- analysis-only
+def _manh(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def _objective_tile(p):
+    """The tile the survivor SHOULD be heading for right now, from real
+    mystery state. ANALYSIS ONLY - never handed to a policy."""
+    m = getattr(p, "mystery", None)
+    if m is None:
+        return None
+    searched = getattr(p, "_mystery_named", set())
+    for role in ("route", "require", "require2"):
+        if role in m.sites and role not in searched \
+                and p.current_position != m.sites[role]:
+            return m.sites[role]
+    if getattr(m, "power_role", None) and not m.power_restored:
+        return m.sites.get(m.power_role)
+    if not m.obstacle_open and getattr(m, "obstacle_tile", None):
+        return m.obstacle_tile
+    return m.escape_tile
+
+
 # ---------------------------------------------------------------- bands
 def _hp_band(hp, mx):
     f = hp / max(1, mx)
@@ -242,6 +265,7 @@ class TelemetryIO:
             "phase": getattr(p, "day_phase", "night" if p.is_night else "day"),
             "time_min": time_min, "dt_min": dt,
             "revisit": self._visits[pos],
+            "obj_state": getattr(p, "_obj_state", None),
             "pos": list(pos), "terrain": terrain,
             "hp": p.health, "max_hp": p.max_health,
             "hunger": p.hunger, "thirst": p.thirst, "fatigue": p.fatigue,
@@ -266,6 +290,15 @@ class TelemetryIO:
                     self.rec.emit(self._turn, "state_transition", axis=label,
                                   frm=self._last[key], to=snap[key],
                                   hp=p.health, turn_from=self._last["turn"])
+            if snap["obj_state"] != self._last["obj_state"]:
+                m = getattr(p, "mystery", None)
+                obj = _objective_tile(p) if m is not None else None
+                self.rec.emit(self._turn, "objective_transition",
+                              frm=self._last["obj_state"], to=snap["obj_state"],
+                              turns_since_progress=(
+                                  self._turn - getattr(p, "_obj_last_progress_turn", self._turn)),
+                              dist_to_target=(_manh(pos, obj) if obj else None),
+                              action=None)
         self._last = snap
         return snap
 
@@ -439,6 +472,33 @@ def report(events):
         L.append(f"   {c:<20} {cat.get(c, 0):>6}  ({100*cat.get(c, 0)//tot}%)")
     slow = sum(1 for e in turns if e.get("action") in _MOVE and e["terrain"] in _SLOW_TERRAIN)
     L.append(f"   ...of which slow-terrain (water/swamp) moves: {slow}")
+
+    # ---------- OBJECTIVE LIFECYCLE ----------
+    objt = [e for e in events if e["event"] == "objective_transition"]
+    ostates = Counter(e.get("obj_state") for e in turns if e.get("obj_state"))
+    if ostates:
+        L.append("\n OBJECTIVE LIFECYCLE (turn-share)")
+        ot = sum(ostates.values()) or 1
+        for s in ("active", "distracted", "reminder", "urgent", "complete"):
+            L.append(f"   {s:<12} {ostates.get(s, 0):>6}  ({100*ostates.get(s, 0)//ot}%)")
+        tc = Counter((e["frm"], e["to"]) for e in objt)
+        L.append("   transitions: " + ", ".join(
+            f"{a or '·'}→{b} ×{n}" for (a, b), n in tc.most_common()))
+        rem = [e for e in objt if e["to"] == "reminder"]
+        urg = [e for e in objt if e["to"] == "urgent"]
+        if rem:
+            L.append(f"   REMINDER fired {len(rem)}× "
+                     f"(median {statistics.median([e['turns_since_progress'] for e in rem]):.0f} "
+                     f"turns since last progress)")
+        if urg:
+            L.append(f"   URGENT fired {len(urg)}× "
+                     f"(median {statistics.median([e['turns_since_progress'] for e in urg]):.0f} "
+                     f"turns since last progress)")
+        # did the reminder/urgent work? turns from a reminder/urgent
+        # firing to the next 'active' (back on track)
+        back = [e for e in objt if e["frm"] in ("distracted", "reminder", "urgent")
+                and e["to"] == "active"]
+        L.append(f"   returned to ACTIVE after a stall: {len(back)}×")
 
     # ---------- TIME / TERRAIN ----------
     L.append("\n TIME / TERRAIN  (turns · in-game min · min per move · what happened there)")

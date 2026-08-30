@@ -34,37 +34,13 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tools.telemetry import Recorder, TelemetryIO, _Stop
+from tools.telemetry import Recorder, TelemetryIO, _Stop, _objective_tile, _manh
 from tools.autoplay import policies as _policies
 from src.constants import CAMPAIGN_LENGTH
 from src.game import Apocrysis
 from src import tui as _tui
 
 _DELTA = {"n": (0, -1), "s": (0, 1), "e": (1, 0), "w": (-1, 0)}
-
-
-def _objective_tile(p):
-    """The tile the survivor SHOULD be heading for right now, derived
-    from real mystery state. ANALYSIS ONLY."""
-    m = getattr(p, "mystery", None)
-    if m is None:
-        return None
-    searched = getattr(p, "_mystery_named", set())
-    for role in ("route", "require", "require2"):
-        if role in m.sites and role not in searched \
-                and role not in getattr(m, "_site_evidence_done", ()):
-            # not-yet-visited required site
-            if p.current_position != m.sites[role]:
-                return m.sites[role]
-    if getattr(m, "power_role", None) and not m.power_restored:
-        return m.sites.get(m.power_role)
-    if not m.obstacle_open and getattr(m, "obstacle_tile", None):
-        return m.obstacle_tile
-    return m.escape_tile
-
-
-def _manh(a, b):
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
 class NavIO(TelemetryIO):

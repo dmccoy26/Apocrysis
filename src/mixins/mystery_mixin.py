@@ -27,6 +27,98 @@ class MysteryMixin:
     def _mystery(self):
         return getattr(self, 'mystery', None)
 
+    # ---- objective lifecycle (docs/DESIGN_SPATIAL_LANGUAGE.md) --------
+    # The mystery IS the objective. "progress" = the investigation
+    # advanced this turn (a fact learned, a site reached, the item
+    # picked up, the way opened, the hypothesis firmed). Turns with no
+    # progress accumulate; long enough without progress and the game
+    # resurfaces the next step - once at REMINDER (a quiet line), again
+    # at URGENT (a banner) when a real cost is also in play. Any
+    # progress silently returns the state to ACTIVE.
+    _OBJ_DISTRACTED_AFTER = 12
+    _OBJ_REMINDER_AFTER = 20
+    _OBJ_URGENT_AFTER = 34
+
+    def _objective_sig(self):
+        m = self._mystery()
+        if m is None:
+            return None
+        k = m.knowledge
+        return (len(k.found), bool(m.obstacle_open), bool(m.power_restored),
+                self._mystery_has_item(), k.hypothesis_state())
+
+    def _objective_next_step(self):
+        """A short plain-text 'what's left' line, from mystery state
+        only - no tui / markup dependency."""
+        m = self._mystery()
+        if m is None:
+            return "find the way out of the valley"
+        known = m.knowledge.facts_known()
+        labels = getattr(m, "site_labels", {})
+        named = getattr(self, "_mystery_named", set())
+        _info = MECHANISMS.get(m.mechanism, {}).get("reveals_route")
+        if not _info and "F_ROUTE" not in known and "route" not in named:
+            return "work out where the other way out is"
+        if m.controls and not m.obstacle_open:
+            place = labels.get("require", "the controls")
+            return f"work out which control clears the way, at {place}"
+        if getattr(m, "power_role", None) and not m.power_restored:
+            return f"get the power back on at {labels.get('power', 'the source')}"
+        if not m.obstacle_open and not self._mystery_has_item() \
+                and m.requirement_item:
+            place = labels.get("require", "where it's kept")
+            return f"get the {m.requirement_item} from {place}"
+        if not m.obstacle_open:
+            return "get past what blocks the route"
+        if m.knowledge.hypothesis_state() != "confirmed":
+            return "make sure this really leads out"
+        mech = MECHANISMS.get(m.mechanism, {}).get("name", "the way out")
+        return f"go to {mech} - it's marked on your map"
+
+    def objective_tick(self):
+        """One call per turn, from the game loop. Runs the lifecycle."""
+        m = self._mystery()
+        turn = getattr(self, "turns", 0)
+        if m is None or getattr(m, "escaped", False):
+            return
+        state = getattr(self, "_obj_state", None)
+        if state is None:
+            self._obj_state = "active"
+            self._obj_established_turn = turn
+            self._obj_last_progress_turn = turn
+            self._obj_sig = self._objective_sig()
+            return
+        if state == "complete":
+            return
+        sig = self._objective_sig()
+        if sig != getattr(self, "_obj_sig", None):
+            self._obj_sig = sig
+            self._obj_last_progress_turn = turn
+            if state in ("distracted", "reminder", "urgent"):
+                self._obj_state = "active"   # back on track, quietly
+            return
+        idle = turn - self._obj_last_progress_turn
+        pressure = (self.hunger < 30 or self.thirst < 30 or self.fatigue > 85)
+        if state == "active" and idle >= self._OBJ_DISTRACTED_AFTER:
+            self._obj_state = "distracted"          # silent - watching
+        elif state == "distracted" and idle >= self._OBJ_REMINDER_AFTER:
+            self._obj_state = "reminder"
+            self.announce_event("STILL TO DO", self._objective_next_step(),
+                                kind="objective", level=1)
+        elif state in ("distracted", "reminder") and (
+                idle >= self._OBJ_URGENT_AFTER
+                or (pressure and idle >= self._OBJ_REMINDER_AFTER)):
+            self._obj_state = "urgent"
+            _why = ("you're low on supplies and still in the valley"
+                    if pressure else "you've been at this a while")
+            self.announce_event("YOU'RE STILL NOT OUT",
+                                self._objective_next_step(),
+                                f"({_why} - {idle} turns since you last got anywhere)",
+                                kind="objective", level=2)
+
+    def _objective_complete(self):
+        self._obj_state = "complete"
+
     def _mystery_obstacle_ready(self):
         """Can the obstacle be opened by walking into it?
           spatial        - do you carry the requirement item
@@ -671,6 +763,7 @@ class MysteryMixin:
                 else "You make your way back to the pass and start walking.")
             self._update_time(90)
         m.escaped = True
+        self._objective_complete()   # lifecycle: COMPLETE (one beat only)
         # A.3: a resolved mystery explicitly tagged with a WorldFact
         # marks that fact KNOWN. Deliberately simple - one isolated
         # transition, so evidence/provenance logic can replace it later

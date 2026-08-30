@@ -118,6 +118,60 @@ hand-write that half.
 
 ---
 
-*Decision + plan. The contract is owner-set; the code change is
-proposed and needs sign-off on the balance-line question (§3) and N
-(§4) before implementation.*
+## STATUS — supply-scaling half BUILT + VERIFIED (2026-08-30)
+
+Owner sign-off: (1) depth-scaled starting supplies is **in bounds** —
+campaign structure, not a balance-rate tweak. (2) **N = 6**, with
+`_lever_scaled_beats` + prize folded in.
+
+### Built (`src/game.py`, hand-written — calibration loop, not routable)
+
+- `depth_supply_bonus(depth)` = `round(1.8 · max(0, depth−1))`, capped
+  20. Applied to **food and water** in the `STARTING_RATIONS` loop
+  (fixes the `persist_new_survivor` heir) **and** to the
+  `_prize_bonus` food/water (the returning winner). `SUPPORTED_DEPTH =
+  6` exported.
+- Medicine/ammo unchanged. Worldgen untouched — v1 byte-identity holds
+  (this is engine state, not map generation).
+
+### Verified
+
+- **`scale_report.py --heir-budget`** (250 seeds/depth, `effective =
+  32 + 2·bonus`): `ratio p90 < 1` at **every depth 0–12** (0.68–0.94,
+  `>budget` 0–6 %). The scaled floor covers the whole campaign depth
+  range — the heir cliff is closed.
+- **`balance_autoplay.py --campaign`** (30 runs, seed 7): **28/30
+  campaigns completed, before AND after** — zero regression. The bot
+  (a returning survivor) was never supply-constrained; its deep wall is
+  combat power (§3.2), untouched. The 2 stuck-at-expedition-9 runs are
+  the known combat problem, not starvation.
+- 280 + 100 tests green.
+
+### NOT built this session — the `_lever_scaled_beats` player feature
+
+The beats construct exists as a **measurement device** (the `--gate6`
+harness walks `m.required_beats`). Shipping it as a player-facing
+feature needs the §3.1 wiring: a beat must **withhold the next required
+site's location**, surface a lead, and mark the map — a
+`mystery_mixin` + `tui._objective_steps` + knowledge-model change, not
+a flag flip. As a bare flag the beats are invisible to the player (no
+objective line, no marker) so they aren't genuinely load-bearing in the
+*game* even though the harness treats them as required.
+
+**This does not block anything:** the supply scaling alone achieves the
+viability contract through the full depth range. `_lever_scaled_beats`
+as a shipped emptiness lever is a separate, self-contained feature —
+spec'd in `PHASE_C3_2_6_SPEC.md` §3, deferred.
+
+### What is now unblocked
+
+**CH3–FIN authoring.** Ending locked (Truth A, authored + one final
+choice); campaign structure known (0–6 learn-the-world, 7–25
+inheritance-scaled attrition, viability contract satisfied by the
+model). The DAG can be written toward a known end.
+
+---
+
+*Contract owner-set and the viability half shipped + verified. The
+emptiness half (`_lever_scaled_beats` as a player feature) is deferred,
+non-blocking.*

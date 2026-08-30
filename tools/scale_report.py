@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import src.game as _gmod
-from src.game import Apocrysis
+from src.game import Apocrysis, depth_supply_bonus, SUPPORTED_DEPTH
 from src.escape import MECHANISMS
 from src.worlds.silence.truth import WORLD_FACTS
 from src.worldgen.reachable import reachable_set, shortest_path
@@ -610,6 +610,41 @@ def _gate6_verdict(cells, base):
     return (not reasons), (reasons or ["PASS all of GATE6_SPEC §7.1-7.6"])
 
 
+def run_heir_budget(games, depths):
+    """C.3.2a-7: does the inheritance-scaled starting supply
+    (game.depth_supply_bonus) bring a fresh survivor ARRIVING at each
+    depth back under budget? effective_usable = USABLE_BUDGET + 2 move-
+    equivalents per bonus ration (a +5 ration ~ 2 moves at 2.5/move
+    decay), counted once - food and water deplete in parallel so the
+    binding constraint moves in lockstep."""
+    print(f"{'depth':>5} {'map':>7} {'circ p50':>9} {'circ p90':>9} "
+          f"{'bonus':>6} {'eff.budget':>10} {'ratio p90':>10} "
+          f"{'>budget':>8}  supported<=" + str(SUPPORTED_DEPTH))
+    results = {}
+    for d in depths:
+        rows = [measure(_forced_game(i, d, MECH_ROTATION[i % len(MECH_ROTATION)]))
+                for i in range(games)]
+        circ = [r["circuit"] for r in rows if r["circuit"] is not None]
+        bonus = depth_supply_bonus(d)
+        eff = USABLE_BUDGET + 2 * bonus
+        p90 = _p(circ, .9)
+        ratio = p90 / eff
+        over = 100 * sum(1 for c in circ if c > eff) / max(1, len(circ))
+        sz = rows[0]["map"]
+        results[d] = ratio < 1.0
+        print(f"{d:>5} {f'{sz}x{sz}':>7} {_p(circ,.5):>9.0f} {p90:>9.0f} "
+              f"{bonus:>6} {eff:>10} {ratio:>10.2f} {over:>7.0f}%"
+              f"{'  OK' if ratio < 1.0 else '  OVER'}")
+    ok_through = 0
+    for d in sorted(results):
+        if results[d]:
+            ok_through = d
+        else:
+            break
+    print(f"\ninheritance-scaled supply keeps ratio p90 < 1 through "
+          f"depth {ok_through}  (contract target: {SUPPORTED_DEPTH})")
+
+
 def run_gate6(games, depths):
     import json
     out = {"budget_usable": USABLE_BUDGET, "games_per_cell": games,
@@ -684,12 +719,19 @@ def main():
     ap.add_argument("--gate6", action="store_true",
                     help="run the C.3.2a-6 scaled-investigation-structure "
                          "experiment (docs/PHASE_C3_2_6_SPEC.md)")
+    ap.add_argument("--heir-budget", action="store_true",
+                    help="C.3.2a-7: check the inheritance-scaled supply floor "
+                         "against the required circuit by depth")
     args = ap.parse_args()
     depths = [int(x) for x in args.depths.split(",")]
 
     print(f"budget: gross {GROSS_BUDGET} moves, usable (investigative) "
           f"{USABLE_BUDGET}  [docs/PHASE_C3_2_5_SPEC.md]")
     print()
+
+    if args.heir_budget:
+        run_heir_budget(args.games, depths)
+        return
 
     if args.gate6:
         run_gate6(args.games, depths)

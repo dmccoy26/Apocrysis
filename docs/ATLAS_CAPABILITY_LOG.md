@@ -62,6 +62,21 @@ external repo, zero Atlas surface.**
   across the C.3.2a-5 line: two experiment builds + two harness
   extensions + the research judgement, none of it Atlas-shaped.
 
+## C.3.2a-7 supply scaling (2026-08-30) — Atlas-shaped, but not routed
+
+`PHASE_C3_2_7` §6 flagged the `game.py` `STARTING_RATIONS` change as
+the rare Atlas-shaped edit (small, precise, a file Atlas has succeeded
+on — log #11). **Not routed.** Reason: the change was a
+**calibration loop** — write `depth_supply_bonus`, run
+`scale_report.py --heir-budget`, read `ratio p90` by depth, adjust the
+constant (`depth−2`→`depth−1`, `1.5`→`1.8`), re-run — three iterations
+before the whole depth range cleared. That measure→tune→re-measure loop
+is not a single specifiable `atlas request`; by the time the diff is
+final it's a 6-line edit not worth a round-trip. A genuine Atlas-shaped
+edit that the *workflow* (not the file) put out of reach. `game.py`
+also gained a ~15-line module-level function + a `world_mixin`
+`_prize_bonus` touch — over the line regardless.
+
 ## Operating protocol (this run)
 
 1. **Committed clean tree before every `atlas request`.** `git status`

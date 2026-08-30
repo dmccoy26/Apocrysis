@@ -24,6 +24,27 @@ from src.world_investigation import WorldInvestigation
 from src.survivor_knowledge import SurvivorKnowledge
 
 
+# C.3.2a-7 (docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md): expeditions 0..N are
+# fresh-survivor-viable on starter supplies; past N the required circuit
+# outgrows a fixed budget (SCALE_REPORT.md - lever matrix + Gate 8 +
+# C.3.2a-6 all falsified a generator fix). The campaign contract is that
+# deep expeditions are inheritance-scaled: a survivor ARRIVING at depth
+# d - including a persist_new_survivor heir who otherwise starts flat -
+# gets a supply floor matched to depth d's circuit. N = 6.
+SUPPORTED_DEPTH = 6
+_SUPPLY_PER_DEPTH = 1.8      # rations of food AND water per depth past 2
+_SUPPLY_BONUS_CAP = 20
+
+
+def depth_supply_bonus(depth):
+    """Extra units of food and (separately) water a survivor arriving at
+    `depth` starts with, over the flat STARTING_RATIONS. 0 through the
+    early band, then ~linear in depth, capped. Calibrated in
+    PHASE_C3_2_7 section 4 against SCALE_REPORT's p90 circuit growth."""
+    over = max(0, depth - 1)
+    return int(min(_SUPPLY_BONUS_CAP, round(_SUPPLY_PER_DEPTH * over)))
+
+
 class Apocrysis(
     PersistenceMixin,
     CombatMixin,
@@ -70,9 +91,9 @@ class Apocrysis(
     _lever_scaled_beats = None           # C.3.2a-6: (form_id, c) or None
 
     # v4: the fresh-start ration every game begins with, so a game
-    # doesn't open in a food/water deficit. load_game() and
-    # apply_profile() subtract this back off before their own additive
-    # restore, so a full-state load is exact.
+    # doesn't open in a food/water deficit. apply_profile() / load_game()
+    # SET backpack.* from the profile afterward, so a returning survivor
+    # is governed by their saved state + the win prize, not this.
     STARTING_RATIONS = {"food": 8, "water": 8, "medicine": 2}
 
     prize_for_next_game = False
@@ -158,8 +179,13 @@ class Apocrysis(
         # game) - a starving player fights worse (_condition_penalty)
         # and dies to zombies, which is what "food and water were
         # always a problem" was.
+        _supply_bonus = depth_supply_bonus(self.expeditions_completed)
         for _k, _v in self.STARTING_RATIONS.items():
-            setattr(self.backpack, _k, _v)
+            # C.3.2a-7: food/water get the inheritance-scaled floor so a
+            # fresh heir taking up a deep campaign isn't dropped onto a
+            # circuit their starter rations can't cover. medicine flat.
+            _bonus = _supply_bonus if _k in ("food", "water") else 0
+            setattr(self.backpack, _k, _v + _bonus)
         self.zombie_positions = set()  # Initialize as an empty set
         self.status_effects = {}  # Track active status effects (e.g., Bleeding, Stun)
         # v4 (V3_ASSUMPTION_AUDIT #1/#8): the hard-coded goal list and
@@ -234,7 +260,12 @@ class Apocrysis(
         self._prize_bonus = {}
         if Apocrysis.prize_for_next_game:
             self.io.say("\nYou received a generous prize for your next game!")
-            self._prize_bonus = {"food": 10, "water": 10, "medicine": 5, "ammo": 20}
+            # C.3.2a-7: the win prize's food/water scale with campaign
+            # depth too, so a returning winner's supply floor tracks the
+            # circuit the same way a fresh heir's does.
+            _pb = depth_supply_bonus(self.expeditions_completed)
+            self._prize_bonus = {"food": 10 + _pb, "water": 10 + _pb,
+                                 "medicine": 5, "ammo": 20}
             for _k, _v in self._prize_bonus.items():
                 setattr(self.backpack, _k, getattr(self.backpack, _k) + _v)
             Apocrysis.prize_for_next_game = False

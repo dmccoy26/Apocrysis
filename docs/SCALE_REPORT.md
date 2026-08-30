@@ -502,8 +502,44 @@ own small decision, not part of the C.3.2a-5 viability line.
 
 ---
 
-*Investigation only. No generator change shipped; all lever flags
-default off; baseline byte-identical. Gate 8 and C.3.2a-6 are both
-clean negative results on the content side — the valuable artifact is
-the convergent falsification: the fix for deep-campaign viability is a
-campaign-structure decision, not a generator lever.*
+# C.3.2a-7 — the campaign-structure fix (shipped)
+
+`tools/scale_report.py --heir-budget`, 250 seeds/depth. Spec:
+`docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md`.
+
+The content-lever search being exhausted, the fix is structural:
+`game.depth_supply_bonus(depth)` scales a survivor's starting
+food/water (and the win-prize food/water) with campaign depth —
+`round(1.8·max(0, depth−1))`, capped 20 — so a survivor *arriving* at
+depth d (a `persist_new_survivor` heir included) has a supply floor
+matched to depth d's circuit. `effective_usable = 32 + 2·bonus`.
+
+| depth | map | circ p90 | bonus | eff.budget | ratio p90 | >budget |
+|---|---|---|---|---|---|---|
+| 0 | 15² | 22 | 0 | 32 | 0.69 | 0% |
+| 1 | 18² | 30 | 0 | 32 | 0.94 | 6% |
+| 2 | 21² | 31 | 2 | 36 | 0.86 | 3% |
+| 4 | 27² | 34 | 5 | 42 | 0.81 | 3% |
+| 6 | 33² | 42 | 9 | 50 | 0.84 | 5% |
+| 9 | 34² | 43 | 14 | 60 | 0.72 | 2% |
+| 12 | 34² | 49 | 20 | 72 | 0.68 | 0% |
+
+**`ratio p90 < 1` at every depth 0–12.** The heir cliff is closed by
+the model. `balance_autoplay.py --campaign`: 28/30 completed before and
+after — zero regression (the bot is a returning survivor, never
+supply-bound; its deep wall is combat power, untouched). Worldgen
+untouched, v1 byte-identity holds.
+
+**The `_lever_scaled_beats` emptiness lever** (raises
+`meaningful_fraction`, C.3.2a-6) stays a flag — shipping it as a
+player-facing feature needs the withhold-location wiring
+(`PHASE_C3_2_6_SPEC.md` §3), deferred, non-blocking.
+
+---
+
+*C.3.2a-5 line closed. Three content experiments (lever matrix / Gate 8
+/ C.3.2a-6) falsified a generator fix; the convergent finding — the
+required circuit can't fit a fixed budget as the map grows — was
+resolved by a campaign-structure change (C.3.2a-7): deep expeditions
+are inheritance-scaled by design, and the supply floor now tracks the
+circuit. CH3–FIN authoring is unblocked.*

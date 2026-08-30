@@ -29,10 +29,10 @@ chapter-intro lines; the WorldFact DAG covers **CH1 + CH2 only**
 |---|---|---|---|
 | ~~Pick the ending~~ | ✅ **DECIDED 2026-08-29** | — | Truth A "The Cordon"; **authored-canonical ending + one final binary choice** (broadcast the truth outward vs protect the settlement's silence). `PHASE_A_DECISIONS.md` / `WORLD_TRUTH_CANDIDATES.md`. Gate cleared — CH3–FIN authoring unblocked once C.3.2a-5 lands. |
 | **Scale viability — C.3.2a-5** | **content-lever search EXHAUSTED** (`SCALE_REPORT.md`: lever matrix + Gate 8 + C.3.2a-6, all falsified) | — | **Gate, now a campaign-design decision not a generator one.** Three experiments converge: the required circuit can't be made to fit a fixed survival budget as the map grows (rearranging → viable to depth ~4–6; adding scaled structure → fixes emptiness, worsens viability; shrinking/clustering forbidden). **The survival envelope is the wall.** Next: formally bound supported depth to 0–N ≈ 5–6; expeditions N…25 a deliberately different format (inherited-supply / authored escalation / distinct mode). Owner picks the format. |
-| **Story content CH3–5 + finale** | 0 % | **largest single chunk** | ~15 more `WorldFact`s + `DiscoveryTemplate`s + evidence text + milestones + **THE RESPONSE thread** (only its title string exists today) |
+| ~~Story content CH3–5 + finale~~ | ✅ **AUTHORED 2026-08-30** | — | `truth.py` 9 → 23 `WorldFact`s; 14 on the RESPONSE thread across CH3-FIN; 8 milestones; every fact `DiscoveryTemplate`-bound; DAG walks clean; 56/56 targeted mysteries valid. `PHASE_A1_TRUTH.md` CH3-FIN section. |
 | **Competing hypotheses + wrong-commitment arc** (Phase E.2) | 0 % | medium-large | engine change: `knowledge.py` `self.hypothesis` → a competing set + a correction beat |
-| **The final expedition** (Phase E.3) | 0 % | medium-large | bespoke, less procedural, realised from the player's own discoveries; the designed truth revealed; the ending choice |
-| **Campaign 10 → 25** | structure ~40 % | small-medium | 15 more chapter intros grouped into 5 chapters + finale; pacing across 25 |
+| **The final expedition** (Phase E.3) | 0 % | medium-large | bespoke, less procedural, realised from the player's own discoveries; the designed truth revealed; the ending choice acting on `RESP_THE_CHOICE` |
+| ~~Campaign 10 → 25~~ | ✅ **DONE 2026-08-30** | — | `CAMPAIGN_LENGTH = 25` + `DIFFICULTY_RAMP_LENGTH = 10` (curve decoupled from arc length); `campaign.py` 6 chapters + `_CHAPTER_BOUNDS` + `chapter_for_expedition`. Bot completes 7/8 full runs. |
 | **Phase D — world conditions + region mutation + `escape_kind`** | 0 % | large | roadmap puts it on the path to E; arguably deferrable for a *rough* first arc |
 | **Nav affordances — C.3.2 pieces 1 / 4** | parked | small | only if navigation still needs it after C.3.2a-5 |
 | **Long-campaign balance** | untuned | medium | a survivor 15 expeditions deep without dying is drowning in inherited loot (BlueNoodle had 4 guns at expedition 4). `_prize_bonus` + inheritance compound. |
@@ -65,11 +65,11 @@ pick the ending                       ✅ Truth A, authored + one choice
       ↓
 land C.3.2a-5 (or equivalent)         ✅ C.3.2a-7 inheritance-scaled supply
       ↓
-author CH3–FIN facts + templates + prose      ← ACTIVE
+author CH3–FIN facts + templates + prose      ✅ 23 WorldFacts, DAG clean
       ↓
-CAMPAIGN_LENGTH = 25  +  5-chapter grouping
+CAMPAIGN_LENGTH = 25  +  5-chapter grouping   ✅ + DIFFICULTY_RAMP_LENGTH
       ↓
-a minimal final expedition (truth reveal + one ending choice)
+a minimal final expedition (truth reveal + one ending choice)   ← ACTIVE (Phase E)
 ```
 
 Everything else is polish on that skeleton.

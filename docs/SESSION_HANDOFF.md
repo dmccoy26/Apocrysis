@@ -2,13 +2,12 @@
 
 Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
 rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
-**C.3.2a-5 line CLOSED: lever matrix / Gate 8 / C.3.2a-6 all falsified
-a generator fix → C.3.2a-7 resolved it with a campaign-structure change
-(inheritance-scaled supply floor, SHIPPED, `ratio p90 < 1` through
-depth 12, zero campaign-bot regression). Ending LOCKED (Truth A,
-authored + one final choice). Both world-arc gates cleared — CH3–FIN
-authoring is the active work.** **Read this whole DIRECTION block
-first, then the doc map.**
+**C.3.2a-5 line CLOSED (C.3.2a-7 inheritance-scaled supply, shipped).
+Ending LOCKED. CH3–FIN AUTHORED — the full 25-expedition "The Cordon"
+arc is in (23 WorldFacts, 8 milestones, bot completes 7/8). Active work
+= the 3 Phase E endgame SYSTEMS (competing hypotheses / bespoke finale
+/ ending choice).** **Read this whole DIRECTION block first, then the
+doc map.**
 
 ---
 
@@ -140,23 +139,42 @@ combat-bound, not supply-bound). v1 byte-identity holds.
 knowledge model). As a bare flag the beats are invisible in-game. The
 supply scaling alone satisfies the viability contract.
 
-### >> THE ACTIVE WORK — CH3–FIN authoring (now unblocked)
+### >> CH3–FIN AUTHORED (2026-08-30) — the full arc is in
 
-Both gates cleared: **ending locked** (Truth A, authored-canonical +
-one final binary choice) and **campaign structure known** (0–6
-learn-the-world, 7–25 inheritance-scaled attrition, viability satisfied
-by the model). Remaining for the World-1 arc (`ROADMAP_STATUS.md`):
-- **CH3–FIN ≈ 15 more `WorldFact`s** + `DiscoveryTemplate`s + evidence
-  text + milestones + **the RESPONSE thread** (only its title string
-  exists). Author toward "The Cordon" (`WORLD_TRUTH_CANDIDATES.md`
-  chapters 3-5-FIN + the endgame section).
-- **`CAMPAIGN_LENGTH` 10 → 25** + 5-chapter grouping (`_CHAPTER_BOUNDS`
-  already sketched in `campaign.py` todos).
-- **The three endgame systems** (Phase E): competing hypotheses
-  (`knowledge.py` `self.hypothesis` → a set + a correction beat), the
-  bespoke final expedition, the ending choice (broadcast vs protect).
-- A-only sub-decisions still open (`WORLD_TRUTH_CANDIDATES.md`): cause
-  specifics; how reachable the wider world is for the broadcast branch.
+`truth.py` **9 → 23 `WorldFact`s** — the whole "The Cordon" arc
+(`PHASE_A1_TRUTH.md` CH3-FIN section). 14 new on the **`response`**
+thread across CH3 THE EVACUATION / CH4 THE RESPONSE / CH5 THE LAST
+SIGNAL / FIN THE TRUTH. **8 milestones** (M1/2/4 + M3/5/6/8/9). DAG
+walks clean end-to-end via `next_target()`; every fact bound via
+`DiscoveryTemplate`; 56/56 CH3-FIN targeted mysteries valid.
+`RESP_THE_CHOICE` states the ending fork as an established fact.
+
+**`CAMPAIGN_LENGTH` 10 → 25** + new `DIFFICULTY_RAMP_LENGTH = 10`
+(decouples the zombie curve from arc length — frozen curve unchanged
+0–10, holds at max after). `campaign.py`: 6 chapter lines +
+`_CHAPTER_BOUNDS` + `chapter_for_expedition` + `CHAPTER_TITLES`. Bot:
+**7/8 full 25-expedition campaigns completed** (1 at the known
+expedition-9 combat wall). 281+100 green.
+
+### >> THE ACTIVE WORK — Phase E: the three endgame *systems*
+
+The arc's *content* is authored; what remains is engine work:
+1. **Competing hypotheses** — `knowledge.py` `self.hypothesis` → a
+   competing set + a "you committed to the wrong reading" correction
+   beat. The wrong-assumptions ladder in `WORLD_TRUTH_CANDIDATES.md`
+   candidate A is the spec input.
+2. **The bespoke final expedition** — expedition 25, less procedural:
+   the regional command centre, the seal order + signature, the
+   consolidation point that held. Realised from the player's own
+   `WorldInvestigation` state.
+3. **The ending choice** — acts on `RESP_THE_CHOICE`: broadcast the
+   truth past the cordon vs leave the settlement its silence. Two
+   authored outcomes + the choice UI.
+
+Each is a separate spec. A-only sub-decisions still open
+(`WORLD_TRUTH_CANDIDATES.md`): cause specifics (research vs agricultural
+station — leaning research); how reachable the wider world is for the
+broadcast branch.
 
 Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.

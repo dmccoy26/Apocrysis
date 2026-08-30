@@ -198,4 +198,106 @@ Candidate levers to weigh in that spec (not decided here):
 
 ---
 
-*Investigation only. Feeds the C.3.2a-5 spec. No generator change made.*
+# Lever matrix (C.3.2a-5 tasks 4–7)
+
+`tools/scale_report.py --levers`, 220 seeds/depth, all 10 mechanisms
+rotated. Raw: `tools/lever_matrix.json`. **Measurement-only — every
+lever is a class flag on `Apocrysis`, default off; baseline is
+byte-identical to `main` (the C.1 golden fixture passes).** No
+combinations. No default changed. See
+`docs/PHASE_C3_2_5_LEVER_MATRIX.md`.
+
+Each cell: **`ratio p90`** (circuit p90 / 32 — the gate, target < 1) ·
+**`over%`** (maps over budget) · **`r→o`** (`require→obstacle` p90,
+tiles — the leg the experiment targets) · **`dst/1k`** (distinct
+participating settlements / 1000 tiles — must not keep falling).
+
+| variant | d0 | d3 | d4 | d6 | d9 | d12 |
+|---|---|---|---|---|---|---|
+| **baseline** | 0.69 · 0% · 12 · 5.1 | 1.09 · 14% · 21 · 0.92 | 1.06 · 14% · 24 · 0.92 | 1.31 · 54% · 30 · 0.50 | 1.34 · 69% · 30 · 0.36 | **1.53 · 73% · 31 · 0.30** |
+| settlements_scaled | 0.69 · 0% · 12 · 5.1 | 1.00 · 9% · 20 · 1.62 | 1.03 · 12% · 24 · 1.08 | 1.19 · 49% · 29 · 0.70 | 1.28 · 64% · 30 · 0.41 | 1.53 · 76% · 30 · 0.35 |
+| **escape_gap_bounded@8** | 0.62 · 0% · 9 · 4.7 | 0.78 · 0% · 9 · 0.75 | 0.84 · 1% · 9 · 0.43 | 0.97 · 5% · 11 · 0.22 | 1.06 · 12% · 12 · 0.14 | **1.16 · 17% · 13 · 0.12** |
+| escape_gap_bounded@12 | 0.75 · 1% · 13 · 5.3 | 0.91 · 4% · 12 · 0.77 | 0.94 · 5% · 12 · 0.49 | 1.06 · 14% · 13 · 0.27 | 1.16 · 17% · 13 · 0.14 | 1.22 · 20% · 15 · 0.13 |
+| escape_gap_bounded@16 | 0.88 · 0% · 16 · 5.6 | 1.03 · 13% · 16 · 0.89 | 1.03 · 11% · 16 · 0.56 | 1.16 · 20% · 16 · 0.30 | 1.28 · 23% · 17 · 0.19 | 1.34 · 25% · 18 · 0.14 |
+| escape_gap_bounded@20 | 0.91 · 0% · 18 · 5.6 | 1.16 · 27% · 20 · 1.04 | 1.19 · 22% · 20 · 0.82 | 1.31 · 29% · 20 · 0.34 | 1.41 · 36% · 21 · 0.23 | 1.47 · 33% · 22 · 0.20 |
+| town_distance_capped@12 | 0.69 · 0% · 12 · 5.1 | 1.09 · 14% · 21 · 0.92 | 1.03 · 12% · 24 · 1.04 | 1.28 · 51% · 30 · 0.57 | 1.25 · 62% · 30 · 0.61 | 1.34 · 66% · 31 · 0.68 |
+| town_distance_capped@16 | (≈ baseline) | 1.09 · 14% · 21 · 0.92 | 1.06 · 14% · 24 · 0.92 | 1.31 · 52% · 30 · 0.53 | 1.25 · 65% · 30 · 0.53 | 1.34 · 64% · 31 · 0.55 |
+| town_distance_capped@20 | (≈ baseline) | 1.09 · 14% · 21 · 0.92 | 1.06 · 14% · 24 · 0.92 | 1.31 · 54% · 30 · 0.50 | 1.28 · 65% · 30 · 0.41 | 1.34 · 70% · 31 · 0.50 |
+| sites_across_settlements | 0.66 · 0% · 11 · 5.4 | 1.09 · 12% · 17 · 1.02 | 1.06 · 14% · 17 · 1.15 | 1.34 · 50% · 19 · 0.63 | 1.31 · 67% · 18 · 0.50 | 1.50 · 72% · 21 · 0.34 |
+
+Backtrack p90 (baseline ≈ 0.03–0.07 at every depth): only
+`escape_gap_bounded` raises it — **0.09–0.13** at the tighter bounds
+(≈ 2–4× baseline). Every other variant stays ≈ 0.03. `infeasible` = 0 %
+for **all** variants at all depths.
+
+## Per-lever interpretation
+
+**`settlements_scaled` (lever 1).** Adds meaningful geography — `dst/1k`
+roughly doubles (d3 0.92 → 1.62). But it does **not** shorten the
+required trek: `require→obstacle` is unchanged (31 → 30 at d12), and
+`ratio p90` barely moves (d12 identical to baseline, d6 1.31 → 1.19).
+Backtrack unchanged. *Content density alone does not solve topology.*
+
+**`escape_gap_bounded` (lever 2 — the sweep).** The only lever that
+touches the actual mechanism. It **decouples `require→obstacle` from
+map size**: at @8 the leg is ≈ 9–13 tiles at *every* depth (baseline
+12 → 31). `ratio p90` improves the most at the tightest bound
+(d12 1.53 → 1.16 @8). **But it triggers two of the spec's regression
+flags:** `dst/1k` at @8/@12/@16 collapses to ≈ 0.12–0.14, *below*
+baseline's 0.30 — pulling the gap toward the cluster shrinks the
+meaningful footprint (the "nicer shirt" failure) — and backtrack
+roughly doubles (0.03 → 0.09–0.13). @20 preserves density (0.20) and
+backtrack (0.08) but barely moves the gate (d12 1.47). **And even @8
+does not clear the gate** — d9 1.06, d12 1.16.
+
+**`town_distance_capped` (lever 3).** `require→obstacle` **completely
+unchanged** (12 → 31 at every cap). `ratio p90` moves by ≤ 0.19 (0 at
+most depths). The one real effect is `dst/1k` *rising* (d12 0.30 →
+0.50–0.68) — capping the town's drift keeps settlements denser near
+spawn. The town is not on the required circuit; the modest d12 movement
+is a second-order effect of settlement placement, not the mechanism.
+
+**`sites_across_settlements` (lever 4).** Cleanly redistributes the
+target leg — `require→obstacle` p90 31 → 21 — **with backtrack staying
+at baseline (0.03)** and `dst/1k` slightly up. But the **headline
+`ratio p90` is unchanged** (d12 1.53 → 1.50): the greedy circuit
+re-routes — `spawn→require` grows as `require→obstacle` shrinks — so
+the total circuit length washes out. It moves *where* the walking is,
+not *how much*.
+
+## Hypotheses falsified
+
+1. **Town-distance drift is a driver.** FALSIFIED. `town_distance_capped`
+   moves `require→obstacle` by **0** and `ratio p90` by ≤ 0.19 (mostly
+   0). The town is not on the required circuit. **Retire lever 3.**
+2. **More settlements alone fixes the gate.** FALSIFIED.
+   `settlements_scaled` doubles `dst/1k` but leaves `require→obstacle`
+   and `ratio p90` essentially unmoved.
+3. **`sites_across_settlements` alone fixes the gate.** FALSIFIED for
+   the headline gate. It moves the target leg (31 → 21) with no
+   regressions, but the circuit re-routes and `ratio p90` doesn't
+   move.
+4. **A single lever passes the gate.** FALSIFIED. Nothing gets
+   `ratio p90 < 1` at depths 9–12. `escape_gap_bounded@8` comes
+   closest (d12 1.16) but violates the density and backtrack rules.
+
+## What the matrix does *not* say
+
+- Which lever(s) to implement — owner decision.
+- Whether a **combination** works (e.g. `escape_gap_bounded` at a
+  looser bound + `sites_across_settlements` to redistribute + a density
+  floor from `settlements_scaled`). Not evaluated per the packet.
+- What the right bound is — the sweep shows the trade (tighter bound →
+  better gate, worse density/backtrack) but does not pick a point.
+
+---
+
+**Stop condition reached (`PHASE_C3_2_5_LEVER_MATRIX.md` §7).** The
+matrix, `lever_matrix.json`, the per-lever interpretations and the
+falsified list are committed. Next gate: owner reviews and decides
+which, if any, lever deserves an implementation spec.
+
+---
+
+*Investigation only. No generator change shipped; all lever flags
+default off; baseline byte-identical.*

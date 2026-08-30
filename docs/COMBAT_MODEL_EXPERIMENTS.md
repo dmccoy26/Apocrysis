@@ -76,6 +76,52 @@ zombie HP / `damage_reduction`; bleed/stun roll rates; the
 `C.3.2a-7` supply/HP scaling. **Balance-frozen — this experiment only
 produces the numbers and a recommendation.**
 
+### RESULTS — run 2026-08-30 (`tools/combat_cost.py`, full table in `COMBAT_EXP1_RESULTS.md`)
+
+The hypothesis is confirmed and then some.
+
+| cell | forecast card | actual, given a win |
+|---|---|---|
+| **Starter (6) vs Regular, L1, fresh, no armor** (run-7 case A) | `LOW · overkill · ~100%` | mean 44 · **p90 66 (66%)** · worst 98 (98%) · 5 rounds |
+| same, **worn** (mid-expedition) | `LOW · overkill · ~98%` | mean 64 · **p90 80 (80%)** · worst 100% |
+| Rusty Dagger (8) vs Regular, L2 | `LOW · overkill` | p90 56 (53%) |
+| Chipped Sword (12) vs Regular, L2 | `LOW · overkill` | p90 44 (42%) |
+| **Iron Axe (16) vs Heavy, L4, kevlar, fresh** | `LOW · overkill · ~91%` | mean 66 · **p90 90 (78%)** · worst 101% |
+| Chipped Sword (12) vs Heavy, L3, no armor (case B) | `EXTREME · ~4%` | (card honest — model/ramp problem) |
+
+**Findings:**
+
+1. **`LOW / overkill` is systematically wrong across the entire early
+   game.** `threat_tier` and `weapon_verdict` are pure `P(win)`
+   functions, so *any* fight you eventually win reads "overkill" —
+   even a 5–7 round grind that takes 40–80% of your HP. Run 7's
+   86-HP loss was p90, not a fluke.
+2. **The worn-condition penalty compounds hard.** The same L1-vs-Regular
+   fight goes from p90 66% to p90 80% just from `hunger/thirst 40,
+   fatigue 60`. `_cond_penalty` is doing a lot of silent work.
+3. **The starkest cell is Iron Axe vs Heavy at L4 with armor:** win
+   91%, card says `LOW / overkill`, and it costs a p90 of **78% of
+   max HP**. "Overkill" for a fight that routinely half-kills you.
+4. **Case B is a real model/ramp wall, not a comms bug.** Chipped
+   Sword (best fresh-exp-3 gear) vs Heavy = 4% win; +light armor +
+   fresh = 38%. Confirms experiment 3's candidate cliff from the
+   experiment-1 angle.
+
+**Conclusion — two independent fixes:**
+
+- **Communication (no balance change, do this before wiring the
+  forecast into attention):** `threat_tier` and `weapon_verdict` must
+  read the cost distribution, not just `P(win)`.
+  `threat_tier = f(P(win), p90_HP_loss_fraction, worst_case)`;
+  "overkill" requires a near-certain *and* cheap win. Every row where
+  a LOW/MODERATE tier sits next to a p90 loss > ~40% max-HP is a cell
+  where the attention spec (which derives level from the forecast)
+  would under-level the event.
+- **Model / ramp (balance-frozen — needs the design decision):** the
+  6-dmg starter turns every early Regular into a 44–64 HP average
+  fight; Heavy/Armored are unwinnable with depth-appropriate gear at
+  exp 3–4. → experiments 2 and 3.
+
 ---
 
 ## Experiment 2 — does the forecast match the outcome?

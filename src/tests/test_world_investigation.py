@@ -137,7 +137,18 @@ class TestResolutionHook(_ProfileTest):
 
     def test_reaching_the_open_way_out_escapes_without_the_keystroke(self):
         # Owner: walking onto the cleared, confirmed way out IS leaving.
-        g = Apocrysis("Auto", seed=3, io=_IO())
+        # enter_escape_tile -> expedition_completed, with NO intervening
+        # input request.
+        class _CountingIO(_IO):
+            def __init__(self):
+                super().__init__()
+                self.ask_calls = 0
+
+            def ask(self, prompt=""):
+                self.ask_calls += 1
+                return ""
+
+        g = Apocrysis("Auto", seed=3, io=_CountingIO())
         m = build_mystery(g, target_fact="DIS_ORGANISED")
         g.mystery = m
         g.knowledge = m.knowledge
@@ -147,11 +158,30 @@ class TestResolutionHook(_ProfileTest):
         self.assertEqual(m.knowledge.hypothesis_state(), "confirmed")
         self.assertFalse(getattr(g, "won", False))
 
+        g.io.ask_calls = 0
         g.current_position = m.escape_tile
         g.mystery_arrive(*m.escape_tile)   # no `escape` command
 
         self.assertTrue(m.escaped)
         self.assertTrue(getattr(g, "won", False))
+        self.assertEqual(g.io.ask_calls, 0,
+                         "reaching the escape tile must not prompt for input")
+
+    def test_adjacent_to_the_way_out_does_not_auto_escape(self):
+        # The exact designated tile is the trigger — being next to it is
+        # not (keeps navigation meaningful).
+        g = Apocrysis("Near", seed=3, io=_IO())
+        m = build_mystery(g, target_fact="DIS_ORGANISED")
+        g.mystery = m
+        g.knowledge = m.knowledge
+        for eid in list(m.knowledge.evidence):
+            m.knowledge.discover(eid)
+        m.obstacle_open = True
+        ex, ey = m.escape_tile
+        g.current_position = (ex + 1, ey)
+        g.mystery_arrive(ex + 1, ey)
+        self.assertFalse(m.escaped)
+        self.assertFalse(getattr(g, "won", False))
 
     def _solve_targeted(self, seed, fid):
         g = Apocrysis("MB", seed=seed, io=_IO())

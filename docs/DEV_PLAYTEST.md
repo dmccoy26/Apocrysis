@@ -388,3 +388,74 @@ The player then recognises a *thing in the world* rather than needing
 east from west. Cardinal directions can still exist internally; they
 should not be the primary player-facing navigation language unless the
 game gives the player a compass / reference frame.
+
+---
+
+## Interaction cleanup (owner, from the maps 1 & 2 playlogs) — auto-escape
+
+**The escape location is the objective, not an interaction point.** If
+the player has navigated to the actual way out, asking them to type
+`escape` turns *"I found the way out"* into *"I found the way out, now
+perform an arbitrary command to prove it."* That is game machinery,
+not world behaviour — the same problem as the (already removed)
+redundant `search` step.
+
+**Rule:** entering the *exact designated escape tile*, with the
+mystery solved (obstacle open + hypothesis confirmed), ends the
+expedition automatically — no prompt, no `escape` keystroke.
+
+- Being *adjacent* is not the trigger — the exact tile is — so
+  navigation stays meaningful. (Adjacency is a future hook for an
+  attention-system "the way out is just ahead" line; not built.)
+- The `escape` *command* stays as the shortcut to leave from a
+  distance once solved (the "solved it, then starved on the walk
+  back" fix).
+- `clear` / `open` / `pull <control>` stay explicit — they are
+  decisions/actions, not things the world can infer.
+
+Shipped `7e35210`; `enter_escape_tile → expedition_completed` with no
+intervening input request is asserted in
+`test_world_investigation.py`.
+
+General principle for Apocrysis: **don't make the player repeat an
+action the world can already infer from what they just did.**
+
+---
+
+## The autoplay baseline (instrument, `tools/tui_autoplay.py`) — machine confirmation
+
+500 games, `explorer` policy, fresh expedition:
+
+| information | received | actionable |
+|---|---|---|
+| objective told | 100% | ~3% destination named |
+| direction shown | 100% | **0% operational** |
+| landmark named | 0% | 0% |
+| map marker present | ~25% | — |
+
+`objective_reached` **0.2%**. The bot is not failing at survival — it
+lives a median ~116 turns and wanders freely. It almost never converts
+the information it receives into successful navigation. This is the
+five human CH3 runs, confirmed by a machine that has exactly the
+player's information and nothing more.
+
+**Diagnosis, precisely:** the game communicates an objective, and
+sometimes a direction — but it does not give the player a usable
+spatial reference system for turning that into movement.
+*Information received ≠ information actionable.*
+
+**The post-playtest design question is therefore not** *"how do we
+make the compass better?"* — a player may not know which way is east,
+so cardinal directions are not the assumed answer. It is:
+
+> **What is Apocrysis's native spatial language — one a player can act
+> on without already understanding a compass?**
+
+`◆ EVACUATION CORRIDOR / beyond the water tower / the water tower is
+north-west` is still broken if "north-west" is meaningless. `◆
+EVACUATION CORRIDOR / past the water tower / the tower marker is on
+your map` is actionable: **goal → identifiable thing → visible thing →
+movement decision.** Run 6 is the evidence this chain works where a
+bare heading did not.
+
+Still: **build none of it before run 7.**

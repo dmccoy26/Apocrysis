@@ -1,5 +1,49 @@
 # Session handoff — Apocrysis v5
 
+### >> NEWEST (2026-08-30, late) — the post-playtest design pass, IMPLEMENTED
+
+7 human playtest runs (`DEV_PLAYTEST.md`) + a 10k-game perceived-bot
+baseline closed the blind-playtest phase. Run 7's finding: the story /
+navigation / escape spine works; the **combat presentation** kills it
+(a `LOW / overkill` encounter that costs 86 HP trained the player to
+auto-fight the EXTREME one). The design pass, all shipped (347 tests +
+100 subtests green, `--mapgen v1` byte-identical):
+
+- **3 combat experiments** (`tools/combat_cost.py`,
+  `forecast_calibration.py`, `difficulty_ramp.py`; `COMBAT_EXP{1,2,3}
+  _RESULTS.md`): the forecast had a category error (`P(win)` reported
+  as severity); first cliff = tier-2 Armored, unbeatable + a flat 50%
+  forced-coin-flip escape.
+- **DDR** (`DDR_ARMORED_ZOMBIE.md`): decision **A** — Armored stays at
+  T2 as an *engage-or-evade* threat; `P(escape)` locked as a
+  first-class forecast signal.
+- **Phase 2** — `src/escape_model.py`: one `escape_chance(speed_class,
+  dex, fatigue, hp, terrain)` the flee roll AND `combat_forecast`
+  both call (no more flat 50%). Zombie `speed_class` (slow/normal/
+  fast). `_spot_threats` warning + avoid-tier placement stays out of
+  dead-ends. Armor acquisition: rural/wilderness `0.5×`→`1.0×` +
+  `int>10→weapon` override removed (armor STRENGTH untouched).
+  `test_escape_model.py` = the design gate as assertions.
+- **Phase 3** — `combat_forecast`: two-axis `threat_tier` /
+  `weapon_verdict` (P(win) × p90 cost); `escape_pct` delegates to the
+  model.
+- **Phase 4** — `announce_event(level=0..3)` interruption ladder; the
+  encounter banner is graded by the forecast (LOW = a quiet line,
+  EXTREME = a wide banner + `Press Enter`). Interaction inference:
+  `_auto_equip_best` on expedition start; no encounter fires on a
+  won move. Spatial language: the ESCAPE-panel hot step climbs the
+  approach ladder (marker-in-sight → close-now → marked-on-map →
+  bearing).
+
+**Reading order:** `DESIGN_PASS.md` → the 4 design specs → the
+`*_RESULTS.md`. **Next:** the perceived-bot `objective` policy + the
+cardinal-vs-landmark A/B (numeric validation); the objective
+*lifecycle* (NEW→…→URGENT, `DESIGN_SPATIAL_LANGUAGE.md`); the
+investigation thread getting the ESCAPE-panel treatment; a fresh human
+straight-through.
+
+---
+
 Last updated **2026-08-30** — A + B + C-foundation frozen.
 **THE FULL WORLD-1 ARC IS PLAYABLE START TO FINISH** (C.3.2a-7 supply
 scaling; CH3–FIN = 23 WorldFacts "The Cordon"; Phase E: E.1 hypothesis

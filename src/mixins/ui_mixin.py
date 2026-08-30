@@ -802,6 +802,11 @@ class UIMixin:
             # A.4.4: a piece of the world falls into place. Bigger than a
             # NEW DISCOVERY - its own label, its own glyph.
             glyph, color, prefix, head = "◆◆", f"{BOLD}{YELLOW}", "A PIECE FALLS INTO PLACE — ", title
+        elif kind == "correction":
+            # E.1: a rung of the wrong-assumptions ladder falls. The
+            # title is the belief being struck out; the body is what it
+            # actually was.
+            glyph, color, prefix, head = "✗", f"{BOLD}{RED}", "YOU HAD IT WRONG — ", title
         elif kind in _labels:
             # the label carries the emphasis; leave the title as prose
             glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", f"{_labels[kind]} — ", title
@@ -902,6 +907,11 @@ class UIMixin:
 
         self.io.say(f"\n{BOLD}{CYAN}╔═══ THE APOCRYSIS ═══╗{RESET}")
         self.io.say(f"  {ms} milestone{'s' if ms != 1 else ''} understood")
+        # E.1: the working theory - the belief that later milestones will
+        # break. Shown so its fall lands.
+        _hyp = wi.current_hypothesis()
+        if _hyp is not None:
+            self.io.say(f"  {YELLOW}What you think happened:{RESET} {_hyp.statement}")
         seen_threads = []
         for f in wi.all_facts():
             if f.thread not in seen_threads:

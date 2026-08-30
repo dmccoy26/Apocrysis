@@ -44,3 +44,7 @@ class World:
     survivor_lore: tuple = ()
     # { mechanism_key: lore_id } - solving that mystery teaches that lore.
     lore_triggers: dict = field(default_factory=dict)
+    # the wrong-assumptions ladder (worlds/<w>/hypotheses.py). Phase E.1 -
+    # WorldInvestigation.current_hypothesis() derives the held rung from
+    # milestone state; each rung breaks on a specific milestone.
+    regional_hypotheses: tuple = ()

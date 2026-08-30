@@ -10,6 +10,7 @@ from src.worlds.base import World
 from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
 from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
 from src.worlds.silence.truth import WORLD_FACTS
+from src.worlds.silence.hypotheses import REGIONAL_HYPOTHESES
 
 
 # Tile vocabulary -------------------------------------------------------
@@ -79,4 +80,5 @@ SILENCE = World(
     world_facts=WORLD_FACTS,
     survivor_lore=SURVIVOR_LORE,
     lore_triggers=LORE_TRIGGERS,
+    regional_hypotheses=REGIONAL_HYPOTHESES,
 )

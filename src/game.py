@@ -109,7 +109,8 @@ class Apocrysis(
 
         # A.3: the campaign's World Investigation, seeded from the
         # class-var (which apply_profile restores from the profile).
-        self.world_investigation = WorldInvestigation(self.world.world_facts)
+        self.world_investigation = WorldInvestigation(
+            self.world.world_facts, self.world.regional_hypotheses)
         self.world_investigation.restore({"status": dict(type(self)._world_investigation)})
         # B.2: the campaign's Survivor Knowledge, seeded from the
         # class-var (apply_profile restores that from the profile).

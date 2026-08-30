@@ -639,6 +639,7 @@ class MysteryMixin:
         # transition, so evidence/provenance logic can replace it later
         # without touching anything else. See PHASE_A3_INVESTIGATION.md.
         _milestone_line = None
+        _correction = None
         if getattr(m, 'world_fact_id', None) and getattr(self, 'world_investigation', None):
             _wi = self.world_investigation
             _fid = m.world_fact_id
@@ -646,6 +647,13 @@ class MysteryMixin:
             _wi.mark_known(_fid)
             self.__class__._world_investigation = _wi.snapshot()['status']
             if not _was_known:
+                # E.1: discovering this fact may break a rung of the
+                # regional wrong-assumptions ladder - the "you had it
+                # wrong" beat. Fires once (a fact flips not-known->known
+                # once, campaign-wide).
+                _rung = _wi.hypothesis_broken_by(_fid)
+                if _rung is not None:
+                    _correction = _rung
                 # A.5.2: what this expedition changed, for the retrospective
                 _learned = list(getattr(self, '_expedition_learned', []))
                 _learned.append(_fid)
@@ -690,6 +698,11 @@ class MysteryMixin:
                 "what this place was and where it had to give.\n")
         if _milestone_line is not None:
             self.announce_event(_milestone_line, kind="milestone")
+        if _correction is not None:
+            # E.1: the reframe - what you were sure of, and what it
+            # actually was.
+            self.announce_event(_correction.statement,
+                                _correction.corrected_to, kind="correction")
         # B.2: solving this mechanism may teach a Survivor Knowledge
         # lesson that carries to the next survivor. learn() is True only
         # the first time - one banner ever, campaign-wide.

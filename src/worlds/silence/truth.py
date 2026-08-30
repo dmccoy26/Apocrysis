@@ -20,6 +20,7 @@ MILESTONE_IDS = frozenset({
     'RESP_ONE_COMMAND',              # M6  one command opened and sealed them
     'RESP_A_POST_TRANSMITS',         # M8  a station never stopped transmitting
     'RESP_PEOPLE_ALIVE',             # M9  there are living people in the valley
+    'RESP_THE_ORDER',                # M10 the seal was signed before the first corridor
 })
 
 @dataclass(frozen=True)
@@ -105,7 +106,7 @@ WORLD_FACTS = (
               needs=('RESP_CONSOLIDATION_HELD', 'RESP_A_POST_TRANSMITS')),
 
     # FIN - THE TRUTH (thread: response). The regional command centre.
-    WorldFact('RESP_THE_ORDER', 'response', 6, False,
+    WorldFact('RESP_THE_ORDER', 'response', 6, True,
               "The regional command centre holds the seal order and the signature that authorised leaving the valley full. It was signed before the first corridor opened.",
               needs=('RESP_ONE_COMMAND', 'RESP_A_POST_TRANSMITS')),
     WorldFact('RESP_THE_CHOICE', 'response', 6, False,

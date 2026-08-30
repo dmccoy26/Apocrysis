@@ -455,6 +455,13 @@ def _investigation_strip(p):
         filled = 0 if not total else round(n * known / total)
         bar = "█" * filled + "░" * (n - filled)
         out.append(f"  {title}   {bar}  {known}/{total}")
+    # E.1: the working theory, one line, wrapped short.
+    _hyp = wi.current_hypothesis() if hasattr(wi, "current_hypothesis") else None
+    if _hyp is not None:
+        _t = _hyp.statement
+        if len(_t) > 46:
+            _t = _t[:45].rsplit(" ", 1)[0] + "…"
+        out.append(f"  [{_DIM}]you think:[/] {_t}")
     return out
 
 

@@ -242,6 +242,69 @@ HP), and the resulting `fight_pct` with best-available gear.
 (when does the first real weapon / first armor become reachable);
 where Heavy/Armored types are gated in.
 
+### RESULTS — run 2026-08-30 (`tools/difficulty_ramp.py`, full report in `COMBAT_EXP3_RESULTS.md`)
+
+Realistic power curve from 20 `balance_autoplay` campaigns, fights
+simulated with the median best gear at each tier, mid-expedition
+condition. Composition per tier replicates
+`_select_zombie_for_encounter`.
+
+**The first cliff is expedition tier 2 — the Armored Zombie.**
+
+| tier | worst credible encounter | spawn | win% (best gear) | current → proposed | min P(die) |
+|---|---|---|---|---|---|
+| 0–1 | Regular / Fresh | — | 98–100% | LOW → MODERATE/HIGH | ~0% |
+| **2** | **Armored** | ~4% | **0%** | EXTREME → EXTREME | **50%** |
+| 3 | Armored | ~6% | 0% | EXTREME | 50% |
+| 4–8 | Armored / Elite Heavy | 8–16% | 0–22% | EXTREME / SEVERE | 40–50% |
+| 9–12 | Armored | 18–20% | 30–43% | HIGH | 25–35% |
+
+**Findings:**
+
+1. **The cliff is tier 2, and it's the Armored Zombie, not the
+   Heavy.** Run 7's exp-3 Heavy was the *softer* case — with a normal
+   weapon the Heavy is winnable-but-expensive (proposed HIGH). The
+   Armored is a **0%-win fight** and the composition ramp introduces
+   it at exactly the tier its weight first crosses ~4%.
+2. **`ArmoredZombie.damage_reduction = 0.5` is why it's uncounterable.**
+   Half of all weapon damage is negated, so the player's only
+   developing combat axis (weapon damage, plateauing ~26) does
+   nothing against it. A 26-dmg weapon effectively hits for 13; 120 HP
+   → ~10 rounds → dead at 15/hit with no armor.
+3. **Armor never develops** — median reduction is **0** through tier 4
+   and only reaches 6 (of a 13 max) by tier 8, long after the wall.
+   Confirmed here and in `balance_autoplay`'s own notes.
+4. **There is no credible avoidance path at any tier.** `min P(die)`
+   for every EXTREME row is exactly **50%** — fighting is certain
+   death, and the *best* alternative is the flat 50% flee, which on
+   failure forces the fight. Against a guaranteed-lethal encounter the
+   player's optimal play is a coin flip.
+5. Tiers 9–12 the Armored eases to proposed-HIGH (~37% win) as level
+   catches up — the curve is **non-monotonic**, hardest at tiers 4–8.
+   This is `balance_autoplay`'s long-documented "tier 6–9 wall", now
+   attributed: Armored + zero armor development + flat escape.
+
+> **Caveat:** the `balance_autoplay` power curve is *optimistic* — the
+> bot crafts aggressively (weapon 20 by tier 1). Run 7's human had a
+> 12-dmg weapon at tier 3. With the human curve every row above is
+> worse, and the tier-2 Armored cliff is unchanged (still 0%).
+
+**The design question this forces (answer before touching numbers):**
+
+*Is expedition 2 supposed to contain a "don't fight this" enemy?*
+
+- **YES** → the player needs a real avoidance path. `escape_pct` must
+  become `f(zombie_speed, player_dex, fatigue, hp)` — a slow Armored
+  should be highly escapable — and/or the encounter needs warning +
+  open ground to run. A guaranteed-lethal *forced* fight is not a
+  decision, and no attention treatment fixes that.
+- **NO** → gate Armored (and its 0.5 reduction) to a later tier, make
+  armor actually develop by tier 2–3, or soften the composition ramp.
+
+Either way this is experiment 3's output: a **specific** design
+question with numbers behind it, not "tweak zombie HP until the win
+rate looks good."
+
 ---
 
 ## Adjacent finding (not one of the three, record it)

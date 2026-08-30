@@ -77,16 +77,39 @@ first in a fresh session, then the doc map.**
       leg (31→21) with NO backtrack/density penalty, but the circuit
       re-routes so the headline ratio is unchanged.
 
-### >> NEXT — the owner gate
+### >> NEXT — the owner gate (verdict IN, 2026-08-29)
 
-**Owner reviews the lever matrix** (`SCALE_REPORT.md` § "Lever matrix")
-and picks a hypothesis — likely a *combination* (a looser escape-gap
-bound + lever 4 to redistribute + a `settlements_scaled` density floor),
-but that is the owner's call. **Do NOT write the implementation spec
-until the owner picks.** The sequence is:
-`matrix → human interpretation → chosen hypothesis → a new reviewed
-spec → implementation`. Nothing about C.3.2a-5 touches combat / hunger
-/ thirst / loot / survivor power.
+**Owner reviewed the matrix and gave the verdict:** no single lever;
+chosen hypothesis = **"distributed investigation"** — lever 4 as the
+foundation + lever 2's *mechanism* applied as a bound on *pathological*
+separation (NOT a target distance) + lever 1 demoted to a density
+floor guard only. **Lever 3 RETIRED** (falsified). Do NOT pick a gap
+number/form yet.
+
+**→ Gate 8 spec written: `PHASE_C3_2_5_GATE8_SPEC.md`.** It defines the
+hypothesis precisely, adds a stronger north-star metric
+(`meaningful_fraction` — how much of the required journey runs between
+story sites vs dead wilderness), specifies a 2-variant sweep, and
+states §5 acceptance + §6 falsification. **Nothing ships.**
+
+**NEXT owner gate:** review `PHASE_C3_2_5_GATE8_SPEC.md`. If OK →
+hand-write the harness extension (`tools/scale_report.py`:
+`meaningful_fraction` + combined-flag sweep) + the relational-bound
+change in `escape.py`, run the experiment, commit the matrix, then
+review §5. Only if §5 is met is an implementation spec written.
+Sequence: `matrix → verdict ✓ → Gate 8 spec ✓ → reviewed experiment →
+§5 review → implementation spec → implement → fresh-survivor validation`.
+Nothing about C.3.2a-5 touches combat / hunger / thirst / loot /
+survivor power / map growth.
+
+### >> The OTHER gate blocking the world-start arc — pick the ending
+
+`ROADMAP_STATUS.md`: CH3-FIN authoring (~15 WorldFacts) + the three
+endgame systems are blocked on **choosing the world truth**
+(`WORLD_TRUTH_CANDIDATES.md` A/B/C — still not chosen). This is a pure
+owner decision; it does not depend on C.3.2a-5. Picking it unblocks a
+large tranche of the remaining world-start-arc content work in
+parallel with the geography experiment.
 
 After C.3.2a-5 lands: unpark pieces 1 / 4 only if navigation still
 needs it, then the C.3.2b v2 replay (2×2), then the variety fix

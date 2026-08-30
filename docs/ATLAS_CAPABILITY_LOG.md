@@ -14,6 +14,24 @@ then `qwen2.5-coder-32b-instruct`, before the `--create` coherence
 fixes (Atlas commits `3e4fe5c` / `e6b0b5c`). This run re-tests from
 that baseline.
 
+## C.3.2a-5 Gate 8 (2026-08-30) — the geography experiment has no Atlas surface
+
+Owner delivered the lever-matrix verdict; the authorised next artifact
+was the **Gate 8 hypothesis/experiment spec**
+(`PHASE_C3_2_5_GATE8_SPEC.md`). Nothing routed to Atlas:
+
+| what the next step needs | why not Atlas |
+|---|---|
+| author the Gate 8 spec (design synthesis of the matrix) | every architectural / design decision on this repo has been Claude's, 70+ files in — Atlas does not author design |
+| extend `tools/scale_report.py` with the `meaningful_fraction` metric + a 2-flag sweep | procedural analysis harness, past the ~50-line non-repetitive-logic ceiling (rows 14, 25, 48) |
+| change lever 2 in `escape.py` from fixed distance to a sub-linear relational bound | `escape.py` ≈ 940 lines — large-file edit wall (rows 17, 29, 43+) |
+
+Filed `atlas-self` `f430323f` (harness-extension + 900-line-module-edit
+recurrence marker; cross-refs `2222271b`/`9ecc7f2b`/`dbc93715`).
+`atlas scan` on this workspace **works** (150 files indexed) — the
+tooling is fine; the model ceiling is the constraint. **Cumulative:
+Atlas shipped 9 of ~70 files; the leaf-file-only boundary is stable.**
+
 ## Operating protocol (this run)
 
 1. **Committed clean tree before every `atlas request`.** `git status`

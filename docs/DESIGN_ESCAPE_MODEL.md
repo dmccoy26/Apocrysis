@@ -131,14 +131,44 @@ Levers: `ARMOR_TABLE` `min_expedition` bands; loot-band gating in
 `world_mixin`; drop rates. The change is to the *availability curve*,
 not the per-piece numbers (those were tuned to sum to 13 deliberately).
 
+**Open sub-investigation (blocks gate item 7):** low-tier armor
+(Bandana, Padded Vest, Work Gloves, Sneakers) is already
+`min_expedition = 0`, yet `COMBAT_EXP3_RESULTS.md` shows median armor
+reduction **0 through tier 4**. So the problem is not (only) the
+`min_expedition` gate — it's find/equip rate. Phase 2 needs a quick
+`tools/` check of: how often armor actually drops, whether the bot
+equips it, and whether a human would. The fix might be drop-rate, an
+auto-equip-best nudge (interaction-inference territory), or making the
+first vest a near-guaranteed early find — decide after measuring.
+
 ---
 
 ## 4. Testable requirements (the fixtures Phase 2 must satisfy)
 
+**Discipline — do not tune to pass.** Define *one* escape mechanic
+first, then evaluate the fixtures against it. If a fixture fails,
+revise the *model* (its structure or its dominant-factor ordering) —
+not a coefficient nudged until R6 goes green. The flow is:
+
+```
+one escape_probability(...)  →  actual flee roll uses it directly
+        │
+        ▼
+R1–R6 + monotonicity + bounded-influence evaluation
+        │
+   fail → revise the model
+        │
+   pass → freeze  →  combat_forecast reads the same function
+```
+
+There is exactly **one** source of truth. The flee roll in
+`combat_mixin` is `random() < escape_probability(...)`; the forecast's
+`escape_pct` is `round(100 * escape_probability(...))` on the same
+inputs. Never two formulas.
+
 **Percentages come from the model design, not invented here. The
 *ordering* and *behavioural distinctions* are the requirements.** A
-Phase-2 harness (extend `tools/difficulty_ramp.py` / a new
-`tools/escape_model.py`) must show:
+Phase-2 harness (`tools/escape_model.py`) must show:
 
 | # | scenario | requirement |
 |---|---|---|
@@ -152,6 +182,38 @@ Phase-2 harness (extend `tools/difficulty_ramp.py` / a new
 R6 is the load-bearing one: it is the DDR's constraint 4 made
 testable. If the model can't hit it without also making Swift trivial
 to escape (R3), the model is wrong.
+
+### 4a. Monotonicity matrix
+
+R1–R6 pin specific points. A model can satisfy all six and still have
+an unintuitive curve *between* them. The harness must also print, and
+pass, a monotonicity sweep:
+
+| variable | low | baseline | high | required |
+|---|---|---|---|---|
+| zombie speed | Swift | Regular | Armored | escape **↑** as speed class gets slower |
+| Dexterity | low | baseline | high | escape **↑** |
+| fatigue | high | baseline | rested | escape **↑** |
+| HP fraction | low | baseline | full | escape **↑** |
+| terrain availability | confined | reduced | open | resolved escape **↑** |
+
+Each row: escape strictly non-decreasing across low → baseline → high
+with everything else held at baseline.
+
+### 4b. Bounded influence
+
+Dexterity, fatigue, and HP matter, but **none may invert the
+fundamental speed relationship** except in a genuinely extreme state:
+
+> `escape(slow zombie, worst plausible dex/fatigue/HP)` **>**
+> `escape(fast zombie, best plausible dex/fatigue/HP)`
+> — evaluated on open ground, so terrain isn't masking it.
+
+i.e. a healthy agile survivor still finds a Swift harder to escape
+than an exhausted wounded survivor finds an Armored. The dominant
+factor is **zombie speed class**; the survivor-state modifiers are
+secondary. Exact coefficients are the experiment's; this ordering is a
+requirement.
 
 ---
 
@@ -170,13 +232,36 @@ real escape probability, which is even simpler.)
 
 ---
 
+## The Phase-2 completion gate
+
+Phase 2 is done — and `combat_forecast.py` may be touched — **only
+when all seven hold:**
+
+1. **One** `escape_probability(...)` exists (conceptually + exercised
+   by the harness); it is what the flee roll would call.
+2. R1–R6 pass.
+3. The monotonicity matrix (§4a) passes.
+4. Open / reduced / confined terrain produces the intended
+   `intrinsic → resolved` availability distinction, and the harness
+   reports intrinsic + availability + resolved *separately* (§ the
+   intrinsic/contextual split — the player is learning two things:
+   "this thing is slow" and "I can't run here").
+5. Bounded influence (§4b) holds.
+6. Simulated flee outcomes statistically match the predicted
+   probability (the trust constraint, §5, made empirical — run N
+   `random() < p` trials, confirm the rate ≈ `p`).
+7. The armor-progression curve moves earlier (§3) **without** the
+   Armored itself becoming the target of that progression — verified
+   against `tools/difficulty_ramp.py` (Heavy at mid-tiers should
+   become survivable; Armored at T2 should stay ~0% fight).
+
 ## What Phase 2 hands to Phase 3
 
-- an `escape_probability(player, zombie, terrain)` function in the
-  combat model (or `combat_mixin`) that the flee roll uses directly
+- one `escape_probability(player, zombie, terrain)` function the flee
+  roll uses directly
 - zombie speed classes on the roster
 - the resolved armor-progression bands
-- the fixtures in §4, passing, as regression anchors
+- the fixtures in §4/§4a/§4b, passing, as regression anchors
 
 Phase 3 (`combat_forecast.py`) then:
 

@@ -138,6 +138,16 @@ class UIMixin:
             self._archetype_blurb_shown = True
             self.io.say(_blurb)
 
+        # docs/DESIGN_INTERACTION_INFERENCE.md - "auto-equip the
+        # strongest weapon / armour at expedition start": unambiguous,
+        # no alternative, no commitment, no decision - the survivor
+        # "comes in wearing it". Also closes the armor-investigation
+        # secondary finding (inherited armour left in the pack after a
+        # death). Fires once per expedition, before the loop.
+        if not getattr(self, '_auto_equipped', False):
+            self._auto_equipped = True
+            self._auto_equip_best()
+
         while self.health > 0 and not getattr(self, 'won', False):
             # v3 SPRINT fix: this used to be cached once per turn
             # (self._last_cmd_list) and reused by the TUI's every

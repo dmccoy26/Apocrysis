@@ -762,6 +762,14 @@ class WorldMixin:
         if getattr(self, 'mystery', None) is not None:
             self.mystery_arrive(*self.current_position)
 
+        # docs/DESIGN_INTERACTION_INFERENCE.md - once this move has won
+        # the expedition (auto-escape / reaching the way out), the
+        # expedition is over; nothing on this tile still prompts a
+        # combat decision (run 7: a fight fired in the same turn as the
+        # win).
+        if getattr(self, 'won', False):
+            return
+
         if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
             return
 

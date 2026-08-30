@@ -240,6 +240,51 @@ class ActionsMixin:
             return None
         return raw
 
+    def _auto_equip_best(self):
+        """docs/DESIGN_INTERACTION_INFERENCE.md - equip the strongest
+        working weapon + the best piece per armour slot at expedition
+        start. Silent piece-swaps (no per-item io), one summary line.
+        Never loses gear - swapped-out items go back to the pack."""
+        from src.items import RangedWeapon
+
+        def _wpow(w):
+            if w is None or getattr(w, "durability", 1) <= 0:
+                return -1
+            if isinstance(w, RangedWeapon) and w.ammo <= 0:
+                return 0
+            return w.damage
+
+        changed = []
+        # --- weapon ---
+        pool = ([self.equipped_weapon] if self.equipped_weapon else []) \
+            + list(self.backpack.weapons)
+        best = max(pool, key=_wpow, default=None)
+        if best is not None and best is not self.equipped_weapon \
+                and _wpow(best) > _wpow(self.equipped_weapon):
+            if self.equipped_weapon is not None:
+                self.backpack.weapons.append(self.equipped_weapon)
+            if best in self.backpack.weapons:
+                self.backpack.weapons.remove(best)
+            self.equipped_weapon = best
+            changed.append(best.name)
+
+        # --- armour, per slot ---
+        for slot in list(self.equipped_armor):
+            cur = self.equipped_armor.get(slot)
+            cands = [a for a in self.backpack.armor if a.slot == slot
+                     and getattr(a, "durability", 1) > 0]
+            cur_red = cur.damage_reduction if cur and getattr(cur, "durability", 1) > 0 else -1
+            best_a = max(cands, key=lambda a: a.damage_reduction, default=None)
+            if best_a is not None and best_a.damage_reduction > cur_red:
+                if cur is not None:
+                    self.backpack.armor.append(cur)
+                self.backpack.armor.remove(best_a)
+                self.equipped_armor[slot] = best_a
+                changed.append(best_a.name)
+
+        if changed:
+            self.io.say("You ready your gear: " + ", ".join(changed) + ".")
+
     def equip_weapon(self, weapon_name):
         # Search for the weapon in the backpack's weapons list
         for weapon in self.backpack.weapons:

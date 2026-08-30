@@ -362,3 +362,36 @@ class TestFullLifecycle(_ProfileTest):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestInteractionInference(_ProfileTest):
+    def test_auto_equip_best_on_expedition_start(self):
+        from src.items import MeleeWeapon, Armor
+        g = Apocrysis("Eq", seed=1, io=_IO())
+        g.equipped_weapon = MeleeWeapon("Twig", 3, 40)
+        g.backpack.weapons = [MeleeWeapon("Steel Katana", 20, 110)]
+        g.backpack.armor = [Armor("Riot Armor", 6, 100, "body")]
+        g._auto_equip_best()
+        self.assertEqual(g.equipped_weapon.name, "Steel Katana")
+        self.assertEqual(g.equipped_armor["body"].name, "Riot Armor")
+        # the weaker weapon is not lost
+        self.assertIn("Twig", [w.name for w in g.backpack.weapons])
+
+    def test_won_move_search_tail_fires_no_encounter(self):
+        # move_and_search must bail before the encounter/loot block once
+        # `won` is set (run 7: a fight fired the same turn as the win).
+        g = Apocrysis("W", seed=3, io=_IO())
+        calls = []
+        g.encounter_zombie = lambda *a, **k: calls.append("enc")
+        g.find_loot = lambda *a, **k: calls.append("loot")
+        g.won = True
+        # walk onto a plain tile; the win guard should short-circuit
+        x, y = g.current_position
+        for ny in range(len(g.map)):
+            for nx in range(len(g.map[0])):
+                c = g.map[ny][nx]
+                if isinstance(c, dict) and c.get("terrain") == "plain":
+                    g.current_position = (nx, ny)
+                    break
+        g.move_and_search("n")
+        self.assertEqual(calls, [])

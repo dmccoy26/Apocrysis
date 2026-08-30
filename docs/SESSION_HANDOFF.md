@@ -1,6 +1,33 @@
 # Session handoff — Apocrysis v5
 
-### >> NEWEST (2026-08-30, late) — the post-playtest design pass, IMPLEMENTED
+### >> NEWEST (2026-08-30, later) — B/C/D/E/F investigation loop, IMPLEMENTED
+
+After the design pass below, the ordered B→F plan ran to completion
+(`B` lifecycle/attention/panel/LOS · `C` fatigue investigation · `D`
+fatigue decision 1+2+3 · `E` re-run · `F` navigation). All committed
+(HEAD `e3d6ffd`), 347 tests green, `--mapgen v1` byte-identical.
+
+- **Food = navigation artifact** (`RESOURCE_MODEL_RESULTS.md` re-run):
+  with the `objective` policy starvation 47%→7% of turns; DO NOT TUNE
+  FOOD.
+- **Fatigue (D/E)**: `rest` was a net-zero treadmill (`-5` == a move's
+  `+5` at wisdom 10). Fixed to `max(12, wisdom)` recovery +
+  `_fatigue_warnings` (mirrors `_hp_warnings`) + kept building-entry
+  recovery. Re-run: `objective_rest` exhausted 20%→4%, 3× turn blowup
+  gone. Fatigue CLOSED.
+- **F navigation** (`NAV_INVESTIGATION_RESULTS.md` F section): the
+  `closed` entry-point site is marked from turn 1 + an opening beat
+  points at it. `objective` deaths 31→18, wins 11→21. Remaining
+  lead-discovery slowness is a bot-policy ceiling, not game code — **F
+  is the last content-side navigation lever for World-1.**
+
+**Next:** C-phase roadmap (Phase D world conditions / weather /
+`escape_kind` variety 0%; finale map archetype + NPC arrival scene;
+long-campaign loot balance; `landscape` mapgen default flip;
+`DIS_FEW_REMAINS`→only-`mountain_pass` variety bug) **and** a human
+straight-through playtest of the full 25-expedition arc (highest value).
+
+### >> 2026-08-30, late — the post-playtest design pass, IMPLEMENTED
 
 7 human playtest runs (`DEV_PLAYTEST.md`) + a 10k-game perceived-bot
 baseline closed the blind-playtest phase. Run 7's finding: the story /

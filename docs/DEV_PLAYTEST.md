@@ -497,3 +497,85 @@ actionable → executed** — design the language as a system that closes
 it, don't patch individual complaints.
 
 **Run 7 first.** Then design from runs 1–7 + the perceived-bot baseline.
+
+### Run 7 — full campaign, straight through (`python3 apocrysis.py`)
+
+Noln, fresh L1. **Died on expedition 3 of 25** — to a HEAVY ZOMBIE
+(Threat: EXTREME) on turn 9, after clearing every zombie on
+expeditions 1 and 2 without incident.
+
+**What worked — the whole story/navigation/escape spine.**
+
+- Both completed expeditions followed the escape chain cleanly off the
+  `✦ NEW LEAD` markers (`route at the trailhead noticeboard, marked on
+  your map` → `key at the ranger station, (close by)` → back to the
+  route). Small maps, explicit named destinations, map markers — the
+  run-6 pattern, holding up.
+- **Auto-escape worked both times** — walking onto the pass / the boat
+  dock ended the expedition, no keystroke. Clean.
+- Facts accumulated (4, then 8); `THE SILENCE` went 1/4 → 2/4; the
+  retrospective "THE NEXT SURVIVOR CAN LOOK INTO" handoff read well.
+
+**What killed the run — combat, and specifically its presentation.**
+
+1. **The encounter card cried wolf in reverse.** Expedition 1, turn 5:
+   `REGULAR ZOMBIE · Threat: LOW · Fight ~100% · your weapon is
+   overkill` — took Noln **100 → 14 HP** and burned all 3 medicine.
+   The card said trivial; it was nearly fatal. Every LOW/overkill
+   encounter on exps 1–2 (there were ~8) taught the player that the
+   card's verdict means "just press `f`".
+2. **So the one EXTREME encounter didn't register as different in
+   kind.** Expedition 3, turn 9: `HEAVY ZOMBIE · Threat: EXTREME ·
+   Fight ~0% · poorly suited · In your pack: Sword (~33%) would help`.
+   The card *did* warn — correctly and in detail. The player pressed
+   `w`, saw the weapon window, equipped the Chipped Sword (~11%), and
+   **chose `f` anyway.** Dead in 5 rounds (20 dmg/hit, L3, no armor).
+   Owner: *"he didn't realize he was fighting a heavy zombie after
+   fighting all the zombies without any problems on maps 1 and 2."*
+3. **Every zombie encounter has identical visual weight.** `‼ ZOMBIE
+   — <NAME>` / `Stop. This is a decision.` / threat line — a Fresh
+   Zombie and a Heavy get the *same* banner; the only differentiator
+   is one word ("LOW" vs "EXTREME") in the card body and the rule
+   length. After ~10 identical banners the player is pattern-matched
+   to `f`. The attention system fires a DANGER flare for *every*
+   zombie regardless of threat — it is not graded. The encounter that
+   is categorically more dangerous needs to *look* categorically
+   different, not just say a different word.
+
+**Ties two deferred threads together.** The attention system needs to
+**grade the zombie encounter by threat tier** (LOW = a quiet line,
+maybe no banner; EXTREME = stop everything), and the combat model
+needs the low-level weapon math to stop saying "overkill / ~100%" for
+a fight that costs 86 HP. Both stay deferred — recorded here for the
+post-playtest design pass.
+
+**Minor:** `mws` typo → "Unknown command" (exp 1 turn 6); a zombie
+encounter fired in the same turn as the expedition-1 win (fought it
+post-win, no effect); safe-zone building spam still trivialises
+survival on exps 1–2.
+
+---
+
+## Playtest phase complete — 7 runs on the table
+
+Runs 1–5 (exploration / navigation / fatigue / combat / salience),
+run 6 (concrete objectives work), run 7 (the full arc — story spine
+works, combat presentation kills it), plus the 500-game perceived-bot
+baseline (received 100% / actionable ~0%, objective_reached 0.2%).
+
+Nothing more to change in the game before the design pass. The three
+systems to design, now with seven runs of evidence:
+
+1. **Attention** — graded, not uniform. The zombie encounter is the
+   sharpest case: identical weight for Fresh and Heavy trained the
+   player to auto-fight the one that killed him.
+2. **Spatial language** — `goal → named thing → recognizable thing →
+   action → persistent progress`. Run 6 and run 7's exps 1–2 are the
+   evidence it works when present; runs 1–5 are the evidence a bare
+   heading isn't it.
+3. **Interaction inference** — auto-escape shipped as the first
+   instance; the principle generalises.
+
+Combat-model calibration (low-level weapon math, escape-vs-threat
+coherence, EXTREME encounters on a difficulty ramp) is its own
+experiment, adjacent to the attention work.

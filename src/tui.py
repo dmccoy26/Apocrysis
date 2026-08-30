@@ -264,15 +264,23 @@ def _objective_steps(p, m, k):
         return labels.get(role, generic) if role in named else generic
 
     def heading(role):
-        # compass hint from where the player IS to a known site - a kid
-        # had the objective ("fuel at the ranger depot, marked") and
-        # still couldn't find it on the ASCII map (playtest). C.3.2
-        # piece 0: routed through _route_heading so it can't advertise a
-        # direction the terrain immediately contradicts.
+        # docs/DESIGN_SPATIAL_LANGUAGE.md - the approach ladder: an
+        # on-screen marker beats a proximity cue beats a bare bearing
+        # (runs 1-5: "south-west" alone is inert; run 6: named place +
+        # "marked on your map" + "close by" worked). The bearing stays
+        # as trailing seasoning, graph-honest via _route_heading.
         xy = getattr(m, "sites", {}).get(role)
         if not xy:
             return ""
-        return _route_heading(p.current_position, xy, p.map, p.map_size)
+        bearing = _route_heading(p.current_position, xy, p.map, p.map_size)
+        hx, hy = p.current_position
+        dist = abs(xy[0] - hx) + abs(xy[1] - hy)
+        vr = getattr(p, "visibility_radius", 3)
+        if dist <= vr:
+            return " - the marker's in sight"
+        if dist <= vr + 4:
+            return f" - close now{bearing}"
+        return f" - marked on your map{bearing}"
 
     item = m.requirement_item
     steps = []

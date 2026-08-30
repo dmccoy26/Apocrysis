@@ -8,7 +8,8 @@ from src.constants import (BOLD, CYAN, GREEN, RED, RESET, YELLOW, BLUE,
                            MAGENTA, ORANGE, TERRAIN_COLOR)
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
-from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
+from src.zombies import (Zombie, FreshZombie, RegularZombie, HeavyZombie,
+                        speed_class_of)
 
 
 class UIMixin:
@@ -720,7 +721,7 @@ class UIMixin:
                         char = '.'
                     else:
                         char = ' '
-                elif isinstance(tile, (FreshZombie, RegularZombie, HeavyZombie)):
+                elif isinstance(tile, Zombie):
                     if actually_visible and (x, y) in self.visited:
                         # Colour the glyph to its character: a zombie on
                         # the map reads as a threat at a glance, the same
@@ -839,7 +840,7 @@ class UIMixin:
                         out_row.append('.')
                     else:
                         out_row.append(' ')
-                elif isinstance(tile, (FreshZombie, RegularZombie, HeavyZombie)):
+                elif isinstance(tile, Zombie):
                     if actually_visible and (x, y) in self.visited:
                         out_row.append('Z')
                     else:

@@ -223,6 +223,17 @@ class WorldMixin:
             protected = set(self.mystery.sites.values()) | {self.mystery.escape_tile}
             protected |= self._map_graph.critical_path_tiles('spawn', *_mystery_nodes)
 
+        def _passable_neighbours(x, y):
+            n = 0
+            for ax, ay in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if not (0 <= ax < self.map_w and 0 <= ay < self.map_h):
+                    continue
+                c = self.map[ay][ax]
+                t = c.get('terrain') if isinstance(c, dict) else None
+                if isinstance(c, Zombie) or (t is not None and t not in IMPASSABLE_TERRAIN):
+                    n += 1
+            return n
+
         while placed_zombies < num_zombies and attempts < max_attempts:
             attempts += 1
             x = self.rng.randint(0, self.map_w - 1)
@@ -235,7 +246,28 @@ class WorldMixin:
                 and (x, y) != spawn and abs(x - spawn[0]) + abs(y - spawn[1]) > 1
                 and (x, y) not in protected
             ):
-                self.map[y][x] = self._select_zombie_for_encounter()
+                z = self._select_zombie_for_encounter()
+                # docs/DESIGN_ESCAPE_MODEL.md §2: an avoid-tier (slow)
+                # zombie must not be walked into blind in a dead end or
+                # inside a building - "evade" needs somewhere to go. If
+                # the tile can't support a disengage, downgrade the
+                # SUBCLASS to a Regular (keeping the rolled difficulty
+                # scaling and elite flag) rather than re-rolling - so
+                # this consumes no extra RNG and the map stays
+                # seed-deterministic.
+                from src.zombies import speed_class_of as _sc
+                from src.zombies import RegularZombie as _Reg
+                if _sc(z) == 'slow' and (
+                    cell.get('terrain') == 'building'
+                    or _passable_neighbours(x, y) < 3
+                ):
+                    _elite = z.name.startswith("Elite ")
+                    _h, _a = z.health, z.attack
+                    z = _Reg()
+                    z.health, z.attack = _h, _a
+                    if _elite:
+                        z.name = "Elite " + z.name
+                self.map[y][x] = z
                 placed_zombies += 1
 
         return self.map
@@ -329,6 +361,37 @@ class WorldMixin:
             # reading fatigue). Settlements always announce.
             self._building_sightings = getattr(self, '_building_sightings', 0) + 1
             self.io.say("You spot a building standing alone in the distance.")
+
+    def _spot_threats(self):
+        """docs/DESIGN_ESCAPE_MODEL.md §2 - warning before contact for an
+        avoid-tier threat. When a map-placed slow zombie (Heavy /
+        Armored) first comes into view, say so once, BEFORE the player
+        walks onto its tile - so "recognise -> assess -> disengage" has
+        somewhere to happen. Random encounters have no pre-contact
+        phase; this only covers the placed guardians."""
+        from src.zombies import speed_class_of as _sc
+        seen = getattr(self, '_threats_spotted', None)
+        if seen is None:
+            seen = self._threats_spotted = set()
+        px, py = self.current_position
+        r = self.visibility_radius
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if abs(dx) + abs(dy) > r or (dx == 0 and dy == 0):
+                    continue
+                x, y = px + dx, py + dy
+                if not (0 <= x < self.map_w and 0 <= y < self.map_h):
+                    continue
+                cell = self.map[y][x]
+                if not isinstance(cell, Zombie) or (x, y) in seen:
+                    continue
+                seen.add((x, y))
+                if _sc(cell) == 'slow':
+                    self.announce_event(
+                        f"something heavy is moving up ahead",
+                        "Big, slow, armoured - not a fight you want on bad "
+                        "ground. Keep the open country at your back.",
+                        kind="warning")
 
 
     def finish_expedition(self, reason="found the way out"):
@@ -692,6 +755,7 @@ class WorldMixin:
                     self.io.say("You move through dense forest.")
 
         self._spot_landmarks()
+        self._spot_threats()
 
         # v4 Phase C: generated-mystery site arrival (blurb + observe
         # evidence). Runs alongside normal loot/encounters, not instead.

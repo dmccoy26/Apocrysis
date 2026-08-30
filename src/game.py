@@ -359,6 +359,39 @@ class Apocrysis(
 
         self._supply_warnings()
         self._hp_warnings()
+        self._fatigue_warnings()
+
+    def _fatigue_warnings(self):
+        """Fatigue as a standing condition (docs/FATIGUE_INVESTIGATION_
+        RESULTS.md Q4). Was never announced - a naive player had no
+        prompt to `rest`. tier 1 (exhausted, >80) an L1 line, tier 2
+        (>92, every move is a real cost) an L2 banner; one shot each,
+        re-armed at <55, completion line on recovery."""
+        f = self.fatigue
+        prev = getattr(self, "_fatigue_warned", 0)
+        if f < 55:
+            if prev:
+                self.announce_event("you've caught your breath",
+                                    f"Fatigue down to {f}.",
+                                    kind="success", level=1)
+            self._fatigue_warned = 0
+            return
+        tier = 2 if f > 92 else 1 if f > 80 else 0
+        if tier <= prev:
+            return
+        self._fatigue_warned = tier
+        if tier == 1:
+            self.announce_event(
+                "you're exhausted",
+                "Moving is getting costly. `rest` here, or duck into a "
+                "building - a building rests you faster.",
+                kind="warning", level=1)
+        else:
+            self.announce_event(
+                "YOU'RE SPENT",
+                "Every move is a real cost now. `rest` before the next "
+                "fight or river.",
+                kind="warning", level=2)
 
     def _hp_warnings(self):
         """Wounds as a standing condition (docs/DESIGN_ATTENTION_LANGUAGE.md).

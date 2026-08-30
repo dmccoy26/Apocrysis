@@ -208,7 +208,14 @@ class ActionsMixin:
             self.io.say("You are fully rested!")
             return
         
-        recovery_rate = max(5, self.wisdom // 2)
+        # docs/FATIGUE_INVESTIGATION_RESULTS.md D: `rest` used to recover
+        # max(5, wisdom//2) - exactly one move's +5 at wisdom 10, so on
+        # the open map it was a net-zero treadmill. It now nets clearly
+        # positive (max(12, wisdom)) so 2-3 rests actually dig you out
+        # and the turn cost is a real trade, not a loss. Building still
+        # doubles it. Building ENTRY recovery (wisdom//4 + 5, free) is
+        # unchanged - it stays the passive channel.
+        recovery_rate = max(12, self.wisdom)
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
         current_terrain = current_tile.get('terrain') if isinstance(current_tile, dict) else None
         if current_terrain == 'building':

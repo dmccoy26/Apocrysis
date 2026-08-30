@@ -89,3 +89,33 @@ numbers"*, `rest` should be a **meaningful decision**, not a treadmill:
 
 Then re-run `objective_rest`: exhausted should drop *without* the 3×
 length blow-up (far fewer rests needed).
+
+---
+
+## D — APPLIED (`rest` recovery + `_fatigue_warnings` + keep building-entry)
+
+- `actions_mixin.rest()`: recovery `max(5, wisdom//2)` → **`max(12, wisdom)`** (×2 in a building unchanged). No longer a treadmill.
+- `game._fatigue_warnings()` (new, mirrors `_hp_warnings`): EXHAUSTED (>80) → L1 line *"moving is getting costly — `rest`, or duck into a building"*; SPENT (>92) → L2 banner; `✓` completion at <55.
+- Building-entry recovery (`wisdom//4 + 5`, free) unchanged.
+
+## E — RE-RUN (`objective` vs `objective_rest`, 12 campaigns, post-D)
+
+| | `objective` (never rests) | `objective_rest` (rests when exhausted) |
+|---|---|---|
+| exhausted, % of turns | 33% | **4%**  (pre-D: 20%) |
+| turns / expedition (median) | 84 | **82**  (pre-D: **167** — the 3× blow-up is gone) |
+| explicit rests | 0 | 797 |
+| fatigue recovery : decline | 4 : 160 | **824 : 912** (pre-D 434:491) |
+| exhaustion-ish deaths | starv+exh 38 · exh 17 | starv+exh 30 · exh 13 |
+| hunger lost per rest (median) | — | 2 |
+
+**`rest` is now a real, affordable verb.** `objective_rest` controls
+fatigue (4% exhausted, down from 55% for a non-resting bot) at **no
+expedition-length cost** — the stronger recovery means each rest is
+worth the turn, so the treadmill is gone. The `_fatigue_warnings`
+fire (`⚠ you're exhausted` / `‼ YOU'RE SPENT`); the `objective` policy
+ignores them (no rest logic), but a human now gets the prompt.
+
+Remaining `objective_rest` deaths are `timeout 37` + `starv+exh 30` —
+i.e. **lead-discovery slowness** (sweeping the right buildings), which
+is F (nav C.3.2), not a fatigue problem. Fatigue is closed.

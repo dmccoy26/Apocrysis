@@ -134,7 +134,28 @@ class ExplorerPolicy(Policy):
         return self._random_step(per)
 
 
-_REGISTRY = {p.name: p for p in (RandomPolicy, SurvivalPolicy, ExplorerPolicy)}
+class ResourcePolicy(ExplorerPolicy):
+    """A survival-*minded* player: eats/drinks earlier, meds sooner, and
+    actually rests when exhausted. For the resource-attrition
+    investigation - isolates "the economy is too tight" from "the naive
+    policy just doesn't manage resources" (docs/RESOURCE_MODEL_RESULTS)."""
+    name = "resource"
+
+    def _survival_command(self, per):
+        h = per.hud
+        if h["health"] <= 0.45 * h["max_health"] and h["medicine"] > 0:
+            return "med"
+        if h["fatigue"] > 85:
+            return "rest"
+        if h["hunger"] <= 40 and h["food"] > 0:
+            return "eat"
+        if h["thirst"] <= 40 and h["water"] > 0:
+            return "drink"
+        return None
+
+
+_REGISTRY = {p.name: p for p in (RandomPolicy, SurvivalPolicy, ExplorerPolicy,
+                                 ResourcePolicy)}
 
 
 def make(name, rng=None):

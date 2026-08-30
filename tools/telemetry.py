@@ -43,6 +43,17 @@ _DEFEATED = re.compile(r"^The .+ has been defeated!$")
 _GOT_AWAY = re.compile(r"^✓? ?You got away")
 _FORCED = re.compile(r"COULDN'T GET AWAY|Couldn't get away")
 
+# resource-economy lines (docs/RESOURCE_MODEL_RESULTS.md)
+_FOUND = re.compile(r"^You found (?:some )?(food|water|medicine|ammo)!?")
+_FOUND_QTY = re.compile(r"^You found (food|water) - enough for a while\. \(\+(\d+)\)")
+_ATE = re.compile(r"^You eat (\d+) rations")
+_DRANK = re.compile(r"^You drink (\d+) portions")
+_MEDDED = re.compile(r"^You use medicine")
+_RESTED = re.compile(r"^You rest and recover (\d+) fatigue")
+_BLD_RECOVER = re.compile(r"recovered some fatigue|safe for now")
+_GETTING = re.compile(r"^⚠ GETTING (HUNGRY|THIRSTY)")
+_WEARING_DOWN = re.compile(r"is wearing you down")
+
 
 # ---------------------------------------------------------------- bands
 def _hp_band(hp, mx):
@@ -101,6 +112,43 @@ class TelemetryIO:
                 self._buf.append(s)
                 if self._pending_combat is not None:
                     self._combat_line(s)
+                self._resource_line(s)
+
+    def _resource_line(self, s):
+        t = self._turn
+        m = _FOUND_QTY.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind=m.group(1), op="found",
+                          qty=int(m.group(2)))
+            return
+        m = _FOUND.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind=m.group(1), op="found", qty=None)
+            return
+        m = _ATE.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind="food", op="consumed",
+                          qty=int(m.group(1))); return
+        m = _DRANK.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind="water", op="consumed",
+                          qty=int(m.group(1))); return
+        if _MEDDED.match(s):
+            self.rec.emit(t, "resource", kind="medicine", op="consumed", qty=1)
+            return
+        m = _RESTED.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind="fatigue", op="rest",
+                          qty=int(m.group(1))); return
+        if _BLD_RECOVER.search(s):
+            self.rec.emit(t, "resource", kind="fatigue", op="building_recover",
+                          qty=None); return
+        m = _GETTING.match(s)
+        if m:
+            self.rec.emit(t, "resource", kind=m.group(1).lower(), op="warned")
+            return
+        if _WEARING_DOWN.search(s):
+            self.rec.emit(t, "resource", kind="hunger_thirst", op="damage")
 
     def _combat_line(self, s):
         pc = self._pending_combat

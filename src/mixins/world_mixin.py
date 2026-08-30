@@ -393,13 +393,49 @@ class WorldMixin:
                         "ground. Keep the open country at your back.",
                         kind="warning")
 
+    def _spot_route_landmark(self):
+        """audit 1b (docs/DESIGN_SPATIAL_LANGUAGE.md) - the physical
+        landmark beat. The route out of the valley is a real feature -
+        a dam, a mast, a tunnel mouth - visible from a distance, BEFORE
+        the player knows it is the way out and independent of the '!'
+        marker. Names the feature and the direction to it, once, on
+        line of sight. The marker (once earned) is confirmation; this
+        is what the eyes find first (design principle 2 /
+        discover-before-understand)."""
+        m = getattr(self, 'mystery', None)
+        if m is None or getattr(self, '_route_landmark_spotted', False):
+            return
+        from src.escape import MECHANISMS
+        spec = MECHANISMS.get(m.mechanism, {})
+        feature = spec.get('landmark')
+        route = m.sites.get('route')
+        if not feature or not route:
+            return
+        known = 'F_ROUTE' in m.knowledge.facts_known()
+        # a reveals_route mechanism deliberately withholds the route
+        # until the RESPONSE names it - don't point at it early.
+        if spec.get('reveals_route') and not known:
+            return
+        px, py = self.current_position
+        if abs(route[0] - px) + abs(route[1] - py) > self.visibility_radius + 4:
+            return  # a tall landmark carries a little further than sight
+        self._route_landmark_spotted = True
+        from src.nav import bearing
+        b = bearing(self.current_position, route)
+        title = f"a landmark to the {b}" if b else "a landmark nearby"
+        body = feature + ("." if b else ", close by.")
+        self.announce_event(
+            title, body,
+            *(("That's the way out of the valley.",) if known else ()),
+            kind="discovery", level=1)
+
     def _spot_leads(self):
         """docs/DESIGN_SPATIAL_LANGUAGE.md - the approach beat. When a
         mystery site you've LEARNED about (its '!' marker is already on
         the map) first comes within sight, name it in the event stream -
         "you can make out the ranger station ahead" - so the marker on
         the map connects to a thing you're walking toward. One line per
-        site."""
+        site. 'route' is handled by _spot_route_landmark (1b) instead."""
         m = getattr(self, 'mystery', None)
         if m is None:
             return
@@ -410,8 +446,8 @@ class WorldMixin:
         r = self.visibility_radius
         named = getattr(self, '_mystery_named', set())
         for role, xy in m.sites.items():
-            if role in seen or xy is None:
-                continue
+            if role == 'route' or role in seen or xy is None:
+                continue  # 'route' -> _spot_route_landmark (audit 1b)
             if abs(xy[0] - px) + abs(xy[1] - py) > r:
                 continue
             # only if the player already has the marker (knows the fact
@@ -789,6 +825,7 @@ class WorldMixin:
 
         self._spot_landmarks()
         self._spot_threats()
+        self._spot_route_landmark()
         self._spot_leads()
 
         # v4 Phase C: generated-mystery site arrival (blurb + observe

@@ -204,6 +204,28 @@ MECHANISMS = {
 
 _MECH_ORDER = list(MECHANISMS)
 
+# audit 1b - the physical landmark at each mechanism's 'route' site.
+# The way out of the valley is a real feature you can see from a
+# distance (a dam, a mast, a tunnel mouth) BEFORE you know it's the way
+# out and independent of the map's '!' marker. Written to take a
+# trailing ", <bearing> of here." clause. Says WHERE, never WHY - no
+# investigation content leaks here.
+_ROUTE_LANDMARKS = {
+    "mountain_pass":  "A notch in the ridgeline shows where a footpath climbs out over the valley wall",
+    "rail_tunnel":    "A railway embankment runs dead straight toward a cutting in the hills",
+    "service_route":  "A concrete dam wall stands across the head of the valley, a service road switchbacking up its face",
+    "boat_crossing":  "Masts and a marina breakwater stand out along the waterfront",
+    "evac_corridor":  "A tall evacuation-route sign still stands over the road, its reflectors catching the light",
+    "power_station":  "A dark tunnel portal is bored into the hillside, lane markings running straight in",
+    "dam_valves":     "The land falls away where a road cuts down and out of the lower valley",
+    "radio_tower":    "A lattice radio mast rises above the treeline, red lamps still blinking at the top",
+    "airfield_plane": "A windsock and a long flat airstrip open out past a chain-link fence",
+    "tidal_causeway": "A stone causeway runs out low across the tidal flats toward a squat shore station",
+}
+for _mk, _lm in _ROUTE_LANDMARKS.items():
+    if _mk in MECHANISMS:
+        MECHANISMS[_mk]["landmark"] = _lm
+
 STORY_FAMILIES = (
     'spatial', 'directional', 'corroborative', 'infrastructural',
     'environmental', 'informational', 'sequential', 'experimental',

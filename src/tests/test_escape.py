@@ -446,5 +446,97 @@ class TestEscapeGeneration(unittest.TestCase):
         self.assertEqual(loaded.knowledge.facts_known(), game.knowledge.facts_known())
 
 
+class TestRouteLandmark(unittest.TestCase):
+    """audit 1b - every mechanism's route site has a physical landmark
+    the player can perceive on approach, before the marker, without a
+    spoiler."""
+
+    _DIRS = ("north", "south", "east", "west")
+
+    def _force(self, name, seed=0):
+        from src.worlds.silence.truth import WORLD_FACTS
+        import src.game as gmod
+        gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS if k != name]
+        gmod.Apocrysis._last_family = None
+        gmod.Apocrysis._recent_mechanisms = []
+        gmod.Apocrysis._recent_signatures = []
+        _saved = dict(gmod.Apocrysis._world_investigation)
+        gmod.Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+        try:
+            g = Apocrysis("Mark", seed=seed, io=_IO())
+            self.assertEqual(g.mystery.mechanism, name)
+            return g
+        finally:
+            gmod.Apocrysis._used_mechanisms = []
+            gmod.Apocrysis._last_family = None
+            gmod.Apocrysis._recent_mechanisms = []
+            gmod.Apocrysis._recent_signatures = []
+            gmod.Apocrysis._world_investigation = _saved
+
+    def test_every_mechanism_has_a_route_landmark(self):
+        for name, spec in MECHANISMS.items():
+            self.assertTrue(spec.get("landmark"), f"{name} has no landmark")
+            self.assertNotIn("way out", spec["landmark"].lower(),
+                             f"{name} landmark leaks the route role")
+
+    def _spot_near_route(self, g):
+        m = g.mystery
+        rx, ry = m.sites["route"]
+        # stand a couple of tiles off the route, not on it
+        g.current_position = (max(0, rx - 2), ry)
+        g.io.log.clear()
+        g._spot_route_landmark()
+        return "\n".join(g.io.log)
+
+    def test_landmark_beat_fires_before_the_route_is_known(self):
+        for name in MECHANISMS:
+            if MECHANISMS[name].get("reveals_route"):
+                continue
+            g = self._force(name, seed=1)
+            self.assertNotIn("F_ROUTE", g.mystery.knowledge.facts_known())
+            out = self._spot_near_route(g)
+            self.assertIn(MECHANISMS[name]["landmark"][:20], out,
+                          f"{name}: landmark not announced")
+            # says WHERE (a direction or 'close by'), never WHY
+            self.assertTrue(any(d in out for d in self._DIRS)
+                            or "close by" in out, f"{name}: no direction")
+            self.assertNotIn("way out of the valley", out,
+                             f"{name}: spoils the route before F_ROUTE")
+
+    def test_landmark_is_independent_of_the_map_marker(self):
+        g = self._force("mountain_pass", seed=2)
+        m = g.mystery
+        # no marker knowledge at all
+        self.assertNotIn("route", getattr(g, "_mystery_named", set()))
+        out = self._spot_near_route(g)
+        self.assertIn(MECHANISMS["mountain_pass"]["landmark"][:20], out)
+
+    def test_landmark_beat_fires_once(self):
+        g = self._force("airfield_plane", seed=3)
+        first = self._spot_near_route(g)
+        self.assertTrue(first.strip())
+        g.io.log.clear()
+        g._spot_route_landmark()
+        self.assertEqual(g.io.log, [])
+
+    def test_landmark_is_deterministic_for_a_seed(self):
+        a = self._spot_near_route(self._force("boat_crossing", seed=7))
+        b = self._spot_near_route(self._force("boat_crossing", seed=7))
+        self.assertEqual(a, b)
+
+    def test_reveals_route_mechanism_withholds_the_landmark_until_known(self):
+        g = self._force("radio_tower", seed=1)
+        self.assertTrue(MECHANISMS["radio_tower"].get("reveals_route"))
+        self.assertEqual(self._spot_near_route(g), "")  # silent while unknown
+        k = g.mystery.knowledge
+        for eid, ev in k.evidence.items():
+            if "F_ROUTE" in ev.supports:
+                k.discover(eid)
+        self.assertIn("F_ROUTE", k.facts_known())
+        g._route_landmark_spotted = False
+        self.assertIn(MECHANISMS["radio_tower"]["landmark"][:20],
+                      self._spot_near_route(g))
+
+
 if __name__ == "__main__":
     unittest.main()

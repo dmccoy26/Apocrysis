@@ -205,15 +205,37 @@ measure them alone first so the spec's implementation section can say
 - **backtrack diagnostic** added (`1 - unique tiles / circuit length`).
 - `near` demoted to a labelled diagnostic column.
 
-Result (250 seeds/depth, `SCALE_REPORT.md`): **the gate
-(`ratio p90 < 1`) fails from depth 3** — depth 6 is 1.22 with 49 % of
-maps over budget, depth 12 is 1.50 / 70 %. **Backtrack ≈ 0 at every
-depth** — the current generator's problem is *distance*, not spaghetti.
-`infeasible = 0 %` — purely a budget problem, not connectivity.
+Result (250 seeds/depth, **all 10 mechanisms rotated**,
+`SCALE_REPORT.md`): the gate (`ratio p90 < 1`) **fails from depth 3**;
+depth 6 = 1.31 / 52 % over budget; depth 12 = 1.53 / 74 %.
+`backtrack ≈ 0` and `infeasible = 0 %` at every depth — a pure
+*distance*-budget problem, not spaghetti and not connectivity. It is
+**systemic across all 10 mechanisms** (they cluster tightly;
+`airfield_plane` d6 p90 = 65 is the worst, = BlueNoodle's death).
 
-**Next: the lever A/B matrix (tasks 4–7).** Each lever is a flag in
-generator/settlement placement; nothing shipped; owner reviews the
-matrix before any combination is chosen.
+### The decomposition finding — the escape gap is the scaling driver
+
+`spawn → endpoint` distance: `route` / `require` stay near spawn
+(6 → 10 / 15). **`obstacle` and `escape` grow** — `spawn→escape` p50
+**12 → 32**. The escape gap is carved at *"the far corner"*
+(`escape.py` `_carve_escape_pass`); the map grows, the exit moves out
+proportionally. Leg-by-leg localises it: **`require→obstacle`** (fetch
+the item, walk to the gate) scales p50 **7 → 22**.
+
+**This sharpens the lever set.** The dominant driver is *the distance
+from the spawn-clustered investigation to the far-corner escape gap*,
+not the town (which isn't on the required circuit). So:
+
+| lever | now |
+|---|---|
+| **2. bound placement region** | **strongest candidate** — but the thing to bound is the **escape-gap / `require→obstacle` span**, not a generic "region". Refine the lever to that. |
+| 4. spread sites across settlements | plausible — a settlement near the escape corner splits the trek; but watch backtrack (currently 0) |
+| 1. settlements ∝ area | addresses density (`dst/1k` 5 → 0.3) but may not shorten the required trek |
+| 3. cap `TOWN_DISTANCE_GROWTH` | weaker than expected — town isn't on the required circuit; it only drifts `route`/`require` out a little |
+
+**Next: the lever A/B matrix (tasks 4–7).** Each lever a flag in
+placement; nothing shipped; owner reviews the matrix (with the
+refined lever 2) before any combination is chosen.
 
 ## Frozen sequence (owner)
 

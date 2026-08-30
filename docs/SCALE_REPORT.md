@@ -21,45 +21,96 @@ Area grows **5×** over a campaign. Settlement count grows to 3.
 `TOWN_DISTANCE_GROWTH_PER_LEVEL` actively pushes the objective away.
 Mystery-site count is fixed at ~5 regardless.
 
-## Measured — v1 (refined, C.3.2a-5 task 1–3, 250 seeds/depth)
+## Measured — v1 (C.3.2a-5, refined + decomposed, 250 seeds/depth)
 
 `required_circuit` = the *true* required path (`spawn →
-route/require/require2/power → obstacle → escape`), not the earlier
-greedy "touch every site" proxy. `survival_budget` calibrated
-(`PHASE_C3_2_5_SPEC.md`): **gross ≈ 50 moves**, **usable investigative
-≈ 32** after combat / return-leg / non-beeline margins.
+route/require/require2/power → obstacle → escape`). `survival_budget`
+calibrated (`PHASE_C3_2_5_SPEC.md`): **gross ≈ 50 moves**, **usable
+investigative ≈ 32**. Seeds rotate through **all 10 mechanisms**
+(fresh `Apocrysis` otherwise always targets the first WorldFact →
+mountain_pass only).
 
-| depth | map | dens (sites/1k) | circ p50 | circ p90 | **ratio p90** (circ / 32) | **% over budget** | backtrack p50/p90 | near\* |
-|---|---|---|---|---|---|---|---|---|
-| 0 | 15² | 23.5 | 14 | 21 | **0.66** | 0 % | 0.00 / 0.06 | 4 |
-| 1 | 18² | 15.6 | 17 | 28 | 0.88 | 6 % | 0.00 / 0.02 | 5 |
-| 2 | 21² | 11.1 | 21 | 31 | 0.97 | 7 % | 0.00 / 0.04 | 6 |
-| 3 | 24² | 8.2 | 23 | 34 | **1.06** | 13 % | 0.00 / 0.03 | 5 |
-| 4 | 27² | 6.4 | 26 | 33 | **1.03** | 10 % | 0.00 / 0.00 | 5 |
-| 6 | 33² | 4.3 | 32 | 39 | **1.22** | **49 %** | 0.00 / 0.00 | 5 |
-| 9 | 34² | 4.2 | 34 | 41 | 1.28 | **64 %** | 0.00 / 0.03 | 6 |
-| 12 | 34² | 4.4 | 35 | 48 | **1.50** | **70 %** | 0.00 / 0.03 | 5 |
+### Headline matrix
 
-\* `near` (spawn → nearest site) is a **diagnostic only** — flat at
-4–6, never an evaluation metric.
+| depth | map | dens | dst/1k | circ p50 | circ p90 | **ratio p90** | **% over budget** | backtrack | near\* |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 15² | 25.3 | 5.04 | 15 | 22 | **0.69** | 0 % | ≈0 | 4 |
+| 1 | 18² | 16.7 | 2.65 | 18 | 30 | 0.94 | 6 % | ≈0 | 5 |
+| 2 | 21² | 11.9 | 1.59 | 21 | 31 | 0.97 | 8 % | ≈0 | 6 |
+| 3 | 24² | 8.9 | 0.91 | 23 | 35 | **1.09** | 14 % | ≈0 | 5 |
+| 4 | 27² | 6.9 | 0.88 | 27 | 34 | **1.06** | 14 % | ≈0 | 5 |
+| 6 | 33² | 4.6 | 0.50 | 33 | 42 | **1.31** | **52 %** | ≈0 | 5 |
+| 9 | 34² | 4.5 | 0.34 | 35 | 43 | 1.34 | **68 %** | ≈0 | 6 |
+| 12 | 34² | 4.7 | 0.30 | 36 | 49 | **1.53** | **74 %** | ≈0 | 5 |
 
-### Reading
+\* `near` is a **diagnostic only** — flat at 4–6, never an evaluation
+metric. `dst/1k` = distinct settlements a required site falls in, per
+1000 playable tiles.
 
-- **The gate fails from depth 3.** `ratio p90` crosses 1.0 at depth 3;
-  by depth 6 it's 1.22 with **49 % of maps** over the usable budget,
-  depth 12 it's 1.5× and 70 %.
-- **The true required circuit (p50 14 → 35) is ~40 % shorter than the
-  earlier greedy proxy (20 → 60)** — the old number was inflated by
-  `closed` + the town centre. But it *still* outgrows the budget.
-- **Backtrack is ≈ 0 at every depth.** The required circuits the
-  current generator produces are almost pure forward travel — the
-  problem is *distance*, not spaghetti. A lever that cuts distance
-  without introducing backtracking is a clean win; one that trades
-  distance for re-crossing is not.
-- **`infeasible` = 0 %** — every required circuit *is* traversable. This
-  is purely a budget problem, not a connectivity one.
-- **`dens` collapses 23.5 → 4.2** — the density mismatch is the
-  underlying cause; watch it does not keep falling under any lever.
+### Per mechanism (circ p50 / p90) — it's *systemic*, not one bad family
+
+| mechanism | d0 | d3 | d6 | d12 |
+|---|---|---|---|---|
+| mountain_pass | 14/21 | 23/28 | 33/41 | 36/41 |
+| rail_tunnel | 14/20 | 24/35 | 34/40 | 35/57 |
+| boat_crossing | 14/23 | 22/39 | 35/43 | 36/57 |
+| evac_corridor | 15/22 | 23/33 | 36/47 | 38/56 |
+| radio_tower | 17/31 | 24/37 | 35/49 | 36/61 |
+| power_station | 15/24 | 25/28 | 32/44 | 37/40 |
+| dam_valves | 15/22 | 23/40 | 31/34 | 36/57 |
+| **airfield_plane** | 15/24 | 27/39 | **34/65** | 38/51 |
+| tidal_causeway | 14/21 | 23/37 | 29/44 | 37/47 |
+
+All 10 cluster tightly. `airfield_plane` at d6 has the worst p90 (65) —
+the extra `require2` fetch on a big map, exactly BlueNoodle's death.
+
+### spawn → endpoint distance (p50 / p90) — **which endpoint grows**
+
+| depth | route | require | require2 | power | **obstacle** | **escape** | town |
+|---|---|---|---|---|---|---|---|
+| 0 | 6/10 | 6/9 | 7/8 | 6/12 | 11/12 | 12/13 | 8/12 |
+| 3 | 11/18 | 9/17 | 10/19 | 11/16 | **20/22** | **21/23** | 15/21 |
+| 6 | 16/26 | 9/22 | 12/23 | 9/25 | **30/33** | **31/34** | 24/34 |
+| 12 | 15/31 | 10/30 | 20/30 | 7/31 | **30/34** | **32/35** | 33/39 |
+
+### Leg-by-leg (canonical order, p50 / p90)
+
+| depth | spawn→route | route→require | **require→obstacle** | obstacle→escape |
+|---|---|---|---|---|
+| 0 | 6/10 | 2/5 | **7/12** | 1/1 |
+| 3 | 11/18 | 2/12 | **14/21** | 1/1 |
+| 6 | 16/26 | 3/23 | **23/30** | 1/1 |
+| 12 | 15/31 | 4/27 | **22/31** | 1/1 |
+
+## The finding — the escape gap is the scaling driver
+
+The `route` / `require` sites stay near spawn as designed
+(`spawn→require` p50 6 → 10). **`obstacle` and `escape` are what grow**
+— `spawn→escape` p50 **12 → 32** (2.7×). The escape gap is deliberately
+carved at *"the far corner"* (`escape.py` `_carve_escape_pass`), so as
+the map grows the exit moves proportionally further from the
+spawn-clustered investigation.
+
+The leg breakdown localises it: **`require→obstacle`** (get the item,
+then walk to the gate) is the leg that scales — **p50 7 → 22 tiles**.
+`route→require` also balloons at p90 (12 → 27): the `require` side-trip
+can land far on a big map.
+
+**The primary lever the decomposition points at is not quite on the
+original list**: *bound how far the escape gap — and therefore the
+`require→obstacle` leg — is placed from the investigation cluster* (a
+refinement of lever 2). Capping `TOWN_DISTANCE_GROWTH` (lever 3) touches
+settlement placement, which drifts `route`/`require` out a little, but
+the town itself isn't on the required circuit.
+
+- **Backtrack ≈ 0 at every depth** → the problem is **distance**, not
+  spaghetti. Any lever that shortens `require→obstacle` / `spawn→escape`
+  without introducing re-crossing is a clean win; one that trades
+  distance for re-crossing is a regression even if the ratio improves.
+- **`infeasible` = 0 %** → purely a budget problem, not connectivity.
+- **`dens` 25 → 4.7, `dst/1k` 5.0 → 0.30** → the mystery lives in **one**
+  settlement at every depth; the density of that one place per unit
+  geography craters.
 
 ### Old table (superseded — greedy all-sites circuit, `> 50` threshold)
 

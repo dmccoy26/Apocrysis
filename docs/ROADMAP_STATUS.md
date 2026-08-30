@@ -45,11 +45,12 @@ with two gates:
 
 1. ~~**Decide the ending**~~ — ✅ done 2026-08-29 (authored-canonical A +
    one final binary choice).
-2. **Land C.3.2a-5** — content-lever search is exhausted (lever matrix
-   + Gate 8 + C.3.2a-6 all falsified). Now a campaign-design decision:
-   **bound supported depth to 0–N ≈ 5–6, format N…25 differently.**
-   Owner's call on the late-game format; then CH3–FIN authors against
-   a real structure.
+2. ~~**Land C.3.2a-5**~~ — ✅ **RESOLVED (C.3.2a-7, shipped).** Content
+   levers exhausted (lever matrix + Gate 8 + C.3.2a-6 all falsified);
+   fixed with a campaign-structure change instead — an
+   inheritance-scaled supply floor (`game.depth_supply_bonus`) that
+   keeps `ratio p90 < 1` through depth 12, zero campaign-bot
+   regression. Deep expeditions are inheritance-scaled by design.
 
 After the gates, the bulk is **authoring** (CH3–FIN ≈ 15 facts + all
 their evidence / templates / prose) plus **three endgame systems**
@@ -60,11 +61,11 @@ without.
 ### Minimum path to "playable start to finish, even if rough"
 
 ```
-pick the ending
+pick the ending                       ✅ Truth A, authored + one choice
       ↓
-land C.3.2a-5 (or equivalent)
+land C.3.2a-5 (or equivalent)         ✅ C.3.2a-7 inheritance-scaled supply
       ↓
-author CH3–FIN facts + templates + prose
+author CH3–FIN facts + templates + prose      ← ACTIVE
       ↓
 CAMPAIGN_LENGTH = 25  +  5-chapter grouping
       ↓

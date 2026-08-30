@@ -2,11 +2,12 @@
 
 Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
 rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
-**C.3.2a-5: lever matrix → Gate 8 FALSIFIED → C.3.2a-6 (scaled
-structure) FALSIFIED. Three experiments converge: the survival
-envelope is the wall at deep depth. Active gate = a campaign-design
-decision (bound supported depth to 0–N≈6). Ending LOCKED (Truth A,
-authored + one final choice).** **Read this whole DIRECTION block
+**C.3.2a-5 line CLOSED: lever matrix / Gate 8 / C.3.2a-6 all falsified
+a generator fix → C.3.2a-7 resolved it with a campaign-structure change
+(inheritance-scaled supply floor, SHIPPED, `ratio p90 < 1` through
+depth 12, zero campaign-bot regression). Ending LOCKED (Truth A,
+authored + one final choice). Both world-arc gates cleared — CH3–FIN
+authoring is the active work.** **Read this whole DIRECTION block
 first, then the doc map.**
 
 ---
@@ -122,32 +123,40 @@ fail identically — the sign is wrong).
 survival envelope IS the wall at deep depth. There is no content-side
 lever left.** The next move is a **campaign-design decision**:
 
-### >> THE ACTIVE GATE — `PHASE_C3_2_7_SUPPORTED_DEPTH.md`
+### >> C.3.2a-7 — SHIPPED (viability half). `PHASE_C3_2_7_SUPPORTED_DEPTH.md`
 
-Supported depth bounded to **0–N ≈ 4–6**; expeditions past N are
-**explicitly inheritance-scaled** (owner's chosen format — the
-roguelite loop IS the answer to the longer circuits, made
-intentional). `ROADMAP_STATUS.md`'s "25 procedurally-equivalent
-survival expeditions?" → **no**: first ~6 are "learn the world", the
-rest a dug-in war of attrition.
+Owner sign-off: depth-scaled supplies = **in bounds** (campaign
+structure); **N = 6**. Built (`game.py`, `34c4db0`+…):
+`depth_supply_bonus(depth) = round(1.8·max(0,depth−1))` cap 20 → food +
+water in `STARTING_RATIONS` (closes the `persist_new_survivor` heir
+cliff) and in `_prize_bonus` (returning winner). `SUPPORTED_DEPTH = 6`.
+Verified: `--heir-budget` `ratio p90 < 1` at **every depth 0–12**;
+`--campaign` bot 28/30 before AND after (zero regression — bot is
+combat-bound, not supply-bound). v1 byte-identity holds.
 
-**The concrete gap:** `STARTING_RATIONS = {food:8, water:8}` is a flat
-class attr — a `persist_new_survivor` **heir** takes up a campaign at
-`expeditions_completed=depth` with a fresh `Backpack()` + flat 8/8, so
-an heir at depth 10 is dropped onto a ~55-tile circuit with 8 food =
-unwinnable by the model. **Proposed fix** (`PHASE_C3_2_7` §3): scale
-`STARTING_RATIONS` + the win prize by `expeditions_completed`.
+**Deferred, non-blocking:** `_lever_scaled_beats` as a *player* feature
+(raises `meaningful_fraction`) needs the withhold-location wiring
+(`PHASE_C3_2_6_SPEC.md` §3 — `mystery_mixin` + `tui._objective_steps` +
+knowledge model). As a bare flag the beats are invisible in-game. The
+supply scaling alone satisfies the viability contract.
 
-**Needs owner sign-off on two things before code:** (1) is depth-scaled
-starting supplies inside the frozen-balance line or not (§3.1); (2)
-N's value — 4 (strict cold-start) or 6 (with `_lever_scaled_beats` +
-prize folded in) (§4). Caveat (§3.2): the bot fails deep expeditions
-100 % on *combat*, 0 % on starvation — this change makes the contract
-*coherent* (no arithmetically-impossible heir runs), it is not claimed
-to fix the bot's deep win rate (that's the separate combat-power
-problem). Once the contract is set (even pre-code), **CH3–FIN authoring
-proceeds** — ending locked, structure known. If greenlit, the
-`game.py` `STARTING_RATIONS` edit is Atlas-shaped — route it and log.
+### >> THE ACTIVE WORK — CH3–FIN authoring (now unblocked)
+
+Both gates cleared: **ending locked** (Truth A, authored-canonical +
+one final binary choice) and **campaign structure known** (0–6
+learn-the-world, 7–25 inheritance-scaled attrition, viability satisfied
+by the model). Remaining for the World-1 arc (`ROADMAP_STATUS.md`):
+- **CH3–FIN ≈ 15 more `WorldFact`s** + `DiscoveryTemplate`s + evidence
+  text + milestones + **the RESPONSE thread** (only its title string
+  exists). Author toward "The Cordon" (`WORLD_TRUTH_CANDIDATES.md`
+  chapters 3-5-FIN + the endgame section).
+- **`CAMPAIGN_LENGTH` 10 → 25** + 5-chapter grouping (`_CHAPTER_BOUNDS`
+  already sketched in `campaign.py` todos).
+- **The three endgame systems** (Phase E): competing hypotheses
+  (`knowledge.py` `self.hypothesis` → a set + a correction beat), the
+  bespoke final expedition, the ending choice (broadcast vs protect).
+- A-only sub-decisions still open (`WORLD_TRUTH_CANDIDATES.md`): cause
+  specifics; how reachable the wider world is for the broadcast branch.
 
 Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.

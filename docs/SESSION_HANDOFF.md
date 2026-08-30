@@ -156,25 +156,29 @@ walks clean end-to-end via `next_target()`; every fact bound via
 **7/8 full 25-expedition campaigns completed** (1 at the known
 expedition-9 combat wall). 281+100 green.
 
-### >> THE ACTIVE WORK — Phase E: the three endgame *systems*
+### >> THE ACTIVE WORK — Phase E, SPEC'D (`PHASE_E_SPEC.md`)
 
-The arc's *content* is authored; what remains is engine work:
-1. **Competing hypotheses** — `knowledge.py` `self.hypothesis` → a
-   competing set + a "you committed to the wrong reading" correction
-   beat. The wrong-assumptions ladder in `WORLD_TRUTH_CANDIDATES.md`
-   candidate A is the spec input.
-2. **The bespoke final expedition** — expedition 25, less procedural:
-   the regional command centre, the seal order + signature, the
-   consolidation point that held. Realised from the player's own
-   `WorldInvestigation` state.
-3. **The ending choice** — acts on `RESP_THE_CHOICE`: broadcast the
-   truth past the cordon vs leave the settlement its silence. Two
-   authored outcomes + the choice UI.
+Three endgame systems, one spec, build **E.1 → E.2 → E.3**:
+- **E.1 — competing regional hypothesis + wrong-commitment beat.** A
+  4-rung wrong-assumptions ladder (`REGIONAL_HYPOTHESES` in
+  `worlds/silence/`), `WorldInvestigation.current_hypothesis()` derived
+  from milestone state, a `kind="correction"` "★ YOU HAD IT WRONG"
+  banner when a rung falls, a working-theory line on the `wi` screen.
+  **NOT a `knowledge.py` change** (that layer is per-mystery; this is
+  campaign-level). Rungs fall on M1 / M5 / M6 / FIN.
+- **E.2 — the bespoke final expedition** (25). `build_finale()` off a
+  fixed compound archetype (command centre / mast / consolidation
+  point / checkpoint road), `escape_kind="checkpoint"`. Converges the
+  investigation, doesn't restart it.
+- **E.3 — the ending choice.** Numbered prompt at the checkpoint acting
+  on `RESP_THE_CHOICE`: BROADCAST vs PROTECT. Two authored endings +
+  branch-aware `campaign_retrospective`; `campaign.ending` persists.
 
-Each is a separate spec. A-only sub-decisions still open
-(`WORLD_TRUTH_CANDIDATES.md`): cause specifics (research vs agricultural
-station — leaning research); how reachable the wider world is for the
-broadcast branch.
+**Owner review gate + 3 open decisions in the spec:** (1) does a wrong
+rung cost anything mechanical, or narrative-only (rec: narrative-only);
+(2) is BROADCAST received / does the wider world answer (rec: a cold
+acknowledgement, so it's a real act); (3) cause specifics (rec:
+regional bio-containment research station).
 
 Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.

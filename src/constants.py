@@ -15,6 +15,25 @@ GREY = "\033[90m"
 # Degrades to a yellow-ish tone on a 16-colour terminal - acceptable.
 ORANGE = "\033[38;5;208m"
 
+
+def stat_band(kind, value, maximum=100):
+    """docs/ATTENTION_SYSTEM_SPEC.md - the HUD escalation ladder.
+    'normal' | 'warning' | 'danger' for a resource readout. kind:
+    'hunger' | 'thirst' | 'hp' | 'fatigue' | 'food' | 'water' |
+    'weapon' (value = durability fraction 0..1)."""
+    if kind in ("hunger", "thirst"):
+        return "danger" if value < 15 else "warning" if value < 40 else "normal"
+    if kind == "hp":
+        pct = 100 * value / max(1, maximum)
+        return "danger" if pct < 20 else "warning" if pct <= 40 else "normal"
+    if kind == "fatigue":
+        return "danger" if value > 85 else "warning" if value > 50 else "normal"
+    if kind in ("food", "water"):
+        return "danger" if value <= 0 else "warning" if value < 15 else "normal"
+    if kind == "weapon":
+        return "danger" if value <= 0.10 else "warning" if value <= 0.25 else "normal"
+    return "normal"
+
 # Per-terrain map colour (playtest: "colour the squares so the map is
 # easier to read"). Keyed by terrain name; the tile keeps its own
 # glyph, this only tints it. Fog / unexplored stays uncoloured.

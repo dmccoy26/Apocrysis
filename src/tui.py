@@ -25,6 +25,7 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
+from src.constants import stat_band
 from src.mixins.persistence_mixin import profile_filename_for_name
 from src.nav import honest_bearing
 
@@ -983,9 +984,11 @@ class ApocrysisApp(App):
         if eq and getattr(eq, "durability", 1) <= 0:
             eq_line += "  [red]BROKEN[/]"
 
-        def _sup(label, n):
-            c = "red" if n <= 0 else "grey85"
-            return f"[{_DIM}]{label}[/] [{c}]{n}[/]"
+        _BAND_MARKUP = {"normal": "grey85", "warning": "#ff8c00", "danger": "red"}
+
+        def _sup(label, n, kind=None):
+            band = stat_band(kind, n) if kind else ("danger" if n <= 0 else "normal")
+            return f"[{_DIM}]{label}[/] [{_BAND_MARKUP[band]}]{n}[/]"
 
         _map_lvl = getattr(p, "expeditions_completed", 0) + 1
         lines = [
@@ -1009,16 +1012,28 @@ class ApocrysisApp(App):
         lines += [
             "",
             "  ".join([
-                _sup("food", p.backpack.food), _sup("water", p.backpack.water),
+                _sup("food", p.backpack.food, "food"),
+                _sup("water", p.backpack.water, "water"),
                 _sup("med", p.backpack.medicine), _sup("ammo", p.backpack.ammo),
             ]),
         ]
         stats_widget.update("\n".join(lines))
 
-        self.query_one("#health_bar", ProgressBar).update(progress=max(0, min(100, p.health)))
-        self.query_one("#hunger_bar", ProgressBar).update(progress=max(0, min(100, p.hunger)))
-        self.query_one("#thirst_bar", ProgressBar).update(progress=max(0, min(100, p.thirst)))
-        self.query_one("#fatigue_bar", ProgressBar).update(progress=max(0, min(100, p.fatigue)))
+        # ATTENTION_SYSTEM_SPEC.md: the vitals bars shade with the
+        # deterioration ladder - grey / orange / red.
+        _BAND_RGB = {"normal": "grey", "warning": "#ff8c00", "danger": "#e04040"}
+        for _id, _kind, _val, _max in (
+            ("health_bar", "hp", p.health, p.max_health),
+            ("hunger_bar", "hunger", p.hunger, 100),
+            ("thirst_bar", "thirst", p.thirst, 100),
+            ("fatigue_bar", "fatigue", p.fatigue, 100),
+        ):
+            _bar = self.query_one(f"#{_id}", ProgressBar)
+            _bar.update(progress=max(0, min(100, _val)))
+            try:
+                _bar.styles.color = _BAND_RGB[stat_band(_kind, _val, _max)]
+            except Exception:
+                pass
 
         # (The objective lives only in the bottom-right OBJECTIVES
         # panel now - _status_block - not duplicated up here.)

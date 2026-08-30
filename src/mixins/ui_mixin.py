@@ -177,11 +177,20 @@ class UIMixin:
 
                 right_lines.append(f"Day {self.day}  {time_str}  {day_night}   Turn {getattr(self, 'turns', 0)}")
                 right_lines.append("--- Player Stats ---")
+                from src.constants import stat_band as _band
+                _bc = {"normal": "", "warning": ORANGE, "danger": RED}
+
+                def _vit(kind, val, maximum=100, shown=None):
+                    c = _bc[_band(kind, val, maximum)]
+                    s = shown if shown is not None else val
+                    return f"{c}{s}{RESET}" if c else str(s)
+
                 stats_list = [
-                    ("Health", f"{self.health}/{self.max_health}"),
-                    ("Hunger", self.hunger),
-                    ("Thirst", self.thirst),
-                    ("Fatigue", self.fatigue),
+                    ("Health", _vit("hp", self.health, self.max_health,
+                                    f"{self.health}/{self.max_health}")),
+                    ("Hunger", _vit("hunger", self.hunger)),
+                    ("Thirst", _vit("thirst", self.thirst)),
+                    ("Fatigue", _vit("fatigue", self.fatigue)),
                     ("Strength", self.strength),
                     ("Dexterity", self.dexterity),
                     ("Intelligence", self.intelligence),

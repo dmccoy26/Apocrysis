@@ -215,6 +215,43 @@ failure mode appears (the two relevant ones are already filed).
 
 ---
 
-*Experiment spec. Nothing ships. Baseline byte-identical. This tests
+## STATUS — experiment RAN, hypothesis FALSIFIED (§8 path 1), 2026-08-30
+
+`tools/scale_report.py --gate6`, 250 seeds/depth, 10 mechanisms, depths
+0–12. Raw: `tools/gate6_matrix.json`. Full table + reading:
+`SCALE_REPORT.md § Scaled investigation structure`.
+
+**§7 verdict: no form passes — no scaled form, no `fixed` control.**
+The failure is structural, not tuning:
+
+- **Scaled beats fix the emptiness problem.** `meaningful_fraction` at
+  depth 12: baseline 0.54, `sqrt@1` 0.74. `nodes / √playable` holds
+  ~0.16 flat — the scaling function works as designed.
+- **But they worsen viability.** `ratio p90` d12: 1.53 → 1.75. Every
+  required beat is +2–4 required tiles; the survival budget counts
+  tiles, not meaning. `require→obstacle` untouched (beats sit on the
+  `spawn→route` spine); backtrack rises to 0.08–0.10.
+- **The scaling form is irrelevant** — `fixed / log / sqrt / linear`
+  all fail identically. The *sign* is wrong: added required structure
+  can only lengthen the required circuit.
+
+**Three experiments now converge (§8):** C.3.2a-5 rearrange → viable to
+depth ~4–6; Gate 8 relational ceiling → same ceiling; C.3.2a-6 scaled
+structure → fixes emptiness, worsens viability. **The survival envelope
+is the wall.** → the next move is the campaign-design decision, not a
+generator lever: **formally bound supported depth to 0–N ≈ 5–6**;
+deep expeditions a deliberately different (non-procedurally-equivalent)
+format.
+
+**Keep as an option:** `_lever_scaled_beats` genuinely fixes
+`meaningful_fraction` and, at shallow depth where the circuit already
+fits, costs nothing. It is a content/texture lever for the 0–N range —
+its own small decision, separate from the viability line.
+
+---
+
+*Experiment spec. Nothing ships. Baseline byte-identical. This tested
 structural growth ALONE — no survival-envelope change, no lever
-combination — so the evidence says which mechanism did the work.*
+combination — and the evidence says: structural growth is the right
+treatment for emptiness and the wrong one for viability. They are
+different problems.*

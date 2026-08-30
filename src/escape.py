@@ -627,6 +627,96 @@ def _carve_escape_pass(game, reachable):
     return (bx, by), (ix, iy)
 
 
+def _scaled_beat_count(game, form, reachable):
+    """C.3.2a-6 (measurement-only, docs/PHASE_C3_2_6_SPEC.md): how many
+    extra required intermediate beats to insert, as a function of map
+    size. `form` is (id, c) - id in {fixed, log, sqrt, linear}. Capped
+    at 4 so a 34^2 map doesn't get a dozen. Byte-identical baseline:
+    called only when _lever_scaled_beats is set."""
+    import math
+    kind, c = form
+    n = game.map_size
+    n0 = 15                       # the depth-0 base map dimension
+    play = max(1, len(reachable))
+    play0 = n0 * n0 * 0.7         # ~playable tiles on the base map
+    if kind == "fixed":
+        k = c
+    elif kind == "log":
+        k = c * math.log2(max(1.0, n / n0))
+    elif kind == "sqrt":
+        k = c * (math.sqrt(play) - math.sqrt(play0)) / 6.0
+    elif kind == "linear":
+        k = c * (n - n0) / 6.0
+    else:
+        k = 0
+    return max(0, min(4, round(k)))
+
+
+def _place_scaled_beats(game, m, reachable, k, spawn):
+    """Pick up to k reachable building sites strung along the ACTUAL
+    required spine (spawn -> route -> obstacle), each a genuine
+    on-the-way stop: near-zero detour over walking that spine anyway,
+    and >= 3 tiles from every other beat and every role site (no
+    clustering - GATE6_SPEC section 3). Registers them as
+    m.sites['beat_1'..] and m.required_beats.
+
+    A beat withholds the location of the next required site (section
+    3.1); for the experiment that gating is structural - the harness
+    walks m.required_beats as required stops on the corridor. Fewer than
+    k may land when the spine has no low-detour building for a slot;
+    story_nodes_p50 in the report shows what actually placed."""
+    sx, sy = spawn
+    rx, ry = m.sites["route"]
+    ox, oy = m.obstacle_tile
+    # the spine as two segments; interpolate k points evenly across the
+    # whole spine length so beats sit between real beats, not stacked.
+    seg = [((sx, sy), (rx, ry)), ((rx, ry), (ox, oy))]
+    seglen = [abs(a[0] - b[0]) + abs(a[1] - b[1]) for a, b in seg]
+    total = sum(seglen) or 1
+
+    def spine_point(f):
+        d = f * total
+        for (a, b), L in zip(seg, seglen):
+            if d <= L or L == 0:
+                t = 0 if L == 0 else d / L
+                return a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+            d -= L
+        return seg[-1][1]
+
+    def spine_detour(p):
+        # extra over spawn->route->obstacle if the walk stops at p
+        best = 1e9
+        for (a, b) in seg:
+            base = abs(a[0] - b[0]) + abs(a[1] - b[1])
+            via = (abs(a[0] - p[0]) + abs(a[1] - p[1])
+                   + abs(p[0] - b[0]) + abs(p[1] - b[1]))
+            best = min(best, via - base)
+        return best
+
+    taken = [tuple(v) for v in m.sites.values()]
+    pool = [s for s in _building_sites(game, reachable)
+            if s not in taken and s != m.obstacle_tile
+            and spine_detour(s) <= 4]
+
+    def far_enough(p, chosen):
+        return all(abs(p[0] - q[0]) + abs(p[1] - q[1]) >= 3
+                   for q in chosen)
+
+    beats = []
+    for i in range(1, k + 1):
+        tx, ty = spine_point(i / (k + 1))
+        cands = sorted(
+            (p for p in pool if far_enough(p, taken + beats)),
+            key=lambda p: abs(p[0] - tx) + abs(p[1] - ty))
+        if cands:
+            beats.append(cands[0])
+    m.required_beats = []
+    for i, b in enumerate(beats, 1):
+        key = f"beat_{i}"
+        m.sites[key] = b
+        m.required_beats.append(key)
+
+
 def _paint_terrain_near(game, center, terrain, count, protected):
     """Set up to `count` walkable, non-boundary, non-protected tiles
     around `center` to `terrain` - world coherence only (a marina needs
@@ -787,6 +877,16 @@ def build_mystery(game, target_fact=None):
         # tick flips obstacle_open False when the tide floods.
         m.obstacle_open = True
         game.map[inner_tile[1]][inner_tile[0]]['obstacle'] = False
+
+    # C.3.2a-6 (measurement-only, docs/PHASE_C3_2_6_SPEC.md): when
+    # _lever_scaled_beats is set, insert k = f(map size) extra required
+    # intermediate beats along the corridor. Flag off (the default) ->
+    # this is skipped entirely and the mystery is byte-identical.
+    _beats_form = getattr(game, "_lever_scaled_beats", None)
+    if _beats_form:
+        _k = _scaled_beat_count(game, _beats_form, reachable)
+        if _k:
+            _place_scaled_beats(game, m, reachable, _k, spawn)
 
     # World grammar: each role-site is a NAMED place, not a generic
     # building. The evidence chain references these same names ("the

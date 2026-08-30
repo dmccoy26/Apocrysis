@@ -46,7 +46,8 @@ _ALL_FACTS_KNOWN = {f.id: "known" for f in WORLD_FACTS}
 
 
 _LEVER_DEFAULTS = {"_lever_settlements_by_area": False, "_lever_bound_gap": None,
-                   "_lever_cap_town_dist": None, "_lever_spread_sites": False}
+                   "_lever_cap_town_dist": None, "_lever_spread_sites": False,
+                   "_lever_scaled_beats": None}
 
 
 def _forced_game(seed, depth, mech, levers=None):
@@ -141,6 +142,9 @@ def _walk_required(game):
         required_roles.append("require2")
     if getattr(m, "power_role", None):
         required_roles.append(m.power_role)
+    # C.3.2a-6: scaled intermediate beats are required investigation
+    # stops on the corridor (docs/PHASE_C3_2_6_SPEC.md).
+    required_roles += list(getattr(m, "required_beats", []))
     targets = [tuple(m.sites[r]) for r in required_roles if r in m.sites]
 
     tail = []
@@ -343,6 +347,16 @@ def measure(game):
     playable = len(reach)
     dsc = dest_settlement_count(game)
 
+    # C.3.2a-6: required investigation nodes (route/require/require2/
+    # power + scaled beats - NOT closed, obstacle, escape) and the raw
+    # relationship to map linear scale.
+    _story_roles = {"route", "require", "require2"}
+    _story_roles |= set(getattr(m, "required_beats", []) or [])
+    if getattr(m, "power_role", None):
+        _story_roles.add(m.power_role)
+    story_nodes = sum(1 for r in _story_roles if m is not None and r in m.sites)
+    nodes_per_sqrt = round(story_nodes / max(1.0, playable ** 0.5), 4)
+
     # the leg this experiment is trying to move
     rto = None
     if m is not None and "require" in m.sites and getattr(m, "obstacle_tile", None):
@@ -364,6 +378,8 @@ def measure(game):
         "over_budget": (circ is not None and circ > USABLE_BUDGET),
         "infeasible": (m is None) or not ok,
         "req_to_obstacle": rto,
+        "story_nodes": story_nodes,                # C.3.2a-6
+        "nodes_per_sqrt": nodes_per_sqrt,          # C.3.2a-6
         "meaningful": meaningful_fraction(game),   # Gate 8 north-star
         "legs": circuit_legs(game),
         "ep": endpoint_dists(game),
@@ -380,6 +396,9 @@ def _cell(rows):
         "n": len(rows),
         "dens": round(statistics.mean(r["dens"] for r in rows), 2),
         "dst_1k": round(statistics.mean(r["dest_density"] for r in rows), 3),
+        "story_nodes_p50": round(_p([r["story_nodes"] for r in rows], .5), 1),
+        "nodes_per_sqrt_p50": round(
+            statistics.mean(r["nodes_per_sqrt"] for r in rows), 4),
         "meaningful_p50": round(_p([r["meaningful"] for r in rows], .5), 3),
         "circ_p50": round(_p(circ, .5), 1),
         "circ_p90": round(_p(circ, .9), 1),
@@ -542,6 +561,111 @@ def run_gate8(games, depths):
     return out
 
 
+# --- C.3.2a-6: Scaled Investigation Structure ------------------------
+#   docs/PHASE_C3_2_6_SPEC.md. Does the required story acquiring MORE
+#   intermediate structure as the world grows restore viability? Sweep
+#   the scaling form; fixed@N are controls (§7.7).
+GATE6_VARIANTS = {
+    "baseline": {},
+    "fixed@1": {"_lever_scaled_beats": ("fixed", 1)},
+    "fixed@2": {"_lever_scaled_beats": ("fixed", 2)},
+    "log@1.5": {"_lever_scaled_beats": ("log", 1.5)},
+    "log@2": {"_lever_scaled_beats": ("log", 2)},
+    "sqrt@1": {"_lever_scaled_beats": ("sqrt", 1)},
+    "sqrt@1.5": {"_lever_scaled_beats": ("sqrt", 1.5)},
+    "linear@1": {"_lever_scaled_beats": ("linear", 1)},
+    "linear@1.5": {"_lever_scaled_beats": ("linear", 1.5)},
+}
+
+
+def _gate6_verdict(cells, base):
+    """Score one form against GATE6_SPEC §7. Returns (pass_bool, reasons)."""
+    reasons = []
+    depths = sorted((int(d) for d in cells), key=int)
+    supported = [d for d in depths if d <= _SUPPORTED_DEPTHS]
+    deep = [d for d in supported if d >= 9]
+
+    bad = [d for d in supported if cells[str(d)]["ratio_p90"] >= 1.0]
+    if bad:
+        reasons.append("FAIL gate: ratio p90 >= 1 at depths "
+                       + ",".join(map(str, bad)))
+    m0 = base["0"]["meaningful_p50"]
+    mbad = [d for d in deep if cells[str(d)]["meaningful_p50"] < m0 - 0.15]
+    if mbad:
+        reasons.append(f"FAIL meaningful: p50 at {mbad} below base-d0 "
+                       f"{m0:.2f} - 0.15")
+    dbad = [d for d in deep
+            if cells[str(d)]["dens"] < base[str(d)]["dens"] - 1e-9
+            or cells[str(d)]["dst_1k"] < base[str(d)]["dst_1k"] - 1e-9]
+    if dbad:
+        reasons.append(f"FAIL density: dens/dst_1k below baseline at {dbad}")
+    bbad = [d for d in supported
+            if cells[str(d)]["backtrack_p90"]
+            > 1.5 * max(base[str(d)]["backtrack_p90"], 0.02) + 1e-9]
+    if bbad:
+        reasons.append(f"FAIL backtrack: p90 > 1.5x baseline at {bbad}")
+    ibad = [d for d in supported if cells[str(d)]["infeasible_pct"] > 0]
+    if ibad:
+        reasons.append(f"FAIL infeasible: > 0% at {ibad}")
+    return (not reasons), (reasons or ["PASS all of GATE6_SPEC §7.1-7.6"])
+
+
+def run_gate6(games, depths):
+    import json
+    out = {"budget_usable": USABLE_BUDGET, "games_per_cell": games,
+           "supported_depths": _SUPPORTED_DEPTHS, "variants": {},
+           "verdict": {}}
+    for vname, levers in GATE6_VARIANTS.items():
+        out["variants"][vname] = {}
+        for d in depths:
+            rows = [measure(_forced_game(
+                        i, d, MECH_ROTATION[i % len(MECH_ROTATION)], levers))
+                    for i in range(games)]
+            out["variants"][vname][str(d)] = _cell(rows)
+    base = out["variants"]["baseline"]
+    d_ref = str(max(depths))
+
+    print(f"{'variant':>14}  {'d'+d_ref+' ratio':>10} {'mean_p50':>9} "
+          f"{'nodes p50':>10} {'n/sqrt':>7} {'r->o p90':>9} "
+          f"{'btrk p90':>9} {'dst/1k':>7} {'infeas':>7}")
+    for vname in GATE6_VARIANTS:
+        c = out["variants"][vname][d_ref]
+        print(f"{vname:>14}  {c['ratio_p90']:>10.2f} {c['meaningful_p50']:>9.2f} "
+              f"{c['story_nodes_p50']:>10.1f} {c['nodes_per_sqrt_p50']:>7.3f} "
+              f"{c['req_obst_p90']:>9.0f} {c['backtrack_p90']:>9.2f} "
+              f"{c['dst_1k']:>7.2f} {c['infeasible_pct']:>6.1f}%")
+        if vname != "baseline":
+            ok, reasons = _gate6_verdict(out["variants"][vname], base)
+            out["verdict"][vname] = {"pass": ok, "reasons": reasons}
+            for r in reasons:
+                print(f"{'':>16}- {r}")
+
+    scaled_pass = [v for v in out["verdict"]
+                   if out["verdict"][v]["pass"] and not v.startswith("fixed")]
+    fixed_pass = [v for v in out["verdict"]
+                  if out["verdict"][v]["pass"] and v.startswith("fixed")]
+    print("\n=== GATE 6 §7 verdict ===")
+    print("scaled form(s) passing: " + (", ".join(scaled_pass) or "NONE"))
+    print("fixed control(s) passing: " + (", ".join(fixed_pass) or "NONE"))
+    if scaled_pass and not fixed_pass:
+        print("-> §7 MET: scaling restores viability; a constant +N does not "
+              "(the rule is +f(map), not +N).")
+    elif scaled_pass and fixed_pass:
+        print("-> §7.7: scaled forms pass BUT so does a fixed control - "
+              "'scaling' is not what did the work. Rule is likely '+N beats'.")
+    elif fixed_pass and not scaled_pass:
+        print("-> only a fixed +N passes. Simpler rule; report it (§8).")
+    else:
+        print("-> §8 FALSIFIED: structural growth alone does not clear the "
+              "supported depths. -> next: formally bound supported depth 0-N.")
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "gate6_matrix.json"), "w") as f:
+        json.dump(out, f, indent=2)
+    print(f"\nwrote {os.path.join(here, 'gate6_matrix.json')}")
+    return out
+
+
 def _p(v, q):
     v = sorted(x for x in v if x is not None)
     return v[min(len(v) - 1, int(len(v) * q))] if v else float("nan")
@@ -557,12 +681,19 @@ def main():
     ap.add_argument("--gate8", action="store_true",
                     help="run the Gate 8 distributed-investigation experiment "
                          "(docs/PHASE_C3_2_5_GATE8_SPEC.md)")
+    ap.add_argument("--gate6", action="store_true",
+                    help="run the C.3.2a-6 scaled-investigation-structure "
+                         "experiment (docs/PHASE_C3_2_6_SPEC.md)")
     args = ap.parse_args()
     depths = [int(x) for x in args.depths.split(",")]
 
     print(f"budget: gross {GROSS_BUDGET} moves, usable (investigative) "
           f"{USABLE_BUDGET}  [docs/PHASE_C3_2_5_SPEC.md]")
     print()
+
+    if args.gate6:
+        run_gate6(args.games, depths)
+        return
 
     if args.gate8:
         run_gate8(args.games, depths)

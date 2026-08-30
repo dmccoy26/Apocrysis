@@ -406,7 +406,104 @@ only on evidence):
 
 ---
 
+# Scaled investigation structure (C.3.2a-6)
+
+`tools/scale_report.py --gate6`, **250 seeds/depth**, all 10 mechanisms
+rotated. Raw: `tools/gate6_matrix.json`. Spec:
+`docs/PHASE_C3_2_6_SPEC.md`. **Measurement-only — baseline
+byte-identical (C.1 golden fixture passes); nothing shipped.**
+
+The hypothesis (post-Gate-8): *what if the story itself grows with the
+world?* A `_lever_scaled_beats` flag (default off) inserts `k = f(map)`
+genuine intermediate required beats — each an on-spine stop
+(`spawn→route→obstacle`) that withholds the next required site's
+location, ≥3 tiles from every other site, near-zero detour. Scaling
+form swept: `fixed@1/2` (controls) · `log` · `sqrt` · `linear`.
+
+Each cell: `ratio p90` (gate, < 1) · `mean p50` (`meaningful_fraction`)
+· `nodes` (required story nodes p50) · `n/√` (nodes / √playable —
+reported raw, not targeted) · `r→o` (`require→obstacle` p90) · `btrk`.
+
+| variant | d0 | d3 | d4 | d6 | d9 | d12 |
+|---|---|---|---|---|---|---|
+| **baseline** | 0.69·0.94·2·31·.07 | 1.09·0.67·2·21·.04 | 1.06·0.66·2·24·.03 | 1.31·0.55·2·30·.03 | 1.34·0.55·2·30·.03 | **1.53·0.54·2·31·.05** |
+| fixed@1 | 0.78·0.95·3·31·.10 | 1.19·0.74·3·21·.06 | 1.16·0.74·3·24·.04 | 1.44·0.65·3·30·.04 | 1.50·0.65·3·30·.04 | 1.69·0.63·3·31·.07 |
+| fixed@2 | —·—·4·— | 1.28·0.75·4·— | 1.25·0.75·4·— | 1.53·0.70·4·— | 1.56·0.70·4·— | 1.72·0.69·4·31·.08 |
+| **sqrt@1** | 0.69·0.94·2·31·.07 | 1.22·0.78·4·21·.08 | 1.19·0.78·4·24·.06 | 1.50·0.75·5·30·.07 | 1.59·0.74·5·30·.09 | **1.75·0.74·5·31·.08** |
+| sqrt@1.5 | 0.69·0.94·2·— | 1.22·0.78·4·— | 1.25·0.80·5·— | 1.62·0.76·6·— | 1.66·0.76·6·— | 1.81·0.76·6·31·.10 |
+| linear@1 | 0.69·0.94·2·— | 1.22·0.78·4·— | 1.19·0.78·4·— | 1.50·0.75·5·— | 1.59·0.74·5·— | 1.75·0.74·5·31·.08 |
+| linear@1.5 | 0.69·0.94·2·— | 1.22·0.78·4·— | 1.25·0.80·5·— | 1.62·0.76·6·— | 1.66·0.76·6·— | 1.81·0.76·6·31·.10 |
+
+(`log@1.5/2` ≈ `fixed@2` — `log2(34/15) ≈ 1.2`, so `k` saturates at
+3–4 by depth 3. `infeasible = 0 %` for every variant at every depth.
+`dst/1k` unchanged from baseline — beats land in the existing
+settlement, so they don't move settlement density.)
+
+## Verdict — §7: **NONE PASS. §8 falsified, path 1.**
+
+`--gate6` scores every form against `GATE6_SPEC` §7 mechanically. **No
+scaled form passes. No fixed control passes.** And the reason is
+structural, not a tuning miss:
+
+### The two problems are orthogonal — and beats pull them opposite ways
+
+| | baseline d0 → d12 | `sqrt@1` d0 → d12 |
+|---|---|---|
+| `meaningful_fraction` | **0.94 → 0.54** (collapses) | **0.94 → 0.74** (nearly held) |
+| `ratio p90` | 1.53 (over budget) | **1.75** (*further* over) |
+| required circuit p90 | 49 tiles | 56 tiles |
+
+**Scaled beats do exactly what the hypothesis wanted for the *emptiness*
+problem** — `meaningful_fraction` stops collapsing; `sqrt@1` holds it at
+~0.74–0.78 at every depth instead of sliding to 0.54. `nodes / √playable`
+stays flat at ~0.16, so the scaling function tracks map size as designed.
+
+**But every required beat is more required walking, and the survival
+budget counts tiles, not meaning.** `require→obstacle` is untouched (the
+beats sit on the `spawn→route` spine, correctly), yet the total circuit
+grows ~2–4 tiles per beat, `ratio p90` rises uniformly from depth 1 up,
+and backtrack ticks to 0.08–0.10 (k on-spine stops can't stay perfectly
+collinear). **The scaling *form* is irrelevant** — `fixed`, `log`,
+`sqrt`, `linear` all fail the same way, because the *sign* is wrong:
+adding required structure can only lengthen the required circuit, never
+shorten it.
+
+### Falsified — and now three experiments converge
+
+> **The required circuit cannot be made to fit a fixed survival budget
+> as the map grows.** Rearranging fixed nodes buys viability to depth
+> ~4–6 (Gate 8). Adding scaled nodes fixes emptiness but *worsens*
+> viability (this experiment). Shrinking the map and clustering on
+> spawn are both forbidden. There is no content-side lever left.
+
+**C.3.2a-5 / Gate 8 / C.3.2a-6 have jointly established that the
+survival envelope itself is the wall at deep campaign depth.** The
+remaining move is a **campaign-design decision**, made on this evidence:
+
+> **Formally bound "supported depth" to 0–N.** The baseline `ratio p90`
+> crosses 1.0 at depth ~2–3 and 1.3 by depth 6; distributed
+> investigation (Gate 8) held it under 1.0 through depth 4. **N ≈ 5–6.**
+> Expeditions past N are a deliberately different format —
+> inherited-supply-balanced, authored escalation, or a distinct
+> late-game mode — *not* procedurally-equivalent survival runs. This is
+> `ROADMAP_STATUS.md`'s "is a 25-expedition campaign supposed to have
+> 25 procedurally-equivalent survival expeditions?" answered: **no.**
+
+### Keep as an option, decoupled: `_lever_scaled_beats` for emptiness
+
+The flag genuinely fixes `meaningful_fraction`. At **shallow depth**,
+where the circuit already fits the budget (`ratio p90 < 1` through
+depth ~2 baseline, further with Gate-8 distribution), adding 1–2 beats
+costs nothing in viability and makes the map feel occupied rather than
+a large empty grid with a mystery in one corner. It is a **content /
+texture lever for the 0–N range**, not a viability fix — the two
+questions are now known to be separate. Whether to ship it there is its
+own small decision, not part of the C.3.2a-5 viability line.
+
+---
+
 *Investigation only. No generator change shipped; all lever flags
-default off; baseline byte-identical. Gate 8 is a clean negative
-result — the valuable artifact is the falsification, not a patched
-experiment.*
+default off; baseline byte-identical. Gate 8 and C.3.2a-6 are both
+clean negative results on the content side — the valuable artifact is
+the convergent falsification: the fix for deep-campaign viability is a
+campaign-structure decision, not a generator lever.*

@@ -67,6 +67,7 @@ class Apocrysis(
     _lever_bound_gap = None              # lever 2: int target gap distance
     _lever_cap_town_dist = None          # lever 3: int cap on town min-dist
     _lever_spread_sites = False          # lever 4
+    _lever_scaled_beats = None           # C.3.2a-6: (form_id, c) or None
 
     # v4: the fresh-start ration every game begins with, so a game
     # doesn't open in a food/water deficit. load_game() and

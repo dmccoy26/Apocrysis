@@ -115,3 +115,11 @@ def equip_for_depth(player, depth):
             n, s = max(cands, key=lambda kv: kv[1]["reduction"])
             player.equipped_armor[slot] = Armor(
                 n, s["reduction"], s["durability"], slot)
+
+    # A survivor this deep has a pantry from ~N wins of inheritance +
+    # the scaled prize each time - not the thin starter ration. Without
+    # this a jump-in starves mid-expedition on a 34x34 map before the
+    # story pays off (playtest 2026-08-30 run 2: died turn 160, food 0).
+    player.backpack.food = max(player.backpack.food, 40 + depth)
+    player.backpack.water = max(player.backpack.water, 40 + depth)
+    player.backpack.ammo = max(player.backpack.ammo, 30)

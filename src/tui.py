@@ -725,9 +725,12 @@ class ApocrysisApp(App):
             Apocrysis._survivor_knowledge = list(
                 getattr(Apocrysis, "_survivor_knowledge", []) or [])
             self._last_load_was_profile = False
-            return Apocrysis("Dev", level=1, seed=self._dev.seed,
-                             hardcore=False, expeditions_completed=depth,
-                             io=self.io)
+            _p = Apocrysis("Dev", level=1, seed=self._dev.seed,
+                           hardcore=False, expeditions_completed=depth,
+                           io=self.io)
+            from src.dev import equip_for_depth
+            equip_for_depth(_p, depth)
+            return _p
 
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
         self._last_load_was_profile = profile is not None

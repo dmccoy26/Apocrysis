@@ -53,7 +53,8 @@ def _resolve_player_identity():
 def _dev_main(start_log=False, dev=None):
     """`--dev` classic path: fresh survivor at a synthetic narrative
     point, sandboxed persistence. See src/dev.py / docs/DEV_PLAYTEST.md."""
-    from src.dev import synthetic_state, banner, reset_sandbox, DEV_PROFILE_PATH
+    from src.dev import (synthetic_state, banner, reset_sandbox,
+                         equip_for_depth, DEV_PROFILE_PATH)
     reset_sandbox()
     depth, wi_status = synthetic_state(dev)
     print(banner(dev, depth))
@@ -64,6 +65,7 @@ def _dev_main(start_log=False, dev=None):
         Apocrysis._survivor_knowledge = []
         player = Apocrysis("Dev", level=1, seed=dev.seed, hardcore=False,
                            expeditions_completed=depth, io=None)
+        equip_for_depth(player, depth)
         from src.campaign import chapter_intro
         _ms = len(player.world_investigation.milestones_known())
         print(chapter_intro(player.expeditions_completed, _ms))

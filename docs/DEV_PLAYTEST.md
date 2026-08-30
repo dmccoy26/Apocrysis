@@ -26,7 +26,14 @@ CH3.
    `next_target()` points at the first fact of the requested chapter,
    the regional-hypothesis rung is coherent, and the `wi` screen reads
    correctly
-4. a **fresh level-1 survivor** at that depth
+4. a survivor at the **level + gear a real run produces at that depth**
+   (`equip_for_depth`, calibrated from `balance_autoplay` telemetry —
+   CH3 ≈ L8 + Steel Katana + ~9 armor). **Survivor state only** — no
+   change to combat formulas, encounter/loot rates, the difficulty
+   curve, or hunger/thirst. Without this, a fresh L1 body can't survive
+   the depth-N curve long enough to reach any story content (playtest
+   2026-08-30: CH3 jump-in on a fresh survivor died turn 32, zero sites
+   reached).
 5. then it hands off to the **normal game** — no alternate story logic,
    no special rendering, no in-game bypass
 

@@ -25,6 +25,12 @@ DEV_PROFILE_PATH = os.path.join(os.getcwd(), ".dev_playtest_profile.json")
 _FINALE_FACTS = {"RESP_THE_ORDER", "RESP_THE_CHOICE"}
 
 
+def _dev_level(depth):
+    # Calibrated to balance_autoplay telemetry: exp 3 -> L~3.3, exp 6 ->
+    # L~5.7, exp 9 -> L~7.6. A survivor who actually reached this depth.
+    return max(1, min(12, round(1 + 0.78 * depth)))
+
+
 def synthetic_state(cfg):
     """(expeditions_completed, world_investigation_status) for a coherent
     drop-in at the START of the requested chapter (1-6), or the finale.
@@ -55,7 +61,9 @@ def banner(cfg, depth):
         f" Entry:          {entry_label(cfg)}\n"
         f" Expedition:     {depth + 1} of 25\n"
         " Campaign state: SYNTHETIC (sandboxed - no real profile touched)\n"
-        " Balance:        unchanged (fresh survivor at this depth)\n"
+        f" Survivor:       L{_dev_level(depth)} + depth-appropriate gear "
+        "(what a real run produces)\n"
+        " Balance:        unchanged - combat/encounter/loot/curve untouched\n"
         "=====================================================\n"
         " This inspects a single story section. It is NOT a substitute\n"
         " for a straight-through campaign - the finale's weight needs\n"
@@ -68,3 +76,43 @@ def reset_sandbox():
         os.path.exists(DEV_PROFILE_PATH) and os.remove(DEV_PROFILE_PATH)
     except OSError:
         pass
+
+
+def equip_for_depth(player, depth):
+    """Put the synthetic survivor at the level + gear a real survivor
+    would have at `depth`. SURVIVOR STATE ONLY - combat formulas,
+    encounter rates, loot rates, the difficulty curve and hunger/thirst
+    are untouched. Without this, a fresh L1 body can't survive the
+    depth-N difficulty curve long enough to reach any story content
+    (playtest 2026-08-30: CH3 jump-in died turn 32, zero sites)."""
+    from src.constants import LOOT_WEAPON_TABLE, ARMOR_TABLE
+    from src.items import MeleeWeapon, RangedWeapon, Armor
+
+    lvl = _dev_level(depth)
+    bump = lvl - player.level
+    if bump > 0:
+        player.level = lvl
+        player.strength += bump
+        player.dexterity += bump
+        player.intelligence += bump
+        player.wisdom += bump
+        player.max_health += 5 * bump
+    player.health = player.max_health
+
+    # best melee weapon this depth would have unlocked
+    _melee = [(n, s) for n, s in LOOT_WEAPON_TABLE.items()
+              if s["type"] == "melee" and s.get("min_expedition", 0) <= depth]
+    if _melee:
+        n, s = max(_melee, key=lambda kv: kv[1]["damage"])
+        player.backpack.add_weapon(MeleeWeapon(n, s["damage"], s["durability"]))
+        player.equip_weapon(n)
+
+    # best body + head armor this depth would have unlocked
+    for slot in ("body", "head"):
+        cands = [(n, s) for n, s in ARMOR_TABLE.items()
+                 if s["slot"] == slot and s.get("min_expedition", 0) <= depth]
+        if cands:
+            n, s = max(cands, key=lambda kv: kv[1]["reduction"])
+            player.backpack.armor.append(
+                Armor(n, s["reduction"], s["durability"], slot))
+            player.equip_armor(n)

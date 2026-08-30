@@ -81,3 +81,40 @@ marker to exist is the bottleneck.
   A/B once a text-navigating bot or a human runs it.
 - `nav` events in the telemetry stream (category, marker-visible,
   obj-distance + delta, why-wander) — the causal navigation dataset.
+
+---
+
+## F — mark the entry point from turn 1 (`src/mixins/ui_mixin.py`)
+
+The bottleneck above was "getting the marker to exist". F acts on it
+directly: the `closed` site (where the survivor walked in) is now
+marked from turn 1 instead of only after you've stood on it, and an
+opening beat ("the way you came in — blocked, but a survivor would
+have looked there first; it's marked {bearing}") points at it. For
+most mechanisms `closed` is exactly where the first real leads
+(`F_ROUTE` / `F_REQUIRE`) surface, so this converts the opening from
+"wander until you hit the right building" into "head for the entry
+point, then follow the leads".
+
+### Result (`fatigue_autoplay.py --campaigns 6`, `objective` / `objective_rest`)
+
+| policy          | metric                | before F | after F |
+|-----------------|-----------------------|----------|---------|
+| objective       | wins                  | 11       | 21      |
+| objective       | deaths                | 31       | 18      |
+| objective       | timeouts              | 23       | 59      |
+| objective_rest  | wins                  | 6        | 28      |
+| objective_rest  | deaths                | 30       | 22      |
+| `nav_autoplay`  | objective knowable by turn (median) | 5 | 1 |
+
+Deaths down ~40%, wins roughly doubled: the early destination changes
+behaviour from "wander and die of attrition" to "pursue leads". The
+timeout rise is the flip side — expeditions that used to end in death
+around turn ~83 now survive to the 600 cap, because the `objective`
+policy still cannot execute the full mystery chain (`unique-tile
+ratio` stays ~0.03; it oscillates between searched structures once the
+marker is reached). That is a bot-quality ceiling, not a game defect:
+the game now surfaces the destination early and clearly; a competent
+navigator (human or a better policy) converts it. **F is the last
+content-side navigation lever for World-1** — remaining lead-discovery
+work is policy/tooling, not game code.

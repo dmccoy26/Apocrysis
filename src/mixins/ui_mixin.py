@@ -148,6 +148,22 @@ class UIMixin:
             self._auto_equipped = True
             self._auto_equip_best()
 
+        # F (nav): point the survivor at the entry point on turn 1 -
+        # it's where they walked in, it's marked, and it's where the
+        # first leads surface. Turns "wander" into "start there".
+        _m = getattr(self, 'mystery', None)
+        if _m is not None and not getattr(self, '_opening_beat_shown', False):
+            self._opening_beat_shown = True
+            _cl = _m.sites.get('closed')
+            if _cl and _cl != self.current_position:
+                from src.nav import bearing
+                _b = bearing(self.current_position, _cl)
+                self.announce_event(
+                    "the way you came in",
+                    f"Blocked - but a survivor before you would have "
+                    f"looked there first. It's marked{f', {_b}' if _b else ''}.",
+                    kind="objective", level=1)
+
         while self.health > 0 and not getattr(self, 'won', False):
             # v3 SPRINT fix: this used to be cached once per turn
             # (self._last_cmd_list) and reused by the TUI's every
@@ -792,9 +808,15 @@ class UIMixin:
         # walk onto (playtest, repeatedly).
         known = m.knowledge.facts_known()
         # 'route'/'require' get marked the moment you know the fact that
-        # points to them; 'closed' only once you've been there (it's
-        # where you came in - low value to signpost).
-        role_known = {'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known,
+        # points to them. 'closed' is marked FROM THE START (F, nav): it
+        # is where the survivor walked in - they know where it is - and
+        # for most mechanisms it's where the first real leads (F_ROUTE /
+        # F_REQUIRE) surface. Signposting it turns the opening from
+        # "wander until you hit the right building" into "head for the
+        # entry point, then follow the leads" (docs/NAV_INVESTIGATION_
+        # RESULTS.md: marker salience + earliness is the lever).
+        role_known = {'closed': True,
+                      'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known,
                       'power': 'F_POWER' in known}
         # B.2 BLUE_SIGNS: a survivor who learned that Protocol Seven
         # blue-signed its routes can pick the signed corridor out from

@@ -91,32 +91,40 @@ NEXT    → Search the mill
 THIS RUN   Can advance: witness at the mill
 ```
 
-### 1b. Finish spatial language
+### 1b. Finish spatial language — ✅ DONE (`702ce0d`, 2026-08-30)
 
-Shipped: `world_mixin._spot_leads()` names a mystery site the first
-time its `!` marker enters visibility; F marks the entry point from
-turn 1 with an opening beat + bearing; the ESCAPE-panel hot step
-climbs an approach ladder.
+The way out of the valley is now a **physical landmark the player sees
+on approach** — before the `!` marker, before `F_ROUTE`, described by
+what it is and which way it lies.
 
-Still missing:
+- `escape.py` `_ROUTE_LANDMARKS` — one physical-feature sentence per
+  mechanism (dam wall / lattice radio mast / tunnel portal / stone
+  causeway / marina breakwater / …), merged onto each `MECHANISMS`
+  spec as `landmark`. Says **where**, never why.
+- `world_mixin._spot_route_landmark()` — fires once on line of sight to
+  the route tile (`visibility_radius + 4`; a tall landmark carries
+  further), **independent of marker knowledge**. Announces `a landmark
+  to the <bearing>` + the feature sentence; adds "That's the way out
+  of the valley." only once `F_ROUTE` is known. A `reveals_route`
+  mechanism withholds it until the RESPONSE names the route.
+- `_spot_leads()` now skips `route` (the landmark beat owns it); still
+  handles `closed` / `require` / `power`.
 
-- **named physical landmarks at mystery sites** — the world places no
-  "you can see the water tower — the pass cuts through it" feature.
-  `_spot_landmarks` stays generic; approach-ladder rung 2 (line of
-  sight to a *named world feature*, not a marker) is unbuilt.
-- the world should communicate **what the player sees**, not merely
-  expose a map marker.
+Gate (from the design note):
 
-Instead of `! MYSTERY SITE`, the player should encounter something
-like:
+| requirement | met by |
+|---|---|
+| every route site has a physical landmark | `_ROUTE_LANDMARKS` covers all 10 mechanisms (tested) |
+| landmark distinct from the marker | `_spot_route_landmark` reads `MECHANISMS`, not the `!`; test `..._independent_of_the_map_marker` |
+| appears before contact | LOS threshold `visibility_radius + 4`, off-tile |
+| communicates direction | `bearing()` clause in the title; test asserts a compass word |
+| doesn't spoil the investigation | feature text is where-not-why; no "way out" before `F_ROUTE` (tested) |
+| deterministic | static per-mechanism text + deterministic mechanism choice; test `..._deterministic_for_a_seed` |
+| mapgen v1 byte-identical | no generation change — golden fixture green |
 
-> A rusted water tower rises beyond the trees. Something about it
-> matches the description in your notes.
-
-The marker can still exist — but the **world description becomes the
-primary information, with the marker as support.**
-
-`DESIGN_SPATIAL_LANGUAGE.md`.
+Not generalised into a landmark *framework* — World-1's ten mechanisms
+each got a specific physical identity. Generalise only if the human
+playtest shows it works. `DESIGN_SPATIAL_LANGUAGE.md`.
 
 ### 1c. Clean up the legacy zombie systems
 
@@ -269,9 +277,9 @@ shipped:
 
 ## Bottom line
 
-**Immediate:** ~~investigation UI (1a)~~ ✅ → spatial language (1b) →
-resolve the legacy Tasks/Goals systems (1c) → human playtest of the
-full arc (1d).
+**Immediate:** ~~investigation UI (1a)~~ ✅ → ~~spatial language (1b)~~
+✅ → resolve the legacy Tasks/Goals systems (1c) → human playtest of
+the full arc (1d).
 
 **After the human playtest:** the Phase C/D world-generation layer
 (section 3) and the parked balance decisions (section 2) — reopened

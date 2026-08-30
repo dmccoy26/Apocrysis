@@ -23,11 +23,12 @@ fatigue decision 1+2+3 · `E` re-run · `F` navigation). All committed
 
 **Next: see `docs/AUDIT_STATUS.md`** (reconciled 2026-08-30) — the
 authoritative "where we stand". Immediate work: ~~(1a) investigation
-UI~~ ✅ DONE `fd7bd34` (WorldFact `lead` handles + strip "▸ this run:"
-line + `wi` screen names eligible `○` leads); (1b) named physical
-landmarks at mystery sites; (1c) remove the legacy Tasks/Goals dead
-systems; (1d) **a human straight-through playtest of the full
-25-expedition arc**. Only after
+UI~~ ✅ `fd7bd34` (WorldFact `lead` handles + strip "▸ this run:" line +
+`wi` screen names eligible `○` leads); ~~(1b) named physical
+landmarks~~ ✅ `702ce0d` (`_ROUTE_LANDMARKS` per mechanism +
+`_spot_route_landmark` LOS beat, marker-independent, says where-not-
+why); (1c) remove the legacy Tasks/Goals dead systems; (1d) **a human
+straight-through playtest of the full 25-expedition arc**. Only after
 the playtest: the Phase C/D world-gen layer (Phase D conditions/weather,
 finale archetype + NPC scene, `DIS_FEW_REMAINS` bug, `landscape` flip)
 and the parked balance decisions (difficulty ramp, failed-escape,

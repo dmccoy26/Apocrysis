@@ -96,3 +96,42 @@ Three distinct levers, in rough priority:
 **Do not tune any of these yet.** Fix navigation, re-run
 `resource_autoplay.py`, and see how much of the attrition was
 secondary.
+
+---
+
+## RE-RUN after B1–B4 (objective lifecycle + attention + investigation panel + approach beat)
+
+`--policy objective` — a bot that navigates toward the mystery markers
+and sweeps buildings to discover leads (8 campaigns).
+
+| | `survival` (baseline) | `resource` | **`objective`** |
+|---|---|---|---|
+| outcomes | all died | all died | died 41 · timeout 33 · **won 16** |
+| starvation(+exhaustion) deaths | ~87% | ~91% | **53%** (+ 29% exhaustion) |
+| hunger turn-share (fed / hungry / **starving**) | 33 / 21 / **47%** | 41 / 16 / **42%** | 64 / 28 / **7%** |
+| food carried (median, all turns) | **0** | **0** | **5** |
+| turns between food finds (median) | ~12–29 | | **2** |
+
+**Starvation collapsed from 47% of turns to 7%, and the bot started
+winning.** The `objective` policy visits buildings systematically to
+find leads — and buildings *are* the food source — so navigating
+toward the objective incidentally solved the food economy. **The
+resource problem was downstream of navigation, exactly as suspected.**
+
+### Verdict per the gate
+
+- **Food: DO NOT TUNE.** It was a navigation artifact. A survivor who
+  heads for objectives eats fine.
+- **Fatigue: still a real problem.** `exhausted` is 40% of turns (down
+  from 65% but not solved), `recovery LOSES to decay` 7:126,
+  exhaustion is now **29% of deaths**. The `objective` policy still
+  never rests (it's ExplorerPolicy's thresholds), and
+  `RESOURCE_MODEL_RESULTS` already showed rest recovers ~5 ≈ one
+  move's gain. **This is the one lever that survives the re-run** —
+  recovery rate + surfacing rest as an affordance. Measure precisely,
+  then tune.
+- **Navigation itself:** the `objective` policy still times out 33/90
+  and the lifecycle sits URGENT most of the time — the marker pursuit
+  works but lead *discovery* (sweeping the right buildings) is slow.
+  That's the C.3.2 nav-pieces / a smarter building sweep, not a
+  resource fix.

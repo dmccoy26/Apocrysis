@@ -224,7 +224,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--campaigns", type=int, default=15)
     ap.add_argument("--policy", default="survival",
-                    choices=["random", "survival", "explorer", "resource"])
+                    choices=["random", "survival", "explorer", "resource", "objective"])
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--jsonl", default=None)
     ap.add_argument("--md", default=None)

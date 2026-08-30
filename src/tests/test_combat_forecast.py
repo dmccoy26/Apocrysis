@@ -59,6 +59,12 @@ def _real_winrate(game_template, zombie_factory, n=200):
 
 
 class TestForecastDrift(unittest.TestCase):
+    def setUp(self):
+        # the forecast's private RNG is entropy-seeded at import; pin it
+        # so this Monte-Carlo comparison is stable under pytest-randomly
+        cf._RNG.seed(20260830)
+        random.seed(20260830)
+
     def _check(self, weapon, armor, zf, tol=14):
         g = _make_game(weapon, armor)
         predicted = cf.fight_pct(g, zf())

@@ -1,5 +1,7 @@
 # Design spec — Spatial Language
 
+**Status:** IMPLEMENTED (2026-08-30) - see DESIGN_PASS.md. Original design note follows.
+
 **Status:** design. Not implemented. The ESCAPE panel + the `✦ NEW
 LEAD` messages are the **reference implementation** — this spec
 formalises what they already do right and fixes the two places they

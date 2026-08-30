@@ -1,5 +1,7 @@
 # Design spec — Interaction Inference
 
+**Status:** IMPLEMENTED (2026-08-30) - see DESIGN_PASS.md. Original design note follows.
+
 **Status:** design. auto-escape (`7e35210`) is instance 1 and the
 worked example. This spec exists so "auto-escape" does not generalise
 into "automate everything" — it defines the rule and enumerates the

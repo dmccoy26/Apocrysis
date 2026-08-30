@@ -1,9 +1,18 @@
 # The post-playtest design pass
 
-**Status:** design, not implementation. Written after run 7
-(`docs/DEV_PLAYTEST.md`) closed the blind-playtest phase. Nothing is
-built against these docs yet. Balance stays frozen until the design is
-decided.
+**Status (2026-08-30): IMPLEMENTED.** The three combat experiments,
+the DDR (→ decision A + P(escape) locked), the Phase-2 escape model +
+armor change, the Phase-3 two-axis forecast, and the Phase-4 interface
+work (attention L0–L3, interaction-inference candidates, the
+spatial-language approach ladder) are all shipped. 347 tests + 100
+subtests green; `--mapgen v1` byte-identical. Remaining: the
+perceived-bot `objective` policy + the cardinal-vs-landmark A/B (the
+numeric validation), the objective *lifecycle*
+(NEW→…→URGENT), extending the panel treatment to the investigation
+thread, and a fresh human straight-through to feel it.
+
+Written after run 7 (`docs/DEV_PLAYTEST.md`) closed the blind-playtest
+phase.
 
 Run 7 is the boundary between evidence collection and design:
 

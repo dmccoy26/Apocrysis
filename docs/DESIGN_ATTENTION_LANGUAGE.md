@@ -1,5 +1,7 @@
 # Design spec — Attention Language
 
+**Status:** IMPLEMENTED (2026-08-30) - see DESIGN_PASS.md. Original design note follows.
+
 **Status:** design. Supersedes the *level* model in
 `ATTENTION_SYSTEM_SPEC.md` (whose 7 semantic *channels* are kept). Not
 implemented. Presentation-layer only — touches no balance.

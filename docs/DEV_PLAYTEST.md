@@ -146,3 +146,108 @@ fundamental than "make zombie text red." **Do not build it yet.**
 Run 6 (CH5), then FIN, then the straight-through campaign. Then design
 the language from what the game is demonstrably failing to
 communicate, rather than guessing.
+
+### Run 6 — CH5 → FIN jump-in (`--dev --seed 12345 --chapter 5`)
+
+**The question this run asked:** does CH5 work as a *local* story
+section entered in a coherent, appropriately-powered state? (Not:
+does the finale feel earned — that needs the straight-through run.)
+
+**What worked — and it is a sharp, useful contrast with run 5.**
+
+- **The escape chain is legible and had momentum.** The ESCAPE panel
+  filled in as a real multi-step objective: found what blocks the
+  route → transmitter runs off the generator shed → reached the shed →
+  need a jerrycan → reached the ranger depot → got the jerrycan →
+  *"take the jerrycan to the generator shed (west)."* The player
+  followed six steps in order.
+- **The reason this worked where run 5 failed:** every step arrived as
+  an explicit `✦ NEW LEAD` with *"(close by), marked on your map."*
+  When the game names a destination and marks it, the player goes.
+  When it only prints a compass heading (run 5), the player does not.
+  This is the clearest actionable signal from the playtest so far.
+- **Facts accumulated well** — `F_CLOSED / F_POWER / F_REQUIRE /
+  F_OBSTACLE` + c1–c5, `THE RESPONSE 8/14`. Story beats landed: the
+  dropped bridge and *"everyone who left went the same way, and none
+  of it worked,"* the muster-point note, the child's drawing of
+  mountains, and the broadcast log — *"the valley's channel is still
+  monitored from the regional station… someone has been listening the
+  entire time."* That reveal is a genuine hook into the next chapter.
+
+**Problems**
+
+1. **The hypothesis correction never fired.** 104 turns, 9 facts,
+   `THE RESPONSE 8/14`, and no `"YOU HAD IT WRONG"` correction banner
+   at any point. The `you think:` line differs between chapters
+   (CH3 "the valley was evacuated" → CH5 "a real rescue that was
+   betrayed") so the E.1 ladder is tracking at campaign level, but
+   nothing in a full CH5 playthrough surfaced a correction moment —
+   the single most important E.1 mechanic. (The playlog's
+   `hypothesis unknown` field also appears to be a separate,
+   survivor-level concept — possible confusion, not diagnosed here.)
+2. **The player never executed the final objective.** Got the
+   jerrycan at turn 26, then spent turns 27–104 — 78 turns — exploring
+   buildings and fighting, never returning ~6 tiles west to use it.
+   An explicit final objective *with a direction* still lost to the
+   exploration/loot loop after ~10 turns. Run 5's navigation failure
+   in a subtler form: the lead was understood, then drifted from.
+3. **Safe-zone building spam is extreme.** From ~turn 65 to death,
+   nearly every tile is "You enter a building. It's a safe zone.
+   Restored N health and recovered some fatigue." ~40 near-identical
+   buildings in a row. This trivialises survival (HP/fatigue
+   constantly topped up) and buries the meaningful locations — the
+   broadcast log and generator shed read the same as the 30th
+   "cupboards open, someone stripped this place." The run-5 "Town
+   Center inert" finding, inverted: here the meaningful location *did*
+   pay off, but it is indistinguishable from the filler around it.
+4. **Fatigue recovery is real but entirely map-dependent.** It cycled
+   0–100 here because CH5's map is wall-to-wall safe buildings; in
+   CH3's forest it pinned at 100 for ~78 turns. Recovery exists,
+   is never surfaced as an action, and forest chapters have none.
+   Confirms run 5 finding 1 with the mechanism.
+5. **Died to an Elite Heavy — HIGH, "Fight ~53%".** Honest number
+   this time, but a coin-flip-to-die encounter with escape also at
+   50% and no avoidance still feels arbitrary. Fatigue was 8, so not
+   fatigue-driven. Feeds the deferred combat-model experiment.
+6. **Minor (repeat):** eat/drink past the cap wasted rations three
+   times; 8 unused backup weapons in the pack, Katana never swapped.
+
+**CH5 scorecard**
+
+| question | verdict |
+|---|---|
+| makes you want to know what's next | yes — the broadcast-log reveal |
+| discoveries feel meaningful | the lead-driven ones yes; drowned in filler |
+| hypothesis corrections land | **no — none fired in 104 turns** |
+| locations feel like places | the *named* ones yes; residential = 40 identical boxes |
+| understand why you're going somewhere | **yes, for the escape chain** — the key contrast with run 5 |
+| chapter builds toward something | escape objective builds well; player never executed it |
+| finale feels like an event | not reached — died in filler 78 turns after getting the final objective |
+
+No changes made. Working tree remains clean.
+
+---
+
+## The picture after run 6 — sharper
+
+Run 5: "the player lacks a language for recognizing what matters."
+Run 6 sharpens it: **the game already contains a working prototype of
+that language — the ESCAPE panel.** Explicit `NEW LEAD` + map marker +
+running checklist made the player follow a six-step objective across a
+chapter. The failures are now specific:
+
+1. **The investigation thread has no equivalent surfacing.** No lead,
+   no marker, no checklist, no correction moment — so 9 facts and
+   `8/14` produced zero felt investigative progress and the hypothesis
+   ladder never visibly moved.
+2. **Meaningful locations are diluted to invisibility** by dense
+   interchangeable filler (safe-zone buildings, overkill LOW zombies).
+3. **Even an explicit final objective decays** — the exploration/loot
+   loop reasserts within ~10 turns of the player being told exactly
+   where to go and why.
+
+The post-playtest design job is now concrete: extend the ESCAPE
+panel's treatment to the investigation, and cut the filler that
+dilutes both. Still **do not build it yet** — run 7 (full 1→25
+straight-through) first, to see whether the finale lands on
+accumulation.

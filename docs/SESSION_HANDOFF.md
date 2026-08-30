@@ -122,20 +122,32 @@ fail identically — the sign is wrong).
 survival envelope IS the wall at deep depth. There is no content-side
 lever left.** The next move is a **campaign-design decision**:
 
-### >> THE ACTIVE GATE — bound supported depth
+### >> THE ACTIVE GATE — `PHASE_C3_2_7_SUPPORTED_DEPTH.md`
 
-Formally bound "supported depth" to **0–N ≈ 5–6** (baseline `ratio p90`
-crosses 1.0 at depth ~2–3, distributed investigation held it under 1.0
-through depth 4). Expeditions past N become a **deliberately different
-format** — inherited-supply-balanced / authored escalation / a distinct
-late-game mode — NOT procedurally-equivalent survival runs. This is
-`ROADMAP_STATUS.md`'s open question ("is a 25-expedition campaign
-supposed to have 25 procedurally-equivalent survival expeditions?")
-answered **no**, on evidence. **Owner decides the format for N…25**,
-then CH3–FIN authoring (ending already locked) can proceed against a
-real structure. `_lever_scaled_beats` is kept as a decoupled
-content/texture option for the 0–N range (fixes emptiness, free where
-the circuit already fits) — its own small ship/no-ship call.
+Supported depth bounded to **0–N ≈ 4–6**; expeditions past N are
+**explicitly inheritance-scaled** (owner's chosen format — the
+roguelite loop IS the answer to the longer circuits, made
+intentional). `ROADMAP_STATUS.md`'s "25 procedurally-equivalent
+survival expeditions?" → **no**: first ~6 are "learn the world", the
+rest a dug-in war of attrition.
+
+**The concrete gap:** `STARTING_RATIONS = {food:8, water:8}` is a flat
+class attr — a `persist_new_survivor` **heir** takes up a campaign at
+`expeditions_completed=depth` with a fresh `Backpack()` + flat 8/8, so
+an heir at depth 10 is dropped onto a ~55-tile circuit with 8 food =
+unwinnable by the model. **Proposed fix** (`PHASE_C3_2_7` §3): scale
+`STARTING_RATIONS` + the win prize by `expeditions_completed`.
+
+**Needs owner sign-off on two things before code:** (1) is depth-scaled
+starting supplies inside the frozen-balance line or not (§3.1); (2)
+N's value — 4 (strict cold-start) or 6 (with `_lever_scaled_beats` +
+prize folded in) (§4). Caveat (§3.2): the bot fails deep expeditions
+100 % on *combat*, 0 % on starvation — this change makes the contract
+*coherent* (no arithmetically-impossible heir runs), it is not claimed
+to fix the bot's deep win rate (that's the separate combat-power
+problem). Once the contract is set (even pre-code), **CH3–FIN authoring
+proceeds** — ending locked, structure known. If greenlit, the
+`game.py` `STARTING_RATIONS` edit is Atlas-shaped — route it and log.
 
 Nothing in this whole line touched combat / hunger / thirst / loot /
 survivor power / map growth.

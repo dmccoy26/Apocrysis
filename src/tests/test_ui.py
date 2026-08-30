@@ -80,12 +80,14 @@ class TestRendering(unittest.TestCase):
             "test needs a town tile out of spawn's visibility range",
         )
 
+        import re
+        _ansi = re.compile(r"\x1b\[[0-9;]*m")
+
         def _tile_char(lines, tx, ty):
-            # The map renders as a bare grid now - no header lines, no
-            # gutter, no border - so line ty is row ty and column tx is
-            # char tx. (The town tile under test is out of the player's
-            # visibility range, so no ANSI-wrapped 'P' shifts this row.)
-            return lines[ty][tx]
+            # The map renders as a bare grid (no header / gutter /
+            # border) - row ty, column tx - but glyphs are ANSI-tinted
+            # now, so strip codes before indexing by visible column.
+            return _ansi.sub("", lines[ty])[tx]
 
         self.game.town_known = False
         lines = self.game._render_map_lines()

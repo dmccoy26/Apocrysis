@@ -8,6 +8,23 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 CYAN = "\033[96m"
+BLUE = "\033[94m"
+MAGENTA = "\033[95m"
+GREY = "\033[90m"
+
+# Per-terrain map colour (playtest: "colour the squares so the map is
+# easier to read"). Keyed by terrain name; the tile keeps its own
+# glyph, this only tints it. Fog / unexplored stays uncoloured.
+TERRAIN_COLOR = {
+    "forest": GREEN,
+    "water": BLUE,
+    "river": CYAN,
+    "swamp": "\033[33m",   # dim yellow-green
+    "building": YELLOW,
+    "plain": GREY,
+    "mountain": "\033[97m",  # bright white - reads as a wall
+    "town": BOLD + MAGENTA,
+}
 
 # Phase A.0: the tile vocabulary, the map legend and the map archetypes
 # are World 1 content and now live in the World that owns them

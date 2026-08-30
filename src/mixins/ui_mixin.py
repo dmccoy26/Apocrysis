@@ -4,7 +4,7 @@
 import random
 import shutil
 
-from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW
+from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW, TERRAIN_COLOR
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
@@ -690,11 +690,17 @@ class UIMixin:
                         # deliberate override - a found map reveals
                         # the town regardless of current visibility.
                         char = tile.get('content') or 'T'
+                        char = f"{TERRAIN_COLOR['town']}{char}{RESET}"
                     elif in_range:
                         # Show real terrain (forest/water/building/
                         # plain), not a blanket '-' - see
-                        # world.terrain_symbols.
-                        char = self.world.terrain_symbols.get(tile.get('terrain'), '.')
+                        # world.terrain_symbols. Tint by terrain
+                        # (playtest: "colour the squares").
+                        _terr = tile.get('terrain')
+                        char = self.world.terrain_symbols.get(_terr, '.')
+                        _c = TERRAIN_COLOR.get(_terr)
+                        if _c:
+                            char = f"{_c}{char}{RESET}"
                     elif (x, y) in self.visited:
                         char = '.'
                     else:

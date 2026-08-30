@@ -103,18 +103,18 @@ class MysteryMixin:
             self._obj_state = "distracted"          # silent - watching
         elif state == "distracted" and idle >= self._OBJ_REMINDER_AFTER:
             self._obj_state = "reminder"
-            self.announce_event("STILL TO DO", self._objective_next_step(),
-                                kind="objective", level=1)
+            self.announce_event("still to do", self._objective_next_step(),
+                                kind="reminder", level=1)
         elif state in ("distracted", "reminder") and (
                 idle >= self._OBJ_URGENT_AFTER
                 or (pressure and idle >= self._OBJ_REMINDER_AFTER)):
             self._obj_state = "urgent"
             _why = ("you're low on supplies and still in the valley"
                     if pressure else "you've been at this a while")
-            self.announce_event("YOU'RE STILL NOT OUT",
+            self.announce_event("you're still not out",
                                 self._objective_next_step(),
                                 f"({_why} - {idle} turns since you last got anywhere)",
-                                kind="objective", level=2)
+                                kind="reminder", level=2)
 
     def _objective_complete(self):
         self._obj_state = "complete"

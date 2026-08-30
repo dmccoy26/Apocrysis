@@ -880,35 +880,31 @@ class UIMixin:
         "success":   ("✓",  GREEN,   False),
         "info":      ("•",  CYAN,    False),
     }
-    # Old kind strings -> (class, label prefix). Kept so no call site
-    # needs to change when the system lands; the label text is preserved
-    # verbatim (tests assert on it).
+    # Old kind strings -> (class, label prefix, default LEVEL). Kept so
+    # no call site needs to change; the label text is preserved verbatim
+    # (tests assert on it). LEVEL is the docs/DESIGN_ATTENTION_LANGUAGE.md
+    # interruption grade: 0 folds into the stream · 1 a coloured line ·
+    # 2 a banner · 3 a banner that must be acknowledged. A caller can
+    # still pass `level=` to override (the encounter card grades from
+    # the forecast; the supply/HP warnings grade from the deterioration
+    # ladder; the objective lifecycle grades by stall depth).
     _KIND_ALIAS = {
-        "warn":       ("warning",   ""),
-        "solved":     ("success",   "MYSTERY SOLVED — "),
-        "lore":       ("success",   "SURVIVORS NOW KNOW — "),
-        "milestone":  ("story",     "A PIECE FALLS INTO PLACE — "),
-        "correction": ("story",     "YOU HAD IT WRONG — "),
-        "lead":       ("discovery", "NEW LEAD — "),
-        "discovery":  ("discovery", "NEW DISCOVERY — "),
-        "objective":  ("objective", "OBJECTIVE UPDATED — "),
-        "info":       ("info",      ""),
+        "warn":       ("warning",   "",                        1),
+        "solved":     ("success",   "MYSTERY SOLVED — ",        2),
+        "lore":       ("success",   "SURVIVORS NOW KNOW — ",    2),
+        "milestone":  ("story",     "A PIECE FALLS INTO PLACE — ", 2),
+        "correction": ("story",     "YOU HAD IT WRONG — ",      2),  # the E.1 beat - a loud banner
+        "lead":       ("discovery", "NEW LEAD — ",              2),  # a lead names a destination
+        "discovery":  ("discovery", "NEW DISCOVERY — ",         1),
+        "objective":  ("objective", "OBJECTIVE UPDATED — ",     1),
+        "reminder":   ("objective", "",                         1),  # objective-lifecycle nudge (no "UPDATED" prefix)
+        "info":       ("info",      "",                         1),
         # the new class names, usable directly
-        "danger":     ("danger",    ""),
-        "warning":    ("warning",   ""),
-        "story":      ("story",     ""),
-        "success":    ("success",   ""),
+        "danger":     ("danger",    "",                         2),
+        "warning":    ("warning",   "",                         1),
+        "story":      ("story",     "",                         2),
+        "success":    ("success",   "",                         1),
     }
-
-    # docs/DESIGN_ATTENTION_LANGUAGE.md — the interruption ladder.
-    # channel (kind) picks colour + glyph; LEVEL picks how hard it
-    # breaks the stream. Level defaults preserve the pre-spec
-    # behaviour (danger/story = banner, the rest = a coloured line);
-    # callers pass `level=` to grade an event by its actual
-    # consequence — the encounter card does this from the forecast.
-    _LEVEL_BY_CLASS = {"danger": 2, "story": 2, "warning": 1,
-                       "discovery": 1, "objective": 1, "success": 1,
-                       "info": 1}
 
     def announce_event(self, title, *body_lines, kind="info", level=None):
         """One flare for a state change worth interrupting the scenery
@@ -916,10 +912,11 @@ class UIMixin:
         interrupt:  L0 folds into the stream · L1 a coloured line · L2 a
         banner · L3 a banner that must be acknowledged.
         """
-        cls, prefix = self._KIND_ALIAS.get(kind, ("info", ""))
+        _alias = self._KIND_ALIAS.get(kind, ("info", "", 1))
+        cls, prefix = _alias[0], _alias[1]
         glyph, color, _loud = self._ATTENTION[cls]
         if level is None:
-            level = self._LEVEL_BY_CLASS.get(cls, 1)
+            level = _alias[2] if len(_alias) > 2 else 1
         head = title.upper() if cls in ("danger", "warning") else title
         rows = [f"{glyph} {prefix}{head}"] + [str(b) for b in body_lines]
         body = "\n".join(rows)
@@ -929,9 +926,14 @@ class UIMixin:
                      else max(30, min(56, max(len(r) for r in rows) + 2)))
             rule = "═" * width
             lead = "\n\n" if level >= 3 else "\n"
+            # L3 = a wider banner with a blank lead - the visual break
+            # IS the "stop and reconsider". No forced Press-Enter: for
+            # the one case that wants an explicit gate (an EXTREME
+            # encounter) the combat card's own `[f]/[e]/[w]` prompt
+            # follows immediately; a gate anywhere else (mid escape /
+            # mid finish_expedition) just disrupts the sequence and
+            # breaks non-interactive callers.
             self.io.say(f"{lead}{BOLD}{color}{rule}\n{body}\n{rule}{RESET}")
-            if level >= 3:
-                self.io.ask("Press Enter to continue...")
         elif level == 1:
             self.io.say(f"\n{BOLD}{color}{body}{RESET}")
         else:  # L0 — one quiet line, folded into the scenery

@@ -2,6 +2,24 @@
 
 **Status:** IMPLEMENTED (2026-08-30) - see DESIGN_PASS.md. Original design note follows.
 
+**B2 update (2026-08-30):** the lifecycle now *behaves over time*.
+`_KIND_ALIAS` carries a per-kind default level (correction / lead /
+milestone / solved / lore / story / danger → L2; warning / discovery /
+objective / reminder / success / info → L1). **Escalation:**
+`_supply_warnings` tier 1→2→3 = L1→L2→L3; `_hp_warnings` (new — wounds
+as a standing condition, previously invisible outside combat) tier
+1→2 = L1→L2; the objective lifecycle distracted→reminder→urgent =
+silent→L1→L2. **Decay:** one-shot per episode — no re-banner every
+turn; the state goes quiet and the always-on HUD `stat_band` shading /
+ESCAPE panel carry it (the spec's L0 channel). **Completion:** a `✓`
+success line on recovery ("wounds under control", "hungry no longer").
+**L3 no longer forces `Press Enter`** — the wider banner + blank lead
+*is* the "stop and reconsider"; the one case wanting an explicit gate
+(an EXTREME encounter) has the combat card's own `[f]/[e]/[w]` prompt
+right after, and a gate anywhere else (mid-escape, mid-`finish_
+expedition`) just disrupts the sequence and breaks non-interactive
+callers.
+
 **Status:** design. Supersedes the *level* model in
 `ATTENTION_SYSTEM_SPEC.md` (whose 7 semantic *channels* are kept). Not
 implemented. Presentation-layer only — touches no balance.

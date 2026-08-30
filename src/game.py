@@ -358,12 +358,46 @@ class Apocrysis(
             self._starve_turns = 0
 
         self._supply_warnings()
+        self._hp_warnings()
+
+    def _hp_warnings(self):
+        """Wounds as a standing condition (docs/DESIGN_ATTENTION_LANGUAGE.md).
+        HP only announced through combat before this - a survivor
+        bleeding out between fights got nothing. One shot per tier per
+        wound episode; re-armed at 55%; a completion line on recovery."""
+        frac = self.health / max(1, self.max_health)
+        prev = getattr(self, "_hp_warned", 0)
+        if frac > 0.65:          # re-arm well clear of the tier-1 line (0.40)
+            if prev:
+                self.announce_event("wounds under control",
+                                    f"Back to {self.health}/{self.max_health}.",
+                                    kind="success", level=1)
+            self._hp_warned = 0
+            return
+        tier = 2 if frac <= 0.20 else 1
+        if tier <= prev:
+            return
+        self._hp_warned = tier
+        has_med = self.backpack.medicine > 0
+        if tier == 1:
+            self.announce_event(
+                "you're hurt",
+                "Use `med` before a fight finds you." if has_med
+                else "No medicine - a building is a safe place to recover.",
+                kind="warning", level=1)
+        else:
+            self.announce_event(
+                "YOU'RE BADLY HURT",
+                f"{self.health}/{self.max_health}. "
+                + ("`med` now." if has_med else "No medicine. Avoid every fight."),
+                kind="warning", level=2)
 
     def _supply_warnings(self):
         """Escalating hunger/thirst warnings. A kid ran to 0/0 with food
         still in the pack - the single -30 nudge fired once and never
         again (playtest). Three tiers, one shot each per depletion
-        episode, re-armed once the level recovers past 45. NO movement
+        episode, re-armed once the level recovers past 45, with a
+        completion line on recovery (attention lifecycle). NO movement
         cap - starvation stays HP attrition; this just makes the state
         unmistakable so the player owns the "12 HP, exit's three tiles
         away, do I risk it?" call."""
@@ -372,7 +406,12 @@ class Apocrysis(
             ("thirst", self.thirst, self.backpack.water),
         ):
             attr = f"_{kind}_warned"
+            adj = "hungry" if kind == "hunger" else "thirsty"
             if level > 45:
+                if getattr(self, attr, 0) >= 2:
+                    self.announce_event(f"{adj} no longer",
+                                        f"{kind.capitalize()} back up.",
+                                        kind="success", level=1)
                 setattr(self, attr, 0)
                 continue
             tier = 3 if level <= 0 else 2 if level <= 10 else 1 if level <= 30 else 0
@@ -381,27 +420,27 @@ class Apocrysis(
             setattr(self, attr, tier)
             verb = "eat" if kind == "hunger" else "drink"
             noun = "food" if kind == "hunger" else "water"
-            adj = "hungry" if kind == "hunger" else "thirsty"
             if tier == 1 and supply > 0:
                 self.announce_event(f"getting {adj}",
-                                    f"Type `{verb}` - you've got {noun} in your pack.", kind="warn")
+                                    f"Type `{verb}` - you've got {noun} in your pack.",
+                                    kind="warning", level=1)
             elif tier == 2:
                 if supply > 0:
                     self.announce_event(f"YOU'RE {adj.upper()} - {verb} NOW",
                                         f"You have {noun} in your pack. It costs health once it hits zero.",
-                                        kind="warn")
+                                        kind="warning", level=2)
                 else:
                     self.announce_event(f"getting {adj}, and no {noun}",
                                         f"Find some - at zero, {kind} starts costing you health.",
-                                        kind="warn")
+                                        kind="warning", level=2)
             elif tier == 3:
-                # attrition is ACTIVE now - DANGER, not a warning.
+                # attrition is ACTIVE now - DANGER.
                 if supply > 0:
                     self.announce_event(f"YOU ARE {adj.upper()} - {verb} SOMETHING",
                                         f"There's {noun} in your pack and {kind} is costing you health right now.",
-                                        kind="danger")
+                                        kind="danger", level=3)
                 else:
                     self.announce_event(f"YOU ARE {adj.upper()}",
                                         f"No {noun} left, and {kind} is costing you health. Find some or get out.",
-                                        kind="danger")
+                                        kind="danger", level=3)
 

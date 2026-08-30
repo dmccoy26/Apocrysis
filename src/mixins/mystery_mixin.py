@@ -287,9 +287,25 @@ class MysteryMixin:
                     m.crossed = True
                     m.deadline = None
                 self._mystery_reveal('E_confirm')
-                self._mystery_progress_flare(_hyp_before, _facts_before)
                 if m.knowledge.hypothesis_state() == 'confirmed':
-                    self.io.say("(Type `escape` to leave.)")
+                    # Owner: reaching the open way out with the mystery
+                    # solved IS leaving - no `escape` keystroke. That
+                    # step was ceremony, not a decision. mystery_try_
+                    # escape() fires the MYSTERY SOLVED / milestone /
+                    # correction beats and finishes the expedition, so
+                    # skip the progress flare's "type escape" banner.
+                    self.mystery_try_escape()
+                else:
+                    self._mystery_progress_flare(_hyp_before, _facts_before)
+                    self.io.say(
+                        "This is the way out, and it's open - but you're "
+                        "not certain yet that it leads anywhere. Better to "
+                        "be sure first.")
+            elif not m.escaped:
+                self._mystery_progress_flare(_hyp_before, _facts_before)
+                self.io.say(
+                    "This is the way out. It's still blocked - clear it "
+                    "and you leave straight from here.")
             return
 
         # Name the place - the evidence chain refers to these names

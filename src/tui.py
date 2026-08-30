@@ -339,7 +339,8 @@ def _objective_steps(p, m, k):
                       f"bring the parts to {place('route', 'the machine')} and start it"))
         _can_leave = confirmed and m.obstacle_open
         steps.append((m.escaped, f"escaped by {mech_name}",
-                      "type `escape` to leave" if _can_leave else f"escaped by {mech_name}"))
+                      "go to the way out to leave — or type `escape` from here"
+                      if _can_leave else f"escaped by {mech_name}"))
         out = [f"[b]ESCAPE — {mech_name}[/b]"]
         hyp = getattr(k, "hypothesis", None)
         hstate = k.hypothesis_state() if hyp else "unknown"
@@ -365,7 +366,7 @@ def _objective_steps(p, m, k):
         recov = getattr(m, "tide_recovery", 0)
         crossed = getattr(m, "crossed", False)
         if crossed or m.escaped:
-            cross_hot = "type `escape` to leave"
+            cross_hot = "walk off the far side to leave — or type `escape`"
         elif recov > 0:
             cross_hot = f"wait it out - about {recov} turns to the next low tide"
         elif dl is not None:
@@ -427,13 +428,16 @@ def _objective_steps(p, m, k):
     # 6. open the way / get the directions
     steps.append((m.obstacle_open,
                   "the outside named a way out" if _info else "opened the way through"))
-    # 7. escape - once it's confirmed + open you can `escape` from
-    # anywhere; a kid walked to the map marker and died one tile short
-    # (playtest). Make the hot line an instruction, not a place.
+    # 7. escape - reaching the marked way out (cleared + confirmed)
+    # leaves automatically; you can also `escape` from anywhere once
+    # it's confirmed + open (a kid walked to the marker and died one
+    # tile short - playtest).
     _can_leave = confirmed and m.obstacle_open
     steps.append((m.escaped, f"escaped by {mech_name}",
-                  ("type `escape` now - you don't have to walk there" if _can_leave and _info
-                   else "type `escape` to leave" if _can_leave
+                  ("the voice has you - type `escape` now, no need to walk there"
+                   if _can_leave and _info
+                   else "go to the way out to leave — or type `escape` from here"
+                   if _can_leave
                    else f"escaped by {mech_name}")))
 
     out = [f"[b]ESCAPE — {mech_name}[/b]"]

@@ -135,6 +135,24 @@ class TestResolutionHook(_ProfileTest):
         self.assertEqual(
             Apocrysis._world_investigation.get("DIS_ORGANISED"), KNOWN)
 
+    def test_reaching_the_open_way_out_escapes_without_the_keystroke(self):
+        # Owner: walking onto the cleared, confirmed way out IS leaving.
+        g = Apocrysis("Auto", seed=3, io=_IO())
+        m = build_mystery(g, target_fact="DIS_ORGANISED")
+        g.mystery = m
+        g.knowledge = m.knowledge
+        for eid in list(m.knowledge.evidence):
+            m.knowledge.discover(eid)
+        m.obstacle_open = True
+        self.assertEqual(m.knowledge.hypothesis_state(), "confirmed")
+        self.assertFalse(getattr(g, "won", False))
+
+        g.current_position = m.escape_tile
+        g.mystery_arrive(*m.escape_tile)   # no `escape` command
+
+        self.assertTrue(m.escaped)
+        self.assertTrue(getattr(g, "won", False))
+
     def _solve_targeted(self, seed, fid):
         g = Apocrysis("MB", seed=seed, io=_IO())
         m = build_mystery(g, target_fact=fid)

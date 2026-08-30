@@ -11,6 +11,9 @@ CYAN = "\033[96m"
 BLUE = "\033[94m"
 MAGENTA = "\033[95m"
 GREY = "\033[90m"
+# 256-colour; the deterioration middle band (docs/ATTENTION_SYSTEM_SPEC.md).
+# Degrades to a yellow-ish tone on a 16-colour terminal - acceptable.
+ORANGE = "\033[38;5;208m"
 
 # Per-terrain map colour (playtest: "colour the squares so the map is
 # easier to read"). Keyed by terrain name; the tile keeps its own

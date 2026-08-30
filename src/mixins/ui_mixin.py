@@ -4,7 +4,8 @@
 import random
 import shutil
 
-from src.constants import BOLD, CYAN, GREEN, RED, RESET, YELLOW, TERRAIN_COLOR
+from src.constants import (BOLD, CYAN, GREEN, RED, RESET, YELLOW, BLUE,
+                           MAGENTA, ORANGE, TERRAIN_COLOR)
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
@@ -782,45 +783,56 @@ class UIMixin:
                 return f"{BOLD}{YELLOW}!{RESET}"
         return None
 
+    # --- the Apocrysis attention language (docs/ATTENTION_SYSTEM_SPEC.md) ---
+    # Semantic CLASSES, not alarm levels. (glyph, colour, loud?) - only
+    # DANGER and STORY get the full banner; the rest are one coloured,
+    # glyph-prefixed line. Reserve red for DANGER.
+    _ATTENTION = {
+        "danger":    ("‼",  RED,     True),
+        "story":     ("◈",  MAGENTA, True),
+        "objective": ("◆",  BLUE,    False),
+        "warning":   ("⚠",  ORANGE,  False),
+        "discovery": ("✦",  YELLOW,  False),
+        "success":   ("✓",  GREEN,   False),
+        "info":      ("•",  CYAN,    False),
+    }
+    # Old kind strings -> (class, label prefix). Kept so no call site
+    # needs to change when the system lands; the label text is preserved
+    # verbatim (tests assert on it).
+    _KIND_ALIAS = {
+        "warn":       ("warning",   ""),
+        "solved":     ("success",   "MYSTERY SOLVED — "),
+        "lore":       ("success",   "SURVIVORS NOW KNOW — "),
+        "milestone":  ("story",     "A PIECE FALLS INTO PLACE — "),
+        "correction": ("story",     "YOU HAD IT WRONG — "),
+        "lead":       ("discovery", "NEW LEAD — "),
+        "discovery":  ("discovery", "NEW DISCOVERY — "),
+        "objective":  ("objective", "OBJECTIVE UPDATED — "),
+        "info":       ("info",      ""),
+        # the new class names, usable directly
+        "danger":     ("danger",    ""),
+        "warning":    ("warning",   ""),
+        "story":      ("story",     ""),
+        "success":    ("success",   ""),
+    }
+
     def announce_event(self, title, *body_lines, kind="info"):
-        """One moment of emphasis for a state change worth interrupting
-        the scenery for - a new understanding, an item that matters, an
-        objective shift, a weapon breaking. Environmental text repeats
-        until the eye tunes it out (playtest: "damn it, I had the
-        key?"), so the things that actually CHANGE have to look
-        different. The durable copy lives in the journal / objective
-        panel afterward; this is just the flare. kind: "warn" bad news
-        (red), "lead"/"discovery"/"objective" investigation beats
-        (cyan, labelled), "info" otherwise.
+        """One flare for a state change worth interrupting the scenery
+        for. `kind` names a semantic class (or an old alias) - the
+        renderer owns the colour, glyph and loudness. Only DANGER and
+        STORY interrupt with a banner; WARNING / DISCOVERY / SUCCESS /
+        OBJECTIVE are a single coloured line. See ATTENTION_SYSTEM_SPEC.
         """
-        _labels = {"lead": "NEW LEAD", "discovery": "NEW DISCOVERY",
-                   "objective": "OBJECTIVE UPDATED"}
-        if kind == "warn":
-            glyph, color, prefix, head = "[!]", f"{BOLD}{RED}", "", title.upper()
-        elif kind == "solved":
-            # A.5.3: the escape moment - one tier below a milestone.
-            glyph, color, prefix, head = "◆", f"{BOLD}{GREEN}", "MYSTERY SOLVED — ", title
-        elif kind == "lore":
-            # B.2: a survival lesson that carries to the next survivor.
-            glyph, color, prefix, head = "●", f"{BOLD}{CYAN}", "SURVIVORS NOW KNOW — ", title
-        elif kind == "milestone":
-            # A.4.4: a piece of the world falls into place. Bigger than a
-            # NEW DISCOVERY - its own label, its own glyph.
-            glyph, color, prefix, head = "◆◆", f"{BOLD}{YELLOW}", "A PIECE FALLS INTO PLACE — ", title
-        elif kind == "correction":
-            # E.1: a rung of the wrong-assumptions ladder falls. The
-            # title is the belief being struck out; the body is what it
-            # actually was.
-            glyph, color, prefix, head = "✗", f"{BOLD}{RED}", "YOU HAD IT WRONG — ", title
-        elif kind in _labels:
-            # the label carries the emphasis; leave the title as prose
-            glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", f"{_labels[kind]} — ", title
-        else:
-            glyph, color, prefix, head = "*", f"{BOLD}{CYAN}", "", title.upper()
+        cls, prefix = self._KIND_ALIAS.get(kind, ("info", ""))
+        glyph, color, loud = self._ATTENTION[cls]
+        head = title.upper() if cls in ("danger", "warning") else title
         rows = [f"{glyph} {prefix}{head}"] + [str(b) for b in body_lines]
-        rule = "═" * max(30, min(56, max(len(r) for r in rows) + 2))
         body = "\n".join(rows)
-        self.io.say(f"\n{color}{rule}\n{body}\n{rule}{RESET}")
+        if loud:
+            rule = "═" * max(30, min(56, max(len(r) for r in rows) + 2))
+            self.io.say(f"\n{BOLD}{color}{rule}\n{body}\n{rule}{RESET}")
+        else:
+            self.io.say(f"\n{BOLD}{color}{body}{RESET}")
 
     def print_map(self):
         for line in self._render_map_lines():

@@ -388,12 +388,13 @@ class Apocrysis(
                                         f"Find some - at zero, {kind} starts costing you health.",
                                         kind="warn")
             elif tier == 3:
+                # attrition is ACTIVE now - DANGER, not a warning.
                 if supply > 0:
                     self.announce_event(f"YOU ARE {adj.upper()} - {verb} SOMETHING",
                                         f"There's {noun} in your pack and {kind} is costing you health right now.",
-                                        kind="warn")
+                                        kind="danger")
                 else:
                     self.announce_event(f"YOU ARE {adj.upper()}",
                                         f"No {noun} left, and {kind} is costing you health. Find some or get out.",
-                                        kind="warn")
+                                        kind="danger")
 

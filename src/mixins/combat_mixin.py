@@ -92,7 +92,11 @@ class CombatMixin:
         else:
             zombie = self._select_zombie_for_encounter()
             
-        self.io.say(f"Encountered a {zombie.name}! What will you do?")
+        # Combat is the loudest thing the exploration feed ever does -
+        # a DANGER flare so the player stops reading it as prose
+        # (docs/ATTENTION_SYSTEM_SPEC.md). The card's own numbers follow.
+        self.announce_event(f"ZOMBIE — {zombie.name}",
+                            "Stop. This is a decision.", kind="danger")
 
         # The encounter information card (docs/COMBAT_INFO_SPEC.md).
         # PLAYER-INFORMATION only - it reads a forecast of the fight the
@@ -105,10 +109,12 @@ class CombatMixin:
         if not will_fight:
             # Implement fleeing logic with a certain chance of success
             if random.random() < 0.5:  # Assuming a 50% success rate for fleeing
-                self.io.say("Successfully fled from the zombie.")
+                self.announce_event(f"You got away from the {zombie.name}.",
+                                    kind="success")
                 return  # Exit the method to avoid the fight
             else:
-                self.io.say("Failed to flee! You have to fight the zombie.")
+                self.announce_event("Couldn't get away - you have to fight.",
+                                    kind="danger")
 
         self.io.say(f"Preparing for battle against the {zombie.name}...")
         self.hunger = max(0, self.hunger - zombie.hunger_cost)

@@ -140,7 +140,7 @@ class MysteryMixin:
                 "The causeway's under water - no crossing it now. The next "
                 f"low tide is roughly {m.tide_recovery} turns off, after dark. "
                 "Find somewhere to wait it out.",
-                kind="warn")
+                kind="danger")
 
     def _mystery_role_at(self, x, y):
         m = self._mystery()

@@ -110,13 +110,21 @@ class RunRecord:
         # present as a glyph the player can see. Until the
         # spatial-language pass there are no landmark strings, so this
         # stays False — which is exactly the finding.
-        for word, glyphs in (("tower", "T"), ("water tower", "T"),
-                             ("bridge", "="), ("ridge", "^"),
-                             ("mountain", "^")):
-            if word in guidance:
-                self.landmark_named = True
-                if per.glyph_positions(glyphs):
-                    self.landmark_visible = True
+        # a landmark *cue* = "head toward / you can see / make for" a
+        # named feature. Mechanism names ("the old mountain pass") and
+        # ambient terrain do not count — until the spatial-language
+        # pass adds real landmark guidance this stays ~0, which IS the
+        # finding.
+        _CUE = ("head toward", "head for the", "make for the",
+                "you can see the", "toward the")
+        _FEATURE = (("water tower", "T"), ("tower", "T"), ("bridge", "="),
+                    ("church", "C"), ("silo", "T"))
+        if any(c in guidance for c in _CUE):
+            for word, glyphs in _FEATURE:
+                if word in guidance:
+                    self.landmark_named = True
+                    if per.glyph_positions(glyphs):
+                        self.landmark_visible = True
 
         if per.glyph_positions("!+"):
             self.map_marker_present = True

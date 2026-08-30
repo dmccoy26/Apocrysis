@@ -165,5 +165,13 @@ class TeeIO:
         self._playlog.input_answer(prompt, "yes" if answer else "no")
         return answer
 
+    def ask_combat_letter(self):
+        # Combat-info experiment (COMBAT_INFO_SPEC.md): log the player's
+        # fight/escape/weapons choice so the playtest can score
+        # decision-against-prediction.
+        answer = self._inner.ask_combat_letter()
+        self._playlog.input_answer("combat choice", answer)
+        return answer
+
     def __getattr__(self, name):
         return getattr(self._inner, name)

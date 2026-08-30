@@ -1,13 +1,50 @@
 # Session handoff — Apocrysis v5
 
-Last updated **2026-08-30** — A + B + C-foundation frozen. C.3 v2
-rejected-as-designed. C.3.2 nav pieces 0 + 2 shipped & validated.
-**THE FULL WORLD-1 ARC IS PLAYABLE START TO FINISH.** C.3.2a-5 closed
-(C.3.2a-7 supply scaling). CH3–FIN authored (23 WorldFacts, "The
-Cordon"). Phase E shipped (E.1 hypothesis ladder / E.2 bespoke finale /
-E.3 BROADCAST-or-PROTECT ending). 300+100 green; bot completes 4/4 full
-25-expedition campaigns. What's left is polish + a human blind
-playtest. **Read this whole DIRECTION block first, then the doc map.**
+Last updated **2026-08-30** — A + B + C-foundation frozen.
+**THE FULL WORLD-1 ARC IS PLAYABLE START TO FINISH** (C.3.2a-7 supply
+scaling; CH3–FIN = 23 WorldFacts "The Cordon"; Phase E: E.1 hypothesis
+ladder / E.2 bespoke finale / E.3 BROADCAST-or-PROTECT ending; bot 4/4
+full 25-exp campaigns). **323 tests + 100 subtests green.**
+
+### >> NEWEST (2026-08-30 pm) — playtest-driven UX + two spec builds
+
+- **Combat encounter card** (`a82b31b`, `COMBAT_INFO_SPEC.md`): the
+  "Do you want to fight?" prompt is now threat tier / fight% / escape%
+  / weapon verdict / `[w]` weapon-stats window. `combat_forecast.py`
+  Monte-Carlos the real round loop on a private RNG — **no combat math
+  changed**, bot RNG-neutral, drift-guarded.
+- **`--dev` playtest harness** (`DEV_PLAYTEST.md`): `python3
+  apocrysis.py --dev --seed N --chapter 3|4|5 | --finale` — synthetic
+  coherent state + a depth-appropriate geared survivor + inherited
+  pantry, sandboxed persistence. For story-section spot-checks.
+- **Attention system SHIPPED** (`ATTENTION_SYSTEM_SPEC.md`): Phase 1 —
+  `announce_event` seven-class semantic remap (danger/warning/objective
+  /discovery/story/success/info), DANGER + STORY banner, rest a
+  coloured line, reserve red; zombie encounter fires a DANGER flare.
+  Phase 2 — `constants.stat_band()` + HUD resource readouts shade
+  grey/orange/red. Presentation only.
+- **`mapgen="landscape"` SHIPPED** (`MAP_REALISM_SPEC.md` 1b/2/3), flag
+  default OFF, **v1 byte-identical**: wide grid (`map_w`/`map_h`,
+  1.6:1), mountain BAND + blobs, one connected river + bridges, a
+  swim-attempt card. Render Fix A (2-char tiles) already shipped.
+  **Needs a feel-test at depth 4 + 10 before the default flips** (C.3
+  discipline). Map generation otherwise still frozen.
+
+### >> ACTIVE — the blind playtest (`DEV_PLAYTEST.md`), then design
+
+Balance stays FROZEN during the playtest. **Don't fix while playing.**
+4 dev runs so far: the combat card works (Elite Heavy → EXTREME/0%);
+**dominant repeated finding = NAVIGATION** — the ESCAPE heading is
+shown and consistently not acted on, required investigation not
+discovered. Also: flat 50% flee vs a "Fight 0%" card is incoherent
+(deferred — escape-informed-by-threat is its own hypothesis); building
+loot feels thin (deferred). Full picture in Claude memory
+[[apocrysis_visual_language_direction]]. Post-playtest: design the
+spatial/visual language around what the player actually needed to see;
+then a landscape feel-test; then the escape-model + dangerous-enemy-
+reward experiments; then Pyglet.
+
+**Read this whole DIRECTION block first, then the doc map.**
 
 ---
 

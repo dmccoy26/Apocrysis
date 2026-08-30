@@ -180,6 +180,17 @@ full 25-expedition campaigns through the finale:
 Owner decisions: wrong-rung cost = narrative-only; BROADCAST gets a
 cold acknowledgement; cause = regional bio-containment research station.
 
+### >> NEXT — the blind playtest (`docs/DEV_PLAYTEST.md`)
+
+The arc is mechanically complete; nobody has played it as a story.
+**`--dev` harness shipped** for spot-checking sections:
+`python3 apocrysis.py --dev --seed N --chapter 3|4|5 | --finale`
+(sandboxed, no balance change). 3-test plan: CH3 jump-in / CH5→FIN
+jump-in / full straight-through (the real E.1/E.2/E.3 test). Record
+where confused / bored / where it felt like machinery — that log drives
+the visual-language spec, NOT another metric. Balance stays frozen
+through the playtest. **Don't fix while playing.**
+
 ### >> WHAT'S LEFT for World 1 — polish, not blockers
 
 `ROADMAP_STATUS.md`: the arc plays end to end. Remaining is quality:

@@ -118,6 +118,16 @@ class TestApocrysisCore(unittest.TestCase):
             self.game.rest()
         self.assertLess(self.game.fatigue, 50)
 
+    def test_one_rest_is_a_meaningful_reset_not_one_move(self):
+        # 1d HUD pass: a deliberate rest should claw back real fatigue
+        # (>= 40 in the open), not just undo a single move's +5.
+        self.game.fatigue = 100
+        # force open ground so the building x2 doesn't mask the base
+        self.game.map[self.game.current_position[1]][self.game.current_position[0]] = {"terrain": "plain"}
+        with patch("builtins.print"):
+            self.game.rest()
+        self.assertLessEqual(self.game.fatigue, 60)
+
     def test_rest_when_already_rested_is_a_no_op(self):
         self.game.fatigue = 0
         with patch("builtins.print"):

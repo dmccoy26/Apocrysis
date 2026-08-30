@@ -205,6 +205,14 @@ class Apocrysis(
         # obsolete goals/tasks keys in an old save are simply ignored.
         self.won = False  # Win condition tracker
 
+        # 1d HUD pass: unsaved-changes flag (any action flips it true;
+        # save_game / save_profile clear it) and cumulative distance
+        # walked - campaign-total (round-trips through the profile) plus
+        # a per-expedition tally the stats screen shows.
+        self._unsaved = False
+        self._distance_walked = 0.0        # campaign miles, persisted
+        self._expedition_distance = 0.0    # this expedition only
+
         # v4 (todo 8f9ec034): finding a map item reveals the whole
         # GEOGRAPHY - terrain and settlement layout across the entire
         # map (world_mixin.find_loot(), ui_mixin._render_map_lines()).
@@ -275,6 +283,9 @@ class Apocrysis(
             Apocrysis.prize_for_next_game = False
 
     def _update_time(self, minutes=15):
+        # 1d HUD: any action that spends time is unsaved progress.
+        if minutes:
+            self._unsaved = True
         # v3 SPRINT step 5: minutes is now variable (terrain-dependent
         # move cost - world_mixin.py's move_and_search(), via
         # TERRAIN_MOVE_MINUTES) instead of always 15, and scaled up by
@@ -352,6 +363,7 @@ class Apocrysis(
         self._supply_warnings()
         self._hp_warnings()
         self._fatigue_warnings()
+        self._ammo_warnings()
 
     def _fatigue_warnings(self):
         """Fatigue as a standing condition (docs/FATIGUE_INVESTIGATION_
@@ -384,6 +396,28 @@ class Apocrysis(
                 "Every move is a real cost now. `rest` before the next "
                 "fight or river.",
                 kind="warning", level=2)
+
+    def _ammo_warnings(self):
+        """1d HUD pass: the human playtest showed players walking into
+        fights with an empty equipped gun and only noticing when it
+        clicked dry mid-combat. One nudge when the equipped ranged
+        weapon hits empty and there are rounds in the pack; re-armed on
+        reload."""
+        from src.items import RangedWeapon
+        w = self.equipped_weapon
+        empty = (isinstance(w, RangedWeapon) and getattr(w, "ammo", 1) == 0
+                 and self.backpack.ammo > 0)
+        if not empty:
+            self._ammo_warned = False
+            return
+        if getattr(self, "_ammo_warned", False):
+            return
+        self._ammo_warned = True
+        self.announce_event(
+            "your gun is empty",
+            f"`reload` - you have {self.backpack.ammo} rounds in your pack. "
+            "Do it before the next fight, not during it.",
+            kind="warning", level=1)
 
     def _hp_warnings(self):
         """Wounds as a standing condition (docs/DESIGN_ATTENTION_LANGUAGE.md).

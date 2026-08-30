@@ -205,7 +205,7 @@ class UIMixin:
                 right_lines.append(f"Day {self.day}  {time_str}  {day_night}   Turn {getattr(self, 'turns', 0)}")
                 right_lines.append("--- Player Stats ---")
                 from src.constants import stat_band as _band
-                _bc = {"normal": "", "warning": ORANGE, "danger": RED}
+                _bc = {"normal": "", "watch": YELLOW, "warning": ORANGE, "danger": RED}
 
                 def _vit(kind, val, maximum=100, shown=None):
                     c = _bc[_band(kind, val, maximum)]

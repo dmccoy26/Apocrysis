@@ -704,6 +704,9 @@ class WorldMixin:
         # Update the current position
         self.current_position = (new_x, new_y)
         self.visited.add(self.current_position)  # Mark the new position as visited
+        # 1d HUD: cumulative distance walked (~a valley mile every ~30 tiles)
+        self._distance_walked = getattr(self, "_distance_walked", 0.0) + 0.033
+        self._expedition_distance = getattr(self, "_expedition_distance", 0.0) + 0.033
 
         # v4 (todo 6c9a4ca6): anything dropped here earlier is still here.
         self.pick_up_ground_items()

@@ -204,14 +204,15 @@ class ActionsMixin:
             self.io.say("You are fully rested!")
             return
         
-        # docs/FATIGUE_INVESTIGATION_RESULTS.md D: `rest` used to recover
-        # max(5, wisdom//2) - exactly one move's +5 at wisdom 10, so on
-        # the open map it was a net-zero treadmill. It now nets clearly
-        # positive (max(12, wisdom)) so 2-3 rests actually dig you out
-        # and the turn cost is a real trade, not a loss. Building still
-        # doubles it. Building ENTRY recovery (wisdom//4 + 5, free) is
-        # unchanged - it stays the passive channel.
-        recovery_rate = max(12, self.wisdom)
+        # docs/FATIGUE_INVESTIGATION_RESULTS.md D + 1d HUD pass: `rest`
+        # was max(5, wisdom//2) (a net-zero treadmill), then max(12,
+        # wisdom) (dug you out in 2-3 rests). The 1d human playtest
+        # showed players ending every expedition pegged at fatigue 100
+        # and never resting - a rest that only claws back one move's
+        # worth doesn't feel worth the turn. One deliberate rest should
+        # be a real reset: ~40 in the open, ~80 in a building. Building
+        # ENTRY recovery (wisdom//4 + 5, free) is unchanged.
+        recovery_rate = max(40, self.wisdom * 3)
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
         current_terrain = current_tile.get('terrain') if isinstance(current_tile, dict) else None
         if current_terrain == 'building':

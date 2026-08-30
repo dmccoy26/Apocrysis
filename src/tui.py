@@ -25,7 +25,8 @@ from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
 
 from src.game import Apocrysis
-from src.constants import stat_band
+from src.constants import stat_band, CAMPAIGN_LENGTH
+from src.campaign import chapter_for_expedition, CHAPTER_TITLES
 from src.mixins.persistence_mixin import profile_filename_for_name
 from src.nav import honest_bearing
 
@@ -769,10 +770,20 @@ class ApocrysisApp(App):
             return
         if self.player is None:
             return
-        loc = _location_name(self.player)
-        phase = getattr(self.player, "day_phase", "day")
-        clk = f"{self.player.time_of_day // 60:02d}:{self.player.time_of_day % 60:02d}"
-        tail = "arrows move · type a command + Enter · ? for help"
+        p = self.player
+        loc = _location_name(p)
+        phase = getattr(p, "day_phase", "day")
+        clk = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
+        # 1d HUD: the zone, plus a plain note when this ground is slow
+        # to cross (so "why is travel dragging" has an answer on screen).
+        _z = p._current_zone() if hasattr(p, "_current_zone") else ""
+        _cell = p.map[p.current_position[1]][p.current_position[0]]
+        _terr = _cell.get("terrain") if isinstance(_cell, dict) else None
+        _slow = {"water": "slow going", "swamp": "slow, tiring ground",
+                 "forest": "slower under cover"}.get(_terr, "")
+        _help = "arrows move · type a command + Enter · ? for help"
+        _sub = "  ·  ".join(x for x in (_z, _slow) if x)
+        tail = f"{_sub}   —   {_help}" if _sub else _help
         w.update(f"[b]{loc}[/b]   [{_PHASE_COLOR.get(phase, _DIM)}]"
                  f"{_PHASE_GLYPH.get(phase, '·')} {phase.upper()} {clk}[/]\n[dim]{tail}[/dim]")
 
@@ -1044,29 +1055,74 @@ class ApocrysisApp(App):
         eq_line = _fmt_gear(eq, equipped=True) if eq else f"  [{_DIM}]bare hands[/]"
         if eq and getattr(eq, "durability", 1) <= 0:
             eq_line += "  [red]BROKEN[/]"
+        # 1d HUD: an empty magazine in your hand is tactical information,
+        # not a footnote. Loud when empty + you have spare rounds.
+        _mx_ammo = getattr(eq, "max_ammo", 0) if eq else 0
+        if _mx_ammo:
+            _a = getattr(eq, "ammo", 0)
+            if _a == 0 and p.backpack.ammo > 0:
+                eq_line += "  [b red]⚠ RELOAD[/]"
+            elif _a == 0:
+                eq_line += "  [b red]⚠ EMPTY - NO AMMO[/]"
+            elif _a <= 2 and p.backpack.ammo > 0:
+                eq_line += "  [#ff8c00]low - reload[/]"
 
-        _BAND_MARKUP = {"normal": "grey85", "warning": "#ff8c00", "danger": "red"}
+        _BAND_MARKUP = {"normal": "grey85", "watch": "#c8c84a",
+                        "warning": "#ff8c00", "danger": "red"}
 
         def _sup(label, n, kind=None):
             band = stat_band(kind, n) if kind else ("danger" if n <= 0 else "normal")
             return f"[{_DIM}]{label}[/] [{_BAND_MARKUP[band]}]{n}[/]"
 
-        _map_lvl = getattr(p, "expeditions_completed", 0) + 1
+        _exp_n = getattr(p, "expeditions_completed", 0) + 1
+        _ch = chapter_for_expedition(getattr(p, "expeditions_completed", 0))
+        _ch_title = CHAPTER_TITLES[_ch - 1] if 1 <= _ch <= len(CHAPTER_TITLES) else ""
+        _mode = "[b red]HARDCORE[/]" if getattr(p, "hardcore", False) else f"[{_DIM}]NORMAL[/]"
+        _saved = ("[#ff8c00]● UNSAVED[/]" if getattr(p, "_unsaved", False)
+                  else "[#4a9d4a]● SAVED[/]")
+        _mi = getattr(p, "_distance_walked", 0.0)
+        _vis_note = ""
+        if phase in ("dusk", "night") and not getattr(p, "has_flashlight", False):
+            _vis_note = f"  [{_DIM}]· sight reduced[/]"
+
         lines = [
-            f"[bold]{_rich_escape(p.name)}[/bold]   [{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
+            f"[bold]{_rich_escape(p.name)}[/bold]   {_mode}   {_saved}",
+            f"[{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
+            f"[{_HDR}]EXPEDITION {_exp_n} / {CAMPAIGN_LENGTH}[/]"
+            + (f"   [{_DIM}]CH{_ch} — {_ch_title}[/]" if _ch_title else ""),
             f"[{pcol}]{glyph} {phase.upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
-            f"Turn {getattr(p, 'turns', 0)}[/]",
-            f"[{_DIM}]Map {_map_lvl} · {p.map_size}×{p.map_size}[/]",
-            "",
-            f"[{_HDR}]EQUIPMENT[/]",
-            eq_line,
+            f"Turn {getattr(p, 'turns', 0)}[/]{_vis_note}",
+            f"[{_DIM}]Map {_exp_n} · {p.map_size}×{p.map_size}"
+            + (f" · walked {_mi:.1f} mi" if _mi else "") + "[/]",
         ]
+
+        # 1d HUD: the immediate actionable objective, impossible to
+        # miss. HUD = what to do; the investigation strip below = why.
+        _next = None
+        if getattr(p, "mystery", None) is not None and hasattr(p, "_objective_next_step"):
+            try:
+                _next = p._objective_next_step()
+            except Exception:
+                _next = None
+        if _next:
+            lines += ["", f"[b #d8b84a]▸ THIS RUN[/]", f"  [#d8b84a]{_next}[/]"]
+
+        lines += ["", f"[{_HDR}]EQUIPMENT[/]", eq_line]
         worn = [_fmt_gear(pc, equipped=True).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)
                 for slot, pc in p.equipped_armor.items() if pc]
         lines += worn or [f"  [{_DIM}]no armor[/]"]
+        _armor_total = sum(getattr(a, "damage_reduction", 0)
+                           for a in p.equipped_armor.values()
+                           if a and getattr(a, "durability", 1) > 0)
+        if _armor_total:
+            lines.append(f"  [{_DIM}]protection[/] [cyan]{_armor_total}[/]")
+        _pack_n = len(p.backpack.weapons)
+        _pack_c = ("b #ff8c00" if _pack_n >= w_cap
+                   else "#ff8c00" if _pack_n >= w_cap - 1 else _DIM)
         lines += [
             "",
-            f"[{_HDR}]BACKPACK[/]  [{_DIM}]{len(p.backpack.weapons)}/{w_cap}[/]",
+            f"[{_HDR}]BACKPACK[/]  [{_pack_c}]{_pack_n}/{w_cap} weapons"
+            + ("  FULL" if _pack_n >= w_cap else "") + "[/]",
         ]
         lines += _gear_lines(p.backpack.weapons) or [f"  [{_DIM}]empty[/]"]
         lines += _gear_lines(p.backpack.armor, slot_tag="W")
@@ -1078,11 +1134,30 @@ class ApocrysisApp(App):
                 _sup("med", p.backpack.medicine), _sup("ammo", p.backpack.ammo),
             ]),
         ]
+
+        # 1d HUD: a CONDITIONS block, only when something is actually
+        # wrong. Never a permanent row of labels.
+        _cond = []
+        for _fx in getattr(p, "status_effects", {}):
+            _cond.append(str(_fx).upper())
+        if stat_band("hp", p.health, p.max_health) == "danger":
+            _cond.append("BADLY HURT")
+        elif stat_band("hp", p.health, p.max_health) == "warning":
+            _cond.append("WOUNDED")
+        if p.fatigue > 85:
+            _cond.append("EXHAUSTED")
+        if p.hunger <= 0 or p.thirst <= 0:
+            _cond.append("STARVING")
+        if _cond:
+            lines += ["", f"[b red]CONDITIONS[/]  "
+                      + " · ".join(f"[#ff8c00]{c}[/]" for c in _cond)]
+
         stats_widget.update("\n".join(lines))
 
         # ATTENTION_SYSTEM_SPEC.md: the vitals bars shade with the
         # deterioration ladder - grey / orange / red.
-        _BAND_RGB = {"normal": "grey", "warning": "#ff8c00", "danger": "#e04040"}
+        _BAND_RGB = {"normal": "grey", "watch": "#c8c84a",
+                     "warning": "#ff8c00", "danger": "#e04040"}
         for _id, _kind, _val, _max in (
             ("health_bar", "hp", p.health, p.max_health),
             ("hunger_bar", "hunger", p.hunger, 100),

@@ -55,8 +55,11 @@ class PlayLog:
         self._w("=" * 64)
         self._w(f"APOCRYSIS PLAY LOG   {datetime.datetime.now():%Y-%m-%d %H:%M:%S}")
         self._w(f"player      : {p.name}  (level {p.level})")
-        self._w(f"expedition  : {p.expeditions_completed + 1} of "
-                f"{getattr(p, 'CAMPAIGN_LENGTH', 10) if hasattr(p, 'CAMPAIGN_LENGTH') else 10}")
+        try:
+            from src.constants import CAMPAIGN_LENGTH as _CL
+        except Exception:
+            _CL = 25
+        self._w(f"expedition  : {p.expeditions_completed + 1} of {_CL}")
         mystery = getattr(p, "mystery", None)
         if mystery is not None:
             self._w(f"escape mech : {mystery.mechanism}")

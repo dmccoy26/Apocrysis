@@ -21,7 +21,7 @@ DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
 _CAMPAIGN_KEYS = (
     "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
     "recent_mechanisms", "recent_signatures", "world_investigation",
-    "survivor_knowledge", "survivors_lost", "ending",
+    "survivor_knowledge", "survivors_lost", "ending", "distance_walked",
 )
 
 
@@ -264,6 +264,7 @@ class PersistenceMixin:
 
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
+        self._unsaved = False   # 1d HUD
         self.io.say(f"Game saved to {filename}.")
 
     def _prompt_delete_save(self):
@@ -458,6 +459,8 @@ class PersistenceMixin:
             "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
             # B.1b: how many survivors this campaign has lost.
             "survivors_lost": int(getattr(self.__class__, "_survivors_lost", 0) or 0),
+            # 1d HUD: campaign-cumulative distance walked.
+            "distance_walked": round(float(getattr(self, "_distance_walked", 0.0)), 2),
             # E.3: the ending the player chose at the finale, if any -
             # so a relaunched completed campaign shows the resolved
             # state and never re-prompts.
@@ -466,6 +469,7 @@ class PersistenceMixin:
 
         with open(filename, 'w') as f:
             json.dump({"campaign": campaign, "survivor": survivor}, f, indent=2)
+        self._unsaved = False   # 1d HUD
 
     @staticmethod
     def load_profile(filename=DEFAULT_PROFILE_FILENAME):
@@ -579,6 +583,8 @@ class PersistenceMixin:
         self.player_class = profile.get("player_class", self.player_class)
         self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
         self.expeditions_completed = profile.get("expeditions_completed", self.expeditions_completed)
+        self._distance_walked = float(profile.get("distance_walked", 0.0) or 0.0)  # 1d HUD
+        self._unsaved = False   # 1d HUD: campaign is persisted through the last expedition
         # Restore the escape-story shuffle-bag so the "no back-to-back
         # family" rule holds across sessions, not just within one.
         _um = profile.get("used_mechanisms")

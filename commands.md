@@ -1,7 +1,8 @@
 # Apocrysis — In-Game Commands
 
-The current command set (v4 mechanics + the Phase A world-investigation
-screen). Every command below is typed at the `>` prompt during a game (or, in
+The current command set (v4 investigation mechanics + the Phase A–E
+world-investigation spine and the full World-1 arc). Every command
+below is typed at the `>` prompt during a game (or, in
 the textual UI, triggered by the arrow keys / clicking, which just
 submit the same commands under the hood). Commands are case-insensitive.
 The list you actually see in-game is context-sensitive — e.g. `eat`
@@ -27,7 +28,7 @@ water, and swamp are slower; mountains and rivers are impassable).
 
 | Command | Aliases | Effect |
 |---|---|---|
-| `m` | `map` | Show the full map. Rows are lettered down the side, columns numbered across the top — the top-left tile is `a1`, one right `a2`, one down `b1` |
+| `m` | `map` | Show the full map — a plain grid of terrain glyphs, no border or coordinate ruler (both removed on player feedback). A lead you've learned about shows as a `!` marker; an opened route as `+` |
 | `i` | `inventory` | List backpack contents: food, water, medicine, ammo, weapons, armor |
 | `st` | `stats` | Show health, hunger, thirst, fatigue, core stats, equipped weapon/armor |
 | `h` | `?` | Show the in-game help/command list |
@@ -43,7 +44,7 @@ water, and swamp are slower; mountains and rivers are impassable).
 | `wi` | `investigation` | The world-investigation screen: what the campaign has worked out about the region so far, thread by thread. Campaign-level — it survives across expeditions and deaths, unlike everything else in a run |
 | `inspect <thing>` | `ins <thing>` | What you actually know about one thing: *Observed* / *Known* / *Suspected* / nothing yet. Try `inspect the way out` |
 | `clear` | `open` | Get past the obstacle on the escape route, once you have what it takes (walking into it with the item also works) |
-| `escape` | | Leave. Only works once your hypothesis is *confirmed* and the way is open — and only from the actual route out |
+| `escape` | | Leave from a distance, once your hypothesis is *confirmed* and the way is open. **Not needed if you walk to the way out itself** — reaching the cleared, confirmed escape tile ends the expedition automatically |
 | `log` | | Toggle the plain-text session transcript (`apocrysis_playlog_<timestamp>.txt`). Logging is **on by default** for interactive play — one file per session, each expedition appended; launch with `--no-log` to turn it off. Free action. |
 
 ## Survival
@@ -66,9 +67,14 @@ fatigue-recovery bonus scaled by Wisdom.
 | `f` | `fight` | Fight the zombie on your current tile with your equipped weapon (or bare-handed if none equipped) |
 | `p` | `punch` | Attack unarmed with your fists, regardless of what's equipped |
 
-When a zombie is encountered while moving, you'll be asked "Do you
-want to fight?" (`y`/`n`) — declining gives a 50% chance to flee (90%
-if you're critically wounded mid-fight).
+When a zombie is encountered while moving, an encounter card shows the
+threat tier, your fight% / escape% with the equipped weapon, and a
+weapon verdict, then prompts `[f] fight   [e] escape   [w] weapons`
+(`[w]` opens a per-weapon fight-chance window and costs no turn).
+Choosing escape is a ~50% flee roll; if it fails you fight anyway. The
+card changes no combat math — it draws its numbers from a private
+Monte-Carlo of the real round loop. (`--classic` and non-interactive
+runs fall back to the old `Do you want to fight? (y/n)` prompt.)
 
 ## Equipment
 
@@ -131,7 +137,9 @@ Work out this expedition's way out of the valley and take it. Concretely:
 find enough evidence that your hypothesis about the route becomes
 *confirmed* (check with `remember` or `inspect the way out`), get past
 whatever blocks that route (`clear` / `open`, with the item the
-evidence pointed you to), reach the route itself, and `escape`.
+evidence pointed you to), and reach the route itself — arriving there
+ends the expedition (or `escape` from a distance once it's confirmed
+and open).
 
 The Town Center is *not* the way out — under a generated mystery it's
 just the most information-dense location on the map. (A "reach the
@@ -139,6 +147,8 @@ Town Center after exploring a settlement" fallback still exists for a
 degenerate map with no mystery, but the generator now regenerates the
 map until a mystery fits, so in practice every expedition has one.)
 
-A win advances your campaign toward `CAMPAIGN_LENGTH` (10 expeditions);
-the final one triggers a campaign-complete retrospective of the routes
-you found.
+A win advances your campaign toward `CAMPAIGN_LENGTH` (25 expeditions —
+the full World-1 arc, "The Cordon"). The zombie difficulty curve
+ramps over the first `DIFFICULTY_RAMP_LENGTH` (10) expeditions and
+then holds. Expedition 25 is a bespoke finale with one authored binary
+choice; completing it triggers a branch-aware campaign retrospective.

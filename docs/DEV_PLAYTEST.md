@@ -459,3 +459,41 @@ movement decision.** Run 6 is the evidence this chain works where a
 bare heading did not.
 
 Still: **build none of it before run 7.**
+
+---
+
+## The post-run design frame (owner) — three related-but-separate systems
+
+Don't collapse these into one "add markers everywhere" change:
+
+| system | question |
+|---|---|
+| **Attention** | How loudly does the game tell me *this matters*? |
+| **Spatial language** | How do I understand *what / where* to act on? |
+| **Interaction inference** | When I've already done the thing, don't make me perform a redundant command (auto-escape is the first instance). |
+
+And the CH5 chain worked because it had **meaning**, not because it
+was blue or marked: *blocked route → generator shed → jerrycan →
+ranger depot → return to the generator shed* is an actual mental
+model of the problem. The design primitive to carry forward:
+
+> **goal → named thing → recognizable thing in the world → action →
+> persistent progress**
+
+### Six questions to ask of every important game element
+
+1. **What matters?** — attention
+2. **What am I trying to accomplish?** — objective
+3. **What physical thing should I recognize?** — landmark / destination
+4. **How do I know I'm making progress?** — proximity / progress
+5. **What happens when I get distracted?** — lifecycle / reminder
+6. **What happens when I arrive?** — world inference, not an extra command
+
+The 500-game baseline is the measuring stick for 1–4: 100% of bots
+received an objective, ~3% received a named destination, 0% an
+operational direction, 0.2% reached the objective. That gap is a
+communication pipeline breaking between **received → understood →
+actionable → executed** — design the language as a system that closes
+it, don't patch individual complaints.
+
+**Run 7 first.** Then design from runs 1–7 + the perceived-bot baseline.

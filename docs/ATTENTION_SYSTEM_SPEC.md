@@ -233,3 +233,18 @@ Phase 2 (HUD) is optional and can follow whenever.
 `announce_event(kind=…)` seam into a consistent seven-class attention
 language with reserved red, glyph+colour redundancy, and a
 persistent/transient split.*
+
+
+## STATUS — SHIPPED (2026-08-30)
+
+- **Phase 1 (event feed)** `feat`: `announce_event` seven-class remap
+  behind `_KIND_ALIAS` (no call-site churn); DANGER/STORY banner, the
+  rest a coloured line; `ORANGE` constant; zombie encounter fires a
+  DANGER flare; flee outcomes classed; tier-3 hunger + causeway-flood
+  split `warn` -> `danger`. `test_attention.py` (6).
+- **Phase 2 (HUD ladder)** `feat`: `constants.stat_band(kind,value)`
+  -> normal/warning/danger; TUI supply readouts + vitals bars and the
+  classic Health/Hunger/Thirst/Fatigue values shade grey/orange/red.
+
+314+100 green. Presentation only, no balance touched. TextualIO
+unchanged (`Text.from_ansi` handles 256-colour).

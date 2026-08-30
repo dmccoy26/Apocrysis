@@ -69,6 +69,24 @@ class TextualIO:
             self._drain_stale_answers()
             self.app.call_from_thread(self.app.request_input, f"{prompt} (y/n)")
 
+    def ask_combat_letter(self):
+        """Encounter card (combat_mixin._encounter_card): 'f' / 'e' / 'w'."""
+        self._drain_stale_answers()
+        self.app.call_from_thread(self.app.request_input,
+                                  "[f] fight  [e] escape  [w] weapons")
+        while True:
+            a = self._wait_for_answer().strip().lower()
+            if a in ("f", "fight", "y", "yes"):
+                return "f"
+            if a in ("e", "escape", "flee", "n", "no"):
+                return "e"
+            if a in ("w", "weapon", "weapons"):
+                return "w"
+            self.app.call_from_thread(self.app.log_message, "Type f, e, or w.")
+            self._drain_stale_answers()
+            self.app.call_from_thread(self.app.request_input,
+                                      "[f] fight  [e] escape  [w] weapons")
+
     def _drain_stale_answers(self):
         # Real bug found live: self._answers is never drained between
         # prompt cycles - rapidly pressing arrow keys during one "> "

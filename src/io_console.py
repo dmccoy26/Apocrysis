@@ -37,3 +37,16 @@ class ConsoleIO:
             if answer in ("n", "no"):
                 return False
             print("Please answer y or n.")
+
+    def ask_combat_letter(self):
+        """Encounter card (combat_mixin._encounter_card): 'f' / 'e' / 'w'.
+        Accepts y/n as aliases so the old 'fight? y/n' habit still works."""
+        while True:
+            a = input("  [f] fight   [e] escape   [w] weapons: ").strip().lower()
+            if a in ("f", "fight", "y", "yes"):
+                return "f"
+            if a in ("e", "escape", "flee", "n", "no"):
+                return "e"
+            if a in ("w", "weapon", "weapons"):
+                return "w"
+            print("Type f (fight), e (escape), or w (weapons).")

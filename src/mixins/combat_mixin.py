@@ -93,57 +93,14 @@ class CombatMixin:
             zombie = self._select_zombie_for_encounter()
             
         self.io.say(f"Encountered a {zombie.name}! What will you do?")
-        _eq_broken = bool(self.equipped_weapon) and getattr(self.equipped_weapon, 'durability', 1) <= 0
 
-        def _usable_dmg(w):
-            # A ranged weapon with no rounds loaded is worth nothing in
-            # this fight - don't count it, and never recommend swapping
-            # TO it (playtest: "recommends the gun when you're out of
-            # bullets"). Same rule the mid-fight auto-swap uses.
-            if getattr(w, 'durability', 1) <= 0:
-                return 0
-            if isinstance(w, RangedWeapon) and w.ammo <= 0:
-                return 0
-            return w.damage
-
-        _cur_dmg = _usable_dmg(self.equipped_weapon) if self.equipped_weapon else 0
-        _better = max(
-            (w for w in self.backpack.weapons if _usable_dmg(w) > _cur_dmg + 2),
-            key=_usable_dmg, default=None,
-        )
-        if _better is not None:
-            _held = ('bare hands' if not self.equipped_weapon
-                     else f'broken {self.equipped_weapon.name}' if _eq_broken
-                     else self.equipped_weapon.name)
-            self.io.say(
-                f"(You're carrying a {_better.name} ({_better.damage} dmg) - "
-                f"stronger than your {_held}. Flee and 'eq {_better.name}' to switch.)"
-            )
-        elif (self.equipped_weapon and _cur_dmg < 10
-              and not getattr(self, '_weak_weapon_nudged', False)):
-            # Nothing better in the pack and this one barely hurts them
-            # (or it's an empty gun, _cur_dmg 0) - a kid fought the whole
-            # game with a 6-dmg knife and got worn down (playtest). Once
-            # per expedition.
-            self._weak_weapon_nudged = True
-            _n = self.equipped_weapon.name
-            if isinstance(self.equipped_weapon, RangedWeapon) and self.equipped_weapon.ammo <= 0:
-                self.io.say(f"(Your {_n} is out of ammo - `reload` if you have rounds, "
-                            "or find another weapon.)")
-            else:
-                self.io.say(f"(Your {_n} ({_cur_dmg} dmg) barely scratches them - "
-                            "search buildings for a heavier weapon.)")
-
-        # v3 SPRINT step 3/6: explicit yes/no, re-prompting on
-        # anything else - the original "anything other than the
-        # literal string 'flee' fights" meant a typo silently became
-        # an intentional fight, and vice versa was never even
-        # possible (there was no way to be UNCLEAR and get asked
-        # again). self.io.ask_yes_no() (step 6's I/O seam) owns the
-        # re-prompt loop now - ConsoleIO's version is byte-identical
-        # to the loop this replaced; a TUI's TextualIO answers via a
-        # real dialog instead of re-reading stdin.
-        will_fight = self.io.ask_yes_no("Do you want to fight?")
+        # The encounter information card (docs/COMBAT_INFO_SPEC.md).
+        # PLAYER-INFORMATION only - it reads a forecast of the fight the
+        # loop below would run and changes NO combat / escape / XP /
+        # loot math. Interactive ios get [f]/[e]/[w]; a bot io (no
+        # `ask_combat_letter`) falls through to the old yes/no, so the
+        # balance harness is byte-identical.
+        will_fight = (self._encounter_card(zombie) == "fight")
 
         if not will_fight:
             # Implement fleeing logic with a certain chance of success
@@ -257,6 +214,62 @@ class CombatMixin:
 
         if self.health <= 0:
             self.io.say("You are critically wounded and unable to continue the fight!")
+
+    def _encounter_card(self, zombie):
+        """Show the encounter information card; return 'fight' | 'escape'.
+        [w] opens the weapon stats window and re-shows the card - no turn
+        passes. docs/COMBAT_INFO_SPEC.md. Changes no combat math.
+
+        A bot io has no `ask_combat_letter`; it falls through to the
+        pre-existing yes/no so the balance harness is unchanged."""
+        if not hasattr(self.io, "ask_combat_letter"):
+            # bot / non-interactive: the old path exactly, no forecast
+            # (the forecast draws from `random` and would perturb the
+            # combat RNG stream - balance harness must be untouched).
+            return "fight" if self.io.ask_yes_no("Do you want to fight?") else "escape"
+
+        from src import combat_forecast as cf
+        interactive = True
+        while True:
+            w = self.equipped_weapon
+            wname = w.name if w else "bare hands"
+            wdmg = getattr(w, "damage", 0) if w else 0
+            fp = cf.fight_pct(self, zombie)
+            ep = cf.escape_pct(self, zombie)
+            self.io.say("")
+            self.io.say(f"  --- {zombie.name.upper()} ---")
+            self.io.say(f"  {cf.danger_note(zombie)}")
+            self.io.say(f"  Threat:  {cf.threat_tier(fp)}")
+            self.io.say(f"  With your {wname} ({wdmg} dmg):   "
+                        f"Fight ~{fp}%    Escape ~{ep}%")
+            if fp < 50:
+                self.io.say("  If the escape fails, you're fighting it anyway.")
+            self.io.say(f"  Your weapon is {cf.weapon_verdict(fp)}.")
+            bw = cf.better_weapon(self, zombie)
+            if bw is not None:
+                self.io.say(f"  In your pack: {bw[0].name} (~{bw[1]}%) would help"
+                            + (" - press w." if interactive else "."))
+            if not interactive:
+                return "fight" if self.io.ask_yes_no("Do you want to fight?") else "escape"
+            letter = self.io.ask_combat_letter()
+            if letter == "w":
+                self._weapon_stats_window(zombie)
+                continue
+            return "fight" if letter == "f" else "escape"
+
+    def _weapon_stats_window(self, zombie):
+        """[w] from the encounter card: fight chance for every weapon the
+        survivor is carrying, and equip one before the fight."""
+        from src import combat_forecast as cf
+        rows = cf.all_weapon_forecasts(self, zombie)
+        self.io.say("")
+        self.io.say("  WEAPONS - estimated fight chance vs this target:")
+        for i, (wpn, pct, verdict) in enumerate(rows, 1):
+            tag = "  (equipped)" if wpn is self.equipped_weapon else ""
+            self.io.say(f"   [{i}] {wpn.name} ({wpn.damage} dmg){tag}   ~{pct}%   {verdict}")
+        pick = (self.io.ask("  Equip which? (number, or Enter to keep): ") or "").strip()
+        if pick.isdigit() and 1 <= int(pick) <= len(rows):
+            self.equip_weapon(rows[int(pick) - 1][0].name)
 
     def _weapon_condition_check(self, dur_before):
         """React to the equipped weapon wearing down mid-fight. A worn

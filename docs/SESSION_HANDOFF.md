@@ -21,11 +21,20 @@ fatigue decision 1+2+3 · `E` re-run · `F` navigation). All committed
   lead-discovery slowness is a bot-policy ceiling, not game code — **F
   is the last content-side navigation lever for World-1.**
 
-**Next:** C-phase roadmap (Phase D world conditions / weather /
-`escape_kind` variety 0%; finale map archetype + NPC arrival scene;
-long-campaign loot balance; `landscape` mapgen default flip;
-`DIS_FEW_REMAINS`→only-`mountain_pass` variety bug) **and** a human
-straight-through playtest of the full 25-expedition arc (highest value).
+**Next: see `docs/AUDIT_STATUS.md`** (reconciled 2026-08-30) — the
+authoritative "where we stand". Immediate work: (1a) finish the
+investigation UI — per-lead checklist + hot next step for the active
+world thread; (1b) named physical landmarks at mystery sites; (1c)
+remove the legacy Tasks/Goals dead systems; (1d) **a human
+straight-through playtest of the full 25-expedition arc**. Only after
+the playtest: the Phase C/D world-gen layer (Phase D conditions/weather,
+finale archetype + NPC scene, `DIS_FEW_REMAINS` bug, `landscape` flip)
+and the parked balance decisions (difficulty ramp, failed-escape,
+danger reward, late loot) — all measured, deferred on purpose. Do NOT
+tune food (nav artifact: starvation 47%→7% once navigation improved).
+
+Automated arc playthrough: `python3 tools/story_playthrough.py`
+(narrated) or `--runs N` (batch stats).
 
 ### >> 2026-08-30, late — the post-playtest design pass, IMPLEMENTED
 

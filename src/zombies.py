@@ -81,3 +81,23 @@ class ArmoredZombie(Zombie):
         super().take_damage(damage * (1 - self.damage_reduction))
 
 
+# --- escape model (docs/DESIGN_ESCAPE_MODEL.md) ---------------------
+# How hard a given zombie is to *disengage* from — the dominant input
+# to src.escape_model. "slow" is what makes "evade the Armored" a real
+# strategy; "fast" is why a Swift is dangerous to run from, not just to
+# fight. Keyed by the base subclass name (Elite variants share it).
+SPEED_CLASS = {
+    "Fresh Zombie": "normal",
+    "Regular Zombie": "normal",
+    "Toxic Zombie": "normal",
+    "Heavy Zombie": "slow",
+    "Armored Zombie": "slow",
+    "Swift Zombie": "fast",
+}
+
+
+def speed_class_of(zombie):
+    base = zombie.name.replace("Elite ", "", 1)
+    return SPEED_CLASS.get(base, "normal")
+
+

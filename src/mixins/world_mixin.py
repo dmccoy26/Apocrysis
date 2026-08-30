@@ -62,11 +62,17 @@ class WorldMixin:
     # has, not just rarity - a rural building leans food/tools, a
     # downtown one leans medicine/weapons.
     _ZONE_LOOT_BIAS = {
-        'rural':      {'food': 2.0, 'water': 1.6, 'medicine': 0.7, 'ammo': 0.6, 'weapon': 0.8, 'armor': 0.5},
-        'suburban':   {'food': 1.3, 'water': 1.3, 'medicine': 1.1, 'ammo': 0.8, 'weapon': 1.0, 'armor': 0.9},
+        # armor: the rural/wilderness 0.5x penalty was removed (was
+        # directly fighting the intended armor progression - see
+        # docs/ARMOR_INVESTIGATION_RESULTS.md: acquisition, not the
+        # ARMOR_TABLE bands, is the T0-6 bottleneck, and early maps are
+        # rural). Armor strength is unchanged; this only changes how
+        # often the player gets a chance to assemble the loadout.
+        'rural':      {'food': 2.0, 'water': 1.6, 'medicine': 0.7, 'ammo': 0.6, 'weapon': 0.8, 'armor': 1.0},
+        'suburban':   {'food': 1.3, 'water': 1.3, 'medicine': 1.1, 'ammo': 0.8, 'weapon': 1.0, 'armor': 1.0},
         'industrial': {'food': 0.7, 'water': 0.8, 'medicine': 0.7, 'ammo': 1.4, 'weapon': 1.5, 'armor': 1.6},
         'downtown':   {'food': 0.9, 'water': 0.9, 'medicine': 1.6, 'ammo': 1.3, 'weapon': 1.4, 'armor': 1.2},
-        'wilderness': {'food': 1.4, 'water': 1.4, 'medicine': 0.6, 'ammo': 0.9, 'weapon': 0.9, 'armor': 0.5},
+        'wilderness': {'food': 1.4, 'water': 1.4, 'medicine': 0.6, 'ammo': 0.9, 'weapon': 0.9, 'armor': 1.0},
     }
 
 
@@ -749,9 +755,13 @@ class WorldMixin:
                 weighted_pool.extend([lt] * max(1, round(zbias.get(lt, 1.0) * 4)))
             loot_type = self.rng.choice(weighted_pool)
 
-            # Higher intelligence increases chance of finding weapons over consumables
-            if self.intelligence > 10 and self.rng.random() < (self.intelligence / 100):
-                loot_type = "weapon"
+            # The old `intelligence > 10 -> rewrite the roll to "weapon"`
+            # override was removed (docs/ARMOR_INVESTIGATION_RESULTS.md):
+            # weapons are already abundant, armor is the acquisition
+            # bottleneck, and it was silently converting armor rolls to
+            # weapons exactly as the player levelled. Intelligence still
+            # raises `find_chance` (above) - it just no longer biases
+            # *what* you find toward weapons.
 
             self.io.say(f"You found {loot_type}!")
             self.award_xp(10)

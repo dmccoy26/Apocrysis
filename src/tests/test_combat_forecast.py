@@ -97,6 +97,22 @@ class TestForecastShape(unittest.TestCase):
         tiers = [cf.threat_tier(p) for p in (95, 70, 45, 25, 5)]
         self.assertEqual(tiers, ["LOW", "MODERATE", "HIGH", "SEVERE", "EXTREME"])
 
+    def test_two_axis_threat_tier(self):
+        # a near-certain win that is CHEAP is LOW; the same win-rate at a
+        # big cost is not (COMBAT_EXP2_RESULTS.md).
+        self.assertEqual(cf.threat_tier(98, cost_frac=0.10), "LOW")
+        self.assertEqual(cf.threat_tier(98, cost_frac=0.30), "MODERATE")
+        self.assertEqual(cf.threat_tier(98, cost_frac=0.70), "HIGH")
+        # low win-rate stays a warn tier regardless of cost
+        self.assertEqual(cf.threat_tier(20, cost_frac=0.10), "SEVERE")
+        self.assertEqual(cf.threat_tier(3, cost_frac=None), "EXTREME")
+
+    def test_two_axis_weapon_verdict(self):
+        self.assertEqual(cf.weapon_verdict(98, cost_frac=0.05),
+                         "overkill for this target")
+        self.assertNotEqual(cf.weapon_verdict(98, cost_frac=0.60),
+                            "overkill for this target")
+
     def test_stronger_weapon_never_worse(self):
         g = _make_game(MeleeWeapon("Rusty Dagger", 8, 40), (3, 6))
         g.backpack.weapons = [MeleeWeapon("Steel Katana", 20, 110)]

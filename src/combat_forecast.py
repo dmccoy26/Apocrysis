@@ -2,8 +2,14 @@
 
 A PLAYER-INFORMATION layer, not a rebalance. It reads the same numbers
 `combat_mixin`'s fight loop uses and Monte-Carlos a faithful copy of
-that loop to estimate fight / escape odds. It changes NO combat, escape,
-XP or loot math - nothing here is called by the fight itself.
+that loop to estimate the fight outcome + its cost. It changes NO
+combat / XP / loot math - nothing here drives the fight.
+
+`escape_pct` delegates to `src.escape_model` - the SAME function the
+real flee roll uses - so the escape number the player sees is the one
+they get (docs/DESIGN_ESCAPE_MODEL.md). `threat_tier` / `weapon_verdict`
+are two-axis: P(win) AND the p90/p50 HP-loss cost, so a near-certain
+but near-fatal win is no longer labelled `LOW` (COMBAT_EXP2_RESULTS.md).
 """
 import random as _random
 
@@ -66,12 +72,23 @@ def _cond_penalty(health, hunger, thirst, fatigue):
 
 
 def _one_fight(player, zombie, weapon, rng):
+    """True on a win. Thin wrapper over `_simulate` — kept for callers
+    and tests that only care about the outcome."""
+    return _simulate(player, zombie, weapon, rng)[0]
+
+
+def _simulate(player, zombie, weapon, rng):
     """One silent simulated fight. Mirrors combat_mixin.encounter_zombie's
     round loop: player acts, then zombie acts if alive; crit min(.25,
     dex/200) x2; dodge min(.5, dex/150); bleed 15%/3t, stun 10%/1t;
     Toxic poison 4t; Armored halves incoming; per-piece armor absorb;
-    condition penalty recomputed each player turn. Returns True on win."""
+    condition penalty recomputed each player turn.
+
+    Returns `(won: bool, hp_lost: int)` — hp_lost is the HP delta from
+    the start of the fight, so a caller can build the cost distribution
+    (docs/COMBAT_MODEL_EXPERIMENTS.md exp 1/2)."""
     hp = player["health"]
+    start_hp = hp
     max_hp = player["max_health"]
     hunger = max(0, player["hunger"] - zombie.get("hunger_cost", 0))
     thirst = max(0, player["thirst"] - zombie.get("thirst_cost", 0))
@@ -123,9 +140,9 @@ def _one_fight(player, zombie, weapon, rng):
             if effects[eff] <= 0:
                 del effects[eff]
         if z_hp <= 0:
-            return True
+            return True, max(0, start_hp - hp)
         if hp <= 0:
-            return False
+            return False, max(0, start_hp - hp)
         # --- zombie turn ---
         if rng.random() >= dodge:
             incoming = z_atk
@@ -143,8 +160,8 @@ def _one_fight(player, zombie, weapon, rng):
                 elif roll < 0.25 and "Stun" not in effects:
                     effects["Stun"] = 1
         if hp <= 0:
-            return False
-    return z_hp <= 0
+            return False, max(0, start_hp - hp)
+    return (z_hp <= 0), max(0, start_hp - hp)
 
 
 def _snapshot(game, weapon):
@@ -180,29 +197,93 @@ def fight_pct(game, zombie, weapon="__equipped__", sims=_SIMS, rng=_RNG):
     return round(100 * wins / sims)
 
 
-def escape_pct(game, zombie):
-    return round(100 * _FLEE_CHANCE)
+def fight_outcome(game, zombie, weapon="__equipped__", sims=_SIMS, rng=_RNG):
+    """win % plus the HP-loss distribution *given a win*, as a fraction
+    of max HP: {win_pct, p50_frac, p90_frac}. The two-axis `threat_tier`
+    / `weapon_verdict` read this — `P(win)` alone is not fight severity
+    (docs/COMBAT_MODEL_EXPERIMENTS.md exp 1/2)."""
+    if weapon == "__equipped__":
+        weapon = game.equipped_weapon
+    psnap, _ = _snapshot(game, weapon)
+    zsnap = _zsnap(zombie)
+    mx = max(1, game.max_health)
+    losses, wins = [], 0
+    for _ in range(sims):
+        won, lost = _simulate(psnap, zsnap, weapon, rng)
+        if won:
+            wins += 1
+            losses.append(min(lost, mx) / mx)
+    win_pct = round(100 * wins / sims)
+    if losses:
+        s = sorted(losses)
+        p50 = s[len(s) // 2]
+        p90 = s[min(len(s) - 1, int(len(s) * 0.9))]
+    else:
+        p50 = p90 = None
+    return {"win_pct": win_pct, "p50_frac": p50, "p90_frac": p90}
+
+
+def escape_pct(game, zombie, terrain=None):
+    """Resolved P(escape) for the encounter card. Delegates to
+    `src.escape_model` — the SAME function the real flee roll in
+    `combat_mixin` uses, so the number the player sees is the number
+    they get (docs/DESIGN_ESCAPE_MODEL.md, the trust constraint).
+    No longer a flat 50%."""
+    from src import escape_model
+    return round(100 * escape_model.escape_chance_for(game, zombie, terrain))
 
 
 THREAT_TIERS = ((85, "LOW"), (60, "MODERATE"), (35, "HIGH"),
                 (15, "SEVERE"), (0, "EXTREME"))
 
 
-def threat_tier(win_pct):
-    for floor, name in THREAT_TIERS:
-        if win_pct >= floor:
-            return name
-    return "EXTREME"
+def threat_tier(win_pct, cost_frac=None):
+    """Two axes (COMBAT_EXP2_RESULTS.md): how likely a win, and what a
+    win costs. A near-certain win that routinely near-kills you is NOT
+    `LOW`. `cost_frac` is the p90 HP-loss fraction from `fight_outcome`;
+    when omitted, falls back to the old P(win)-only brackets (kept so
+    `threat_tier(pct)` callers and fixtures still work)."""
+    if cost_frac is None:
+        for floor, name in THREAT_TIERS:
+            if win_pct >= floor:
+                return name
+        return "EXTREME"
+    if win_pct < 15:
+        return "EXTREME"
+    if win_pct < 35:
+        return "SEVERE"
+    if win_pct < 65:
+        return "HIGH"
+    # likely win — the cost axis decides
+    if cost_frac < 0.20:
+        return "LOW"
+    if cost_frac < 0.45:
+        return "MODERATE"
+    return "HIGH"
 
 
-def weapon_verdict(win_pct):
-    if win_pct >= 85:
+def weapon_verdict(win_pct, cost_frac=None):
+    """Two axes. "overkill" now requires a near-certain win AND a cheap
+    one; a likely-but-expensive win reads as "you'll win, but it'll
+    cost you". `cost_frac` = p50 HP-loss fraction; omitted → old
+    P(win)-only text."""
+    if cost_frac is None:
+        if win_pct >= 85:
+            return "overkill for this target"
+        if win_pct >= 60:
+            return "well suited to this target"
+        if win_pct >= 35:
+            return "adequate, but it'll cost you"
+        return "poorly suited to this target"
+    if win_pct < 35:
+        return "poorly suited to this target"
+    if win_pct < 65:
+        return "a real gamble with this weapon"
+    if cost_frac < 0.15:
         return "overkill for this target"
-    if win_pct >= 60:
-        return "well suited to this target"
-    if win_pct >= 35:
-        return "adequate, but it'll cost you"
-    return "poorly suited to this target"
+    if cost_frac < 0.35:
+        return "well suited, but it'll cost you"
+    return "a likely win — but expect to be near death"
 
 
 def all_weapon_forecasts(game, zombie, sims=_SIMS, rng=_RNG):
@@ -216,8 +297,9 @@ def all_weapon_forecasts(game, zombie, sims=_SIMS, rng=_RNG):
         weapons.append(w)
     out = []
     for w in weapons:
-        pct = fight_pct(game, zombie, weapon=w, sims=sims, rng=rng)
-        out.append((w, pct, weapon_verdict(pct)))
+        oc = fight_outcome(game, zombie, weapon=w, sims=sims, rng=rng)
+        out.append((w, oc["win_pct"],
+                    weapon_verdict(oc["win_pct"], oc["p50_frac"])))
     out.sort(key=lambda t: t[1], reverse=True)
     return out
 

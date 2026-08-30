@@ -18,6 +18,7 @@ from src.constants import BOLD, GREEN, RESET, STATUS_EFFECT_DAMAGE
 from src.items import MeleeWeapon, RangedWeapon
 from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representative
 from src.zombies import Zombie, ToxicZombie
+from src import escape_model
 
 
 class CombatMixin:
@@ -91,7 +92,9 @@ class CombatMixin:
             zombie = current_tile
         else:
             zombie = self._select_zombie_for_encounter()
-            
+
+        terrain = self._encounter_terrain(current_tile)
+
         # Combat is the loudest thing the exploration feed ever does -
         # a DANGER flare so the player stops reading it as prose
         # (docs/ATTENTION_SYSTEM_SPEC.md). The card's own numbers follow.
@@ -104,11 +107,17 @@ class CombatMixin:
         # loot math. Interactive ios get [f]/[e]/[w]; a bot io (no
         # `ask_combat_letter`) falls through to the old yes/no, so the
         # balance harness is byte-identical.
-        will_fight = (self._encounter_card(zombie) == "fight")
+        will_fight = (self._encounter_card(zombie, terrain) == "fight")
 
         if not will_fight:
-            # Implement fleeing logic with a certain chance of success
-            if random.random() < 0.5:  # Assuming a 50% success rate for fleeing
+            # docs/DESIGN_ESCAPE_MODEL.md: P(escape) is derived from the
+            # encounter (zombie speed class) + the survivor's state
+            # (Dex / fatigue / HP) + whether the terrain gives room to
+            # run - never a flat constant. The forecast card shows this
+            # same number (combat_forecast.escape_pct reads the same
+            # function). A slow Armored on open ground is highly
+            # escapable; the same Armored in a building is not.
+            if random.random() < escape_model.escape_chance_for(self, zombie, terrain):
                 self.announce_event(f"You got away from the {zombie.name}.",
                                     kind="success")
                 return  # Exit the method to avoid the fight
@@ -221,7 +230,17 @@ class CombatMixin:
         if self.health <= 0:
             self.io.say("You are critically wounded and unable to continue the fight!")
 
-    def _encounter_card(self, zombie):
+    def _encounter_terrain(self, current_tile=None):
+        """Terrain name at the encounter, for the escape model. A
+        map-placed zombie has overwritten its tile dict, so fall back to
+        None (escape_model treats an unknown terrain as 'reduced')."""
+        cell = current_tile
+        if not isinstance(cell, dict):
+            x, y = self.current_position
+            cell = self.map[y][x]
+        return cell.get('terrain') if isinstance(cell, dict) else None
+
+    def _encounter_card(self, zombie, terrain=None):
         """Show the encounter information card; return 'fight' | 'escape'.
         [w] opens the weapon stats window and re-shows the card - no turn
         passes. docs/COMBAT_INFO_SPEC.md. Changes no combat math.
@@ -240,17 +259,22 @@ class CombatMixin:
             w = self.equipped_weapon
             wname = w.name if w else "bare hands"
             wdmg = getattr(w, "damage", 0) if w else 0
-            fp = cf.fight_pct(self, zombie)
-            ep = cf.escape_pct(self, zombie)
+            oc = cf.fight_outcome(self, zombie)
+            fp = oc["win_pct"]
+            ep = cf.escape_pct(self, zombie, terrain)
+            tier = cf.threat_tier(fp, oc["p90_frac"])
             self.io.say("")
             self.io.say(f"  --- {zombie.name.upper()} ---")
             self.io.say(f"  {cf.danger_note(zombie)}")
-            self.io.say(f"  Threat:  {cf.threat_tier(fp)}")
+            self.io.say(f"  Threat:  {tier}")
             self.io.say(f"  With your {wname} ({wdmg} dmg):   "
                         f"Fight ~{fp}%    Escape ~{ep}%")
+            if oc["p90_frac"] is not None and fp >= 65 and oc["p90_frac"] >= 0.45:
+                self.io.say("  You'll probably win this - but expect to be "
+                            "near death by the end.")
             if fp < 50:
                 self.io.say("  If the escape fails, you're fighting it anyway.")
-            self.io.say(f"  Your weapon is {cf.weapon_verdict(fp)}.")
+            self.io.say(f"  Your weapon is {cf.weapon_verdict(fp, oc['p50_frac'])}.")
             bw = cf.better_weapon(self, zombie)
             if bw is not None:
                 self.io.say(f"  In your pack: {bw[0].name} (~{bw[1]}%) would help"

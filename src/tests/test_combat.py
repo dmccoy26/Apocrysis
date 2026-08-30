@@ -174,10 +174,10 @@ class TestCombatV3(unittest.TestCase):
         # midpoint (expeditions_completed=5, half of CAMPAIGN_LENGTH)
         # must sit strictly between its early (0.03) and late (0.25)
         # values, not jump straight to either endpoint.
-        from src.constants import CAMPAIGN_LENGTH
+        from src.constants import DIFFICULTY_RAMP_LENGTH
         with patch("builtins.print"):
             game = Apocrysis("SmoothTest", map_size=8, seed=5)
-        game.expeditions_completed = CAMPAIGN_LENGTH // 2
+        game.expeditions_completed = DIFFICULTY_RAMP_LENGTH // 2
 
         heavy_count = sum(
             1 for _ in range(1000)

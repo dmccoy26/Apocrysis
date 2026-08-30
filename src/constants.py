@@ -67,7 +67,16 @@ ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
 BASE_MAP_SIZE = 15
 MAP_GROWTH_PER_LEVEL = 3
 MAX_MAP_SIZE = 34
-CAMPAIGN_LENGTH = 10  # expeditions_completed value at which the campaign is considered beaten
+# The full World-1 arc: 5 chapters + finale (docs/APOCRYSIS_ROADMAP.md
+# section 9, docs/ROADMAP_STATUS.md). Expeditions 0..DIFFICULTY_RAMP_LENGTH
+# are the fresh-survivor-viable band; past that, deep expeditions are
+# inheritance-scaled (docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md).
+CAMPAIGN_LENGTH = 25  # expeditions_completed value at which the campaign is beaten
+# The combat / encounter difficulty ramp reaches full strength at this
+# many expeditions and HOLDS there - it is deliberately NOT tied to
+# CAMPAIGN_LENGTH, so extending the arc past 10 does not stretch (and
+# thereby soften) the frozen difficulty curve it was tuned against.
+DIFFICULTY_RAMP_LENGTH = 10
 
 BASE_TOWN_MIN_DISTANCE = 6
 TOWN_DISTANCE_GROWTH_PER_LEVEL = 2

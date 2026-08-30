@@ -45,9 +45,19 @@ class TestWorldTruthDAG(unittest.TestCase):
         for f in WORLD_FACTS:
             self.assertIn(f.thread, THREADS)
 
-    def test_chapters_are_1_or_2(self):
+    def test_chapters_in_arc_range(self):
+        # 5 chapters + a finale (chapter 6) - the full World-1 arc.
         for f in WORLD_FACTS:
-            self.assertIn(f.chapter, (1, 2))
+            self.assertIn(f.chapter, (1, 2, 3, 4, 5, 6))
+
+    def test_needs_never_point_forward_a_chapter(self):
+        # a fact may need earlier-or-same-chapter facts, never a later
+        # one - the DAG has to be answerable in chapter order.
+        for f in WORLD_FACTS:
+            for dep in f.needs:
+                self.assertLessEqual(
+                    _BY_ID[dep].chapter, f.chapter,
+                    f"CH{f.chapter} {f.id} needs later CH{_BY_ID[dep].chapter} {dep}")
 
     def test_milestone_ids_match_contract(self):
         got = {f.id for f in WORLD_FACTS if f.milestone}

@@ -15,7 +15,7 @@ from collections import deque
 import random
 
 from src.constants import (
-    BOLD, GREEN, RESET, CAMPAIGN_LENGTH,
+    BOLD, GREEN, RESET, CAMPAIGN_LENGTH, DIFFICULTY_RAMP_LENGTH,
     IMPASSABLE_TERRAIN,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
@@ -367,11 +367,13 @@ class WorldMixin:
         # zombies from that alone; finishing expeditions is what
         # brings in tougher composition.
         # Continuous interpolation between the early (t=0) and late
-        # (t=1, reached at CAMPAIGN_LENGTH) weight vectors, replacing
-        # the three hard brackets this used to jump between - see the
-        # campaign-simulation finding above for why a hard jump was a
-        # real problem, not just a style preference.
-        t = min(1.0, self.expeditions_completed / CAMPAIGN_LENGTH)
+        # (t=1, reached at DIFFICULTY_RAMP_LENGTH) weight vectors,
+        # replacing the three hard brackets this used to jump between -
+        # see the campaign-simulation finding above for why a hard jump
+        # was a real problem. The ramp is capped at DIFFICULTY_RAMP_LENGTH
+        # (not CAMPAIGN_LENGTH) so lengthening the arc doesn't soften the
+        # frozen curve (docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md).
+        t = min(1.0, self.expeditions_completed / DIFFICULTY_RAMP_LENGTH)
         # Order: Fresh, Regular, Heavy, Swift, Toxic, Armored.
         # v4: Heavy (100 HP) and Armored (120 HP) start at ZERO -
         # meeting one on expedition 0 with a 6-damage starter weapon

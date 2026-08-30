@@ -112,3 +112,52 @@ Atlas. `test_world_truth.py` is import-then-use — route it too. If
 either hits the known boundary (`dbc93715` multi-file / import-construct,
 `f7ee975b` large literal), log it, file/append the `atlas-self` todo,
 hand-write it. Do **not** shrink the DAG to make Atlas succeed.
+
+---
+
+## CH3–FIN authored (2026-08-30) — the full arc
+
+`truth.py` extended from 9 facts (CH1+CH2) to **23** — the whole "The
+Cordon" arc (`WORLD_TRUTH_CANDIDATES.md` candidate A). 14 new facts on
+the **`response`** thread:
+
+| chapter | facts | milestone |
+|---|---|---|
+| CH3 THE EVACUATION | `RESP_CORRIDORS_LED_OUT` → `RESP_NOT_ALL_REACHED` → `RESP_COMMS_CUT_DELIBERATE` → `RESP_CORDON_HELD_OUTSIDE` | **M3** (comms cut on purpose) |
+| CH4 THE RESPONSE | `RESP_PROTOCOL_SEVEN` → `RESP_SEAL_SCHEDULED` → `RESP_ONE_COMMAND` → `RESP_CONTAINMENT_WORKED` | **M5** (seal scheduled), **M6** (one command) |
+| CH5 THE LAST SIGNAL | `RESP_STILL_MONITORED` → `RESP_A_POST_TRANSMITS` · `RESP_CONSOLIDATION_HELD` → `RESP_PEOPLE_ALIVE` | **M8** (a post transmits), **M9** (people alive) |
+| FIN THE TRUTH | `RESP_THE_ORDER` → `RESP_THE_CHOICE` | — |
+
+**8 milestones** total (M1/M2/M4 from CH1-2 + the 5 above; M7 unused,
+matching the candidate). The DAG walks cleanly end-to-end via
+`next_target()` — 23 facts in chapter order, every fact carries a
+`DiscoveryTemplate` (`discovery.py`), every CH3-FIN fact × 4 seeds
+builds a valid targeted mystery.
+
+`needs` edges never point forward a chapter (`test_world_truth.py`
+`test_needs_never_point_forward_a_chapter`). `test_chapters_are_1_or_2`
+→ `test_chapters_in_arc_range` (1..6).
+
+**`RESP_THE_CHOICE`** states the ending fork (broadcast the truth past
+the cordon vs leave the settlement its silence) as a *fact the player
+establishes* — the ending *system* that acts on it (the choice UI, the
+two authored outcomes) is Phase E, not this pass.
+
+## Also this pass (campaign structure)
+
+- `CAMPAIGN_LENGTH` 10 → **25**; new `DIFFICULTY_RAMP_LENGTH = 10`
+  decouples the zombie difficulty curve from arc length (the frozen
+  curve is unchanged for exp 0–10 and holds at max after).
+- `campaign.py`: 6 chapter-intro lines + `_CHAPTER_BOUNDS` +
+  `chapter_for_expedition(n)` + `CHAPTER_TITLES`; `chapter_intro` keyed
+  to the chapter the depth falls in, pulled forward when the
+  investigation runs ahead (replaying early maps after deaths).
+- Bot: **7/8 full 25-expedition campaigns completed** (1 stuck at the
+  known expedition-9 combat wall).
+
+## Not in this pass — the three endgame *systems* (Phase E)
+
+Competing hypotheses (`knowledge.py` `self.hypothesis` → a set + a
+correction beat), the bespoke final expedition, and the ending choice
+(broadcast vs protect) acting on `RESP_THE_CHOICE`. Each is an engine
+change, separately specced.

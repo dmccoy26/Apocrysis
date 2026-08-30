@@ -42,4 +42,61 @@ DISCOVERY_TEMPLATES = {
     "DEAD_INFECTION_PREDATES_EVAC": (
         DiscoveryTemplate("DEAD_INFECTION_PREDATES_EVAC", "rail_tunnel"),
     ),
+
+    # CH3 - THE EVACUATION
+    "RESP_CORRIDORS_LED_OUT": (
+        DiscoveryTemplate("RESP_CORRIDORS_LED_OUT", "evac_corridor"),
+    ),
+    "RESP_NOT_ALL_REACHED": (
+        DiscoveryTemplate("RESP_NOT_ALL_REACHED", "rail_tunnel"),
+        DiscoveryTemplate("RESP_NOT_ALL_REACHED", "service_route"),
+    ),
+    "RESP_COMMS_CUT_DELIBERATE": (
+        DiscoveryTemplate("RESP_COMMS_CUT_DELIBERATE", "radio_tower"),
+    ),
+    "RESP_CORDON_HELD_OUTSIDE": (
+        DiscoveryTemplate("RESP_CORDON_HELD_OUTSIDE", "mountain_pass"),
+        DiscoveryTemplate("RESP_CORDON_HELD_OUTSIDE", "tidal_causeway"),
+    ),
+
+    # CH4 - THE RESPONSE
+    "RESP_PROTOCOL_SEVEN": (
+        DiscoveryTemplate("RESP_PROTOCOL_SEVEN", "service_route"),
+    ),
+    "RESP_SEAL_SCHEDULED": (
+        DiscoveryTemplate("RESP_SEAL_SCHEDULED", "dam_valves"),
+        DiscoveryTemplate("RESP_SEAL_SCHEDULED", "tidal_causeway"),
+    ),
+    "RESP_ONE_COMMAND": (
+        DiscoveryTemplate("RESP_ONE_COMMAND", "radio_tower"),
+        DiscoveryTemplate("RESP_ONE_COMMAND", "power_station"),
+    ),
+    "RESP_CONTAINMENT_WORKED": (
+        DiscoveryTemplate("RESP_CONTAINMENT_WORKED", "power_station"),
+    ),
+
+    # CH5 - THE LAST SIGNAL
+    "RESP_STILL_MONITORED": (
+        DiscoveryTemplate("RESP_STILL_MONITORED", "radio_tower"),
+    ),
+    "RESP_A_POST_TRANSMITS": (
+        DiscoveryTemplate("RESP_A_POST_TRANSMITS", "power_station"),
+        DiscoveryTemplate("RESP_A_POST_TRANSMITS", "radio_tower"),
+    ),
+    "RESP_CONSOLIDATION_HELD": (
+        DiscoveryTemplate("RESP_CONSOLIDATION_HELD", "boat_crossing"),
+        DiscoveryTemplate("RESP_CONSOLIDATION_HELD", "evac_corridor"),
+    ),
+    "RESP_PEOPLE_ALIVE": (
+        DiscoveryTemplate("RESP_PEOPLE_ALIVE", "airfield_plane"),
+    ),
+
+    # FIN - THE TRUTH
+    "RESP_THE_ORDER": (
+        DiscoveryTemplate("RESP_THE_ORDER", "dam_valves"),
+        DiscoveryTemplate("RESP_THE_ORDER", "radio_tower"),
+    ),
+    "RESP_THE_CHOICE": (
+        DiscoveryTemplate("RESP_THE_CHOICE", "radio_tower"),
+    ),
 }

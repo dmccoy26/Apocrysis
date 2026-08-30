@@ -10,31 +10,55 @@
 
 from src.constants import CAMPAIGN_LENGTH
 
-# One line per expedition tier (0..CAMPAIGN_LENGTH-1). The arc: you
-# start just trying to get clear of one valley, and by the end you're
-# reading the shape of what happened across a whole region.
+# The World-1 arc as 5 chapters + a finale ("The Cordon" -
+# docs/WORLD_TRUTH_CANDIDATES.md). One framing line per chapter; the
+# expedition loop underneath is unchanged. The arc moves from "get out
+# of this valley" to "you have read the whole operation, and it has a
+# transmitter that still works".
 _CHAPTERS = [
-    "You've been walking for a day. The map ends where the hills close in - and the road you came by is behind you, gone. Find the way out of this one.",
-    "Another valley, another dead end. You're starting to notice the pattern in how places fail: the road, the bridge, the water. Something to learn here.",
-    "The settlements are bigger now, and emptier. Whatever moved through cleared them methodically. Read the place. Find the seam.",
-    "You've done this enough times to trust the method: understand what a place was, and it tells you where it has to give.",
-    "Halfway. The country is getting harder to read - more history stacked on more history. Take your time.",
-    "You keep finding the same kinds of evidence in different hands. People were trying to tell each other something. Listen.",
-    "The maps you find now contradict each other. Someone was lying, or someone was wrong. Work out which.",
-    "Fewer survivors passed this way. The routes out are stranger, older - the obvious ones were used up long ago.",
-    "Almost through. Every valley has had a way out for someone who understood it. This one does too.",
-    "Last one. Whatever this whole region was - and you've seen most of it now - this is where you finally get clear of it.",
+    # CH1 - THE SILENCE
+    "You've been walking for a day. The map ends where the hills close in, and the road you came by is gone behind you. No people. Find the way out of this one, and start reading why it's empty.",
+    # CH2 - THE INFECTED
+    "The settlements are bigger now, and the infected wear the valley's own clothes. This was a place that emptied on purpose - and something was loose here before it did. Find the seam. Find where it started.",
+    # CH3 - THE EVACUATION
+    "You've seen enough marshalling yards now to know the shape of it: signed corridors, supply caches, a whole region walked out along a handful of roads. Follow one. See where it was meant to lead - and where the manifests stop.",
+    # CH4 - THE RESPONSE
+    "The corridors closed on a date, not in a panic. Somebody set that date. Every record you pull now has a signature on it; you're starting to recognise the hand. Work out who ran this, and when they decided how it ended.",
+    # CH5 - THE LAST SIGNAL
+    "The cordon frequency is still live - someone outside has been listening the whole time. And something inside the valley is still transmitting back. Find it. Find out whether anyone is still here to answer.",
+    # FIN - THE TRUTH
+    "The regional command centre is ahead, and its transmitter still reaches past the cordon. You know what the order said now. There are people who held the line, still waiting. One last walk in - and then a choice about what leaves this valley with you.",
 ]
+
+# Lowest `expeditions_completed` (0-indexed) at which each chapter
+# begins. CH1 exp 0-4, CH2 5-8, CH3 9-13, CH4 14-18, CH5 19-23, FIN 24.
+_CHAPTER_BOUNDS = (0, 5, 9, 14, 19, 24)
+CHAPTER_TITLES = ("THE SILENCE", "THE INFECTED", "THE EVACUATION",
+                  "THE RESPONSE", "THE LAST SIGNAL", "THE TRUTH")
+
+
+def chapter_for_expedition(expeditions_completed):
+    """1-based chapter index (1..6) for a given expedition depth."""
+    i = 1
+    for lo in _CHAPTER_BOUNDS:
+        if expeditions_completed >= lo:
+            i = _CHAPTER_BOUNDS.index(lo) + 1
+    return i
 
 
 def chapter_intro(expeditions_completed, milestones_known=0):
-    exp_i = max(0, min(expeditions_completed, len(_CHAPTERS) - 1))
-    if milestones_known > 0:
-        i = min(len(_CHAPTERS) - 1, max(exp_i, milestones_known))
-    else:
-        i = exp_i
+    """The short line at the start of an expedition. Keyed to the chapter
+    the depth falls in, but the investigation can run ahead of the raw
+    count (replaying early maps after deaths) - so a survivor who has
+    surfaced more milestones than their depth implies is shown the
+    chapter their understanding has reached, never one behind it."""
+    by_depth = chapter_for_expedition(expeditions_completed)
+    # ~1 milestone per chapter of progress; let it pull the framing
+    # forward but never past the finale.
+    by_investigation = 1 + max(0, milestones_known - 1)
+    ch = min(len(_CHAPTERS), max(by_depth, by_investigation))
     n = expeditions_completed + 1
-    return f"-- Expedition {n} of {CAMPAIGN_LENGTH} --\n{_CHAPTERS[i]}"
+    return f"-- Expedition {n} of {CAMPAIGN_LENGTH} --\n{_CHAPTERS[ch - 1]}"
 
 
 def campaign_retrospective(used_mechanisms):

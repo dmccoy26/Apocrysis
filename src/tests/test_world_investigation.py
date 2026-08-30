@@ -279,12 +279,14 @@ class TestFullLifecycle(_ProfileTest):
             else:
                 self.assertNotIn("A PIECE FALLS INTO PLACE", banner)
 
-        # framing has advanced with the milestone
-        ms = 1  # only DIS_ORGANISED is a milestone among the four
-        framed = chapter_intro(1, ms)  # replaying early, exp count low
-        framed_line = framed.split("\n", 1)[1]
-        from src.campaign import _CHAPTERS
-        self.assertEqual(framed_line, _CHAPTERS[max(1, ms)])
+        # framing runs off the investigation, not the raw count: a
+        # survivor replaying expedition 1 who has surfaced 3 milestones
+        # is shown a later chapter than depth alone would give.
+        from src.campaign import _CHAPTERS, chapter_for_expedition
+        base = chapter_intro(1, 0).split("\n", 1)[1]
+        self.assertEqual(base, _CHAPTERS[chapter_for_expedition(1) - 1])
+        ahead = chapter_intro(1, 3).split("\n", 1)[1]
+        self.assertEqual(ahead, _CHAPTERS[2])   # 1 + (3-1) = chapter 3
 
         # --- DEATH: a new survivor picks up the profile ---
         tmp = os.path.join(self._tmp, "life.json")

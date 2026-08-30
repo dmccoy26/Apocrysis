@@ -160,6 +160,60 @@ HP lost, had-to-fight-after-failed-escape). Cross-tabulate.
   deferred *escape-informed-by-threat* finding — the current "Fight
   ~0% / Escape ~50%" pairing is the incoherence runs 4–7 kept hitting.
 
+### RESULTS — run 2026-08-30 (`tools/forecast_calibration.py`, full report in `COMBAT_EXP2_RESULTS.md`)
+
+1728 cells (weapon × zombie × level × armor × condition × elite),
+3000 sims each. Grouped by the label the card would show:
+
+**Current forecast — `threat_tier(P(win))` only:**
+
+| tier | n | P(win) range | p90 HP-loss median | p90 HP-loss range |
+|---|---|---|---|---|
+| LOW | 1151 | 85–100% | **27%** | **2–98%** |
+| MODERATE | 39 | 60–84% | 94% | 72–99% |
+| HIGH | 37 | 35–59% | 94% | 87–99% |
+| SEVERE | 28 | 15–34% | 96% | 85–99% |
+| EXTREME | 473 | 0–14% | 94% | 62–100% |
+
+**The category error, made visible:** the `LOW` bucket contains fights
+that cost anywhere from 2% to 98% of max HP. The label reports P(win)
+and says *nothing* about cost. `MODERATE` ("well suited") sits at a
+p90 loss of 94%. **646 / 1728 cells break their label's promise.**
+
+**Proposed forecast — two axes: `P(win)` × cost-of-winning (p90):**
+
+| tier | n | P(win) range | p90 HP-loss median | p90 HP-loss range |
+|---|---|---|---|---|
+| LOW | 446 | 100% | 12% | **2–19%** |
+| MODERATE | 404 | 100% | 31% | **20–45%** |
+| HIGH | 377 | 35–100% | 69% | 45–99% |
+| SEVERE | 28 | 15–34% | 96% | 85–99% |
+| EXTREME | 473 | 0–14% | 94% | 62–100% |
+
+The `LOW` and `MODERATE` buckets are now tight and honest — LOW means
+"trivial", MODERATE means "you'll win, but it'll cost you". Run-7
+case A (Starter vs Regular L1, p90 66%) moves `LOW → HIGH` ("likely
+win — and likely near death"). The two-axis model fixes it with **no
+balance change** — same simulation, richer label.
+
+*Open refinement:* the proposed `HIGH` spans P(win) 35–100% (it merges
+"coin-flip win" and "likely win but near-death"). The tier *word* is
+the same; the verdict string differentiates them (`"a real gamble"` vs
+`"you'll likely win — and likely be near death"`). Splitting the tier
+is possible but the merge matches the design table's intent
+("genuine decision" / "dangerous despite likely win" are both "stop").
+
+**`escape_pct`:** flat 50% for every zombie
+(`round(100 * _FLEE_CHANCE)`, `_FLEE_CHANCE = 0.50`). There is no
+per-zombie value, so "escape ~X% → flee succeeds ~X% for this zombie"
+cannot be evaluated — X does not vary. Making it real is a **model**
+change (below / experiment 3), not calibration.
+
+**Verdict:** rewrite `threat_tier` / `weapon_verdict` to the two-axis
+form **before** `DESIGN_ATTENTION_LANGUAGE.md`'s level derivation
+consumes the forecast — otherwise the L0–L3 machinery is built on a
+forecast that still calls a 91%-win / 78%-cost fight `LOW`.
+
 ---
 
 ## Experiment 3 — the difficulty ramp

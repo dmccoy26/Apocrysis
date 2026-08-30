@@ -127,13 +127,23 @@ the clean demonstration of why it matters.
 
 ## Sequencing
 
-1. Write the three interface specs + the combat-experiments doc
-   (these files). Each must pass its own "test against real run-7
-   examples" section before it is considered done.
-2. Run the combat-model simulations (they need `tools/balance_autoplay`
-   +/- new instrumentation, not more blind playtesting).
-3. Implement against the specs — attention first (it is the missing
-   piece and the run-7 killer), then spatial-language refinements,
-   then the interaction-inference candidates.
-4. The perceived-bot A/B (`tools/tui_autoplay.py --nav-phrasing`)
+1. **Write the specs** — the three interface specs + the
+   combat-experiments doc. ✓ done.
+2. **Run the combat-model simulations.** ✓ done —
+   `COMBAT_EXP{1,2,3}_RESULTS.md`. They isolated three combat layers
+   (outcome / cost / escape) and found the first cliff (tier-2
+   Armored, `DDR_ARMORED_ZOMBIE.md`).
+3. **Combat design + model decisions** — `DDR_ARMORED_ZOMBIE.md`
+   Phases 1–2. What does an Armored Zombie at tier 2 mean, and is
+   escape a first-class forecast signal (proposed: yes)? **This is a
+   decision, not code**, and it blocks step 4.
+4. **Forecast rewrite** — `src/combat_forecast.py`: two-axis
+   `threat_tier` / `weapon_verdict`, `escape_pct` as a real function.
+   Validate against the `COMBAT_EXP1/2` fixtures. First `src/` change
+   of the implementation phase.
+5. **Implement the interface specs** — attention first (it is the
+   missing piece and the run-7 killer, and it now has a trustworthy
+   forecast to consume), then spatial-language refinements, then the
+   interaction-inference candidates.
+6. The perceived-bot A/B (`tools/tui_autoplay.py --nav-phrasing`)
    validates the spatial-language change with numbers.

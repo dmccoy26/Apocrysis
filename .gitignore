@@ -7,6 +7,14 @@ __pycache__/
 # under this one root - nothing runtime-generated lands in the repo.
 .apocrysis/
 
+# Design notes, phase specs, investigation write-ups, session handoffs.
+# Working notes for building the game, not the game - kept on disk, out
+# of version control.
+docs/
+
+# Generated experiment artifacts (tools/scale_report.py output).
+tools/*_matrix.json
+
 # Atlas's own tooling output for this project (bugs/decisions/lessons/
 # repair history) - not game source, kept out of this repo
 memory/

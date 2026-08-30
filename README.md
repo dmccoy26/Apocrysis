@@ -114,6 +114,11 @@ there's no command to "confirm" anything.
 
 ## For developers
 
+> `docs/` (design notes, phase specs, investigation write-ups, session
+> handoffs) is **not version-controlled** — it lives on disk beside the
+> source as working notes. The links below resolve in a local checkout
+> that has it.
+
 - **Start here**: [`docs/SESSION_HANDOFF.md`](docs/SESSION_HANDOFF.md)
   and [`docs/ROADMAP_STATUS.md`](docs/ROADMAP_STATUS.md) — the current
   state, the doc map, and the reading order. Phases A

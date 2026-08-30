@@ -253,13 +253,24 @@ class TestInvestigationScreen(_ProfileTest):
                        "milestone=", "f_closed"):
             self.assertNotIn(banned, out)
 
-    def test_screen_hides_unknown_fact_statements(self):
+    def test_screen_hides_unknown_fact_statements_but_names_the_next_lead(self):
         g = Apocrysis("Scr3", seed=1, io=_IO())  # nothing known
         g.io.log.clear()
         g.world_investigation_screen()
         out = "\n".join(g.io.log)
-        self.assertNotIn("Most people left", out)   # unknown -> not spoiled
-        self.assertIn("more to piece together", out)
+        # audit 1a: an unknown fact's full statement is still not spoiled...
+        self.assertNotIn("Most people left", out)
+        # ...but the eligible next lead IS named (what evidence remains),
+        # and deeper unknowns are only counted.
+        self.assertIn("how few bodies there are", out)      # DIS_FEW_REMAINS.lead
+        self.assertIn("further, deeper in", out)
+        self.assertIn("NEXT", out)
+
+    def test_screen_leads_are_short_handles_not_full_statements(self):
+        g = Apocrysis("Scr4", seed=1, io=_IO())
+        for f in WORLD_FACTS:
+            self.assertTrue(f.lead, f"{f.id} has no lead")
+            self.assertLessEqual(len(f.lead.split()), 9, f"{f.id} lead too long")
 
 
 class TestInvestigationDrivenTargeting(_ProfileTest):

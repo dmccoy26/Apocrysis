@@ -476,9 +476,11 @@ def _objective_steps(p, m, k):
 
 
 def _investigation_strip(p):
-    """A.5.1: a compact, always-visible read of the World Investigation -
-    milestone count + per-thread progress. Thread titles only, never
-    ids. Empty when the world carries no facts (bare test worlds)."""
+    """A.5.1 / audit 1a: a compact, always-visible read of the World
+    Investigation, built so the player can answer four questions -
+    what do I know, what am I missing, what should I do next, can this
+    expedition make progress. Thread titles + fact *leads*, never ids.
+    Empty when the world carries no facts (bare test worlds)."""
     wi = getattr(p, "world_investigation", None)
     if wi is None or not wi.all_facts():
         return []
@@ -490,28 +492,49 @@ def _investigation_strip(p):
     if lore_n:
         head += f"   [cyan]● {lore_n}[/cyan]"
     out = [head]
-    # B3: which thread THIS expedition advances - so `THE RESPONSE 0/14`
-    # is a live objective, not a scoreboard. The mystery is bound to one
-    # WorldFact (generate_map targets wi.next_target()); that fact's
-    # thread is what this run is piecing together.
+
+    # which thread THIS expedition advances, and the exact fact it can
+    # establish. The mystery is bound to one WorldFact (generate_map
+    # targets wi.next_target()); that fact's thread is the live one.
     _m = getattr(p, "mystery", None)
-    _active_thread = None
     _fid = getattr(_m, "world_fact_id", None) if _m is not None else None
-    if _fid:
-        _f = wi.fact(_fid) if hasattr(wi, "fact") else None
-        _active_thread = getattr(_f, "thread", None)
+    _run_fact = wi.fact(_fid) if (_fid and hasattr(wi, "fact")) else None
+    _active_thread = getattr(_run_fact, "thread", None)
+
     for thread, (known, total) in wi.thread_progress().items():
-        title, question = titles.get(thread, (thread.upper(), ""))
+        title = titles.get(thread, (thread.upper(), ""))[0]
         n = 4
         filled = 0 if not total else round(n * known / total)
         bar = "█" * filled + "░" * (n - filled)
         mark = "[yellow]▸[/yellow] " if thread == _active_thread else "  "
         out.append(f"{mark}{title}   {bar}  {known}/{total}")
+
     if _active_thread:
-        _q = titles.get(_active_thread, ("", ""))[1]
-        out.append(f"  [{_DIM}]this run:[/] {_q}"
-                   if _q else f"  [{_DIM}]this run advances this thread[/]")
-    # E.1: the working theory, one line, wrapped short.
+        facts = [f for f in wi.all_facts() if f.thread == _active_thread]
+        q = titles.get(_active_thread, ("", ""))[1]
+        if q:
+            out.append(f"  [{_DIM}]{q}[/]")
+        # WHAT I KNOW - the last few established leads on this thread
+        known_leads = [f.lead or f.id for f in facts if wi.is_known(f.id)]
+        if len(known_leads) > 3:
+            out.append(f"  [green]✓[/green] [{_DIM}]+{len(known_leads) - 3} "
+                       f"earlier[/]")
+        for lead in known_leads[-3:]:
+            out.append(f"  [green]✓[/green] [{_DIM}]{lead}[/]")
+        # WHAT'S NEXT + CAN THIS RUN ADVANCE IT - the fact this
+        # expedition is bound to, if it's still open; else the next
+        # eligible lead on the thread.
+        eligible = {f.id for f in wi.eligible()}
+        if _run_fact is not None and not wi.is_known(_run_fact.id):
+            out.append(f"  [yellow]▸ this run:[/] [yellow]"
+                       f"{_run_fact.lead or _run_fact.id}[/]")
+        else:
+            nxt = next((f for f in facts
+                        if f.id in eligible and not wi.is_known(f.id)), None)
+            if nxt is not None:
+                out.append(f"  [yellow]○ next:[/] {nxt.lead or nxt.id}")
+
+    # the working theory, one line, wrapped short.
     _hyp = wi.current_hypothesis() if hasattr(wi, "current_hypothesis") else None
     if _hyp is not None:
         _t = _hyp.statement

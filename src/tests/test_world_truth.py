@@ -45,6 +45,15 @@ class TestWorldTruthDAG(unittest.TestCase):
         for f in WORLD_FACTS:
             self.assertIn(f.thread, THREADS)
 
+    def test_every_fact_has_a_short_player_lead(self):
+        # audit 1a: `lead` is the investigation-checklist line item -
+        # present, short, lowercase-ish player voice, never the id.
+        for f in WORLD_FACTS:
+            self.assertTrue(f.lead, f"{f.id} has no lead")
+            self.assertLessEqual(len(f.lead.split()), 9, f"{f.id} lead too long")
+            self.assertNotIn("_", f.lead, f"{f.id} lead leaks an id")
+            self.assertNotEqual(f.lead, f.statement)
+
     def test_chapters_in_arc_range(self):
         # 5 chapters + a finale (chapter 6) - the full World-1 arc.
         for f in WORLD_FACTS:

@@ -5,7 +5,7 @@ import random
 import shutil
 
 from src.constants import (BOLD, CYAN, GREEN, RED, RESET, YELLOW, BLUE,
-                           MAGENTA, ORANGE, TERRAIN_COLOR)
+                           MAGENTA, ORANGE, GREY, TERRAIN_COLOR)
 from src.items import RangedWeapon, format_weapon_list, format_armor_list
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (Zombie, FreshZombie, RegularZombie, HeavyZombie,
@@ -1039,10 +1039,12 @@ class UIMixin:
             self.io.say("Nothing selected.")
 
     def world_investigation_screen(self):
-        """A.4.1 - what this campaign has pieced together about the
-        world. Reads WorldInvestigation; never re-derives the DAG.
-        Player-facing text only - thread titles + fact statements, no
-        schema vocabulary."""
+        """A.4.1 / audit 1a - what this campaign has pieced together, and
+        what it's still missing. Reads WorldInvestigation; never
+        re-derives the DAG. Player-facing text only - thread titles,
+        fact statements, and the short `lead` handles, no schema
+        vocabulary. The player should leave this screen able to say
+        what they know, what evidence remains, and what advances it."""
         wi = getattr(self, "world_investigation", None)
         if wi is None or not wi.all_facts():
             self.io.say("\nYou don't have enough yet to say what happened here.")
@@ -1050,6 +1052,13 @@ class UIMixin:
         titles = self.world.prose.get("thread_titles", {})
         prog = wi.thread_progress()
         ms = len(wi.milestones_known())
+        eligible = {f.id for f in wi.eligible()}
+
+        # which fact THIS expedition can establish (generate_map bound
+        # the mystery to wi.next_target()).
+        _m = getattr(self, "mystery", None)
+        _run_fid = getattr(_m, "world_fact_id", None) if _m is not None else None
+        _run_fact = wi.fact(_run_fid) if _run_fid else None
 
         self.io.say(f"\n{BOLD}{CYAN}╔═══ THE APOCRYSIS ═══╗{RESET}")
         self.io.say(f"  {ms} milestone{'s' if ms != 1 else ''} understood")
@@ -1058,6 +1067,7 @@ class UIMixin:
         _hyp = wi.current_hypothesis()
         if _hyp is not None:
             self.io.say(f"  {YELLOW}What you think happened:{RESET} {_hyp.statement}")
+
         seen_threads = []
         for f in wi.all_facts():
             if f.thread not in seen_threads:
@@ -1071,18 +1081,38 @@ class UIMixin:
             self.io.say(f"\n  {BOLD}{title}{RESET}   {bar}  {known}/{total}")
             if question:
                 self.io.say(f"  {question}")
-            unknown = 0
+            deferred = 0
             for f in wi.all_facts():
                 if f.thread != thread:
                     continue
                 st = wi.status(f.id)
-                if st == "unknown":
-                    unknown += 1
-                    continue
-                mark = "✓" if st == "known" else "·"
-                self.io.say(f"    {mark} {f.statement}")
-            if unknown:
-                self.io.say(f"    ? {unknown} more to piece together")
+                if st == "known":
+                    self.io.say(f"    {GREEN}✓{RESET} {f.statement}")
+                elif st == "suspected":
+                    self.io.say(f"    · {f.statement}")
+                elif f.id in eligible:
+                    # a lead you could pick up now - name it, so the
+                    # player knows what evidence remains (audit 1a).
+                    tag = (f"   {YELLOW}<- this expedition{RESET}"
+                           if _run_fact is not None and f.id == _run_fact.id
+                           else "")
+                    self.io.say(f"    {YELLOW}○{RESET} {f.lead or f.id}{tag}")
+                else:
+                    deferred += 1
+            if deferred:
+                self.io.say(f"    {GREY}? {deferred} further, deeper in{RESET}")
+
+        # NEXT - the single most useful thing to chase now.
+        if _run_fact is not None and not wi.is_known(_run_fact.id):
+            self.io.say(f"\n  {BOLD}NEXT{RESET}  this expedition can establish: "
+                        f"{_run_fact.lead or _run_fact.id}")
+            self.io.say(f"  {GREY}find the way out - solving it is what pieces "
+                        f"this together.{RESET}")
+        elif eligible:
+            _nx = next((f for f in wi.all_facts() if f.id in eligible), None)
+            if _nx is not None:
+                self.io.say(f"\n  {BOLD}NEXT{RESET}  a lead you can pick up: "
+                            f"{_nx.lead or _nx.id}")
 
         # B.2c: the concrete lessons carried between survivors.
         sk = getattr(self, "survivor_knowledge", None)

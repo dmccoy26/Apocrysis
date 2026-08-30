@@ -722,8 +722,15 @@ class WorldMixin:
         if getattr(self, 'mystery', None) is not None:
             self._mystery_tide_tick()
 
-        # Fatigue increases with movement.
-        self.fatigue = min(100, self.fatigue + 5)
+        # Fatigue increases with movement. 1d playtest: +5/move
+        # saturated fatigue to 100 inside the first ~15-20 moves on
+        # every map (maps are 24-30 tiles, an expedition is 40-80
+        # moves), so fatigue was a permanent combat tax, not a resource
+        # to manage. +2/move moves exhaustion out to ~40 moves - the
+        # back half of a long expedition - where one rest can still buy
+        # a fresh stretch. Nothing else changed (see
+        # docs/FATIGUE_INVESTIGATION_RESULTS.md, 1d section).
+        self.fatigue = min(100, self.fatigue + 2)
 
         self.io.say(f"Moved {direction}.")
 
@@ -816,7 +823,7 @@ class WorldMixin:
             elif terrain == 'water':
                 self.io.say("You wade through water. Movement is difficult."
                             if _first_visit else "More water. Slow going.")
-                self.fatigue = min(100, self.fatigue + 10) # Extra fatigue penalty for slow movement
+                self.fatigue = min(100, self.fatigue + 4) # slow-movement penalty (1d: 10 -> 4, so a water tile is ~+6 total not +15)
                 if self.rng.random() < 0.2:
                     self.health -= 5
                     self.io.say("The cold water chills you. You lost some health.")

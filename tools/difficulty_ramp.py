@@ -40,8 +40,11 @@ from src.items import MeleeWeapon
 from tools.combat_cost import _fight_detailed, _pstate, _zstate
 from tools.forecast_calibration import proposed
 from src import combat_forecast as cf
+from src import escape_model as em
 
-_FLEE = 0.50  # combat_mixin: if random.random() < 0.5
+# post-Phase-2 speed classes for the zombie types
+_SPEED = {"Fresh": "normal", "Regular": "normal", "Toxic": "normal",
+          "Heavy": "slow", "Armored": "slow", "Swift": "fast"}
 _ZNAMES = ["Fresh", "Regular", "Heavy", "Swift", "Toxic", "Armored"]
 _EARLY_W = [0.62, 0.26, 0.00, 0.10, 0.02, 0.00]
 _LATE_W = [0.10, 0.15, 0.25, 0.15, 0.15, 0.20]
@@ -101,15 +104,22 @@ def _evaluate(gear, zname, elite, sims):
     else:
         p90 = None
     cur = cf.threat_tier(pwin)
-    new_tier, new_verdict = proposed(pwin, p90)
+    new_tier, new_verdict = proposed(pwin, p90 if p90 is not None else None)
     p_death_if_fight = 1 - wins / sims
-    # min achievable death risk: fight, or flee (50%) then forced fight
-    min_death = min(p_death_if_fight, (1 - _FLEE) * p_death_if_fight)
+    # post-Phase-2: escape is a real function of zombie speed + survivor
+    # state + terrain, not a flat 50%. Best-play death risk = evade on
+    # OPEN ground; on failure you're forced to fight.
+    dex = 10 + max(0, gear["level"] - 1)
+    esc_open = em.escape_chance(_SPEED[zname], dex, 60, 0.6, "open")
+    esc_confined = em.escape_chance(_SPEED[zname], dex, 60, 0.6, "building")
+    min_death = (1 - esc_open) * p_death_if_fight
+    worst_terrain_death = (1 - esc_confined) * p_death_if_fight
     return {
         "zombie": ("Elite " if elite else "") + zname,
         "pwin": pwin, "p90": p90, "cur": cur,
         "new": new_tier, "verdict": new_verdict,
         "p_death_fight": p_death_if_fight, "min_death": min_death,
+        "esc_open": esc_open, "worst_terrain_death": worst_terrain_death,
     }
 
 
@@ -153,35 +163,35 @@ def main():
                 and worst[0] >= args.min_weight * 0.5:
             first_cliff = (tier, worst)
 
-    print(f"\n per-tier worst credible encounter (proposed tier · min death risk):\n")
+    print(f"\n per-tier worst credible encounter"
+          f"  (post-Phase-2: escape is a real model, not a coin flip):\n")
     print(f"  {'tier':>4}  {'zombie':<14}  {'spawn~':>6}  {'win%':>5}  "
-          f"{'p90':>5}  {'cur':<8}  {'proposed':<8}  {'P(die|fight)':>12}  {'min P(die)':>10}")
+          f"{'p90':>5}  {'proposed':<8}  {'P(die|fight)':>12}  "
+          f"{'escape(open)':>12}  {'P(die|evade open)':>17}  {'P(die|confined)':>15}")
     for tier in sorted(rows_by_tier):
         for wt, e in sorted(rows_by_tier[tier], key=lambda x: -x[1]["min_death"])[:3]:
             p90 = "—" if e["p90"] is None else f"{e['p90']*100:.0f}%"
-            mark = "  <<< first cliff" if first_cliff and tier == first_cliff[0] \
+            mark = "  <<< cliff" if first_cliff and tier == first_cliff[0] \
                 and e is first_cliff[1][1] else ""
             print(f"  {tier:>4}  {e['zombie']:<14}  {wt*100:>5.1f}%  {e['pwin']:>4}%  "
-                  f"{p90:>5}  {e['cur']:<8}  {e['new']:<8}  {e['p_death_fight']:>11.0%}  "
-                  f"{e['min_death']:>9.0%}{mark}")
+                  f"{p90:>5}  {e['new']:<8}  {e['p_death_fight']:>11.0%}  "
+                  f"{e['esc_open']:>11.0%}  {e['min_death']:>16.0%}  "
+                  f"{e['worst_terrain_death']:>14.0%}{mark}")
 
     print(f"\n{'=' * 84}")
     if first_cliff:
         tier, (wt, e) = first_cliff
-        print(f" FIRST CLIFF: expedition tier {tier} — a {e['zombie']} "
-              f"(spawns ~{wt*100:.0f}% of encounters) is proposed-{e['new']} "
-              f"with best realistic gear (level {curve[tier]['level']}, "
-              f"weapon {curve[tier]['weapon']} dmg, armor {curve[tier]['armor']}).")
-        print(f"   Fighting: {e['p_death_fight']:.0%} death.  "
-              f"Best case (flee, {_FLEE:.0%} success, else forced fight): "
-              f"{e['min_death']:.0%} death.  There is no credible avoidance path — "
-              "escape is a flat coin flip and failing it forces the fight.")
-        print(f"\n The design question (COMBAT_MODEL_EXPERIMENTS.md exp 3):")
-        print(f"   Is expedition {tier} SUPPOSED to contain a \"don't fight this\" enemy?")
-        print( "     YES -> the player needs a real escape / avoidance path "
-               "(escape_pct must stop being a coin flip; or a warning + room to run)")
-        print( "     NO  -> gate the Heavy/Armored later, lift the loot band, "
-               "or soften the composition ramp before this tier")
+        print(f" HARDEST ENCOUNTER: tier {tier} — a {e['zombie']} "
+              f"(~{wt*100:.0f}% of encounters), proposed-{e['new']}, "
+              f"win {e['pwin']}% with best realistic gear "
+              f"(L{curve[tier]['level']}, weapon {curve[tier]['weapon']}, "
+              f"armor {curve[tier]['armor']}).")
+        print(f"   Fighting it: {e['p_death_fight']:.0%} death.")
+        print(f"   Evading on open ground: escape ~{e['esc_open']:.0%}  →  "
+              f"{e['min_death']:.0%} death — this is now a real avoidance path.")
+        print(f"   Caught in a building: {e['worst_terrain_death']:.0%} death — "
+              "the spatial-affordance work (avoid-tier placement + warning) "
+              "matters most here.")
     else:
         print(" No cliff found in the tiers sampled.")
 

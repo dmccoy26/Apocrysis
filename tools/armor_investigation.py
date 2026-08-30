@@ -39,15 +39,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.constants import ARMOR_TABLE, CAMPAIGN_LENGTH
 from src.game import Apocrysis
+from src.mixins.world_mixin import WorldMixin
 from tools.balance_autoplay import BotIO, _OBTAINED_ARMOR_RE
 
 _LOOT_BASE = ["food", "water", "medicine", "ammo", "weapon", "armor"]
-_ZONE_LOOT_BIAS = {
-    'rural':      {'armor': 0.5}, 'suburban': {'armor': 0.9},
-    'industrial': {'armor': 1.6}, 'downtown': {'armor': 1.2},
-    'wilderness': {'armor': 0.5},
-}
+# read the live bias table so this tool tracks the game, not a copy
+_ZONE_LOOT_BIAS = WorldMixin._ZONE_LOOT_BIAS
 _ALL_ZONES = list(_ZONE_LOOT_BIAS)
+# the intelligence>10 -> weapon override was removed (see
+# ARMOR_INVESTIGATION_RESULTS.md); availability() no longer models it.
+_HAS_INT_WEAPON_OVERRIDE = False
 
 
 # ============================================================
@@ -68,10 +69,9 @@ def availability(tier, zone, intelligence, has_map=True, has_flash=True,
     for lt in pool:
         weighted.extend([lt] * max(1, round(zbias.get(lt, 1.0) * 4)))
     p_armor_pick = weighted.count("armor") / len(weighted)
-    # the intelligence>10 override: p = int/100 chance the pick is
-    # forcibly rewritten to "weapon"
-    p_override = (intelligence / 100) if intelligence > 10 else 0.0
-    return p_armor_pick * (1 - p_override)
+    if _HAS_INT_WEAPON_OVERRIDE and intelligence > 10:
+        p_armor_pick *= (1 - intelligence / 100)
+    return p_armor_pick
 
 
 def reduction_distribution(tier):
@@ -229,33 +229,30 @@ def _diagnose(rows):
     if not rows:
         print("  (no data)")
         return
-    early = [r for r in rows if r[0] <= 4]
-    med_found = statistics.median([r[2] for r in early]) if early else 0
-    med_eq = statistics.median([r[4] for r in early]) if early else 0
-    med_own = statistics.median([r[3] for r in early]) if early else 0
-    gap_equip = med_own - med_eq
+    def med(tier_lo, tier_hi, idx):
+        vals = [r[idx] for r in rows if tier_lo <= r[0] <= tier_hi]
+        return statistics.median(vals) if vals else 0.0
     a_rural = availability(2, "rural", 12)
-    print(f"  A (availability): a loot roll at T2 in a rural zone becomes armor "
-          f"~{a_rural:.1%} of the time — armor is the RAREST of ~6 loot types "
-          f"there (bias 0.5×), and the int>10 rule converts more rolls to weapons.")
-    print(f"  B (acquisition):  early tiers find a median of {med_found:.1f} total "
-          f"reduction-points of armor per expedition.")
-    print(f"  C (equipping):    of {med_own:.1f} owned reduction, {med_eq:.1f} is "
-          f"worn — equip gap {gap_equip:.1f} "
-          + ("(negligible — the bot equips what it finds; NOT the bottleneck)"
-             if gap_equip < 1.0 else "(SIGNIFICANT — armor sits unequipped)"))
+    own_35 = med(3, 5, 3)
+    eq_35 = med(3, 5, 4)
+    own_67 = med(6, 7, 3)
+    eq_67 = med(6, 7, 4)
+    late_gap = med(9, 14, 3) - med(9, 14, 4)
+    print(f"  A (availability): post-change, a rural loot roll becomes armor "
+          f"~{a_rural:.0%} of the time — at parity with the other zones "
+          f"(the 0.5× penalty and the int>10→weapon override are removed).")
+    print(f"  B/C (accumulation): OWNED reduction reaches ~{own_35:.0f} by T3–5 "
+          f"and ~{own_67:.0f} by T6–7 (cumulative via inheritance). "
+          f"EQUIPPED tracks it (~{eq_35:.0f} / ~{eq_67:.0f}).")
+    print(f"  Late equip gap (T9–14): owned − equipped ≈ {late_gap:.1f} — "
+          "inherited armor not re-equipped after a death "
+          "(interaction-inference: auto-equip best armor on spawn; separate).")
     print()
-    if med_found < 2.0:
-        print("  → PRIMARY BOTTLENECK: ACQUISITION. The pieces barely drop. Even "
-              "with perfect equipping the early survivor can't assemble a "
-              "loadout. The lever is find_loot's armor weight / the zone bias / "
-              "the int>10->weapon override — NOT the ARMOR_TABLE min_expedition "
-              "bands (T0 armor is already available, it just doesn't appear).")
-    elif gap_equip >= 1.0:
-        print("  → PRIMARY BOTTLENECK: EQUIPPING. Pieces are found but not worn.")
-    else:
-        print("  → armor is found and worn but the reductions are too small — "
-              "the ARMOR_TABLE numbers or the reduction distribution is the lever.")
+    print("  → Acquisition was the bottleneck; the rural un-nerf + removing the "
+          "int→weapon override lifts the accumulation curve without touching "
+          "ARMOR_TABLE. The regression anchor (difficulty_ramp.py) is the "
+          "acceptance test: Heavy at T2–5 should be winnable-or-evadable while "
+          "the T2 Armored stays P(win) ~0%.")
 
 
 def _write_md(rows, path, n):

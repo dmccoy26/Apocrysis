@@ -883,23 +883,44 @@ class UIMixin:
         "success":    ("success",   ""),
     }
 
-    def announce_event(self, title, *body_lines, kind="info"):
+    # docs/DESIGN_ATTENTION_LANGUAGE.md — the interruption ladder.
+    # channel (kind) picks colour + glyph; LEVEL picks how hard it
+    # breaks the stream. Level defaults preserve the pre-spec
+    # behaviour (danger/story = banner, the rest = a coloured line);
+    # callers pass `level=` to grade an event by its actual
+    # consequence — the encounter card does this from the forecast.
+    _LEVEL_BY_CLASS = {"danger": 2, "story": 2, "warning": 1,
+                       "discovery": 1, "objective": 1, "success": 1,
+                       "info": 1}
+
+    def announce_event(self, title, *body_lines, kind="info", level=None):
         """One flare for a state change worth interrupting the scenery
-        for. `kind` names a semantic class (or an old alias) - the
-        renderer owns the colour, glyph and loudness. Only DANGER and
-        STORY interrupt with a banner; WARNING / DISCOVERY / SUCCESS /
-        OBJECTIVE are a single coloured line. See ATTENTION_SYSTEM_SPEC.
+        for. `kind` = the semantic channel; `level` (0–3) = how much to
+        interrupt:  L0 folds into the stream · L1 a coloured line · L2 a
+        banner · L3 a banner that must be acknowledged.
         """
         cls, prefix = self._KIND_ALIAS.get(kind, ("info", ""))
-        glyph, color, loud = self._ATTENTION[cls]
+        glyph, color, _loud = self._ATTENTION[cls]
+        if level is None:
+            level = self._LEVEL_BY_CLASS.get(cls, 1)
         head = title.upper() if cls in ("danger", "warning") else title
         rows = [f"{glyph} {prefix}{head}"] + [str(b) for b in body_lines]
         body = "\n".join(rows)
-        if loud:
-            rule = "═" * max(30, min(56, max(len(r) for r in rows) + 2))
-            self.io.say(f"\n{BOLD}{color}{rule}\n{body}\n{rule}{RESET}")
-        else:
+
+        if level >= 2:
+            width = (60 if level >= 3
+                     else max(30, min(56, max(len(r) for r in rows) + 2)))
+            rule = "═" * width
+            lead = "\n\n" if level >= 3 else "\n"
+            self.io.say(f"{lead}{BOLD}{color}{rule}\n{body}\n{rule}{RESET}")
+            if level >= 3:
+                self.io.ask("Press Enter to continue...")
+        elif level == 1:
             self.io.say(f"\n{BOLD}{color}{body}{RESET}")
+        else:  # L0 — one quiet line, folded into the scenery
+            tail = " — ".join(str(b) for b in body_lines)
+            line = f"{glyph} {head}" + (f" — {tail}" if tail else "")
+            self.io.say(f"{color}{line}{RESET}")
 
     def print_map(self):
         for line in self._render_map_lines():

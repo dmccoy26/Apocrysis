@@ -95,19 +95,33 @@ class CombatMixin:
 
         terrain = self._encounter_terrain(current_tile)
 
-        # Combat is the loudest thing the exploration feed ever does -
-        # a DANGER flare so the player stops reading it as prose
-        # (docs/ATTENTION_SYSTEM_SPEC.md). The card's own numbers follow.
-        self.announce_event(f"ZOMBIE — {zombie.name}",
-                            "Stop. This is a decision.", kind="danger")
+        # docs/DESIGN_ATTENTION_LANGUAGE.md — GRADE the encounter banner
+        # by its actual consequence, not a fixed DANGER flare. Run 7:
+        # ~8 identical `‼ ZOMBIE` banners for trivial fights trained the
+        # player to auto-fight the one that killed him. A LOW fight now
+        # barely interrupts; an EXTREME one stops the game.
+        # Only the interactive path can grade (the bot path must not
+        # touch the forecast - it draws from `random` and the balance
+        # harness must stay byte-identical).
+        interactive = hasattr(self.io, "ask_combat_letter")
+        outcome = None
+        if interactive:
+            from src import combat_forecast as cf
+            outcome = cf.fight_outcome(self, zombie)
+            hp_frac = self.health / max(1, self.max_health)
+            lvl = self._encounter_attention_level(outcome, hp_frac)
+        else:
+            lvl = 2   # unchanged non-interactive behaviour
+        self.announce_event(
+            f"ZOMBIE — {zombie.name}",
+            *(("Stop. This is a decision.",) if lvl >= 2 else ()),
+            kind="danger", level=lvl)
 
         # The encounter information card (docs/COMBAT_INFO_SPEC.md).
-        # PLAYER-INFORMATION only - it reads a forecast of the fight the
-        # loop below would run and changes NO combat / escape / XP /
-        # loot math. Interactive ios get [f]/[e]/[w]; a bot io (no
-        # `ask_combat_letter`) falls through to the old yes/no, so the
-        # balance harness is byte-identical.
-        will_fight = (self._encounter_card(zombie, terrain) == "fight")
+        # PLAYER-INFORMATION only - changes NO combat / escape / XP /
+        # loot math. Interactive ios get [f]/[e]/[w]; a bot io falls
+        # through to the old yes/no, so the balance harness is unchanged.
+        will_fight = (self._encounter_card(zombie, terrain, outcome) == "fight")
 
         if not will_fight:
             # docs/DESIGN_ESCAPE_MODEL.md: P(escape) is derived from the
@@ -230,6 +244,23 @@ class CombatMixin:
         if self.health <= 0:
             self.io.say("You are critically wounded and unable to continue the fight!")
 
+    def _encounter_attention_level(self, outcome, hp_frac):
+        """docs/DESIGN_ATTENTION_LANGUAGE.md — the danger-row mapping:
+        (P(win), cost, HP) -> interruption level 0..3."""
+        from src import combat_forecast as cf
+        fp = outcome["win_pct"]
+        p90 = outcome["p90_frac"]
+        if fp < 15:
+            return 3                                   # ~unwinnable
+        tier = cf.threat_tier(fp, p90)
+        if fp < 35 or tier == "SEVERE":
+            return 3 if hp_frac < 0.35 else 2
+        if fp < 65 or tier == "HIGH":
+            return 2                                   # a real decision
+        if tier == "MODERATE":
+            return 2 if hp_frac < 0.40 else 1
+        return 0 if hp_frac > 0.55 else 1              # LOW / trivial
+
     def _encounter_terrain(self, current_tile=None):
         """Terrain name at the encounter, for the escape model. A
         map-placed zombie has overwritten its tile dict, so fall back to
@@ -240,7 +271,7 @@ class CombatMixin:
             cell = self.map[y][x]
         return cell.get('terrain') if isinstance(cell, dict) else None
 
-    def _encounter_card(self, zombie, terrain=None):
+    def _encounter_card(self, zombie, terrain=None, outcome=None):
         """Show the encounter information card; return 'fight' | 'escape'.
         [w] opens the weapon stats window and re-shows the card - no turn
         passes. docs/COMBAT_INFO_SPEC.md. Changes no combat math.
@@ -259,7 +290,7 @@ class CombatMixin:
             w = self.equipped_weapon
             wname = w.name if w else "bare hands"
             wdmg = getattr(w, "damage", 0) if w else 0
-            oc = cf.fight_outcome(self, zombie)
+            oc = outcome if outcome is not None else cf.fight_outcome(self, zombie)
             fp = oc["win_pct"]
             ep = cf.escape_pct(self, zombie, terrain)
             tier = cf.threat_tier(fp, oc["p90_frac"])

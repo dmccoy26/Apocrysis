@@ -234,8 +234,30 @@ real escape probability, which is even simpler.)
 
 ## The Phase-2 completion gate
 
-Phase 2 is done — and `combat_forecast.py` may be touched — **only
-when all seven hold:**
+**STATUS: CLOSED (2026-08-30).** All seven hold — see below. Shipped
+in `src/escape_model.py`, `src/zombies.py` (speed classes),
+`combat_mixin` (flee roll + `_spot_threats` warning + placement),
+`world_mixin` (armor loot), `combat_forecast.py` (two-axis +
+`escape_pct` delegation), `src/tests/test_escape_model.py`.
+
+1. ✅ one `escape_model.escape_chance(...)` — flee roll and
+   `combat_forecast.escape_pct` both call it.
+2. ✅ R1–R6 (`test_escape_model.TestFixtures`).
+3. ✅ monotonicity matrix (`TestMonotonicity`).
+4. ✅ intrinsic / availability / resolved reported separately
+   (`escape_breakdown`; `TestFixtures.test_R4...`).
+5. ✅ bounded influence (`TestBoundedInfluence`).
+6. ✅ statistical trust (`TestTrust`).
+7. ✅ armor progression: rural/wilderness `0.5×` → `1.0×` +
+   `int>10→weapon` override removed; `difficulty_ramp.py` confirms
+   T2 Armored stays `P(win) ~0%` while its open-ground escape is
+   ~82% (`P(die | evade)` 50% → 18%) and a T2–5 Heavy is
+   winnable-or-evadable. Armor strength unchanged.
+
+---
+
+**(original gate criteria)** Phase 2 was done — and `combat_forecast.py`
+touchable — only when all seven held:
 
 1. **One** `escape_probability(...)` exists (conceptually + exercised
    by the harness); it is what the flee roll would call.

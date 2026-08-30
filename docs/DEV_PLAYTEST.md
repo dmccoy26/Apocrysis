@@ -251,3 +251,78 @@ panel's treatment to the investigation, and cut the filler that
 dilutes both. Still **do not build it yet** — run 7 (full 1→25
 straight-through) first, to see whether the finale lands on
 accumulation.
+
+---
+
+## Emerging conclusion (owner, after run 6) — the design target
+
+**The problem is not that Apocrysis lacks guidance. It has a working
+guidance language. The problem is that guidance is inconsistently
+expressed and loses salience over time.**
+
+- Run 5: abstract directional instruction — "south-west" — failed
+  repeatedly.
+- Run 6: concrete, named, persistent, actionable instruction —
+  `NEW LEAD → marked on your map → do X` — worked initially.
+- Then: even the successful pattern degraded once the player fell
+  back into the exploration loop.
+
+That is a much better target than "make the compass better."
+
+### The post-playtest design question
+
+Not *"how do we add more UI?"* but *"how should Apocrysis communicate
+importance, action, and urgency consistently across the whole
+experience?"*
+
+The ESCAPE panel already demonstrates one successful pattern:
+
+> named thing → explicit action → persistent visibility → map
+> association → progress checklist
+
+The attention system extends that vocabulary into the story stream —
+one consistent class per line, and **ordinary movement stays
+ordinary** so there is a real signal-to-noise hierarchy:
+
+```
+◆ OBJECTIVE   Go to the Ranger Depot.
+✦ DISCOVERY   NEW LEAD — Ranger Depot marked on your map.
+⚠ WARNING     LOW WATER — 8 remaining.
+‼ DANGER      ZOMBIE — Elite Heavy — EXTREME THREAT
+✓ SUCCESS     You found the jerrycan.
+```
+
+### The deeper thing run 6 exposed — the attention *lifecycle*
+
+The jerrycan case: the game *did* communicate the objective. The
+player found it, understood it, had a named destination, a direction,
+and the route six tiles away — and still spent ~78 turns elsewhere.
+
+So the fix is not merely "display the objective." The question is
+**what happens when the player stops pursuing it?** That likely needs
+a lifecycle, not just coloured text:
+
+```
+NEW → ACTIVE → REMINDER → URGENT → COMPLETE
+```
+
+Not per-turn nagging. But the game needs to distinguish *"this is
+still the thing you need to do"* from *"this was an interesting thing
+you learned twelve turns ago."* Answer this after run 7.
+
+**Do not build any of this yet.**
+
+### The three tests, clean purposes
+
+| run | question |
+|---|---|
+| 1–5 | Does the world / exploration work, and what repeatedly confuses the player? |
+| 6 | Does the late-game local story work when entered coherently? |
+| 7 | Does the whole accumulated story actually land? |
+
+Run 7 is played **as a player, not as a debugger.** Do not compensate
+for what we have found. Miss what a player would miss. Get bored where
+a player would. Not understanding why you are somewhere is evidence.
+
+The playtest phase is doing its job: not telling us what code to
+write, but showing us what the game is actually communicating.

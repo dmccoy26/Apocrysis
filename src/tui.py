@@ -24,9 +24,11 @@ from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, ScrollableContainer
-from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
+from textual.widgets import (Header, Footer, Static, Input, RichLog,
+                             ProgressBar, Button, Label, RadioSet, RadioButton)
 
 from src.game import Apocrysis
+from src.worlds import get_world, world_ids
 from src.constants import stat_band, CAMPAIGN_LENGTH
 from src.campaign import chapter_for_expedition, CHAPTER_TITLES
 from src.mixins.persistence_mixin import profile_filename_for_name
@@ -753,7 +755,7 @@ class GameScreen(Screen):
     ]
 
     def __init__(self, *, game_name=None, level=1, seed=None, hardcore=False,
-                 start_log=False, dev=None):
+                 start_log=False, dev=None, world=None):
         # Keyword-only game params: Screen.__init__ already claims the
         # positional `name` (a DOM id concept), so the survivor name
         # comes in as `game_name` and is stashed as self._name exactly
@@ -763,6 +765,10 @@ class GameScreen(Screen):
         self._level = level
         self._seed = seed
         self._hardcore = hardcore
+        # G3.2: the world id for a NEW campaign. Ignored when a profile
+        # is loaded - apply_profile() re-points self.world from the
+        # profile's own world_id.
+        self._world = world
         self._start_log = start_log
         # --dev: story-inspection harness (src/dev.py). Sandboxed.
         self._dev = dev
@@ -916,6 +922,7 @@ class GameScreen(Screen):
                 level=self._level,
                 seed=self._seed,
                 hardcore=self._hardcore,
+                world=self._world,
                 io=self.io,
             )
         # G3: the in-game `menu` command calls this hook (ui_mixin's
@@ -1412,16 +1419,26 @@ class GameScreen(Screen):
         self._focus_command_box()
 
 
-class MenuScreen(Screen):
-    """G3 milestone 1: a real screen that the in-game `menu` command
-    exits into. Deliberately minimal - it renders the five top-level
-    choices so the shape of the shell is visible from the first screen,
-    but only QUIT is wired. CONTINUE / NEW CAMPAIGN / LOAD GAME /
-    SETTINGS are the next G3 steps (campaign management), layered onto
-    this navigation primitive rather than built alongside it.
+def _ago(ts):
+    """A coarse 'last played' - the menu doesn't need precision."""
+    import time
+    d = time.time() - ts
+    if d < 3600:
+        return "just now"
+    if d < 86400:
+        return "today"
+    n = int(d // 86400)
+    return "yesterday" if n == 1 else f"{n} days ago"
 
-    Knows the registry-shaped concept of "a campaign" but no world's
-    fiction - adding World 3 must never touch this class."""
+
+class MenuScreen(Screen):
+    """The shell's home screen. Wired in G3.1 (navigation) and G3.2
+    (CONTINUE + NEW CAMPAIGN). LOAD GAME is G4; SETTINGS is G6 - those
+    still show a 'coming' note.
+
+    Knows the registry-shaped concept of "a campaign" (world + survivor
+    + mode + state) but no world's fiction - adding World 3 must never
+    touch this class."""
 
     CSS = """
     MenuScreen {
@@ -1454,11 +1471,33 @@ class MenuScreen(Screen):
         Binding("q", "quit_app", "Quit"),
     ]
 
-    _ITEMS = ("CONTINUE", "NEW CAMPAIGN", "LOAD GAME", "SETTINGS", "QUIT")
-
     def __init__(self):
         super().__init__()
         self._sel = 0
+        self._armed = None      # a two-press confirm ('continue')
+
+    # ---- campaign discovery (reads persistence, never the game) ------
+
+    def _continue_target(self):
+        """The most-recently-played resumable campaign, or None.
+        Q4: a campaign with a recorded ending is finished - it stays in
+        LOAD but does not offer CONTINUE."""
+        try:
+            for s in Apocrysis.list_campaign_summaries():
+                if not s.get("ending"):
+                    return s
+        except Exception:
+            pass
+        return None
+
+    def _items(self):
+        items = []
+        if self._continue_target() is not None:
+            items.append("CONTINUE")
+        items += ["NEW CAMPAIGN", "LOAD GAME", "SETTINGS", "QUIT"]
+        return items
+
+    # ---- lifecycle -------------------------------------------------
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -1471,9 +1510,21 @@ class MenuScreen(Screen):
     def on_mount(self):
         self._render_items()
 
+    def on_screen_resume(self):
+        # A campaign may have just been created / autosaved / abandoned
+        # while this screen was in the background.
+        self._armed = None
+        self._sel = min(self._sel, len(self._items()) - 1)
+        self._render_items()
+        try:
+            self.query_one("#menu_note", Static).update("")
+        except Exception:
+            pass
+
     def _render_items(self):
+        items = self._items()
         rows = []
-        for i, item in enumerate(self._ITEMS):
+        for i, item in enumerate(items):
             if i == self._sel:
                 rows.append(f"[b]▸ {item}[/b]")
             else:
@@ -1481,50 +1532,212 @@ class MenuScreen(Screen):
         self.query_one("#menu_items", Static).update("\n".join(rows))
 
     def action_cursor_up(self):
-        self._sel = (self._sel - 1) % len(self._ITEMS)
+        self._armed = None
+        self._sel = (self._sel - 1) % len(self._items())
         self._render_items()
 
     def action_cursor_down(self):
-        self._sel = (self._sel + 1) % len(self._ITEMS)
+        self._armed = None
+        self._sel = (self._sel + 1) % len(self._items())
         self._render_items()
 
     def action_quit_app(self):
         self.app.exit()
 
     def action_activate(self):
-        choice = self._ITEMS[self._sel]
+        choice = self._items()[self._sel]
+        note = self.query_one("#menu_note", Static)
+
         if choice == "QUIT":
             self.app.exit()
+        elif choice == "CONTINUE":
+            self._activate_continue(note)
+        elif choice == "NEW CAMPAIGN":
+            self._armed = None
+            self.app.push_screen(NewCampaignScreen(), self._on_new_campaign)
+        else:  # LOAD GAME / SETTINGS
+            self._armed = None
+            step = "G4" if choice == "LOAD GAME" else "G6"
+            note.update(f"[dim]{choice} is coming in {step}.[/dim]")
+
+    # ---- CONTINUE (two-press confirm card) --------------------------
+
+    def _activate_continue(self, note):
+        s = self._continue_target()
+        if s is None:
+            self._armed = None
+            note.update("[dim]No active campaign - choose NEW CAMPAIGN.[/dim]")
             return
-        # Campaign management is the next G3 step - this milestone is
-        # only the navigation primitive (game <-> menu).
-        self.query_one("#menu_note", Static).update(
-            f"[dim]{choice} is coming in the next G3 step. "
-            f"Press Q to quit for now.[/dim]")
+        if self._armed != "continue":
+            self._armed = "continue"
+            n = s["expeditions_completed"] + 1
+            m = s["campaign_length"] or "?"
+            note.update(
+                f"Resume [b]{s['world_title']}[/b] - {s['name']}, "
+                f"expedition {n}/{m}, last played {_ago(s['last_played'])}.\n"
+                f"[dim]Press Enter again to resume.[/dim]")
+            return
+        self._armed = None
+        self._start_game(name=s["name"])
+
+    # ---- starting a game ------------------------------------------
+
+    def _on_new_campaign(self, result):
+        # NewCampaignScreen.dismiss((world_id, name, hardcore)) or None.
+        if not result:
+            return
+        world_id, name, hardcore = result
+        self._start_game(name=name, world=world_id, hardcore=hardcore)
+
+    def _start_game(self, *, name, world=None, hardcore=False):
+        """Push a GameScreen on top of this menu. When the session ends
+        (`menu` command / death / quit) GameScreen pops back to here."""
+        self.app.push_screen(GameScreen(
+            game_name=name,
+            world=world,
+            hardcore=hardcore,
+            start_log=getattr(self.app, "_start_log", False),
+        ))
+
+
+class NewCampaignScreen(Screen):
+    """G3.2: choose `world + survivor + mode`. Those three plus the
+    (empty) initial state ARE the campaign's identity; world and mode
+    are immutable for its life (enforced below the shell - this screen
+    only collects them). Dismisses with (world_id, name, hardcore), or
+    None if backed out."""
+
+    CSS = """
+    NewCampaignScreen {
+        align: center middle;
+    }
+    #nc_box {
+        width: 64;
+        height: auto;
+        padding: 2 4;
+        border: round $accent;
+    }
+    #nc_title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #nc_box Label {
+        margin-top: 1;
+        color: $text-muted;
+    }
+    #nc_mode_help {
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+    #nc_start {
+        margin-top: 1;
+        width: 100%;
+    }
+    #nc_error {
+        color: $error;
+        margin-top: 1;
+    }
+    """
+
+    BINDINGS = [Binding("escape", "back", "Back")]
+
+    def __init__(self):
+        super().__init__()
+        self._world_ids = world_ids()
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="nc_box"):
+            yield Static("NEW CAMPAIGN", id="nc_title")
+            yield Label("WORLD")
+            with RadioSet(id="nc_world"):
+                for i, wid in enumerate(self._world_ids):
+                    w = get_world(wid)
+                    yield RadioButton(w.manifest.title, value=(i == 0))
+            yield Label("SURVIVOR")
+            yield Input(placeholder="name", id="nc_name", max_length=24)
+            yield Label("MODE")
+            with RadioSet(id="nc_mode"):
+                yield RadioButton("Normal", value=True)
+                yield RadioButton("Hardcore")
+            yield Static(
+                "Normal keeps your campaign - saved after each expedition, "
+                "quit and resume any time.\nHardcore exists only while "
+                "you're playing it: no save, no resume, death ends it.",
+                id="nc_mode_help")
+            yield Button("START CAMPAIGN", id="nc_start", variant="primary")
+            yield Static("", id="nc_error")
+        yield Footer()
+
+    def on_mount(self):
+        self.query_one("#nc_name", Input).focus()
+
+    def action_back(self):
+        self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted):
+        if event.input.id == "nc_name":
+            self._start()
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "nc_start":
+            self._start()
+
+    def _start(self):
+        from src.mixins.persistence_mixin import clean_display_name
+        err = self.query_one("#nc_error", Static)
+
+        world_id = self._world_ids[
+            max(0, self.query_one("#nc_world", RadioSet).pressed_index)]
+        hardcore = self.query_one("#nc_mode", RadioSet).pressed_index == 1
+        raw = self.query_one("#nc_name", Input).value
+        name = clean_display_name(raw)
+        if not raw.strip():
+            err.update("Enter a name for your survivor.")
+            return
+
+        collides = Apocrysis.load_profile_by_name(name) is not None
+        if collides and not hardcore:
+            err.update(
+                f"{name} already has a campaign - use CONTINUE. "
+                f"(LOAD arrives in G4.)")
+            return
+        if collides and hardcore:
+            # A Hardcore run has no file; it can't clobber the Normal
+            # profile, but say so plainly.
+            err.update(
+                f"[dim]Note: a Normal campaign named {name} exists. This "
+                f"Hardcore run is separate and unsaved.[/dim]")
+
+        self.dismiss((world_id, name, hardcore))
 
 
 class ApocrysisApp(App):
-    """G1: thin shell. The game body lives on GameScreen; the shell
-    just carries the constructor params through. The __init__ signature
-    is preserved exactly (src/cli.py, src/tests/test_ui.py depend on
-    it).
+    """The shell. The game body lives on GameScreen; MenuScreen is the
+    home screen. The __init__ signature is preserved (src/cli.py,
+    src/tests depend on it).
 
-    G3 milestone 1: on mount, MenuScreen is pushed first (the base the
-    shell rests on), then GameScreen on top - so launch still drops
-    straight into the game (cli.py resolves the name) and the in-game
-    `menu` command just pops back to the MenuScreen underneath.
-    Launching INTO the menu (and deleting the pre-Textual name prompt)
-    is a later G3 step."""
+    G3.2: the real launch (cli.main_tui, no args) lands on MenuScreen -
+    there is no pre-Textual identity prompt any more. An explicit
+    `name=` (tests, and back-compat) boots straight into a game for
+    that name, with MenuScreen underneath so `menu` still works.
+    `--dev` boots straight into its sandboxed game."""
 
     def __init__(self, name=None, level=1, seed=None, hardcore=False,
                  start_log=False, dev=None):
         super().__init__()
-        self._game_kw = dict(game_name=name, level=level, seed=seed,
+        self._start_log = start_log
+        self._dev = dev
+        self._boot_name = name
+        self._boot_kw = dict(game_name=name, level=level, seed=seed,
                              hardcore=hardcore, start_log=start_log, dev=dev)
 
     async def on_mount(self):
-        # Awaited in sequence: MenuScreen must be fully mounted before
-        # GameScreen goes on top of it, or the compositor can try to
-        # render a half-built background screen.
+        # MenuScreen is always the base the shell rests on. A direct
+        # boot (explicit name, or --dev) pushes GameScreen on top -
+        # awaited in sequence so the background screen is fully mounted
+        # before the compositor renders it.
         await self.push_screen(MenuScreen())
-        await self.push_screen(GameScreen(**self._game_kw))
+        if self._dev is not None or self._boot_name is not None:
+            await self.push_screen(GameScreen(**self._boot_kw))

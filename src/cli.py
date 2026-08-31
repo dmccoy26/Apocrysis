@@ -103,15 +103,11 @@ def _dev_main(start_log=False, dev=None):
 
 
 def main_tui(start_log=False, dev=None):
-    # v3 SPRINT step 6: the TUI (src/tui.py's ApocrysisApp) owns its
-    # own profile-loading/game construction in on_mount() - the only
-    # thing that must happen HERE, in the plain terminal before
-    # Textual takes over the screen, is resolving name/hardcore via
-    # the picker above (on_mount() re-checks load_profile_by_name()
-    # itself for everything else - stats/backpack/weapon - so this
-    # isn't duplicating that logic, just the one piece that can't
-    # happen inside the TUI without it needing its own terminal
-    # prompt before Textual starts).
+    # G3.2: no pre-Textual identity prompt. The shell owns identity
+    # selection now - ApocrysisApp lands on MenuScreen, and CONTINUE /
+    # NEW CAMPAIGN (name entry as a real in-TUI interaction) take it
+    # from there. The old terminal name picker is gone from this path
+    # (it stays for --classic, cli.main() below).
     from src.tui import ApocrysisApp
 
     if dev is not None:
@@ -125,10 +121,7 @@ def main_tui(start_log=False, dev=None):
         app.run()
         return
 
-    name, hardcore, _profile = _resolve_player_identity()
-
-    app = ApocrysisApp(name=name, hardcore=hardcore, start_log=start_log)
-    app.run()
+    ApocrysisApp(start_log=start_log).run()
 
 
 _SURVIVOR_POOL = (

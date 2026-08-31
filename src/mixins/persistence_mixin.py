@@ -559,6 +559,50 @@ class PersistenceMixin:
 
         return names
 
+    @staticmethod
+    def list_campaign_summaries():
+        """Newest-first metadata for every on-disk campaign profile -
+        which, post-Q1, means every *Normal* campaign (Hardcore writes
+        no file, ever). Each entry: name, world_id / world_title,
+        expeditions_completed / campaign_length, ending, last_played
+        (mtime), path.
+
+        The Phase-G shell's CONTINUE and LOAD read this; the game
+        proper never does. Deliberately tolerant - a profile naming a
+        removed world still lists (get_world falls back)."""
+        from src.worlds import get_world
+        _pat = os.path.join(runtime_paths.player_dir(),
+                            "apocrysis_profile_*.json")
+        out = []
+        for path in glob.glob(_pat):
+            prof = PersistenceMixin.load_profile(path)
+            if prof is None:
+                continue
+            flat = _profile_flat(prof)
+            name = flat.get("name")
+            if not name:
+                continue
+            wid = flat.get("world_id")
+            try:
+                _w = get_world(wid)
+                length = _w.manifest.campaign_length
+                title = _w.manifest.title
+            except Exception:
+                length, title = None, (wid or "?")
+            out.append({
+                "name": name,
+                "world_id": wid,
+                "world_title": title,
+                "expeditions_completed": int(
+                    flat.get("expeditions_completed", 0) or 0),
+                "campaign_length": length,
+                "ending": flat.get("ending"),
+                "last_played": os.path.getmtime(path),
+                "path": path,
+            })
+        out.sort(key=lambda s: s["last_played"], reverse=True)
+        return out
+
     @classmethod
     def load_profile_by_name(cls, name):
         """

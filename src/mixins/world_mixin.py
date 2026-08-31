@@ -267,10 +267,49 @@ class WorldMixin:
                     z.health, z.attack = _h, _a
                     if _elite:
                         z.name = "Elite " + z.name
+                # Zombie Identity Pass: attach who this was, from a
+                # dedicated RNG keyed on the tile - never self.rng, so
+                # the map (and the golden fixture) is untouched.
+                self._attach_infected(z, (x, y), anchor=self._infected_anchor_at(x, y))
                 self.map[y][x] = z
                 placed_zombies += 1
 
         return self.map
+
+    # -- Zombie Identity Pass (docs/ZOMBIE_IDENTITY_PASS.md) ----------
+
+    def _infected_anchor_at(self, x, y):
+        """A soft anchor tag for an infected placed at (x, y): the
+        building content letter, or the zone. Mechanism-specific tags
+        (clinic / school / airfield / …) come later with building
+        content tags; until then those identities just spawn thinner
+        everywhere."""
+        cell = self.map[y][x] if 0 <= y < self.map_h and 0 <= x < self.map_w else None
+        if isinstance(cell, dict):
+            c = cell.get("content")
+            if c in ("R", "S"):
+                return c
+            z = cell.get("zone")
+            if z == "wilderness":
+                return "wilderness"
+        return None
+
+    def _attach_infected(self, z, key, anchor=None):
+        import random as _r
+        from src.worlds.silence import population as _pop
+        arch = getattr(z, "ARCHETYPE", None) or "common"
+        rng = _r.Random(hash(("infected", getattr(self, "_seed", 0),
+                              getattr(self, "name", ""), key, arch,
+                              z.name)))
+        exp = getattr(self, "expeditions_completed", 0)
+        v = _pop.pick_identity(arch, exp, rng, anchor=anchor)
+        sit = _pop.pick_situation(v, exp, rng)
+        conf = _pop.confidence(exp, rng)
+        z.identity = v.id
+        z.identity_label, z.identity_line = _pop.describe(v, conf)
+        z.situation = sit
+        z.flags = tuple(v.flags)
+        z._loot_lean = _pop.loot_pool(v, sit)
 
     # v4 Phase B stopgap: until Stage 4's generator produces real
     # Escape Proofs, this surfaces occasional flavour "clues" in

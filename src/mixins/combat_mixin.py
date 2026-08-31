@@ -48,10 +48,10 @@ class CombatMixin:
             zombie = current_tile
             damage = 2 + max(0, self.strength // 3)
             zombie.take_damage(damage)
-            self.io.say(f"You punch the {zombie.name} for {damage} damage.")
+            self.io.say(f"You punch the infected for {damage} damage.")
             
             if zombie.health <= 0:
-                self.io.say(f"The {zombie.name} has been defeated!")
+                self.io.say(f"The infected has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
                 self._clear_defeated_zombie_tile(zombie)
@@ -59,7 +59,7 @@ class CombatMixin:
                 # Zombie's turn to attack
                 dodge_chance = min(0.5, self.dexterity / 150)
                 if random.random() < dodge_chance:
-                    self.io.say(f"You deftly dodged the {zombie.name}'s attack!")
+                    self.io.say(f"You deftly dodged the infected's attack!")
                 else:
                     self.take_damage(zombie.attack)
 
@@ -91,6 +91,10 @@ class CombatMixin:
             zombie = current_tile
         else:
             zombie = self._select_zombie_for_encounter()
+            # Zombie Identity Pass: a random-encounter infected gets its
+            # identity here (placed ones got theirs at generation).
+            if not getattr(zombie, "identity", "") and hasattr(self, "_attach_infected"):
+                self._attach_infected(zombie, ("enc", getattr(self, "turns", 0)))
 
         terrain = self._encounter_terrain(current_tile)
 
@@ -111,8 +115,10 @@ class CombatMixin:
             lvl = self._encounter_attention_level(outcome, hp_frac)
         else:
             lvl = 2   # unchanged non-interactive behaviour
+        _ident = getattr(zombie, "identity_label", "INFECTED")
         self.announce_event(
-            f"ZOMBIE — {zombie.name}",
+            _ident,
+            *((getattr(zombie, "identity_line", ""),) if getattr(zombie, "identity_line", "") else ()),
             *(("Stop. This is a decision.",) if lvl >= 2 else ()),
             kind="danger", level=lvl)
 
@@ -131,14 +137,14 @@ class CombatMixin:
             # function). A slow Armored on open ground is highly
             # escapable; the same Armored in a building is not.
             if random.random() < escape_model.escape_chance_for(self, zombie, terrain):
-                self.announce_event(f"You got away from the {zombie.name}.",
+                self.announce_event(f"You got away from the infected.",
                                     kind="success")
                 return  # Exit the method to avoid the fight
             else:
                 self.announce_event("Couldn't get away - you have to fight.",
                                     kind="danger")
 
-        self.io.say(f"Preparing for battle against the {zombie.name}...")
+        self.io.say(f"Preparing for battle against the infected...")
         self.hunger = max(0, self.hunger - zombie.hunger_cost)
         self.thirst = max(0, self.thirst - zombie.thirst_cost)
         self.fatigue = min(100, self.fatigue + zombie.fatigue_cost)
@@ -163,7 +169,7 @@ class CombatMixin:
                         damage *= 2
                         self.io.say("Critical Hit!")
                     zombie.take_damage(damage)
-                    self.io.say(f"The {zombie.name} takes {damage} damage.")
+                    self.io.say(f"The infected takes {damage} damage.")
                 else:
                     # empty / broken - use() already said why. Fall back
                     # to a bare-hands hit so the turn isn't a pure whiff.
@@ -209,7 +215,7 @@ class CombatMixin:
 
             # Check if the zombie has been defeated
             if zombie.health <= 0:
-                self.io.say(f"The {zombie.name} has been defeated!")
+                self.io.say(f"The infected has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table)
                 self._clear_defeated_zombie_tile(zombie)
@@ -219,7 +225,7 @@ class CombatMixin:
             if zombie.health > 0:
                 dodge_chance = min(0.5, self.dexterity / 150)
                 if random.random() < dodge_chance:
-                    self.io.say(f"You deftly dodged the {zombie.name}'s attack!")
+                    self.io.say(f"You deftly dodged the infected's attack!")
                 else:
                     self.take_damage(zombie.attack)
 
@@ -306,7 +312,10 @@ class CombatMixin:
             ep = cf.escape_pct(self, zombie, terrain)
             tier = cf.threat_tier(fp, oc["p90_frac"])
             self.io.say("")
-            self.io.say(f"  --- {zombie.name.upper()} ---")
+            self.io.say(f"  --- {getattr(zombie, 'identity_label', 'INFECTED').upper()} ---")
+            _line = getattr(zombie, "identity_line", "")
+            if _line:
+                self.io.say(f"  {_line}")
             self.io.say(f"  {cf.danger_note(zombie)}")
             self.io.say(f"  Threat:  {tier}")
             self.io.say(f"  With your {wname} ({wdmg} dmg):   "

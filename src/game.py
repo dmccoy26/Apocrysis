@@ -137,6 +137,7 @@ class Apocrysis(
         self.hardcore = hardcore
         self.expeditions_completed = expeditions_completed
         self._mapgen = mapgen or type(self)._default_mapgen
+        self._seed = seed
         self.rng = random.Random(seed)
 
         # v4 Phase B: the player knowledge model (src/knowledge.py).

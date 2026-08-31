@@ -101,8 +101,9 @@ class TestCombatFlare(unittest.TestCase):
         g = _game()
         g.encounter_zombie(FreshZombie())
         feed = "\n".join(g.io.lines)
-        self.assertIn("ZOMBIE", feed.upper())
-        flare = next(l for l in g.io.lines if "ZOMBIE —" in l or "ZOMBIE -" in l)
+        # Zombie Identity Pass: the banner reads INFECTED, not "ZOMBIE"
+        self.assertIn("INFECTED", feed.upper())
+        flare = next(l for l in g.io.lines if "INFECTED" in l.upper())
         self.assertIn(RED, flare)
         self.assertIn("═", flare)
 

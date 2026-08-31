@@ -3,17 +3,29 @@
 
 class Zombie:
     loot_table = []  # Overridden per subclass below - class-level, not rebuilt per instance
+    ARCHETYPE = "common"
 
     def __init__(self, name, health, attack):
-        self.name = name
+        self.name = name           # internal archetype string ("Swift Zombie")
         self.health = health
         self.attack = attack
+        # Zombie Identity Pass (docs/ZOMBIE_IDENTITY_PASS.md) - attached
+        # by world_mixin._attach_infected() from a dedicated RNG so it
+        # never perturbs map generation. Safe defaults for an
+        # un-attached instance (tests, bare construction).
+        self.identity = ""
+        self.identity_label = "INFECTED"
+        self.identity_line = ""
+        self.situation = ""
+        self.flags = ()
+        self._loot_lean = ()
 
     def take_damage(self, damage):
         self.health -= damage
 
 class FreshZombie(Zombie):
     loot_table = ["food", "water", "medicine"]
+    ARCHETYPE = 'fresh'
 
     def __init__(self):
         super().__init__("Fresh Zombie", 30, 5)
@@ -23,6 +35,7 @@ class FreshZombie(Zombie):
 
 class RegularZombie(Zombie):
     loot_table = ["food", "water", "medicine", "weapon"]
+    ARCHETYPE = 'common'
 
     def __init__(self):
         super().__init__("Regular Zombie", 50, 10)
@@ -32,6 +45,7 @@ class RegularZombie(Zombie):
 
 class HeavyZombie(Zombie):
     loot_table = ["food", "water", "medicine", "weapon", "ammo"]
+    ARCHETYPE = 'heavy'
 
     def __init__(self):
         super().__init__("Heavy Zombie", 100, 20)
@@ -44,6 +58,7 @@ class HeavyZombie(Zombie):
 
 class SwiftZombie(Zombie):
     loot_table = ["food", "ammo"]
+    ARCHETYPE = 'swift'
 
     def __init__(self):
         super().__init__("Swift Zombie", 25, 15)
@@ -59,6 +74,7 @@ class ToxicZombie(Zombie):
     # Bleeding/Stun, matching its name being the whole point of
     # fighting one.
     loot_table = ["medicine", "weapon"]
+    ARCHETYPE = 'toxic'
 
     def __init__(self):
         super().__init__("Toxic Zombie", 40, 8)
@@ -69,6 +85,7 @@ class ToxicZombie(Zombie):
 
 class ArmoredZombie(Zombie):
     loot_table = ["weapon", "ammo", "medicine"]
+    ARCHETYPE = 'armored'
     damage_reduction = 0.5
 
     def __init__(self):

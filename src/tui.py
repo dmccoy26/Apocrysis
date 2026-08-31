@@ -361,6 +361,11 @@ def _objective_steps(p, m, k):
                       "go to the way out to leave — or type `escape` from here"
                       if _can_leave else f"escaped by {mech_name}"))
         out = [f"[b]ESCAPE — {mech_name}[/b]"]
+        # 1d Finding G: multi-part requirement reads as a set, not N
+        # independent ✓ lines.
+        _have_n = sum(1 for it in req_items if it in held or m.obstacle_open)
+        if _have_n < len(req_items):
+            out.append(f"  [{_DIM}]parts[/] [yellow]{_have_n} / {len(req_items)}[/]")
         hyp = getattr(k, "hypothesis", None)
         hstate = k.hypothesis_state() if hyp else "unknown"
         if hyp and hstate in ("suspected", "confirmed"):
@@ -1098,14 +1103,20 @@ class ApocrysisApp(App):
 
         # 1d HUD: the immediate actionable objective, impossible to
         # miss. HUD = what to do; the investigation strip below = why.
+        # Finding F — the block flips to ✦ ESCAPE READY once the
+        # discover/collect phase is done and only the walk-out remains.
         _next = None
+        _ready = False
         if getattr(p, "mystery", None) is not None and hasattr(p, "_objective_next_step"):
             try:
                 _next = p._objective_next_step()
+                _ready = p._objective_ready_to_leave()
             except Exception:
                 _next = None
-        if _next:
-            lines += ["", f"[b #d8b84a]▸ THIS RUN[/]", f"  [#d8b84a]{_next}[/]"]
+        if _next and _ready:
+            lines += ["", "[b #4a9d4a]✦ ESCAPE READY[/]", f"  [#4a9d4a]{_next}[/]"]
+        elif _next:
+            lines += ["", "[b #d8b84a]▸ THIS RUN[/]", f"  [#d8b84a]{_next}[/]"]
 
         lines += ["", f"[{_HDR}]EQUIPMENT[/]", eq_line]
         worn = [_fmt_gear(pc, equipped=True).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)

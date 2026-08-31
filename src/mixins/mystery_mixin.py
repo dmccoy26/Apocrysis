@@ -47,6 +47,19 @@ class MysteryMixin:
         return (len(k.found), bool(m.obstacle_open), bool(m.power_restored),
                 self._mystery_has_item(), k.hypothesis_state())
 
+    def _objective_ready_to_leave(self):
+        """1d Finding F: True once every requirement is met and the
+        route is confirmed - the DISCOVER/COLLECT phase is done and all
+        that's left is walking to the exit. This transition used to be
+        invisible; the HUD flips to ✦ ESCAPE READY on it."""
+        m = self._mystery()
+        if m is None or getattr(m, "escaped", False):
+            return False
+        if not getattr(m, "obstacle_open", False):
+            return False
+        k = getattr(m, "knowledge", None)
+        return bool(k and k.hypothesis_state() == "confirmed")
+
     def _objective_next_step(self):
         """A short plain-text 'what's left' line, from mystery state
         only - no tui / markup dependency."""
@@ -56,6 +69,12 @@ class MysteryMixin:
         known = m.knowledge.facts_known()
         labels = getattr(m, "site_labels", {})
         named = getattr(self, "_mystery_named", set())
+        # 1d Finding F: everything's done - this is now a navigation
+        # task, not an investigation one. Voice it that way.
+        if self._objective_ready_to_leave():
+            _dest = labels.get("route") or MECHANISMS.get(
+                m.mechanism, {}).get("name", "the way out")
+            return f"the way out is open - get to {_dest} and leave"
         _info = MECHANISMS.get(m.mechanism, {}).get("reveals_route")
         if not _info and "F_ROUTE" not in known and "route" not in named:
             return "work out where the other way out is"
@@ -64,6 +83,16 @@ class MysteryMixin:
             return f"work out which control clears the way, at {place}"
         if getattr(m, "power_role", None) and not m.power_restored:
             return f"get the power back on at {labels.get('power', 'the source')}"
+        # 1d Finding G: multi-part requirements read as a set, not two
+        # independent "got it" lines.
+        _req = self._mystery_required_items()
+        if len(_req) > 1 and not m.obstacle_open:
+            _missing = self._mystery_missing_items()
+            if _missing:
+                _have = len(_req) - len(_missing)
+                place = labels.get("require", "where it's kept")
+                return (f"get the {_missing[0]} from {place} "
+                        f"- part {_have + 1} of {len(_req)}")
         if not m.obstacle_open and not self._mystery_has_item() \
                 and m.requirement_item:
             place = labels.get("require", "where it's kept")

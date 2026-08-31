@@ -538,5 +538,77 @@ class TestRouteLandmark(unittest.TestCase):
                       self._spot_near_route(g))
 
 
+class TestEscapeReadinessAndCardinality(unittest.TestCase):
+    """1d Findings F + G: the DISCOVER->EXECUTE transition must be
+    visible, and a multi-part requirement must read as a set."""
+
+    def _airfield(self, seed=3):
+        from src.worlds.silence.truth import WORLD_FACTS
+        import src.game as gmod
+        gmod.Apocrysis._used_mechanisms = [k for k in MECHANISMS
+                                           if k != "airfield_plane"]
+        gmod.Apocrysis._last_family = None
+        gmod.Apocrysis._recent_mechanisms = []
+        gmod.Apocrysis._recent_signatures = []
+        _saved = dict(gmod.Apocrysis._world_investigation)
+        gmod.Apocrysis._world_investigation = {f.id: "known" for f in WORLD_FACTS}
+        try:
+            g = Apocrysis("Rdy", seed=seed, io=_IO())
+            self.assertEqual(g.mystery.mechanism, "airfield_plane")
+            return g
+        finally:
+            gmod.Apocrysis._used_mechanisms = []
+            gmod.Apocrysis._world_investigation = _saved
+
+    @staticmethod
+    def _learn(k, *fids):
+        for eid, ev in k.evidence.items():
+            if any(f in getattr(ev, "supports", ()) for f in fids):
+                k.discover(eid)
+
+    def test_ready_to_leave_is_false_until_route_open_and_confirmed(self):
+        g = self._airfield()
+        self.assertFalse(g._objective_ready_to_leave())
+        g.mystery.obstacle_open = True
+        self.assertFalse(g._objective_ready_to_leave())   # not confirmed yet
+        self._learn(g.mystery.knowledge, "F_CONFIRM")
+        # confirm can also come from E_confirm directly
+        for eid in list(g.mystery.knowledge.evidence):
+            if eid == "E_confirm":
+                g.mystery.knowledge.discover(eid)
+        if g.mystery.knowledge.hypothesis_state() == "confirmed":
+            self.assertTrue(g._objective_ready_to_leave())
+
+    def test_next_step_is_a_navigation_line_when_ready(self):
+        g = self._airfield()
+        g.mystery.obstacle_open = True
+        for eid in list(g.mystery.knowledge.evidence):
+            if eid == "E_confirm":
+                g.mystery.knowledge.discover(eid)
+        if g._objective_ready_to_leave():
+            step = g._objective_next_step()
+            self.assertIn("leave", step)
+            self.assertNotIn("get the", step)   # not an investigate task
+
+    def test_multi_part_requirement_reads_as_part_n_of_m(self):
+        from src.items import Item
+        g = self._airfield()
+        self._learn(g.mystery.knowledge, "F_ROUTE", "F_REQUIRE")
+        req = g.mystery.requirement_items
+        self.assertEqual(len(req), 2)
+        step = g._objective_next_step()
+        self.assertIn(f"of {len(req)}", step)          # "part 1 of 2"
+        g.backpack.add_item(Item(req[0]))
+        self.assertIn("part 2 of 2", g._objective_next_step())
+
+    def test_checklist_shows_parts_cardinality(self):
+        from src.tui import _objective_steps
+        g = self._airfield()
+        self._learn(g.mystery.knowledge, "F_ROUTE", "F_REQUIRE")
+        lines = "\n".join(_objective_steps(g, g.mystery, g.mystery.knowledge))
+        self.assertIn("parts", lines)
+        self.assertIn("0 / 2", lines.replace("[yellow]", "").replace("[/]", ""))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -173,9 +173,9 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
         async with app.run_test(size=(130, 48)) as pilot:
             await asyncio.wait_for(pilot.pause(), timeout=5)
 
-            original_player = app.player
-            app.player.won = True
-            app.player.health = 100
+            original_player = app.screen.player
+            app.screen.player.won = True
+            app.screen.player.health = 100
 
             # Re-enter run_game_loop() so it sees won=True and exits
             # the while loop into the victory/continue-prompt path.
@@ -186,7 +186,7 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
             await asyncio.wait_for(pilot.pause(0.5), timeout=5)
 
             self.assertEqual(
-                app.query_one("#command_input").placeholder,
+                app.screen.query_one("#command_input").placeholder,
                 "Press Enter to continue...",
             )
 
@@ -195,8 +195,8 @@ class TestTuiWinContinuation(unittest.IsolatedAsyncioTestCase):
             await asyncio.wait_for(pilot.pause(0.5), timeout=5)
 
             self.assertTrue(app.is_running, "app exited instead of starting a new game")
-            self.assertIsNot(app.player, original_player)
-            self.assertFalse(app.player.won)
+            self.assertIsNot(app.screen.player, original_player)
+            self.assertFalse(app.screen.player.won)
 
 
 class TestTuiStaleInputCleared(unittest.IsolatedAsyncioTestCase):
@@ -233,7 +233,7 @@ class TestTuiStaleInputCleared(unittest.IsolatedAsyncioTestCase):
         async with app.run_test(size=(130, 48)) as pilot:
             await asyncio.wait_for(pilot.pause(), timeout=5)
 
-            inp = app.query_one("#command_input")
+            inp = app.screen.query_one("#command_input")
             inp.focus()
             await asyncio.wait_for(pilot.pause(), timeout=5)
 
@@ -243,7 +243,7 @@ class TestTuiStaleInputCleared(unittest.IsolatedAsyncioTestCase):
 
             # The prompt changes underneath them - e.g. a zombie
             # encounter's fight decision.
-            app.request_input("Do you want to fight? (y/n)")
+            app.screen.request_input("Do you want to fight? (y/n)")
 
             self.assertEqual(
                 inp.value, "",

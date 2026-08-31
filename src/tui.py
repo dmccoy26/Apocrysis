@@ -20,6 +20,7 @@ from rich.markup import escape as _rich_escape
 from rich.text import Text
 
 from textual.app import App, ComposeResult
+from textual.screen import Screen
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, ScrollableContainer
 from textual.widgets import Header, Footer, Static, Input, RichLog, ProgressBar
@@ -45,36 +46,40 @@ class TextualIO:
     # commands instead, via refresh_panels() below.
     renders_natively = True
 
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, host):
+        # G1: `host` is the GameScreen that owns the log/input widgets
+        # (was the App itself pre-extraction). call_from_thread /
+        # is_running still live on the App - reached via host.app.
+        self.host = host
+        self.app = getattr(host, "app", host)
         self._answers = queue.Queue()
 
     def say(self, *args, **kwargs):
         text = " ".join(str(a) for a in args)
-        self.app.call_from_thread(self.app.log_message, text)
+        self.app.call_from_thread(self.host.log_message, text)
 
     def ask(self, prompt=""):
         self._drain_stale_answers()
-        self.app.call_from_thread(self.app.request_input, prompt)
+        self.app.call_from_thread(self.host.request_input, prompt)
         return self._wait_for_answer()
 
     def ask_yes_no(self, prompt):
         self._drain_stale_answers()
-        self.app.call_from_thread(self.app.request_input, f"{prompt} (y/n)")
+        self.app.call_from_thread(self.host.request_input, f"{prompt} (y/n)")
         while True:
             answer = self._wait_for_answer().strip().lower()
             if answer in ("y", "yes"):
                 return True
             if answer in ("n", "no"):
                 return False
-            self.app.call_from_thread(self.app.log_message, "Please answer y or n.")
+            self.app.call_from_thread(self.host.log_message, "Please answer y or n.")
             self._drain_stale_answers()
-            self.app.call_from_thread(self.app.request_input, f"{prompt} (y/n)")
+            self.app.call_from_thread(self.host.request_input, f"{prompt} (y/n)")
 
     def ask_combat_letter(self):
         """Encounter card (combat_mixin._encounter_card): 'f' / 'e' / 'w'."""
         self._drain_stale_answers()
-        self.app.call_from_thread(self.app.request_input,
+        self.app.call_from_thread(self.host.request_input,
                                   "[f] fight  [e] escape  [w] weapons")
         while True:
             a = self._wait_for_answer().strip().lower()
@@ -84,9 +89,9 @@ class TextualIO:
                 return "e"
             if a in ("w", "weapon", "weapons"):
                 return "w"
-            self.app.call_from_thread(self.app.log_message, "Type f, e, or w.")
+            self.app.call_from_thread(self.host.log_message, "Type f, e, or w.")
             self._drain_stale_answers()
-            self.app.call_from_thread(self.app.request_input,
+            self.app.call_from_thread(self.host.request_input,
                                       "[f] fight  [e] escape  [w] weapons")
 
     def ask_commit(self, prompt, default="cancel"):
@@ -96,7 +101,7 @@ class TextualIO:
         `_expecting_command` is False for this non-'> ' prompt, so arrow
         keys inject nothing while it's up."""
         self._drain_stale_answers()
-        self.app.call_from_thread(self.app.request_input, prompt)
+        self.app.call_from_thread(self.host.request_input, prompt)
         while True:
             a = self._wait_for_answer().strip().lower()
             if a == "":
@@ -105,9 +110,9 @@ class TextualIO:
                 return "proceed"
             if a in ("n", "no"):
                 return "cancel"
-            self.app.call_from_thread(self.app.log_message, "Press y, n, or Enter.")
+            self.app.call_from_thread(self.host.log_message, "Press y, n, or Enter.")
             self._drain_stale_answers()
-            self.app.call_from_thread(self.app.request_input, prompt)
+            self.app.call_from_thread(self.host.request_input, prompt)
 
     def _drain_stale_answers(self):
         # Real bug found live: self._answers is never drained between
@@ -621,8 +626,16 @@ def _status_block(p):
     return "\n".join(lines)
 
 
-class ApocrysisApp(App):
+class GameScreen(Screen):
 
+    # G1 (Phase G): the entire game body - CSS, layout, worker thread,
+    # TextualIO bridge, panel rendering, input handling - extracted
+    # VERBATIM from what used to be ApocrysisApp into a Textual Screen.
+    # Nothing about the game loop changed; only `self` is now a Screen,
+    # so App-level calls (call_from_thread / exit / is_running) go via
+    # self.app. ApocrysisApp (bottom of file) is now a thin shell that
+    # pushes this screen on mount.
+    #
     # v3 SPRINT: exactly 3 bordered panels - map, stats, and one
     # "console" panel that holds BOTH the message log and the command
     # input (sharing #console's single border, each with border:none
@@ -721,10 +734,14 @@ class ApocrysisApp(App):
         Binding("right", "move_direction('e')", "Move east", priority=True),
     ]
 
-    def __init__(self, name=None, level=1, seed=None, hardcore=False,
+    def __init__(self, *, game_name=None, level=1, seed=None, hardcore=False,
                  start_log=False, dev=None):
+        # Keyword-only game params: Screen.__init__ already claims the
+        # positional `name` (a DOM id concept), so the survivor name
+        # comes in as `game_name` and is stashed as self._name exactly
+        # as before.
         super().__init__()
-        self._name = name
+        self._name = game_name
         self._level = level
         self._seed = seed
         self._hardcore = hardcore
@@ -974,7 +991,7 @@ class ApocrysisApp(App):
                     try:
                         self.player.start_playlog(path=self._log_path)
                     except OSError as exc:
-                        self.call_from_thread(
+                        self.app.call_from_thread(
                             self.log_message,
                             f"Couldn't reopen the play log: {exc}")
 
@@ -985,7 +1002,7 @@ class ApocrysisApp(App):
                     self.player.io.say(
                         f"Welcome back, {self.player.name} - level {self.player.level}."
                     )
-                self.call_from_thread(self.refresh_panels)
+                self.app.call_from_thread(self.refresh_panels)
         except AppClosed:
             # App is already shutting down for some other reason -
             # nothing left to do here, and calling self.exit() again
@@ -993,8 +1010,8 @@ class ApocrysisApp(App):
             # is_running).
             pass
 
-        if self.is_running:
-            self.call_from_thread(self.exit)
+        if self.app.is_running:
+            self.app.call_from_thread(self.app.exit)
 
     def request_input(self, prompt):
         input_widget = self.query_one("#command_input", Input)
@@ -1238,3 +1255,20 @@ class ApocrysisApp(App):
         if self.io is not None:
             self.io.submit_answer(text)
         self._focus_command_box()
+
+
+class ApocrysisApp(App):
+    """G1: thin shell. Everything that used to live here now lives on
+    GameScreen; this just carries the constructor params through and
+    pushes the game screen on mount. The __init__ signature is
+    preserved exactly (src/cli.py, src/tests/test_ui.py depend on it).
+    Phase G's later steps swap this push for a Menu screen."""
+
+    def __init__(self, name=None, level=1, seed=None, hardcore=False,
+                 start_log=False, dev=None):
+        super().__init__()
+        self._game_kw = dict(game_name=name, level=level, seed=seed,
+                             hardcore=hardcore, start_log=start_log, dev=dev)
+
+    def on_mount(self):
+        self.push_screen(GameScreen(**self._game_kw))

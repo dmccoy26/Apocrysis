@@ -570,7 +570,8 @@ class UIMixin:
         else:
             headline = "YOU DIED"
             title_color = f"{BOLD}{RED}"
-            closing = f"{self.name} did not make it out of the valley."
+            closing = (f"{self.name} did not make it out of "
+                       f"{self.world.prose.get('region_noun', 'here')}.")
         _place = self.world.prose.get("place_name_fallback", "THE VALLEY")
         rows = [headline, f"{_place}  ·  DAY {self.day}", ""] + stats + ["", closing]
         w = max(len(r) for r in rows)

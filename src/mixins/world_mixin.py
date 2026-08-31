@@ -42,17 +42,20 @@ class WorldMixin:
         t = getattr(self.world, "terrain", None)
         return t.move_minutes if t is not None else _DEFAULT_MOVE_MINUTES
 
-    # v4 (todo 7db3c4b5): why a place is empty, and what that looks
-    # like on the way in. One line, said once per building.
+    # v4 (todo 7db3c4b5): why a place is empty, one line on the way in.
+    # The KEYS are the engine's abandonment-cause vocabulary (a per-tile
+    # RNG draw in generate_map - do not change them). The TEXT is
+    # world-owned: a world supplies world.prose["abandonment_flavour"]
+    # with the same keys; this generic set is the fallback.
     _ABANDONMENT_FLAVOUR = {
-        'evacuated': "Chairs pushed back, a meal half-eaten, a door left standing open. People left here fast.",
-        'barricaded': "The windows are boarded from the inside. Whoever did it isn't here now.",
-        'burned': "The ceiling is black and sagging. Something burned here, a while ago.",
-        'looted': "Cupboards open, drawers pulled out and dropped. Someone stripped this place.",
-        'occupied_recently': "A camp stove, still-greasy tins, a bedroll. Someone was here more recently than the dust says.",
-        'sealed': "The door was nailed shut from the outside. Someone made a decision about this room.",
-        'flooded': "Standing water on the floor, a tide line up the wall. It drains and fills with the reservoir.",
-        'quiet': "Undisturbed. Dust on every surface, nothing out of place. It was just left.",
+        'evacuated': "Chairs pushed back, things half-done, a door left open. People left here fast.",
+        'barricaded': "Sealed from the inside. Whoever did it isn't here now.",
+        'burned': "Scorched and sagging. Something burned here, a while ago.",
+        'looted': "Everything open, pulled out and dropped. Someone stripped this place.",
+        'occupied_recently': "Signs of use - warmer than the dust says. Someone was here.",
+        'sealed': "Shut from the outside. Someone made a decision about this space.",
+        'flooded': "Standing water and a tide line up the wall. Something here holds water and lets it go.",
+        'quiet': "Undisturbed. Dust on every surface. It was just left.",
     }
 
     # v4 (todo 457c93a6): zone types. rural/suburban/industrial/
@@ -475,9 +478,10 @@ class WorldMixin:
         b = bearing(self.current_position, route)
         title = f"a landmark to the {b}" if b else "a landmark nearby"
         body = feature + ("." if b else ", close by.")
+        _rn = self.world.prose.get("region_noun", "here")
         self.announce_event(
             title, body,
-            *(("That's the way out of the valley.",) if known else ()),
+            *((f"That's the way out of {_rn}.",) if known else ()),
             kind="discovery", level=1)
 
     def _spot_leads(self):
@@ -856,7 +860,9 @@ class WorldMixin:
                 cause = current_tile.get('abandonment')
                 if _first_visit and cause and not current_tile.get('_ab_told'):
                     current_tile['_ab_told'] = True
-                    self.io.say(self._ABANDONMENT_FLAVOUR.get(
+                    _ab = (self.world.prose.get("abandonment_flavour")
+                           or self._ABANDONMENT_FLAVOUR)
+                    self.io.say(_ab.get(
                         cause, "You step inside. It's been empty a while."))
                 heal_amount = self.rng.randint(5, 10)
                 self.health = min(100, max(0, self.health + heal_amount))
@@ -1044,12 +1050,12 @@ class WorldMixin:
             elif loot_type == "map":
                 self.map_revealed = True
                 self.town_known = True
-                self.io.say(
-                    "You found a weathered survey map of the whole valley! "
-                    "The lay of the land - roads, buildings, settlements, "
-                    "where the hills close in - is all laid out now. It "
-                    "won't tell you what's moving out there."
-                )
+                _mi = self.world.prose.get("map_item")
+                if _mi:
+                    self.io.say(f"You found {_mi[0]}! {_mi[1]}")
+                else:
+                    self.io.say("You found a map of the whole place! It's all "
+                                "laid out now - though not what's moving out there.")
             elif loot_type == "flashlight":
                 self.has_flashlight = True
                 self._update_time(0)  # refresh visibility_radius immediately, without advancing time

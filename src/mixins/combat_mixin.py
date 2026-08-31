@@ -23,6 +23,14 @@ from src import escape_model
 
 class CombatMixin:
 
+    @property
+    def _hostile(self):
+        """The world's word for the thing you fight, for the round-by-round
+        combat text ("the infected" / "the changed"). The encounter
+        banner already reads it off population.describe; this covers the
+        blow-by-blow. Phase F prose-leak sweep."""
+        return getattr(self.world, "prose", {}).get("hostile_noun", "the infected")
+
     def _condition_penalty(self):
         penalty = 0.0
         if self.health < 25:
@@ -48,10 +56,10 @@ class CombatMixin:
             zombie = current_tile
             damage = 2 + max(0, self.strength // 3)
             zombie.take_damage(damage)
-            self.io.say(f"You punch the infected for {damage} damage.")
+            self.io.say(f"You punch {self._hostile} for {damage} damage.")
             
             if zombie.health <= 0:
-                self.io.say(f"The infected has been defeated!")
+                self.io.say(f"{self._hostile.capitalize()} has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table, zombie)
                 self._clear_defeated_zombie_tile(zombie)
@@ -59,7 +67,7 @@ class CombatMixin:
                 # Zombie's turn to attack
                 dodge_chance = min(0.5, self.dexterity / 150)
                 if random.random() < dodge_chance:
-                    self.io.say(f"You deftly dodged the infected's attack!")
+                    self.io.say(f"You deftly dodged {self._hostile}'s attack!")
                 else:
                     self.take_damage(zombie.attack)
 
@@ -163,7 +171,7 @@ class CombatMixin:
             # function). A slow Armored on open ground is highly
             # escapable; the same Armored in a building is not.
             if random.random() < escape_model.escape_chance_for(self, zombie, terrain):
-                self.announce_event(f"You got away from the infected.",
+                self.announce_event(f"You got away from {self._hostile}.",
                                     kind="success")
                 self.tile_event_cooldowns[self.current_position] = self.day + 3
                 return  # Exit the method to avoid the fight
@@ -190,7 +198,7 @@ class CombatMixin:
                 self.tile_event_cooldowns[self.current_position] = self.day + 3
                 return
 
-        self.io.say(f"Preparing for battle against the infected...")
+        self.io.say(f"Preparing for battle against {self._hostile}...")
         self.hunger = max(0, self.hunger - zombie.hunger_cost)
         self.thirst = max(0, self.thirst - zombie.thirst_cost)
         self.fatigue = min(100, self.fatigue + zombie.fatigue_cost)
@@ -215,7 +223,7 @@ class CombatMixin:
                         damage *= 2
                         self.io.say("Critical Hit!")
                     zombie.take_damage(damage)
-                    self.io.say(f"The infected takes {damage} damage.")
+                    self.io.say(f"{self._hostile.capitalize()} takes {damage} damage.")
                 else:
                     # empty / broken - use() already said why. Fall back
                     # to a bare-hands hit so the turn isn't a pure whiff.
@@ -261,7 +269,7 @@ class CombatMixin:
 
             # Check if the zombie has been defeated
             if zombie.health <= 0:
-                self.io.say(f"The infected has been defeated!")
+                self.io.say(f"{self._hostile.capitalize()} has been defeated!")
                 self.award_xp(25)
                 self.handle_loot(zombie.loot_table, zombie)
                 self._clear_defeated_zombie_tile(zombie)
@@ -271,7 +279,7 @@ class CombatMixin:
             if zombie.health > 0:
                 dodge_chance = min(0.5, self.dexterity / 150)
                 if random.random() < dodge_chance:
-                    self.io.say(f"You deftly dodged the infected's attack!")
+                    self.io.say(f"You deftly dodged {self._hostile}'s attack!")
                 else:
                     self.take_damage(zombie.attack)
 
@@ -299,10 +307,10 @@ class CombatMixin:
             if 0 < self.health <= self.max_health * 0.1:
                 self.io.say("You are critically wounded!")
                 if random.random() < 0.1:  # 10% chance to flee successfully
-                    self.io.say("In a desperate move, you managed to flee from the zombie.")
+                    self.io.say(f"In a desperate move, you managed to flee from {self._hostile}.")
                     return
                 else:
-                    self.io.say("Unable to flee, you brace yourself for the zombie's attack.")
+                    self.io.say(f"Unable to flee, you brace yourself for {self._hostile}'s attack.")
 
         if self.health <= 0:
             self.io.say("You are critically wounded and unable to continue the fight!")

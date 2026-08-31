@@ -34,9 +34,10 @@ from tools.balance_autoplay import BotIO
 
 # World-1 PLACE flavour that must never surface in another world - rare,
 # sharp, world_mixin._ABANDONMENT_FLAVOUR / prose (PHASE_F open item).
-_PLACE_LEAKS = ("valley", "ranger", "forestry", "hydro", "reservoir",
-                "the cordon", "protocol seven", "crop-duster", "the marina",
-                "highway patrol", "airstrip", "the ridge")
+_PLACE_LEAKS = ("valley", "ranger station", "forestry", "hydro station",
+                "reservoir", "the cordon", "protocol seven", "crop-duster",
+                "the marina", "highway patrol", "airstrip", "the ridge",
+                "ranger depot")
 
 # World-1 COMBAT prose - "the infected" is hardcoded in combat_mixin's
 # battle lines. Reported separately (it's the deferred sweep's scope,

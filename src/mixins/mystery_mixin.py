@@ -116,7 +116,7 @@ class MysteryMixin:
         only - no tui / markup dependency."""
         m = self._mystery()
         if m is None:
-            return "find the way out of the valley"
+            return f"find the way out of {self.world.prose.get('region_noun', 'here')}"
         known = m.knowledge.facts_known()
         labels = getattr(m, "site_labels", {})
         named = getattr(self, "_mystery_named", set())
@@ -188,7 +188,8 @@ class MysteryMixin:
                 idle >= self._OBJ_URGENT_AFTER
                 or (pressure and idle >= self._OBJ_REMINDER_AFTER)):
             self._obj_state = "urgent"
-            _why = ("you're low on supplies and still in the valley"
+            _why = (f"you're low on supplies and still in "
+                    f"{self.world.prose.get('region_noun', 'here')}"
                     if pressure else "you've been at this a while")
             self.announce_event("you're still not out",
                                 self._objective_next_step(),
@@ -428,8 +429,8 @@ class MysteryMixin:
                     # walked to the map marker and died one tile short
                     # (playtest) - say it loud, say you don't travel.
                     if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
-                        body = ("The voice has you - you do NOT have to reach the ridge "
-                                "yourself. Type `escape` right now and you're out.")
+                        body = ("The way's been found for you - you do NOT have to "
+                                "reach it yourself. Type `escape` right now and you're out.")
                     else:
                         body = ("The way's open and you know it leads out. Type `escape` "
                                 "from here - no need to walk back to it.")
@@ -574,7 +575,7 @@ class MysteryMixin:
             elif role == 'require' and _fix_done and m.requirement_item:
                 self.io.say("  Nothing more to take here - you've already got what this place had.")
             if m.controls and role == 'require' and not m.obstacle_open:
-                self.io.say("  Work them one at a time - pull <name> and watch the reservoir.")
+                self.io.say("  Work them one at a time - pull <name> and see what each does.")
             elif m.power_role and role == 'power' and not m.power_restored and not self._mystery_has_item():
                 self.io.say(f"  The generator needs the {m.requirement_item} - it is kept at {m.site_labels.get('require', 'the store')}.")
 
@@ -590,9 +591,11 @@ class MysteryMixin:
             revealed = self._mystery_reveal(eid) or revealed
         _reveals = MECHANISMS.get(m.mechanism, {}).get('reveals_route')
         if _reveals and not m.power_restored:
+            _rn = self.world.prose.get('region_noun', 'here')
+            _obst = m.site_labels.get('obstacle', 'the system')
             self.io.say(
-                "There's nothing to force here. No way out of the valley "
-                "comes clear until the transmitter is back up and the "
+                f"There's nothing to force here. No way out of {_rn} "
+                f"comes clear until {_obst} is back up and the "
                 "outside answers."
                 + (f" The {m.requirement_item} goes to {m.site_labels.get('power', 'the generator')}."
                    if self._mystery_has_item() else ""))

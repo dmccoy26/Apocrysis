@@ -31,6 +31,24 @@ THE_WAKE = World(
         "place_name_fallback": "THE SHIP",
         "leave_verb": "get off the ship",
         "region_edge": "outer hull",
+        "region_noun": "the ship",
+        "hostile_noun": "the changed",       # round-by-round combat text
+        "map_item": ("a full deck-plan of the ship",
+                     "Every section, passage, and compartment is on it now - "
+                     "including the ones the working schematics leave blank. "
+                     "It won't tell you what's moving in them."),
+        # same keys as the engine's _ABANDONMENT_FLAVOUR (a per-tile RNG
+        # draw); ship text.
+        "abandonment_flavour": {
+            'evacuated': "Kit half-packed, a hatch left open, a meal going cold on a table. This section emptied in a hurry.",
+            'barricaded': "Furniture stacked against the door from the inside. Whoever did it isn't here now.",
+            'burned': "Scorched bulkheads, the overhead panels sagging. An electrical fire, a while back.",
+            'looted': "Lockers forced, storage bins tipped out. Someone went through this space fast.",
+            'occupied_recently': "A camp roll, ration wrappers, a heater still faintly warm. Someone was here not long ago.",
+            'sealed': "Welded shut from the outside, a seam of slag down the frame. Someone made a decision about this room.",
+            'flooded': "Coolant standing on the deck and a line up the wall - a loop somewhere still fills and drains this space.",
+            'quiet': "Untouched. A film of dust on every surface. It was just left.",
+        },
         "thread_titles": {
             "ship": ("THE SHIP", "What is actually wrong with it?"),
             "crew": ("THE CREW", "What happened to the people aboard?"),

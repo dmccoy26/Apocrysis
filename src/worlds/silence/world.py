@@ -11,6 +11,20 @@ now originate in terrain.py.
 """
 from src.worlds.base import World
 from src.worlds.silence import population as _population
+
+# v4 (todo 7db3c4b5): why a place is empty, and what that looks like on
+# the way in - one line, said once per building. World-1 flavour; moved
+# out of world_mixin in the Phase F prose-leak sweep.
+_ABANDONMENT_FLAVOUR = {
+    'evacuated': "Chairs pushed back, a meal half-eaten, a door left standing open. People left here fast.",
+    'barricaded': "The windows are boarded from the inside. Whoever did it isn't here now.",
+    'burned': "The ceiling is black and sagging. Something burned here, a while ago.",
+    'looted': "Cupboards open, drawers pulled out and dropped. Someone stripped this place.",
+    'occupied_recently': "A camp stove, still-greasy tins, a bedroll. Someone was here more recently than the dust says.",
+    'sealed': "The door was nailed shut from the outside. Someone made a decision about this room.",
+    'flooded': "Standing water on the floor, a tide line up the wall. It drains and fills with the reservoir.",
+    'quiet': "Undisturbed. Dust on every surface, nothing out of place. It was just left.",
+}
 from src.worlds.silence.chapters import CHAPTERS_DICT
 from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
 from src.worlds.silence.finale import FINALE
@@ -55,6 +69,13 @@ SILENCE = World(
         "place_name_fallback": "THE VALLEY",
         "leave_verb": "leave the valley",
         "region_edge": "edge of the valley",
+        "region_noun": "the valley",          # "the way out of {region_noun}"
+        "hostile_noun": "the infected",        # round-by-round combat text
+        "map_item": ("a weathered survey map of the whole valley",
+                     "The lay of the land - roads, buildings, settlements, "
+                     "where the hills close in - is all laid out now. It "
+                     "won't tell you what's moving out there."),
+        "abandonment_flavour": _ABANDONMENT_FLAVOUR,
         # World Investigation screen: player-facing name + question per
         # thread. The player never sees the raw thread id.
         "thread_titles": {

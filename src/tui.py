@@ -15,6 +15,7 @@
 # Submitted handler (on the UI thread) supplies an answer.
 
 import queue
+import threading
 
 from rich.markup import escape as _rich_escape
 from rich.text import Text
@@ -36,6 +37,15 @@ class AppClosed(Exception):
     """Raised out of TextualIO.ask()/ask_yes_no() when the app is
     shutting down while the game thread is still waiting on an
     answer - see TextualIO._wait_for_answer()'s docstring."""
+
+
+class GameClosed(Exception):
+    """G2 (Phase G): raised out of the same blocking TextualIO prompt
+    paths as AppClosed - but it means *only this game session* is
+    being torn down. The Textual application stays alive. Distinct
+    class, distinct handling: the _game_thread's AppClosed path calls
+    app.exit(); its GameClosed path does not. See
+    GameScreen.close_game()."""
 
 
 class TextualIO:
@@ -147,6 +157,14 @@ class TextualIO:
         while True:
             if not self.app.is_running:
                 raise AppClosed()
+            # G2: same poll, second exit condition. The app is fine;
+            # this game session has been deliberately ended (the
+            # GameScreen set host._session_closing). Checked AFTER
+            # is_running so a real app shutdown still reads as
+            # AppClosed, never GameClosed.
+            if getattr(self.host, "_session_closing", None) is not None \
+                    and self.host._session_closing.is_set():
+                raise GameClosed()
             try:
                 return self._answers.get(timeout=0.2)
             except queue.Empty:
@@ -762,6 +780,13 @@ class GameScreen(Screen):
         # emit the "Welcome back" greeting through the right channel
         # for their own thread - see _new_player()'s docstring.
         self._last_load_was_profile = False
+        # G2: session-lifetime (not app-lifetime) machinery.
+        # close_game() sets the event; TextualIO._wait_for_answer()
+        # polls it and raises GameClosed to release a blocked worker.
+        # _game_worker is the run_worker() handle so close_game() can
+        # await its real termination rather than just abandon it.
+        self._session_closing = threading.Event()
+        self._game_worker = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -945,7 +970,7 @@ class GameScreen(Screen):
 
         self.refresh_panels()
         self._focus_command_box()
-        self.run_worker(self._game_thread, thread=True)
+        self._game_worker = self.run_worker(self._game_thread, thread=True)
 
     def _game_thread(self):
         # Real bug found live: this used to always exit the whole app
@@ -960,6 +985,17 @@ class GameScreen(Screen):
             while True:
                 try:
                     self.player.run_game_loop()
+                except GameClosed:
+                    # G2: this game session was deliberately ended
+                    # (close_game() on the UI thread set the event).
+                    # Persist per the session-end rule (Normal -> save
+                    # once; Hardcore + alive -> nothing, the campaign
+                    # is gone; Hardcore + dead -> delete), tidy this
+                    # session's playlog, and return - the app is still
+                    # perfectly alive, so no app.exit() below.
+                    self._persist_on_session_end()
+                    self._end_session_playlog()
+                    return
                 except AppClosed:
                     # Real bug found live: AppClosed raised mid-
                     # run_game_loop() (app shutting down while blocked
@@ -1003,6 +1039,14 @@ class GameScreen(Screen):
                         f"Welcome back, {self.player.name} - level {self.player.level}."
                     )
                 self.app.call_from_thread(self.refresh_panels)
+        except GameClosed:
+            # Belt-and-suspenders: GameClosed raised somewhere other
+            # than inside run_game_loop() (e.g. between iterations).
+            # The inner handler already returned in the common case;
+            # here just persist once and stop, no app.exit().
+            self._persist_on_session_end()
+            self._end_session_playlog()
+            return
         except AppClosed:
             # App is already shutting down for some other reason -
             # nothing left to do here, and calling self.exit() again
@@ -1012,6 +1056,77 @@ class GameScreen(Screen):
 
         if self.app.is_running:
             self.app.call_from_thread(self.app.exit)
+
+    def _persist_on_session_end(self):
+        """G2 session-end persistence rule (distinct from the app-
+        teardown _save_or_delete_profile, which always saves a living
+        character). GameClosed acceptance #4/#5:
+          Normal, alive        -> save (exactly once)
+          Normal, dead         -> hand the campaign to an heir
+          Hardcore, alive      -> WRITE NOTHING (walked away = gone)
+          Hardcore, dead       -> delete
+        Everything except the hardcore-alive case is exactly what
+        _save_or_delete_profile already does."""
+        p = self.player
+        if getattr(p, "hardcore", False) and p.health > 0:
+            return
+        self._save_or_delete_profile()
+
+    def _end_session_playlog(self):
+        """G2: on a GameClosed teardown the loop's own end-of-session
+        playlog close (ui_mixin.run_game_loop, bottom) is skipped by
+        the exception. Close it here so the transcript is flushed and
+        the TeeIO wrapper is unwound - #8 (session-local machinery
+        left clean). Worker thread; no announcement."""
+        p = self.player
+        pl = getattr(p, "playlog", None)
+        if pl is None:
+            return
+        try:
+            from src.playlog import TeeIO
+            pl.close("game session ended")
+            p.playlog = None
+            if isinstance(p.io, TeeIO):
+                p.io = p.io._inner
+            if isinstance(self.io, TeeIO):
+                self.io = self.io._inner
+        except Exception:
+            pass
+        self._log_path = None
+
+    async def close_game(self):
+        """G2 lifecycle primitive: end THIS game session, leave the
+        Textual application running. Unwired for now - G3 gives the
+        player a way to reach it (the `menu` command) and somewhere to
+        land afterwards (MenuScreen). G5 owns the class-var reset
+        contract. This method only does session teardown:
+
+          1. release the worker if it's blocked on a prompt
+          2. wait for it to ACTUALLY terminate (not just abandon it)
+          3. (the worker itself saves/deletes exactly once + closes
+             the playlog, in _game_thread's GameClosed branch)
+          4. drain the answer queue + clear session-local flags so
+             nothing leaks into a future session
+          5. pop this screen - the app is now back on its base screen
+        """
+        self._session_closing.set()
+        w = self._game_worker
+        if w is not None:
+            try:
+                await w.wait()
+            except Exception:
+                # WorkerFailed / already-finished - the worker is done
+                # either way, which is all we need.
+                pass
+        self._game_worker = None
+        # Worker has fully stopped: safe to scrub session-local state.
+        if self.io is not None:
+            self.io._drain_stale_answers()
+        self._expecting_command = False
+        self._session_closing.clear()
+        if self.app.is_running and self in self.app.screen_stack \
+                and self is not self.app.screen_stack[0]:
+            self.app.pop_screen()
 
     def request_input(self, prompt):
         input_widget = self.query_one("#command_input", Input)

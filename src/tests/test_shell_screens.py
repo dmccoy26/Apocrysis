@@ -14,7 +14,7 @@ import unittest
 
 try:
     from src.tui import (ApocrysisApp, MenuScreen, NewCampaignScreen,
-                         GameScreen)
+                         LoadGameScreen, GameScreen)
     _TEXTUAL_AVAILABLE = True
 except ImportError:
     _TEXTUAL_AVAILABLE = False
@@ -196,6 +196,115 @@ class TestShellScreens(unittest.IsolatedAsyncioTestCase):
 
 
 @unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
+class TestLoadGameScreen(unittest.IsolatedAsyncioTestCase):
+
+    async def asyncSetUp(self):
+        self._home = tempfile.mkdtemp(prefix="apoc_g4_")
+        self._prev_home = os.environ.get("APOCRYSIS_HOME")
+        os.environ["APOCRYSIS_HOME"] = self._home
+        Apocrysis.reset_campaign_state()
+
+    async def asyncTearDown(self):
+        await asyncio.sleep(0.2)
+        if self._prev_home is None:
+            os.environ.pop("APOCRYSIS_HOME", None)
+        else:
+            os.environ["APOCRYSIS_HOME"] = self._prev_home
+        shutil.rmtree(self._home, ignore_errors=True)
+
+    def _seed(self, *names):
+        import time
+        from src.mixins.persistence_mixin import profile_filename_for_name
+        for n in names:
+            Apocrysis(n, seed=1).save_profile(profile_filename_for_name(n))
+            time.sleep(0.03)
+
+    async def _open_load(self, pilot, app):
+        ms = app.screen
+        ms._sel = ms._items().index("LOAD GAME")
+        ms._render_items()
+        await pilot.press("enter")
+        await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+        return app.screen
+
+    async def test_lists_campaigns_newest_first_and_loads_one(self):
+        self._seed("Ada", "Cole")            # Cole newest
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            lg = await self._open_load(pilot, app)
+            self.assertIsInstance(lg, LoadGameScreen)
+            self.assertEqual([r["name"] for r in lg._rows], ["Cole", "Ada"])
+
+            lg._sel = 1                       # Ada
+            lg._render_rows()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.8), timeout=5)
+            self.assertIsInstance(app.screen, GameScreen)
+            self.assertEqual(app.screen.player.name, "Ada")
+
+    async def test_delete_is_two_press_and_removes_the_file(self):
+        from src import runtime_paths
+        from src.mixins.persistence_mixin import profile_filename_for_name
+        self._seed("Ada", "Cole")
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            lg = await self._open_load(pilot, app)
+
+            await pilot.press("d")            # arm
+            await asyncio.wait_for(pilot.pause(0.1), timeout=5)
+            self.assertEqual(lg._armed_delete, "Cole")
+            path = runtime_paths.resolve(
+                "player", profile_filename_for_name("Cole"))
+            self.assertTrue(os.path.exists(path))
+
+            await pilot.press("d")            # confirm
+            await asyncio.wait_for(pilot.pause(0.3), timeout=5)
+            self.assertFalse(os.path.exists(path))
+            self.assertEqual([r["name"] for r in lg._rows], ["Ada"])
+
+    async def test_moving_the_cursor_disarms_a_pending_delete(self):
+        self._seed("Ada", "Cole")
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            lg = await self._open_load(pilot, app)
+            await pilot.press("d")
+            await asyncio.wait_for(pilot.pause(0.1), timeout=5)
+            self.assertEqual(lg._armed_delete, "Cole")
+            await pilot.press("down")
+            await asyncio.wait_for(pilot.pause(0.1), timeout=5)
+            self.assertIsNone(lg._armed_delete)
+
+    async def test_finished_campaign_appears_marked_done(self):
+        from src.mixins.persistence_mixin import profile_filename_for_name
+        g = Apocrysis("Fin", seed=1)
+        Apocrysis._campaign_ending = "the_broadcast"
+        g.save_profile(profile_filename_for_name("Fin"))
+        Apocrysis.reset_campaign_state()
+
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            lg = await self._open_load(pilot, app)
+            self.assertEqual([r["name"] for r in lg._rows], ["Fin"])
+            self.assertIn("DONE", str(lg.query_one("#lg_rows").render()))
+
+    async def test_empty_list_backs_out_to_menu(self):
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            lg = await self._open_load(pilot, app)
+            self.assertEqual(lg._rows, [])
+            self.assertIn("No saved campaigns",
+                          str(lg.query_one("#lg_rows").render()))
+            await pilot.press("escape")
+            await asyncio.wait_for(pilot.pause(0.3), timeout=5)
+            self.assertIsInstance(app.screen, MenuScreen)
+
+
+@unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
 class TestShellDecoupling(unittest.TestCase):
 
     def test_main_tui_has_no_pre_textual_identity_prompt(self):
@@ -207,7 +316,7 @@ class TestShellDecoupling(unittest.TestCase):
 
     def test_shell_screens_carry_no_world_fiction(self):
         from src import tui
-        for cls in (tui.MenuScreen, tui.NewCampaignScreen):
+        for cls in (tui.MenuScreen, tui.NewCampaignScreen, tui.LoadGameScreen):
             src = inspect.getsource(cls).lower()
             for needle in ("silence", "the_wake", "the wake", "valley",
                            "world.id =="):

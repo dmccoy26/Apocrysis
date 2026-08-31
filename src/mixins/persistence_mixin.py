@@ -644,6 +644,18 @@ class PersistenceMixin:
         heir.save_profile(campaign_file)
         return heir
 
+    @staticmethod
+    def delete_campaign(name):
+        """G4: remove a Normal campaign by survivor name (the Phase-G
+        LOAD GAME screen's Delete). Distinct from the instance-bound
+        delete_profile() below - here there's no live game, just a name
+        the player picked off a list. Returns True if a file went."""
+        path = runtime_paths.resolve("player", profile_filename_for_name(name))
+        if os.path.exists(path):
+            os.remove(path)
+            return True
+        return False
+
     def delete_profile(self):
         """
         Removes this player's own profile file - the permadeath path

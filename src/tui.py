@@ -1555,10 +1555,12 @@ class MenuScreen(Screen):
         elif choice == "NEW CAMPAIGN":
             self._armed = None
             self.app.push_screen(NewCampaignScreen(), self._on_new_campaign)
-        else:  # LOAD GAME / SETTINGS
+        elif choice == "LOAD GAME":
             self._armed = None
-            step = "G4" if choice == "LOAD GAME" else "G6"
-            note.update(f"[dim]{choice} is coming in {step}.[/dim]")
+            self.app.push_screen(LoadGameScreen(), self._on_load_pick)
+        else:  # SETTINGS
+            self._armed = None
+            note.update("[dim]SETTINGS is coming in G6.[/dim]")
 
     # ---- CONTINUE (two-press confirm card) --------------------------
 
@@ -1588,6 +1590,13 @@ class MenuScreen(Screen):
             return
         world_id, name, hardcore = result
         self._start_game(name=name, world=world_id, hardcore=hardcore)
+
+    def _on_load_pick(self, name):
+        # LoadGameScreen.dismiss(name) to load, or None (Back / nothing
+        # left after deletes). GameScreen's profile path takes the
+        # world from the profile's own world_id.
+        if name:
+            self._start_game(name=name)
 
     def _start_game(self, *, name, world=None, hardcore=False):
         """Push a GameScreen on top of this menu. When the session ends
@@ -1711,6 +1720,140 @@ class NewCampaignScreen(Screen):
                 f"Hardcore run is separate and unsaved.[/dim]")
 
         self.dismiss((world_id, name, hardcore))
+
+
+class LoadGameScreen(Screen):
+    """G4: the campaign lister. Every on-disk campaign is Normal
+    (Hardcore writes no file), so there's no MODE column. Finished
+    campaigns (recorded ending) stay here - this is their home (Q4) -
+    marked DONE. Load (Enter), Delete (two-press), Back (Esc).
+    Dismisses the chosen survivor name, or None.
+
+    Reads persistence via list_campaign_summaries; no world fiction."""
+
+    CSS = """
+    LoadGameScreen {
+        align: center middle;
+    }
+    #lg_box {
+        width: 76;
+        height: auto;
+        max-height: 90%;
+        padding: 2 4;
+        border: round $accent;
+    }
+    #lg_title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #lg_head {
+        color: $text-muted;
+        text-style: bold;
+    }
+    #lg_rows {
+        height: auto;
+    }
+    #lg_note {
+        color: $text-muted;
+        margin-top: 1;
+    }
+    """
+
+    BINDINGS = [
+        Binding("up", "cursor_up", "Up"),
+        Binding("down", "cursor_down", "Down"),
+        Binding("enter", "load", "Load"),
+        Binding("d", "delete", "Delete"),
+        Binding("escape", "back", "Back"),
+    ]
+
+    def __init__(self):
+        super().__init__()
+        self._sel = 0
+        self._armed_delete = None      # survivor name armed for delete
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="lg_box"):
+            yield Static("LOAD GAME", id="lg_title")
+            yield Static(
+                f"  {'WORLD':<18}{'SURVIVOR':<12}{'PROGRESS':<12}LAST PLAYED",
+                id="lg_head")
+            yield Static(id="lg_rows")
+            yield Static("[dim]Enter load  ·  D delete  ·  Esc back[/dim]",
+                         id="lg_note")
+        yield Footer()
+
+    def on_mount(self):
+        self._reload()
+
+    def _reload(self):
+        self._rows = Apocrysis.list_campaign_summaries()
+        if self._rows:
+            self._sel = min(self._sel, len(self._rows) - 1)
+        self._render_rows()
+
+    def _render_rows(self):
+        body = self.query_one("#lg_rows", Static)
+        if not self._rows:
+            body.update("[dim]  No saved campaigns.[/dim]")
+            return
+        lines = []
+        for i, r in enumerate(self._rows):
+            n = r["expeditions_completed"]
+            m = r["campaign_length"] or "?"
+            prog = "DONE" if r.get("ending") else f"EXP {n + 1}/{m}"
+            row = (f"{r['world_title'][:17]:<18}{r['name'][:11]:<12}"
+                   f"{prog:<12}{_ago(r['last_played'])}")
+            if i == self._sel:
+                lines.append(f"[b]▸ {row}[/b]")
+            else:
+                lines.append(f"[dim]  {row}[/dim]")
+        body.update("\n".join(lines))
+
+    def _clear_arm(self):
+        if self._armed_delete is not None:
+            self._armed_delete = None
+            self.query_one("#lg_note", Static).update(
+                "[dim]Enter load  ·  D delete  ·  Esc back[/dim]")
+
+    def action_cursor_up(self):
+        self._clear_arm()
+        if self._rows:
+            self._sel = (self._sel - 1) % len(self._rows)
+            self._render_rows()
+
+    def action_cursor_down(self):
+        self._clear_arm()
+        if self._rows:
+            self._sel = (self._sel + 1) % len(self._rows)
+            self._render_rows()
+
+    def action_back(self):
+        self.dismiss(None)
+
+    def action_load(self):
+        if not self._rows:
+            self.dismiss(None)
+            return
+        self.dismiss(self._rows[self._sel]["name"])
+
+    def action_delete(self):
+        if not self._rows:
+            return
+        target = self._rows[self._sel]["name"]
+        note = self.query_one("#lg_note", Static)
+        if self._armed_delete != target:
+            self._armed_delete = target
+            note.update(
+                f"[b]Delete {target}'s campaign? This can't be undone.[/b] "
+                f"[dim]Press D again.[/dim]")
+            return
+        Apocrysis.delete_campaign(target)
+        self._armed_delete = None
+        note.update(f"[dim]Deleted {target}.[/dim]")
+        self._reload()
 
 
 class ApocrysisApp(App):

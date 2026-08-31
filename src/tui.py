@@ -1498,16 +1498,24 @@ class MenuScreen(Screen):
         align: center middle;
     }
     #menu_box {
-        width: 44;
+        width: 70;
         height: auto;
-        padding: 2 4;
+        padding: 3 8;
         border: round $accent;
     }
     #menu_title {
         width: 100%;
+        height: auto;
         text-align: center;
         text-style: bold;
-        margin-bottom: 2;
+        color: $accent;
+    }
+    #menu_subtitle {
+        width: 100%;
+        height: auto;
+        text-align: center;
+        color: $text-muted;
+        margin-bottom: 3;
     }
     #menu_items {
         width: 100%;
@@ -1518,7 +1526,7 @@ class MenuScreen(Screen):
         width: 100%;
         height: auto;
         text-align: center;
-        margin-top: 2;
+        margin-top: 3;
         color: $text-muted;
     }
     """
@@ -1561,7 +1569,8 @@ class MenuScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical(id="menu_box"):
-            yield Static("APOCRYSIS\nTHE WORLD REMEMBERS", id="menu_title")
+            yield Static("A P O C R Y S I S", id="menu_title")
+            yield Static("THE WORLD REMEMBERS", id="menu_subtitle")
             yield Static(self._items_markup(), id="menu_items")
             yield Static("", id="menu_note")
         yield Footer()
@@ -1585,9 +1594,11 @@ class MenuScreen(Screen):
         self._sel = max(0, min(self._sel, len(items) - 1))
         rows = []
         for i, item in enumerate(items):
-            rows.append(f"[b]▸ {item}[/b]" if i == self._sel
-                        else f"[dim]  {item}[/dim]")
-        return "\n".join(rows)
+            rows.append(f"[b]▸  {item}[/b]" if i == self._sel
+                        else f"[dim]   {item}[/dim]")
+        # double-spaced - the menu should have presence, not be a
+        # cramped list in the corner of a big box.
+        return "\n\n".join(rows)
 
     def _render_items(self):
         self.query_one("#menu_items", Static).update(self._items_markup())

@@ -267,8 +267,8 @@ class TestShellScreensRenderVisibly(unittest.IsolatedAsyncioTestCase):
             await asyncio.wait_for(pilot.pause(), timeout=5)
 
             seen = self._visible(app)
-            for word in ("APOCRYSIS", "NEW CAMPAIGN", "LOAD GAME",
-                         "SETTINGS", "QUIT"):
+            self.assertIn("REMEMBERS", seen, "MenuScreen title not rendering")
+            for word in ("NEW CAMPAIGN", "LOAD GAME", "SETTINGS", "QUIT"):
                 self.assertIn(word, seen, f"MenuScreen not rendering: {word}")
 
             ms = app.screen

@@ -1,58 +1,42 @@
 """World 1 - "The Silence". Content only; no engine imports.
 
-This module is the **owner** of World 1's tile vocabulary, map
-archetypes and prose. `src/constants.py` re-exports the three data
-tables from here as a backwards-compatibility shim while the engine is
-migrated to read them off `game.world` (Phase A.0 step 5). Nothing in
-here imports from the engine - a World is data the engine reads.
+Assembles the World object the engine consumes from the per-aspect
+content modules in this package (truth / discovery / hypotheses / lore /
+population / terrain / manifest / chapters / finale). Nothing in here
+imports from the engine - a World is data the engine reads.
+
+`src/constants.py` still re-exports TERRAIN_SYMBOLS / TERRAIN_LEGEND /
+MAP_ARCHETYPES from this module as a Phase-A.0 back-compat shim; they
+now originate in terrain.py.
 """
 from src.worlds.base import World
+from src.worlds.silence import population as _population
+from src.worlds.silence.chapters import CHAPTERS_DICT
 from src.worlds.silence.discovery import DISCOVERY_TEMPLATES
-from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
-from src.worlds.silence.truth import WORLD_FACTS
+from src.worlds.silence.finale import FINALE
 from src.worlds.silence.hypotheses import REGIONAL_HYPOTHESES
-
-
-# Tile vocabulary -------------------------------------------------------
-#
-# Real bug found live (kept as history): wilderness terrain only ever
-# showed as flavour text AFTER stepping onto a tile - print_map() never
-# rendered it, so every wilderness tile looked identical. Each real
-# terrain type maps to a map symbol so it's visible before you walk in.
-TERRAIN_SYMBOLS = {
-    'forest': 'f',
-    'water': '~',
-    'building': 'b',
-    'plain': '.',
-    'mountain': '^',
-    'river': '=',
-    'bridge': '#',   # MAP_REALISM_SPEC: a crossing on the river
-    'swamp': 's',
-}
-
-TERRAIN_LEGEND = (
-    "  f = forest   ~ = water   b = building   . = plain   s = swamp (slow)\n"
-    "  ^ = mountain (impassable)   = = river (swim or bridge)   # = bridge\n"
-    "  T/H/R/S/B = town tiles (Town center/House/Road/Shop/Building)\n"
-    "  P = you   Z = zombie (only shown once you've been there)\n"
-    "  ! = a lead you've found   + = the way out, now open"
+from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
+from src.worlds.silence.manifest import MANIFEST
+from src.worlds.silence.terrain import (
+    TERRAIN_SYMBOLS,          # re-exported for the constants.py shim
+    TERRAIN_LEGEND,
+    MAP_ARCHETYPES,
+    TERRAIN_MOVE_MINUTES,
+    IMPASSABLE_TERRAIN,
+    GENERATOR_TERRAIN_ORDER,
 )
+from src.worlds.silence.truth import WORLD_FACTS
+from src.worlds.base import WorldTerrain
 
 
-# Map archetypes -------------------------------------------------------
-#
-# Per-expedition map archetype: biases the per-chunk terrain roll so an
-# expedition reads as deep woods / flooded basin / suburban sprawl /
-# open country / a plain mix. `weights` is POSITIONAL, matching
-# world_mixin.generate_map()'s terrain_types order:
-# ['forest', 'building', 'water', 'plain', 'swamp'].
-MAP_ARCHETYPES = {
-    'mixed':          {'weights': [0.28, 0.22, 0.15, 0.25, 0.10], 'blurb': 'A patchwork of woods, fields, and scattered buildings.'},
-    'deep_woods':     {'weights': [0.46, 0.10, 0.08, 0.28, 0.08], 'blurb': 'Dense old-growth forest closes in on every side.'},
-    'flooded_basin':  {'weights': [0.22, 0.07, 0.30, 0.27, 0.14], 'blurb': 'Low, waterlogged ground - a lot of this valley is under water or sinking into it.'},
-    'suburban_sprawl':{'weights': [0.18, 0.34, 0.06, 0.34, 0.08], 'blurb': 'Street after street of empty houses - this was somebody\'s whole town.'},
-    'open_country':   {'weights': [0.20, 0.12, 0.09, 0.53, 0.06], 'blurb': 'Wide open farmland and fields, with little cover anywhere.'},
-}
+_TERRAIN = WorldTerrain(
+    symbols=TERRAIN_SYMBOLS,
+    legend=TERRAIN_LEGEND,
+    archetypes=MAP_ARCHETYPES,
+    move_minutes=TERRAIN_MOVE_MINUTES,
+    impassable=IMPASSABLE_TERRAIN,
+    generator_terrain_order=GENERATOR_TERRAIN_ORDER,
+)
 
 
 SILENCE = World(
@@ -76,10 +60,30 @@ SILENCE = World(
             "dead": ("THE INFECTED", "What are they, and where did they start?"),
             "response": ("THE RESPONSE", "Who ordered it, and why?"),
         },
+        # v4 Phase B stopgap ambient flavour clues, surfaced in buildings
+        # so the journal/inspect interface has content. WORLD_1_LORE_PASS
+        # replaces these with authored per-band lore. (text, journal_line)
+        "ambient_clues": (
+            ("Someone scratched a tally of days into the doorframe - it stops at 46.",
+             "A tally of days scratched by the door stops at 46."),
+            ("A child's drawing is taped to the wall: stick figures walking toward mountains.",
+             "A child's drawing shows people walking toward the mountains."),
+            ("A note on the fridge: 'Gone to the muster point. Back by dark. - R'",
+             "A fridge note mentions a 'muster point'."),
+            ("The calendar is turned to a month with one date circled hard enough to tear it.",
+             "A calendar has a single date circled hard enough to tear the paper."),
+            ("Boot prints in the dried mud all lead the same way - out the back, north.",
+             "Boot prints here all lead north."),
+        ),
     },
     discovery_templates=DISCOVERY_TEMPLATES,
     world_facts=WORLD_FACTS,
     survivor_lore=SURVIVOR_LORE,
     lore_triggers=LORE_TRIGGERS,
     regional_hypotheses=REGIONAL_HYPOTHESES,
+    manifest=MANIFEST,
+    terrain=_TERRAIN,
+    finale=FINALE,
+    population=_population,
+    chapters=CHAPTERS_DICT,
 )

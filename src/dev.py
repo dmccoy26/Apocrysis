@@ -14,9 +14,14 @@ dev session can never read or overwrite a real campaign profile.
 import os
 from collections import namedtuple
 
-from src.campaign import _CHAPTER_BOUNDS, CHAPTER_TITLES
 from src.runtime_paths import dev_profile_path
-from src.worlds.silence import SILENCE
+from src.worlds import get_world
+
+# `--dev` is a World-1 story-inspection harness by nature.
+_WORLD = get_world("silence")
+SILENCE = _WORLD
+_CHAPTER_BOUNDS = _WORLD.manifest.chapter_bounds
+CHAPTER_TITLES = _WORLD.manifest.chapter_titles
 
 DevConfig = namedtuple("DevConfig", "seed chapter finale")
 

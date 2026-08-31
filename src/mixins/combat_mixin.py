@@ -53,7 +53,7 @@ class CombatMixin:
             if zombie.health <= 0:
                 self.io.say(f"The infected has been defeated!")
                 self.award_xp(25)
-                self.handle_loot(zombie.loot_table)
+                self.handle_loot(zombie.loot_table, zombie)
                 self._clear_defeated_zombie_tile(zombie)
             else:
                 # Zombie's turn to attack
@@ -95,6 +95,26 @@ class CombatMixin:
             # identity here (placed ones got theirs at generation).
             if not getattr(zombie, "identity", "") and hasattr(self, "_attach_infected"):
                 self._attach_infected(zombie, ("enc", getattr(self, "turns", 0)))
+
+        # Zombie Identity Pass - behaviour flags. Not every infected is
+        # a pursuing threat.
+        _flags = getattr(zombie, "flags", ())
+        if "skittish" in _flags:
+            self.announce_event(
+                getattr(zombie, "identity_label", "INFECTED"),
+                getattr(zombie, "identity_line", "")
+                or "It bolts before you get near.",
+                "It's gone before you can decide anything.",
+                kind="info", level=1)
+            self._clear_defeated_zombie_tile(zombie)   # it ran off
+            return
+        if "passive" in _flags:
+            self.announce_event(
+                getattr(zombie, "identity_label", "INFECTED"),
+                getattr(zombie, "identity_line", ""),
+                "It barely reacts. You step around it.",
+                kind="info", level=1)
+            return   # move_and_search's tile cooldown stops a re-trigger
 
         terrain = self._encounter_terrain(current_tile)
 
@@ -217,7 +237,7 @@ class CombatMixin:
             if zombie.health <= 0:
                 self.io.say(f"The infected has been defeated!")
                 self.award_xp(25)
-                self.handle_loot(zombie.loot_table)
+                self.handle_loot(zombie.loot_table, zombie)
                 self._clear_defeated_zombie_tile(zombie)
                 return
 
@@ -497,11 +517,45 @@ class CombatMixin:
             self.map[y][x] = {'terrain': 'plain', 'content': '-', 'explored': True}
             self.zombie_positions.discard((x, y))
 
-    def handle_loot(self, loot_table):
+    # Zombie Identity Pass: lore loot-categories -> the game's concrete
+    # loot outcomes. A bias, not a rule - the archetype's own table
+    # stays in the pool so a nurse can still turn up nothing.
+    _LEAN_TO_LOOT = {
+        "food": ("food", "food"), "water": ("water", "water"),
+        "medical": ("medicine", "medicine"), "outdoor": ("water", "food"),
+        "ammo": ("ammo", "ammo"), "tactical": ("ammo", "weapon"),
+        "tools": ("weapon",), "household": ("food", "medicine"),
+        "occupational": (), "personal": (), "light": (), "radio": (),
+        "fuel": (), "spent": (), "damaged": (), "nothing": (),
+    }
+
+    def handle_loot(self, loot_table, zombie=None):
         # Intelligence increases number of items found from loot tables
         extra_items = max(0, self.intelligence // 25)
-        k = min(4, random.randint(1, 3) + extra_items)
-        dropped_loot = random.choices(loot_table, k=k)  # Randomly choose items from loot table
+
+        # the rare, uncomfortable tier (child / elderly) carries next to
+        # nothing of use - the point is what they had, not a reward.
+        if getattr(zombie, "_loot_poor", False):
+            if random.random() < 0.4:
+                self.io.say("A small pack. Inside: a crushed snack, half a "
+                            "water bottle, a few things that meant something "
+                            "to someone.")
+                self.backpack.water += 1
+            else:
+                self.io.say("Whatever they had on them isn't any use to you.")
+            return
+
+        pool = list(loot_table)
+        for _cat in getattr(zombie, "_loot_lean", ()):
+            pool.extend(self._LEAN_TO_LOOT.get(_cat, ()))
+        if not pool:
+            pool = list(loot_table) or ["food"]
+
+        if getattr(zombie, "situation", "") == "last_stand":
+            k = min(2, random.randint(0, 2) + extra_items)
+        else:
+            k = min(4, random.randint(1, 3) + extra_items)
+        dropped_loot = random.choices(pool, k=k) if k else []
         for item in dropped_loot:
             if item == "food":
                 self.backpack.food += 1

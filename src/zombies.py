@@ -19,6 +19,7 @@ class Zombie:
         self.situation = ""
         self.flags = ()
         self._loot_lean = ()
+        self._loot_poor = False
 
     def take_damage(self, damage):
         self.health -= damage

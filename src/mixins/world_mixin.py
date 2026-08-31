@@ -310,6 +310,7 @@ class WorldMixin:
         z.situation = sit
         z.flags = tuple(v.flags)
         z._loot_lean = _pop.loot_pool(v, sit)
+        z._loot_poor = v.rare   # the child / elderly tier carries ~nothing useful
 
     # v4 Phase B stopgap: until Stage 4's generator produces real
     # Escape Proofs, this surfaces occasional flavour "clues" in

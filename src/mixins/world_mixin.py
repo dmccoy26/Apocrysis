@@ -316,7 +316,16 @@ class WorldMixin:
         sit = _pop.pick_situation(v, exp, rng)
         conf = _pop.confidence(exp, rng)
         z.identity = v.id
-        z.identity_label, z.identity_line = _pop.describe(v, conf)
+        # Phase F §10.2: the world's population module may use what the
+        # player has established about the hostiles to shift how they
+        # read (The Wake: "a security officer" -> "one of the changed").
+        # World 1 ignores the hint. Pass known-milestone ids.
+        _wi = getattr(self, "world_investigation", None)
+        _hint = tuple(_wi.milestones_known()) if _wi is not None else ()
+        try:
+            z.identity_label, z.identity_line = _pop.describe(v, conf, _hint)
+        except TypeError:
+            z.identity_label, z.identity_line = _pop.describe(v, conf)
         z.situation = sit
         z.flags = tuple(v.flags)
         z._loot_lean = _pop.loot_pool(v, sit)

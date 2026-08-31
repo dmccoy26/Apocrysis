@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Automated full-arc story playthrough.
 
-Plays one persisting character through all CAMPAIGN_LENGTH expeditions
+Plays one persisting character through all _CAMPAIGN_LENGTH expeditions
 with the campaign bot (tools.balance_autoplay.BotIO - the strongest
 completer). Two modes:
 
@@ -32,16 +32,31 @@ from collections import Counter, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.game import Apocrysis
-from src.constants import CAMPAIGN_LENGTH
-from src.campaign import (chapter_for_expedition, chapter_intro, CHAPTER_TITLES,
-                          campaign_ending)
-from src.worlds.silence.world import SILENCE
+from src.campaign import chapter_for_expedition, chapter_intro
+from src.worlds import get_world
 from tools.balance_autoplay import BotIO
 
 
-_FACTS = {f.id: f for f in SILENCE.world_facts}
-_MILESTONE_IDS = {i for i, f in _FACTS.items() if f.milestone}
-_HYPS = list(SILENCE.regional_hypotheses)
+# set by _use_world() at the start of play()/batch() - the tool is
+# world-parametric now (Phase F).
+_WORLD = None
+_FACTS = {}
+_MILESTONE_IDS = set()
+_HYPS = []
+_CAMPAIGN_LENGTH = 25
+_ENDING_IDS = ("broadcast", "protect")
+
+
+def _use_world(world_id):
+    global _WORLD, _FACTS, _MILESTONE_IDS, _HYPS, _CAMPAIGN_LENGTH, _ENDING_IDS
+    _WORLD = get_world(world_id)
+    _FACTS = {f.id: f for f in _WORLD.world_facts}
+    _MILESTONE_IDS = {i for i, f in _FACTS.items() if f.milestone}
+    _HYPS = list(_WORLD.regional_hypotheses)
+    _CAMPAIGN_LENGTH = _WORLD.manifest.campaign_length
+    _f = _WORLD.finale
+    _ENDING_IDS = (_f.option_a[0], _f.option_b[0]) if _f else ("a", "b")
+    return _WORLD
 
 
 def _wi_status():
@@ -62,12 +77,13 @@ def _current_hypothesis(known):
 class StoryBotIO(BotIO):
     """BotIO that answers the one finale prompt from a fixed choice."""
 
-    def __init__(self, *a, ending="protect", **k):
+    def __init__(self, *a, ending=None, **k):
         super().__init__(*a, **k)
-        self._ending_pick = "1" if ending == "broadcast" else "2"
+        # "1" for option_a, "2" for option_b
+        self._ending_pick = "1" if ending == _ENDING_IDS[0] else "2"
 
     def ask(self, prompt=""):
-        if "Broadcast, or protect" in prompt or "protect? (1 / 2)" in prompt:
+        if "(1 / 2)" in prompt:
             return self._ending_pick
         return super().ask(prompt)
 
@@ -100,13 +116,13 @@ def play(seed, ending, max_turns, max_attempts, narrate=True):
         print("=" * 70)
         print(" APOCRYSIS - automated full-arc playthrough")
         print(f" seed {seed} | ending choice: {ending.upper()} | "
-              f"{CAMPAIGN_LENGTH} expeditions")
+              f"{_CAMPAIGN_LENGTH} expeditions")
         print("=" * 70)
 
     stuck_at = None
     with tempfile.TemporaryDirectory() as tmp:
         pf = os.path.join(tmp, "p.json")
-        while exp < CAMPAIGN_LENGTH:
+        while exp < _CAMPAIGN_LENGTH:
             per_tier[exp] += 1
             total_attempts += 1
             if per_tier[exp] > max_attempts:
@@ -119,7 +135,7 @@ def play(seed, ending, max_turns, max_attempts, narrate=True):
 
             io = StoryBotIO(max_turns=max_turns, ending=ending)
             p = Apocrysis("StoryBot", level=level, expeditions_completed=exp,
-                          seed=aseed, io=io)
+                          seed=aseed, io=io, world=_WORLD)
             if profile is not None:
                 p.apply_profile(profile)
             io.player = p
@@ -141,13 +157,14 @@ def play(seed, ending, max_turns, max_attempts, narrate=True):
                 if ch != prev_chapter:
                     prev_chapter = ch
                     print(f"\n\n{'-' * 70}")
-                    print(f" CHAPTER {ch}  -  {CHAPTER_TITLES[ch - 1]}")
+                    _cts = _WORLD.manifest.chapter_titles
+                    print(f" CHAPTER {ch}  -  {_cts[ch - 1] if ch <= len(_cts) else ''}")
                     print(f"{'-' * 70}")
-                    print(chapter_intro(exp, ms))
+                    print(chapter_intro(exp, ms, _WORLD))
                 retries = per_tier[exp] - 1
                 rtag = (f"  (after {retries} failed "
                         f"{'try' if retries == 1 else 'tries'})" if retries else "")
-                print(f"\n  Expedition {exp + 1:>2}/{CAMPAIGN_LENGTH}  -  "
+                print(f"\n  Expedition {exp + 1:>2}/{_CAMPAIGN_LENGTH}  -  "
                       f"level {p.level}{rtag}")
                 new_facts = known - prev_known
                 if new_facts:
@@ -186,7 +203,7 @@ def play(seed, ending, max_turns, max_attempts, narrate=True):
               else f" CAMPAIGN INCOMPLETE (stuck at expedition {stuck_at + 1})")
         print(f"{'=' * 70}")
         print(f" world facts established: {stats['facts_known']}/{len(_FACTS)}"
-              f"   (milestones {stats['milestones_known']}/9)")
+              f"   (milestones {stats['milestones_known']}/{len(_MILESTONE_IDS)})")
         if stats["missing_facts"]:
             print(f" never established: {', '.join(stats['missing_facts'])}")
         print(f" total expedition attempts: {total_attempts}"
@@ -195,8 +212,8 @@ def play(seed, ending, max_turns, max_attempts, narrate=True):
               f"{'  (bot-driven, matches --ending)' if rec == ending else '  --'}")
         if stats["completed"]:
             print(f"\n ENDING - {ending.upper()}\n")
-            E = campaign_ending.__globals__["ENDINGS"]
-            lead, body = E.get(ending, E["protect"])
+            E = _WORLD.finale.endings
+            lead, body = E.get(ending) or next(iter(E.values()))
             for para in (lead, "", body):
                 print(("   " + para) if para else "")
     return stats
@@ -226,12 +243,13 @@ def batch(seed0, runs, ending, max_turns, max_attempts):
         flag = "ok " if r["completed"] else "STUCK"
         print(f"  seed {s:>4}  {flag}  attempts {r['total_attempts']:>4}  "
               f"facts {r['facts_known']}/{len(_FACTS)}  "
-              f"ms {r['milestones_known']}/9  "
+              f"ms {r['milestones_known']}/{len(_MILESTONE_IDS)}  "
               f"end={r['ending_recorded']}")
 
     done = [r for r in results if r["completed"]]
+    _nfacts = len(_FACTS)
     print(f"\n{'=' * 70}\n AGGREGATE  ({len(results)} campaigns)\n{'=' * 70}")
-    print(f" completed 25/25 expeditions : {len(done)}/{len(results)}")
+    print(f" completed {_CAMPAIGN_LENGTH}/{_CAMPAIGN_LENGTH} expeditions : {len(done)}/{len(results)}")
     if done:
         print(f" attempts per campaign      : {_spread([r['total_attempts'] for r in done])}")
         print(f" final character level      : {_spread([r['final_level'] for r in done])}")
@@ -242,7 +260,7 @@ def batch(seed0, runs, ending, max_turns, max_attempts):
                           for k in ("won", "died", "timeout") if allf[k]))
         fc = Counter(r["facts_known"] for r in done)
         print(f" world facts at completion  : "
-              + ("always 23/23" if set(fc) == {23}
+              + (f"always {_nfacts}/{_nfacts}" if set(fc) == {_nfacts}
                  else "  ".join(f"{k}:{v}" for k, v in sorted(fc.items()))))
         ec = Counter(r["ending_recorded"] for r in done)
         print(f" finale choice recorded     : "
@@ -269,15 +287,20 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--world", default="silence",
+                    help="world id (silence, the_wake)")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--runs", type=int, default=1,
                     help="run N campaigns (seeds seed..seed+N-1) and print stats")
-    ap.add_argument("--ending", choices=("protect", "broadcast"),
-                    default="protect")
+    ap.add_argument("--ending", default=None,
+                    help="finale choice id (defaults to the world's option_b)")
     ap.add_argument("--max-turns", type=int, default=600)
     ap.add_argument("--max-attempts", type=int, default=60,
                     help="retry cap per expedition tier before giving up")
     args = ap.parse_args()
+    _use_world(args.world)
+    if args.ending is None:
+        args.ending = _ENDING_IDS[1]
     if args.runs > 1:
         batch(args.seed, args.runs, args.ending, args.max_turns, args.max_attempts)
     else:

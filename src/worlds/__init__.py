@@ -5,8 +5,9 @@ imports a concrete world package. Add a world by importing it and
 listing it in WORLDS - no engine change.
 """
 from src.worlds.silence import SILENCE
+from src.worlds.the_wake import THE_WAKE
 
-WORLDS = {SILENCE.id: SILENCE}
+WORLDS = {w.id: w for w in (SILENCE, THE_WAKE)}
 
 DEFAULT_WORLD_ID = SILENCE.id
 

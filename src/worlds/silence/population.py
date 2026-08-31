@@ -204,12 +204,15 @@ def confidence(expeditions_completed, rng):
     return "clear"
 
 
-def describe(variant, conf):
+def describe(variant, conf, hint=None):
     """(label, line) for the encounter banner.
 
     clear   -> INFECTED - former mechanic  + full line
     hint    -> INFECTED - a worker          + a hedged line
     unknown -> INFECTED                     + "no way to tell"
+
+    `hint` (Phase F §10.2: known-milestone ids) is unused here - World
+    1's infected always read as "the infected". Other worlds use it.
     """
     if not variant.display or conf == "unknown":
         return "INFECTED", "Whatever this person was, there's no way to tell any more."

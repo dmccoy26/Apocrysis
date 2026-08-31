@@ -444,8 +444,8 @@ class WorldMixin:
                 if _sc(cell) == 'slow':
                     self.announce_event(
                         f"something heavy is moving up ahead",
-                        "Big, slow, armoured - not a fight you want on bad "
-                        "ground. Keep the open country at your back.",
+                        "Big, slow, armoured - not a fight you want in a tight "
+                        "spot. Keep room to move at your back.",
                         kind="warning")
 
     def _spot_route_landmark(self):

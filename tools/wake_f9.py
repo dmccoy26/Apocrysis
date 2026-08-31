@@ -186,14 +186,8 @@ def print_transcript(world, run):
             print("   sites: " + " · ".join(f"{k}={v}" for k, v in sl.items()))
         if r.get("theory"):
             print(f'   working theory: "{r["theory"]}"')
-        # the player-facing beats, noise filtered
-        beats = [ln for (_x, ln) in r["stream"]
-                 if not _NOISE.match(ln) and len(ln) > 3
-                 and not set(ln) <= set("═*-┈┄ .")
-                 and "already been over this place" not in ln
-                 and not ln.startswith("(")]
         print("   ┄ what the player saw ┄")
-        for ln in _dedup(beats):
+        for ln in _readable_beats([ln for (_x, ln) in r["stream"]]):
             print(f"     {ln}")
         newk = r.get("known_after", set()) - prev_known
         if newk:
@@ -213,6 +207,81 @@ def _dedup(lines):
             out.append(ln)
         last = ln
     return out
+
+
+_DROP = re.compile(
+    r"^(you can make out|It's the marked spot|Blocked - but a survivor|"
+    r"You have been stunned|You are stunned|⚠ |You are bleeding|"
+    r"The toxic bite|You are critically wounded|You go down|"
+    r"Stop\. This is a decision|In a desperate move|Unable to flee|"
+    r"You deftly dodged|You got away from|Preparing for battle|"
+    r"Critical Hit|You club at it|You have no weapon|You punch|"
+    r"You've caught your breath|wounds under control|hungry no longer|"
+    r"thirsty no longer|The bleeding has passed|caught your breath|"
+    r"You're in the |Rooftops in the distance|Cabin doors down|"
+    r"Gantries|A long open deck|The hull's open|Whole compartments|"
+    r"It's marked on your map|It's \(?(north|south|east|west)|"
+    r"The route ahead is clear|A stash of supplies|"
+    r"You found (food|water|medicine|ammo|armor|a )|"
+    r"map level|turns survived|days survived|final level|"
+    r"tiles visited|facts established|A stash|WHAT YOU LEARNED|"
+    r"\(THE (SHIP|CREW|ORDER)|✓ |This is what gets you past|"
+    r"You received a generous prize|Used .* for crafting|Crafted a|"
+    r"You drop the|Thirst:|Hunger:|Fatigue:|Xp:|Health:|"
+    r"Everyone who left went the same way|It's gone before you|"
+    r"It barely reacts|You step around it|Nothing more here|"
+    r"Nothing more to take here|Take it to the|You still need|"
+    r"◆ still to do|make sure this really leads out|"
+    r"You wrestle the|You seat the|part \d of \d)")
+# lines that END the useful transcript for an expedition (the win box)
+_END_MARK = re.compile(r"(YOU ESCAPED|CAMPAIGN COMPLETE|╔══)")
+_ABAND = re.compile(
+    r"^(Kit half-packed|Furniture stacked|Scorched bulkheads|Lockers forced|"
+    r"A camp roll|Welded shut|Coolant standing|Untouched\. A film|"
+    r"Signs of use|You step inside)")
+_FIGHT = re.compile(r"^(The changed (takes|has been)|You take \d+|"
+                    r"You found (a |some |armor|the way))")
+
+
+def _readable_beats(lines):
+    """One expedition's say-stream -> the ~15 lines that carry the
+    investigation. Combat collapses to one '⚔' per fight; ambient
+    flavour to one line; navigation chatter dropped."""
+    out, in_fight, abandon_shown = [], False, False
+    for ln in lines:
+        if _END_MARK.search(ln):
+            break
+        if not ln or set(ln) <= set("═*-┈┄ ."):
+            continue
+        if "already been over this place" in ln or ln.startswith("("):
+            continue
+        if _FIGHT.match(ln):
+            if not in_fight and ln.startswith("The changed"):
+                out.append("  ⚔ fought one of the changed")
+                in_fight = True
+            continue
+        in_fight = False
+        if _ABAND.match(ln):
+            if not abandon_shown:
+                out.append("  · " + ln)
+                abandon_shown = True
+            continue
+        if _NOISE.match(ln) or _DROP.match(ln):
+            continue
+        # trailing bearing seasoning - keep the sentence, drop the cue
+        ln = re.sub(r"\.?\s*It's \(?(out toward |close by\)?|"
+                    r"(north|south|east|west)[\w -]*\)?)\.?$", ".", ln).rstrip()
+        out.append(ln)
+    # drop lines seen earlier this expedition (mysteries brief each site
+    # twice - on first sight and on revisit)
+    seen, dedup = set(), []
+    for ln in _dedup(out):
+        key = ln.lstrip("  ·⚔ ")
+        if len(key) > 25 and key in seen:
+            continue
+        seen.add(key)
+        dedup.append(ln)
+    return dedup
 
 
 # ---- checks ------------------------------------------------------

@@ -103,21 +103,32 @@ class Apocrysis(
     prize_for_next_game = False
 
     @classmethod
-    def reset_campaign_state(cls):
-        """Phase F / Phase G: wipe every campaign-scoped class var back to
-        its declared default. The process runs one campaign today; the
-        Player Shell will let you play A, return to menu, and load B in
-        the same process - loading a campaign must be reset-then-restore,
-        never a merge, or A's state leaks into B (and after Phase F, B
-        may be a different world entirely)."""
-        cls._used_mechanisms = []
-        cls._recent_mechanisms = []
-        cls._recent_signatures = []
-        cls._world_investigation = {}
-        cls._survivor_knowledge = []
-        cls._survivors_lost = 0
-        cls._campaign_ending = None
-        cls._last_family = None
+    def reset_campaign_state(cls, restore_from=None):
+        """Phase F / Phase G (§7): wipe every campaign-scoped class var,
+        then - if `restore_from` (a flattened profile dict) is given -
+        immediately re-apply that campaign's values. This is the
+        reset-then-restore the Player Shell needs: it lets you play
+        campaign A, return to the menu, and load campaign B in the same
+        process without ANY of A's mechanisms / investigation /
+        survivors-lost / ending leaking into B (and after Phase F, B may
+        be a different world entirely). Never a merge.
+
+        Call it BEFORE constructing the Apocrysis for a campaign -
+        __init__ reads _world_investigation and the mechanism
+        shuffle-bag while building the first map, so they must already
+        hold the target campaign's values, not the previous one's.
+        `prize_for_next_game` always resets to False on a load-switch:
+        a saved campaign's win bonus is already baked into its stored
+        backpack."""
+        f = restore_from or {}
+        cls._used_mechanisms = list(f.get("used_mechanisms", []) or [])
+        cls._recent_mechanisms = list(f.get("recent_mechanisms", []) or [])
+        cls._recent_signatures = list(f.get("recent_signatures", []) or [])
+        cls._world_investigation = dict(f.get("world_investigation", {}) or {})
+        cls._survivor_knowledge = list(f.get("survivor_knowledge", []) or [])
+        cls._survivors_lost = int(f.get("survivors_lost", 0) or 0)
+        cls._campaign_ending = f.get("ending")
+        cls._last_family = f.get("last_family")
         cls.prize_for_next_game = False
 
     def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, world=None, mapgen=None):

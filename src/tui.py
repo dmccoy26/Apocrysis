@@ -913,6 +913,10 @@ class GameScreen(Screen):
                 level=flat.get("level", 1),
                 hardcore=flat.get("hardcore", self._hardcore),
                 expeditions_completed=flat.get("expeditions_completed", 0),
+                # G5: build with the profile's own world so __init__
+                # constructs the investigation off THAT world's fact
+                # DAG - apply_profile's re-point then becomes a no-op.
+                world=flat.get("world_id"),
                 io=self.io,
             )
             player.apply_profile(profile)
@@ -959,8 +963,32 @@ class GameScreen(Screen):
             return
         p.save_profile(campaign_file)
 
+    def _prime_campaign_state(self):
+        """G5 reset-then-restore (§7). This GameScreen is ONE campaign
+        session. The campaign class-vars may still hold a *previous*
+        campaign played in this same process (Menu -> A -> Menu -> B).
+        Wipe them, and if we're resuming a saved campaign restore them
+        from its profile - all BEFORE _new_player() constructs the
+        Apocrysis, whose __init__ reads _world_investigation and the
+        mechanism shuffle-bag while building the first map.
+
+        Only fires here, on screen construction - NOT on the between-
+        expedition _new_player() calls in _game_thread, where a
+        mid-campaign wipe (Hardcore especially, which has no file to
+        restore from) would lose the campaign's progress."""
+        if self._dev is not None:
+            return   # the dev harness seeds its own synthetic state
+        flat = {}
+        if self._name:
+            from src.mixins.persistence_mixin import _profile_flat
+            _prof = Apocrysis.load_profile_by_name(self._name)
+            if _prof is not None:
+                flat = _profile_flat(_prof)
+        Apocrysis.reset_campaign_state(restore_from=flat)
+
     def on_mount(self):
         self.io = TextualIO(self)
+        self._prime_campaign_state()
         self.player = self._new_player()
         if self._last_load_was_profile:
             # Main thread here (on_mount runs on the app's own event

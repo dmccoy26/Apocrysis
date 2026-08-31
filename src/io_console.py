@@ -50,3 +50,16 @@ class ConsoleIO:
             if a in ("w", "weapon", "weapons"):
                 return "w"
             print("Type f (fight), e (escape), or w (weapons).")
+
+    def ask_commit(self, prompt, default="cancel"):
+        """P1 commitment gate (mixins/intervention_mixin.py). Bare Enter
+        resolves to `default`; explicit y / n override it."""
+        while True:
+            a = input(f"  {prompt}: ").strip().lower()
+            if a == "":
+                return default if default in ("proceed", "cancel") else "cancel"
+            if a in ("y", "yes"):
+                return "proceed"
+            if a in ("n", "no"):
+                return "cancel"
+            print("  y, n, or Enter.")

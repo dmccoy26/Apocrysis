@@ -60,6 +60,57 @@ class MysteryMixin:
         k = getattr(m, "knowledge", None)
         return bool(k and k.hypothesis_state() == "confirmed")
 
+    def _escape_ready_reassert(self):
+        """P1-b (docs/PHASE_P1_COMMITMENT_INTERVENTION_SPEC.md §3.3).
+        SESSION 2 N-6: `✦ ESCAPE READY` showed for 83 turns and the
+        player explored and died in-map. The one-time transition beat is
+        already fired by `_mystery_progress_flare` ("YOU CAN LEAVE NOW").
+        This is the missing REASSERTION - deliberately NOT a turn timer:
+        healthy curiosity is legitimate gameplay (the c1..c5 clues ARE
+        the payload). Fires only when ready-to-leave AND survival margin
+        is degrading AND the player just walked away from the exit."""
+        if not hasattr(self.io, "ask_commit"):
+            return                       # interactive-only, bot log clean
+        m = self._mystery()
+        if m is None or getattr(m, "escaped", False):
+            self._ready_since = None
+            return
+        if not self._objective_ready_to_leave():
+            self._ready_since = None
+            return
+        route = m.sites.get("route")
+        if not route:
+            return
+        px, py = self.current_position
+        dist = abs(route[0] - px) + abs(route[1] - py)
+        prev = getattr(self, "_route_dist_prev", None)
+        self._route_dist_prev = dist
+
+        turns = getattr(self, "turns", 0)
+        if getattr(self, "_ready_since", None) is None:
+            # the transition banner already owns the moment the way opens;
+            # start the reassert clock here, don't double up.
+            self._ready_since = turns
+            return
+
+        degrading = (self.fatigue > 55
+                     or self.backpack.water == 0
+                     or self.health < self.max_health * 0.5)
+        moved_away = prev is not None and dist > prev
+        if not (degrading and moved_away):
+            return
+        st = self._gate_state().get("escape_reassert", {})
+        if turns - st.get("turn", -10**9) < 8:
+            return
+        from src.nav import bearing
+        b = bearing(self.current_position, route)
+        self.announce_event(
+            "ESCAPE REMINDER",
+            "You already have what you came for. The way out is "
+            + (f"to the {b}" if b else "close") + ".",
+            kind="discovery", level=1)
+        self._gate_state()["escape_reassert"] = {"turn": turns}
+
     def _objective_next_step(self):
         """A short plain-text 'what's left' line, from mystery state
         only - no tui / markup dependency."""

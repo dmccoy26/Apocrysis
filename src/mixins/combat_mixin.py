@@ -17,7 +17,7 @@ import random
 from src.constants import BOLD, GREEN, RESET, STATUS_EFFECT_DAMAGE
 from src.items import MeleeWeapon, RangedWeapon
 from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representative
-from src.zombies import Zombie, ToxicZombie
+from src.zombies import Zombie, ToxicZombie, speed_class_of
 from src import escape_model
 
 
@@ -115,6 +115,12 @@ class CombatMixin:
                 "It barely reacts. You step around it.",
                 kind="info", level=1)
             return   # move_and_search's tile cooldown stops a re-trigger
+
+        # P1-d (spec §3.5): a fight just found you - if you're critically
+        # hurt with medicine in the pack, that's the SESSION 2 death
+        # sequence (turns 95-98). Offer the heal before the card. No-op
+        # for the bot / when not critical (commit_gate "skip").
+        self._crit_hp_gate()
 
         terrain = self._encounter_terrain(current_tile)
 
@@ -343,6 +349,8 @@ class CombatMixin:
 
         from src import combat_forecast as cf
         interactive = True
+        # P1-a: one commitment gate per encounter decision; re-arm on entry.
+        self.gate_rearm("combat_override")
         while True:
             w = self.equipped_weapon
             wname = w.name if w else "bare hands"
@@ -363,8 +371,15 @@ class CombatMixin:
             if oc["p90_frac"] is not None and fp >= 65 and oc["p90_frac"] >= 0.45:
                 self.io.say("  You'll probably win this - but expect to be "
                             "near death by the end.")
-            if fp < 50:
-                self.io.say("  If the escape fails, you're fighting it anyway.")
+            # P1-a companion (spec §3.2): the old flat "if the escape fails
+            # you're fighting it anyway" is false for a slow/normal infected
+            # since 1d431a5 (a failed escape = one grab, break contact) and
+            # it argued for fighting. Speed-class honest now.
+            if speed_class_of(zombie) == "fast":
+                self.io.say("  This one's fast - if the escape fails you're in the fight.")
+            elif fp < 50:
+                self.io.say("  A failed escape costs you a hit, not the fight - "
+                            "you break contact.")
             self.io.say(f"  Your weapon is {cf.weapon_verdict(fp, oc['p50_frac'])}.")
             bw = cf.better_weapon(self, zombie)
             if bw is not None:
@@ -376,6 +391,18 @@ class CombatMixin:
             if letter == "w":
                 self._weapon_stats_window(zombie)
                 continue
+            if letter == "f" and fp < 10:
+                # P1-a (spec §3.1): the player is knowingly overriding a
+                # ~unwinnable forecast. Not another explanation - a
+                # commitment. Default = cancel (escape); an explicit `y`
+                # is the override. "skip" (bot / not re-armed) falls
+                # through to fight, exactly as before this gate existed.
+                if self.commit_gate(
+                        "combat_override", "EXTREME THREAT",
+                        f"Fight chance ~{fp}%     Escape chance ~{ep}%",
+                        f"Your weapon is {cf.weapon_verdict(fp, oc['p50_frac'])}.",
+                        default="cancel") == "cancel":
+                    return "escape"
             return "fight" if letter == "f" else "escape"
 
     def _weapon_stats_window(self, zombie):

@@ -881,6 +881,10 @@ class WorldMixin:
         # evidence). Runs alongside normal loot/encounters, not instead.
         if getattr(self, 'mystery', None) is not None:
             self.mystery_arrive(*self.current_position)
+            # P1-b (spec §3.3): reassert ESCAPE READY only when the
+            # profile that actually dies - ready to leave, worn down,
+            # walking away from the exit.
+            self._escape_ready_reassert()
 
         # docs/DESIGN_INTERACTION_INFERENCE.md - once this move has won
         # the expedition (auto-escape / reaching the way out), the

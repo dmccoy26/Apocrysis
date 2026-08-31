@@ -176,5 +176,13 @@ class TeeIO:
         self._playlog.input_answer("combat choice", answer)
         return answer
 
+    def ask_commit(self, prompt, default="cancel"):
+        # P1 Commitment & Intervention Pass: log every gate outcome so
+        # the human playtest can score whether the interrupt changed the
+        # action (docs/PHASE_P1_COMMITMENT_INTERVENTION_SPEC.md §6.2).
+        answer = self._inner.ask_commit(prompt, default)
+        self._playlog.input_answer("intervention", answer)
+        return answer
+
     def __getattr__(self, name):
         return getattr(self._inner, name)

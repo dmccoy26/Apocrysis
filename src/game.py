@@ -18,6 +18,7 @@ from src.mixins.ui_mixin import UIMixin
 from src.mixins.world_mixin import WorldMixin
 from src.mixins.knowledge_mixin import KnowledgeMixin
 from src.mixins.mystery_mixin import MysteryMixin
+from src.mixins.intervention_mixin import InterventionMixin
 from src.knowledge import Knowledge
 from src.world_investigation import WorldInvestigation
 from src.survivor_knowledge import SurvivorKnowledge
@@ -52,6 +53,7 @@ class Apocrysis(
     ActionsMixin,
     KnowledgeMixin,
     MysteryMixin,
+    InterventionMixin,
 ):
 
     # v4 Phase C: escape-mechanism shuffle-bag across a campaign (no
@@ -367,6 +369,7 @@ class Apocrysis(
         self._hp_warnings()
         self._fatigue_warnings()
         self._ammo_warnings()
+        self._intervention_gates()
 
     def _tick_status_effects(self):
         """One decrement + damage pass over active status effects, at
@@ -534,4 +537,66 @@ class Apocrysis(
                     self.announce_event(f"YOU ARE {adj.upper()}",
                                         f"No {noun} left, and {kind} is costing you health. Find some or get out.",
                                         kind="danger", level=3)
+
+    # ---- P1 Commitment & Intervention Pass ---------------------------
+    # docs/PHASE_P1_COMMITMENT_INTERVENTION_SPEC.md §3.4 / §3.5.
+    # These run from _apply_decay (move / rest time) - always OUT of
+    # combat - so no _in_combat guard is needed. Every predicate and
+    # re-arm below lives HERE, in the caller; commit_gate only presents
+    # the interruption and returns the choice. Interactive-only via
+    # commit_gate's "skip" contract - the bot never sees them.
+
+    def _intervention_gates(self):
+        frac = self.health / max(1, self.max_health)
+        if frac > 0.55:                       # re-arm, same band as _hp_warned
+            self.gate_rearm("critical_hp")
+        self._crit_hp_gate()
+        self._weapon_ready_gate()
+
+    def _crit_hp_gate(self):
+        """P1-d: critically hurt with medicine on hand. Also fired at the
+        top of an encounter (combat_mixin.encounter_zombie)."""
+        if self.health / max(1, self.max_health) > 0.20:
+            return
+        if self.backpack.medicine <= 0:
+            return
+        if self.commit_gate(
+                "critical_hp", "CRITICALLY HURT",
+                f"{self.health}/{self.max_health} health - "
+                f"{self.backpack.medicine} medicine in your pack.",
+                default="proceed",
+                confirm_label="use medicine now") == "proceed":
+            self.use_medicine()
+
+    def _weapon_ready_gate(self):
+        """P1-c: the equipped weapon can't land a hit and a usable one is
+        in the pack. Pre-fight only. The mid-fight auto-swap
+        (_weapon_condition_check) stays the sole owner during combat; the
+        reload nudge stays with _ammo_warnings."""
+        from src.items import RangedWeapon
+
+        def _usable(x):
+            if x is None or getattr(x, "durability", 1) <= 0:
+                return False
+            if isinstance(x, RangedWeapon) and x.ammo <= 0:
+                return False
+            return True
+
+        w = self.equipped_weapon
+        if _usable(w):
+            self.gate_rearm("weapon_empty")
+            return
+        if isinstance(w, RangedWeapon) and w.ammo <= 0 and self.backpack.ammo > 0:
+            return                            # _ammo_warnings owns "reload"
+        spare = max((b for b in self.backpack.weapons if _usable(b)),
+                    key=lambda b: b.damage, default=None)
+        if spare is None:
+            return
+        if self.commit_gate(
+                "weapon_empty", "YOUR WEAPON IS EMPTY",
+                f"{w.name if w else 'Nothing'} can't strike - "
+                f"{spare.name} ({spare.damage} dmg) is in your pack.",
+                default="proceed",
+                confirm_label=f"equip {spare.name}") == "proceed":
+            self._auto_equip_best()
 

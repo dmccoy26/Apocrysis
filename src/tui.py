@@ -89,6 +89,26 @@ class TextualIO:
             self.app.call_from_thread(self.app.request_input,
                                       "[f] fight  [e] escape  [w] weapons")
 
+    def ask_commit(self, prompt, default="cancel"):
+        """P1 commitment gate (mixins/intervention_mixin.py). A bare Enter
+        (empty submit - passes through mid-dialog, tui.py on_input_
+        submitted) resolves to `default`; explicit y / n override it.
+        `_expecting_command` is False for this non-'> ' prompt, so arrow
+        keys inject nothing while it's up."""
+        self._drain_stale_answers()
+        self.app.call_from_thread(self.app.request_input, prompt)
+        while True:
+            a = self._wait_for_answer().strip().lower()
+            if a == "":
+                return default if default in ("proceed", "cancel") else "cancel"
+            if a in ("y", "yes"):
+                return "proceed"
+            if a in ("n", "no"):
+                return "cancel"
+            self.app.call_from_thread(self.app.log_message, "Press y, n, or Enter.")
+            self._drain_stale_answers()
+            self.app.call_from_thread(self.app.request_input, prompt)
+
     def _drain_stale_answers(self):
         # Real bug found live: self._answers is never drained between
         # prompt cycles - rapidly pressing arrow keys during one "> "

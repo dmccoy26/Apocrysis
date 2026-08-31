@@ -102,6 +102,24 @@ class Apocrysis(
 
     prize_for_next_game = False
 
+    @classmethod
+    def reset_campaign_state(cls):
+        """Phase F / Phase G: wipe every campaign-scoped class var back to
+        its declared default. The process runs one campaign today; the
+        Player Shell will let you play A, return to menu, and load B in
+        the same process - loading a campaign must be reset-then-restore,
+        never a merge, or A's state leaks into B (and after Phase F, B
+        may be a different world entirely)."""
+        cls._used_mechanisms = []
+        cls._recent_mechanisms = []
+        cls._recent_signatures = []
+        cls._world_investigation = {}
+        cls._survivor_knowledge = []
+        cls._survivors_lost = 0
+        cls._campaign_ending = None
+        cls._last_family = None
+        cls.prize_for_next_game = False
+
     def __init__(self, name, map_size=None, level=1, seed=None, io=None, hardcore=False, expeditions_completed=0, world=None, mapgen=None):
         # `world` may be a World, a world id string, or None (default).
         # io (v3 SPRINT step 6): defaults to ConsoleIO, byte-identical

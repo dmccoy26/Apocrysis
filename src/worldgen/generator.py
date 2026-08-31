@@ -11,20 +11,34 @@ No imports from src.game / src.mixins / src.escape.
 from collections import deque
 
 from src.constants import (
-    IMPASSABLE_TERRAIN,
+    IMPASSABLE_TERRAIN as _DEFAULT_IMPASSABLE,
     BASE_MAP_SIZE,
     BASE_TOWN_MIN_DISTANCE, TOWN_DISTANCE_GROWTH_PER_LEVEL,
     OBSTACLE_DENSITY_CAP, OBSTACLE_DENSITY_PER_LEVEL, OBSTACLE_START_LEVEL,
     CHUNK_SIZE, MAX_SETTLEMENTS, SETTLEMENTS_PER_EXPEDITIONS,
 )
+from src.worlds.base import WorldTerrain as _WT
 
 _ZONE_TYPES = ('rural', 'suburban', 'industrial', 'downtown', 'wilderness')
+_DEFAULT_TERRAIN_ORDER = _WT.__dataclass_fields__['generator_terrain_order'].default
 
 
 class MapGenerator:
     def __init__(self, game, variant="v1"):
         self.g = game
         self.variant = variant
+
+    # Phase F: terrain vocabulary is world-owned. Fall back to the
+    # default world's tables for a world that doesn't set `terrain`.
+    @property
+    def _impassable(self):
+        t = getattr(self.g.world, "terrain", None)
+        return t.impassable if t is not None else _DEFAULT_IMPASSABLE
+
+    @property
+    def _terrain_order(self):
+        t = getattr(self.g.world, "terrain", None)
+        return list(t.generator_terrain_order) if t is not None else list(_DEFAULT_TERRAIN_ORDER)
 
     # ---- zones / terrain -------------------------------------------
 
@@ -57,7 +71,7 @@ class MapGenerator:
             x = g.rng.randint(0, g.map_w - 1)
             y = g.rng.randint(0, g.map_h - 1)
             terrain = g.map[y][x]['terrain']
-            if terrain in IMPASSABLE_TERRAIN:
+            if terrain in self._impassable:
                 continue
             interior = lo <= x <= hix and lo <= y <= hiy
             if interior and terrain in good_terrain:
@@ -159,7 +173,7 @@ class MapGenerator:
                     continue
                 cell = g.map[ny][nx]
                 terrain = cell.get('terrain') if isinstance(cell, dict) else None
-                if terrain in IMPASSABLE_TERRAIN:
+                if terrain in self._impassable:
                     continue
                 if (nx, ny) == goal:
                     return True
@@ -187,7 +201,7 @@ class MapGenerator:
             if (px, py) in (spawn, town_center):
                 continue
             cell = g.map[py][px]
-            if isinstance(cell, dict) and cell.get('terrain') in IMPASSABLE_TERRAIN:
+            if isinstance(cell, dict) and cell.get('terrain') in self._impassable:
                 cell['terrain'] = 'plain'
 
     def ensure_reachable(self, spawn, town_center):
@@ -402,7 +416,7 @@ class MapGenerator:
         town centre, or None. RNG order identical to the pre-C.1
         generate_map()."""
         g = self.g
-        terrain_types = ['forest', 'building', 'water', 'plain', 'swamp']
+        terrain_types = self._terrain_order
 
         _archetypes = g.world.map_archetypes
         g.map_archetype = g.rng.choice(list(_archetypes))

@@ -272,7 +272,8 @@ def story_signature(mechanism):
 
 
 def choose_mechanism(rng, already_used, last_family=None,
-                     recent_mechanisms=(), recent_signatures=()):
+                     recent_mechanisms=(), recent_signatures=(),
+                     supported=()):
     """Shuffle-bag on the mechanism NAME (no repeat until the pool is
     exhausted), then three variety filters, each applied only if it
     leaves something to pick (SCENARIO_EXPANSION.md §3):
@@ -281,8 +282,12 @@ def choose_mechanism(rng, already_used, last_family=None,
           power_station -> dam_valves -> power_station);
       C - not one of the last couple of story SIGNATURES (stops
           three 'fetch an item, open a gate' shapes in a row even
-          when the mechanism names differ)."""
-    pool = [m for m in _MECH_ORDER if m not in already_used] or list(_MECH_ORDER)
+          when the mechanism names differ).
+
+    Phase F: `supported` (world.manifest.supported_mechanisms) restricts
+    the pool to a world's subset. Empty = every mechanism (World 1)."""
+    _order = [m for m in _MECH_ORDER if m in supported] if supported else _MECH_ORDER
+    pool = [m for m in _order if m not in already_used] or list(_order)
     if last_family is not None:
         varied = [m for m in pool if MECHANISMS[m].get('family') != last_family]
         if varied:
@@ -787,12 +792,14 @@ def build_mystery(game, target_fact=None):
         m.mechanism = rng.choice(_varied or list(_routes)).mechanism
         m.world_fact_id = target_fact
     else:
+        _manifest = getattr(game.world, 'manifest', None)
         m.mechanism = choose_mechanism(
             rng,
             getattr(game.__class__, '_used_mechanisms', []),
             last_family=getattr(game.__class__, '_last_family', None),
             recent_mechanisms=getattr(game.__class__, '_recent_mechanisms', ()),
             recent_signatures=getattr(game.__class__, '_recent_signatures', ()),
+            supported=(_manifest.supported_mechanisms if _manifest else ()),
         )
     spec = MECHANISMS[m.mechanism]
     m.family = spec.get('family')

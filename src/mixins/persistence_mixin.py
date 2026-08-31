@@ -69,6 +69,7 @@ DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
 # These top-level keys belong to the campaign; everything else is
 # survivor. Used to migrate a legacy flat Phase-A profile.
 _CAMPAIGN_KEYS = (
+    "world_id",
     "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
     "recent_mechanisms", "recent_signatures", "world_investigation",
     "survivor_knowledge", "survivors_lost", "ending", "distance_walked",
@@ -495,6 +496,9 @@ class PersistenceMixin:
             "has_flashlight": getattr(self, "has_flashlight", False),
         }
         campaign = {
+            # Phase F: which world this campaign belongs to. A profile
+            # without it is a pre-Phase-F save -> the default world.
+            "world_id": getattr(self.world, "id", None),
             "hardcore": getattr(self, "hardcore", False),
             "expeditions_completed": self.expeditions_completed,  # DEPTH, not survivor progress
             # Story-variety guarantee (schema 3a) must survive quit/
@@ -623,6 +627,18 @@ class PersistenceMixin:
         shape-agnostic.
         """
         profile = _profile_flat(profile)
+
+        # Phase F: a profile belongs to a world. If it names a different
+        # world than this instance was built with, re-point self.world
+        # and rebuild the investigation off that world's fact DAG before
+        # restoring campaign state onto it.
+        _wid = profile.get("world_id")
+        if _wid is not None and _wid != getattr(self.world, "id", None):
+            from src.worlds import get_world
+            self.world = get_world(_wid)
+            from src.world_investigation import WorldInvestigation
+            self.world_investigation = WorldInvestigation(
+                self.world.world_facts, self.world.regional_hypotheses)
 
         _sk = profile.get("survivor_knowledge")
         if _sk is not None:

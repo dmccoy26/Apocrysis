@@ -16,9 +16,9 @@ import random
 
 from src.constants import (
     BOLD, GREEN, RESET,
-    IMPASSABLE_TERRAIN,
+    IMPASSABLE_TERRAIN as _DEFAULT_IMPASSABLE,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
-    TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
+    TERRAIN_MOVE_MINUTES as _DEFAULT_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
     ZOMBIE_MAP_DENSITY, ENCOUNTER_CHANCE_DAY, ENCOUNTER_CHANCE_NIGHT,
 )
 from src.items import MeleeWeapon, RangedWeapon, Armor
@@ -29,6 +29,18 @@ from src.zombies import (
 
 
 class WorldMixin:
+
+    # Phase F: terrain vocabulary is world-owned (world.terrain). A world
+    # that doesn't set it falls back to the default world's tables.
+    @property
+    def _impassable_terrain(self):
+        t = getattr(self.world, "terrain", None)
+        return t.impassable if t is not None else _DEFAULT_IMPASSABLE
+
+    @property
+    def _terrain_move_minutes(self):
+        t = getattr(self.world, "terrain", None)
+        return t.move_minutes if t is not None else _DEFAULT_MOVE_MINUTES
 
     # v4 (todo 7db3c4b5): why a place is empty, and what that looks
     # like on the way in. One line, said once per building.
@@ -226,7 +238,7 @@ class WorldMixin:
                     continue
                 c = self.map[ay][ax]
                 t = c.get('terrain') if isinstance(c, dict) else None
-                if isinstance(c, Zombie) or (t is not None and t not in IMPASSABLE_TERRAIN):
+                if isinstance(c, Zombie) or (t is not None and t not in self._impassable_terrain):
                     n += 1
             return n
 
@@ -237,7 +249,7 @@ class WorldMixin:
             cell = self.map[y][x]
             if (
                 isinstance(cell, dict)
-                and cell.get('terrain') not in IMPASSABLE_TERRAIN
+                and cell.get('terrain') not in self._impassable_terrain
                 and cell.get('terrain') not in ('town', 'water')
                 and (x, y) != spawn and abs(x - spawn[0]) + abs(y - spawn[1]) > 1
                 and (x, y) not in protected
@@ -745,7 +757,7 @@ class WorldMixin:
         # Per-move time cost is now terrain-dependent (v3 #11) rather
         # than a flat 15 minutes - see constants.py's
         # TERRAIN_MOVE_MINUTES.
-        move_cost = 15 if (self.has_waders and dest_terrain in ('water', 'swamp')) else TERRAIN_MOVE_MINUTES.get(dest_terrain, 15)
+        move_cost = 15 if (self.has_waders and dest_terrain in ('water', 'swamp')) else self._terrain_move_minutes.get(dest_terrain, 15)
         self._update_time(move_cost)
         self._apply_decay()
         # v4 time-pressure family (tidal_causeway): advance the tide

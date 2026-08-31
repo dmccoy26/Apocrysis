@@ -123,8 +123,7 @@ class MysteryMixin:
         # 1d Finding F: everything's done - this is now a navigation
         # task, not an investigation one. Voice it that way.
         if self._objective_ready_to_leave():
-            _dest = labels.get("route") or MECHANISMS.get(
-                m.mechanism, {}).get("name", "the way out")
+            _dest = labels.get("route") or getattr(m, "mech_name", "the way out")
             return f"the way out is open - get to {_dest} and leave"
         _info = MECHANISMS.get(m.mechanism, {}).get("reveals_route")
         if not _info and "F_ROUTE" not in known and "route" not in named:
@@ -152,7 +151,7 @@ class MysteryMixin:
             return "get past what blocks the route"
         if m.knowledge.hypothesis_state() != "confirmed":
             return "make sure this really leads out"
-        mech = MECHANISMS.get(m.mechanism, {}).get("name", "the way out")
+        mech = getattr(m, "mech_name", "the way out")
         return f"go to {mech} - it's marked on your map"
 
     def objective_tick(self):
@@ -543,8 +542,7 @@ class MysteryMixin:
             power_restore_fired = True
             self.announce_event(
                 "the generator is running",
-                MECHANISMS[m.mechanism].get(
-                    'power_restored_desc', "The way out has power now."),
+                m.power_restored_desc,
                 kind="objective",
             )
             self._mystery_after_power_restored()
@@ -694,8 +692,7 @@ class MysteryMixin:
         if m.power_role:
             _how = "The gate has power now. It grinds open."
         elif m.requirement_items:
-            _how = MECHANISMS.get(m.mechanism, {}).get(
-                'assemble_desc', "You fit the parts. The machine is ready.")
+            _how = m.assemble_desc
         else:
             _how = (f"You come back with the {m.requirement_item}. It works."
                     if m.saw_obstacle else f"The {m.requirement_item} does it.")
@@ -725,21 +722,19 @@ class MysteryMixin:
         if m.obstacle_open:
             self.io.say("The water's already down. No need to touch anything else.")
             return
-        spec = MECHANISMS[m.mechanism]
         if match == m.correct_control:
             m.obstacle_open = True
             ox, oy = m.obstacle_tile
             cell = self.map[oy][ox]
             if isinstance(cell, dict):
                 cell['obstacle'] = False
-            self.announce_event("the way is open", spec['control_correct'],
-                                "The lower road is clear - go.", kind="objective")
+            self.announce_event("the way is open", m.control_correct,
+                                "The route is clear - go.", kind="objective")
         else:
             if match not in m.controls_tried:
                 m.controls_tried.append(match)
-            key = ('control_wrong_obvious' if match == spec.get('obvious_control')
-                   else 'control_wrong_other')
-            self.io.say(spec[key])
+            self.io.say(m.control_wrong_obvious if match == m.obvious_control
+                        else m.control_wrong_other)
 
     def mystery_apply_fix(self, arg):
         """Infrastructural family: an explicit verb (`use fuel` / `fill
@@ -772,8 +767,7 @@ class MysteryMixin:
         m.power_restored = True
         self.announce_event(
             "the generator is running",
-            MECHANISMS[m.mechanism].get(
-                'power_restored_desc', "The way out has power now."),
+            m.power_restored_desc,
             kind="objective",
         )
         _hyp_before = m.knowledge.hypothesis_state()
@@ -903,7 +897,7 @@ class MysteryMixin:
         _stmt = m.knowledge.hypothesis.statement.rstrip('.')
         # A.5.3: the signpost beat - MYSTERY SOLVED - then the texture
         # prose, then (if any) the milestone. One coherent hierarchy.
-        _mech_name = MECHANISMS.get(m.mechanism, {}).get('name', 'the way out')
+        _mech_name = getattr(m, 'mech_name', 'the way out')
         if getattr(m, 'is_finale', False):
             _fin = self.world.finale
             self.announce_event(_fin.arrival_title, f"{_stmt}.", kind="solved")

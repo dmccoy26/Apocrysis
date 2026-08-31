@@ -17,6 +17,7 @@ from src.worlds.silence.finale import FINALE
 from src.worlds.silence.hypotheses import REGIONAL_HYPOTHESES
 from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
 from src.worlds.silence.manifest import MANIFEST
+from src.worlds.silence.mechanism_prose import MECHANISM_PROSE
 from src.worlds.silence.terrain import (
     TERRAIN_SYMBOLS,          # re-exported for the constants.py shim
     TERRAIN_LEGEND,
@@ -53,6 +54,7 @@ SILENCE = World(
     prose={
         "place_name_fallback": "THE VALLEY",
         "leave_verb": "leave the valley",
+        "region_edge": "edge of the valley",
         # World Investigation screen: player-facing name + question per
         # thread. The player never sees the raw thread id.
         "thread_titles": {
@@ -86,4 +88,5 @@ SILENCE = World(
     finale=FINALE,
     population=_population,
     chapters=CHAPTERS_DICT,
+    mechanism_prose=MECHANISM_PROSE,
 )

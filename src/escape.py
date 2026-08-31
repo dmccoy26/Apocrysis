@@ -27,180 +27,139 @@ from src.knowledge import Knowledge, Fact, Evidence, Deduction, Hypothesis
 #   F_REQUIRE    the thing needed to clear it exists, and where
 # plus one physical requirement item and one obstacle tile.
 MECHANISMS = {
+    # GRAMMAR ONLY (Phase F §10.1). The FICTION - name / closed / route /
+    # obstacle / require / item labels / roles / evidence templates /
+    # landmark - lives in world.mechanism_prose (default:
+    # worlds/silence/mechanism_prose.py). `build_mystery` merges the two
+    # into a local `spec`; module-level helpers that have no world
+    # (story_signature, choose_mechanism) read only the grammar here.
     "mountain_pass": {
-        "name": "the old mountain pass",
         "family": "spatial", "discovery": "find_named_place",
         "reasoning": "locate", "resolution": "clear", "confirmation": "traversal",
-        "closed": "The road out of the valley is choked with abandoned vehicles, bumper to bumper for miles. Nothing is driving out that way.",
-        "route": "There's an old foot pass over the ridge - the ranger maps still show it.",
-        "obstacle": "The pass trailhead is behind a locked forestry gate.",
-        "require": "A ranger station keeps the forestry gate keys.",
-        "item": "forestry gate key",
-        "obstacle_desc": "A locked forestry service gate blocks the trail up to the pass.",
-        "escape_desc": "The foot pass switchbacks up over the ridge and down the far side. This is the way out.",
-        "roles": {"closed": "the clogged highway", "route": "a trailhead noticeboard",
-                  "obstacle": "forestry gate", "require": "the ranger station"},
+        "has_item": True,
     },
     "rail_tunnel": {
-        "name": "the railway tunnel",
         "family": "spatial", "discovery": "find_document",
         "reasoning": "locate", "resolution": "clear", "confirmation": "traversal",
-        "closed": "The main bridge over the river is down - dropped into the water, deliberately by the look of the charges still wired to what's left.",
-        "route": "The rail line runs through a tunnel in the eastern hills - it comes out beyond the river entirely.",
-        "obstacle": "The tunnel mouth is caved in. Not impassable, but not walkable either without clearing it.",
-        "require": "The rail maintenance depot had the tools for exactly this.",
-        "item": "rail clearing charge",
-        "obstacle_desc": "The railway tunnel entrance is half-collapsed. You'd need something to clear the fall.",
-        "escape_desc": "Past the fall the tunnel runs straight and level, a cold draught coming the other way. Daylight, far ahead.",
-        "roles": {"closed": "the wrecked bridge", "route": "the rail yard",
-                  "obstacle": "collapsed tunnel", "require": "the rail maintenance depot"},
+        "has_item": True,
     },
     "service_route": {
-        "name": "the dam service road",
         "family": "infrastructural", "discovery": "observe_anomaly",
         "reasoning": "locate", "resolution": "operate", "confirmation": "traversal",
-        "closed": "The reservoir has come up over the valley road. It's a lake now, not a road.",
-        "route": "There's a service road along the downstream face of the dam that stays above the water line.",
-        "obstacle": "The service road is closed by a gate at the dam end.",
-        "require": "The gate key is kept in the dam control room.",
-        "item": "service gate key",
-        "obstacle_desc": "A chained and padlocked service gate blocks the road along the dam.",
-        "escape_desc": "The service road runs on past the gate, climbing away from the water and out of the valley.",
-        "roles": {"closed": "the flooded road", "route": "the dam",
-                  "obstacle": "service gate", "require": "the dam control room"},
-        "terrain": "water",
+        "has_item": True, "terrain": "water",
     },
     "boat_crossing": {
-        "name": "the boat crossing",
         "family": "transportation", "discovery": "find_object",
         "reasoning": "corroborate", "resolution": "operate", "confirmation": "traversal",
-        "closed": "Every road inland is blocked - checkpoints, wrecks, one of them still burning.",
-        "route": "The marina still has boats in their slips. Water doesn't have checkpoints.",
-        "obstacle": "The boats are dry - no fuel in any of the tanks.",
-        "require": "The harbourmaster's shed stores fuel drums.",
-        "item": "jerrycan of fuel",
-        "obstacle_desc": "A serviceable boat sits ready at the dock, but the fuel gauge reads empty.",
-        "escape_desc": "The engine catches. You take the boat out past the harbour wall and open water opens up ahead.",
-        "roles": {"closed": "the blocked checkpoint", "route": "the marina",
-                  "obstacle": "empty boat", "require": "the harbourmaster's shed"},
-        "terrain": "water",
+        "has_item": True, "terrain": "water",
     },
     "evac_corridor": {
-        "name": "the evacuation corridor",
         "family": "sequential", "discovery": "find_document",
         "reasoning": "sequence", "resolution": "open", "confirmation": "traversal",
-        "closed": "The interstate on-ramp is collapsed - a whole overpass down across all the lanes.",
-        "route": "There was a signed evacuation corridor on the surface streets, running north out of town.",
-        "obstacle": "The corridor is barricaded where it leaves the built-up area - a checkpoint that was never taken down.",
-        "require": "The police station has the corridor's access codes and the barricade key.",
-        "item": "barricade key",
-        "obstacle_desc": "A military barricade closes the evacuation corridor - concrete, wire, and a locked vehicle gate.",
-        "escape_desc": "Past the barricade the corridor runs clear and straight, the evac signs still up, pointing you out.",
-        "roles": {"closed": "a collapsed overpass", "route": "an evacuation-route sign",
-                  "obstacle": "barricade", "require": "the police station"},
+        "has_item": True,
     },
     "power_station": {
-        "name": "the road tunnel",
         "family": "infrastructural", "discovery": "observe_anomaly",
         "reasoning": "infer", "resolution": "repair", "confirmation": "environmental",
-        "closed": "Every road out ends the same way - a slide, a checkpoint, a bridge dropped in the river. Nothing is driving out.",
-        "route": "There's a road tunnel bored straight through the ridge - it comes out on the far side of the mountains.",
-        "obstacle": "The tunnel is closed by a heavy electric gate, and the gate is dead. No power, no way to raise it.",
-        "require": "Fuel drums are stored at the highway works yard.",
-        "item": "jerrycan of fuel",
-        "obstacle_desc": "A heavy electric vehicle gate seals the tunnel mouth. The control panel is unlit.",
-        "escape_desc": "The gate grinds up. The tunnel runs level and straight through the ridge, and there is light at the far end.",
-        "roles": {"closed": "a blocked checkpoint", "route": "the tunnel mouth",
-                  "obstacle": "the tunnel gate", "require": "the works yard",
-                  "power": "the hydro station"},
-        "power_role": "power",
-        "power_fact": "The tunnel gate's power comes from the hydro station downriver.",
-        "power_obstacle_ev": "The gate is electric and its panel is stone dead. A cable run leaves it heading downriver - the power comes from somewhere else.",
-        "power_site_ev": "A heavy cable leaves the switch room here, strung on poles toward the ridge tunnel.",
-        "generator_ev": "The generator's fuel gauge sits on empty. It will not turn over dry.",
-        "power_restored_desc": "The generator catches and runs. Downriver, the tunnel gate's panel lights up.",
+        "has_item": True, "power_role": "power",
     },
     "dam_valves": {
-        "name": "the lower valley road",
         "family": "experimental", "discovery": "observe_anomaly",
         "reasoning": "revise", "resolution": "operate", "confirmation": "environmental",
-        "closed": "The main road out is gone - a whole hillside came down across it.",
-        "route": "There's a lower road that runs under the dam and out through the far end of the valley. It's still there, under the water.",
-        "obstacle": "The lower road is under the reservoir. The water level is held by the dam and set from the control room.",
-        "require": "The dam control room holds the gates for the whole reservoir - a bank of controls.",
-        "item": None,
-        "obstacle_desc": "The lower road runs straight down into the reservoir. Too deep to wade.",
-        "escape_desc": "The water's dropped off the lower road. It runs on out through the end of the valley, wet but clear.",
-        "roles": {"closed": "the landslide", "route": "the lower road",
-                  "obstacle": "the flooded road", "require": "the dam control room"},
-        "controls": ["the main sluice", "the east intake", "the west intake"],
-        "obvious_control": "the main sluice",
-        "control_wrong_obvious": "Water roars away downstream - but the level behind the dam doesn't move. The main sluice feeds the river below, not the valley reservoir.",
-        "control_wrong_other": "The gate grinds open. The reservoir drops a hand's width, then holds. This one only takes part of it.",
-        "control_correct": "The gate opens and stays open. Behind the dam the reservoir starts falling in earnest - and out on the lower road, the water pulls back off the tarmac.",
+        "has_item": False, "controls_count": 3,
     },
     "radio_tower": {
-        "name": "the emergency access road",
         "family": "informational", "discovery": "receive_information",
         "reasoning": "infer", "resolution": "repair", "confirmation": "external_response",
-        "closed": "Every road out ends the same way - a checkpoint, a slide, a bridge dropped in the river. Nothing is driving out.",
-        "route": "An emergency broadcast log, left open on the desk. The valley's channel is still monitored from the regional station - the last entry reads: 'if the tower comes back up, we can talk someone out.'",
-        "obstacle": "The broadcast tower stands on the ridge, and the transmitter is dark. The control panel is dead - no power to it at all.",
-        "require": "A fuel cache is kept at the ranger depot.",
-        "item": "jerrycan of fuel",
-        "obstacle_desc": "The transmitter housing at the tower base is silent, its panel unlit.",
-        "escape_desc": "The emergency access road climbs the ridge exactly where the voice said it would, and drops away down the far side. This is the way out.",
-        "roles": {"closed": "a dropped bridge", "route": "the broadcast log",
-                  "obstacle": "the broadcast tower", "require": "the ranger depot",
-                  "power": "the generator shed"},
-        "power_role": "power",
-        "power_fact": "The valley can still be reached from outside - but only if the broadcast tower is transmitting.",
-        "power_obstacle_ev": "The transmitter is dead. A conduit runs from it down the slope toward a shed - the power comes from there, and nothing is coming through.",
-        "power_site_ev": "A generator sits in the shed, cabled up the slope to the tower. This is what drives the transmitter.",
-        "generator_ev": "The generator's tank is bone dry. It will not turn over without fuel.",
-        "power_restored_desc": "The generator catches. Up on the ridge the transmitter's panel lights, and the channel opens with a hiss of static.",
-        "reveals_route": True,
-        "f_obstacle": "There is no way out to be seen - not until the tower is transmitting and someone on the outside answers.",
-        "d_route": "The way out isn't a road you can find on your own - it's whatever the people on the other end of that channel tell you.",
-        "route_reveal_ev": "The channel crackles, then a voice - clear, close. They read you an emergency access road up the {bearing} ridge, a track that was never on any map. It's marked for you now.",
+        "has_item": True, "power_role": "power", "reveals_route": True,
     },
     "airfield_plane": {
-        "name": "the airstrip",
         "family": "transportation", "discovery": "find_object",
         "reasoning": "sequence", "resolution": "repair", "confirmation": "traversal",
-        "closed": "Every road out ends the same way - a checkpoint, a slide, a bridge dropped in the river. Nothing is driving out.",
-        "route": "A crop-duster sits tied down on a grass strip where the valley opens up. Small - barely two seats - but it flies, and the strip runs right to where the ridge drops away.",
-        "obstacle": "The plane won't start. The propeller is off the shaft entirely, and both fuel gauges read empty.",
-        "require": "The propeller is racked on the wall of the hangar by the strip, wrapped in a blanket.",
-        "item": "propeller",
-        "require2": "A drum of avgas and a hand pump stand in the field store at the edge of the strip.",
-        "item2": "can of avgas",
-        "obstacle_desc": "The crop-duster is airworthy but grounded - no propeller fitted, no fuel in the tanks.",
-        "escape_desc": "The prop's on and the tanks are full. The engine turns over twice and catches. You taxi to the end of the strip, open the throttle, and lift off over the ridge. This is the way out.",
-        "roles": {"closed": "the blocked checkpoint", "route": "the airstrip",
-                  "obstacle": "the grounded plane", "require": "the hangar",
-                  "require2": "the field store"},
-        "assemble_desc": "You wrestle the propeller onto the shaft and pin it, then pump both tanks full from the drum. The engine catches on the second turn - it's ready to fly.",
+        "has_item": True, "has_item2": True,
     },
     "tidal_causeway": {
-        "name": "the tidal causeway",
         "family": "time_pressure", "discovery": "find_document",
         "reasoning": "triage", "resolution": "follow", "confirmation": "traversal",
-        "closed": "Every road inland is blocked - checkpoints, a slide, a bridge dropped in the river. Nothing is driving out.",
-        "route": "A stone causeway runs out from the shore to a headland, and a footbridge carries on from there - off the valley entirely, inland. But the causeway is tidal: it floods at high water.",
-        "obstacle": "The causeway is walkable right now, at low tide. When the water turns it goes under - chest-deep and climbing, no crossing it then.",
-        "require": "A tide board is posted at the shore station - the schedule, if you read it properly.",
-        "item": None,
-        "require_fact": "The tide runs on a schedule you can read and plan around - a short window now, another after dark.",
-        "require_ev": "The tide board: low water now, but the window is short. Miss it and the next low tide isn't until well after dark.",
-        "obstacle_desc": "The causeway stretches out across the flats, wet stone, weed on the low rocks - the tide line is halfway up the marker posts already.",
-        "escape_desc": "You cross the causeway at a jog, water pushing at your boots by the far end, and climb onto the headland. The footbridge runs on inland from here. You're out.",
-        "roles": {"closed": "the blocked checkpoint", "route": "the shore station",
-                  "obstacle": "the causeway", "require": "the tide board"},
-        "deadline_turns": 22,
-        "flood_recovery": 24,
+        "has_item": False, "deadline_turns": 22, "flood_recovery": 24,
     },
 }
+
+_MECH_ORDER = list(MECHANISMS)
+
+
+# Phase F §10.1: the generic fallback fiction for a mechanism a world's
+# mechanism_prose does not define (a fixture / partial world). An
+# authored world is expected to supply its own - this only exists so a
+# minimal world still runs. Deliberately bland. Its SHAPE must match the
+# mechanism's grammar (MECHANISMS[mechanism]) exactly - a field a world
+# entry wouldn't carry must not be here either, or the merge in
+# build_mystery would give e.g. a spatial mechanism a phantom `item2`.
+def _fallback_prose(mechanism):
+    g = MECHANISMS.get(mechanism, {})
+    roles = {"closed": "the blocked way", "route": "the alternate route",
+             "obstacle": "the obstruction", "require": "where the access is kept"}
+    p = {
+        "name": "the way out",
+        "closed": "The ordinary way out is closed.",
+        "route": "There is another way through.",
+        "obstacle": "Something blocks the route.",
+        "require": "What you need to clear it is kept nearby.",
+        "obstacle_desc": "The way is obstructed.",
+        "escape_desc": "The route runs on, clear. This is the way out.",
+        "roles": roles,
+        "landmark": "A feature stands out in the distance, the way through",
+    }
+    if g.get("has_item", True):
+        p["item"] = "the access you need"
+    else:
+        p["item"] = None
+    if g.get("has_item2"):
+        p["require2"] = "A second part is stored elsewhere."
+        p["item2"] = "the second part"
+        p["assemble_desc"] = "You fit the parts. It is ready."
+        roles["require2"] = "the second store"
+    if g.get("controls_count"):
+        n = g["controls_count"]
+        p["controls"] = [f"the {o} control" for o in
+                         ("first", "second", "third", "fourth", "fifth")[:n]]
+        p["obvious_control"] = p["controls"][0]
+        p["controls_prompt"] = "One of them opens the way - but which?"
+        p["controls_lore"] = "opens the way"
+        p["control_wrong_obvious"] = "Nothing changes. That was not it."
+        p["control_wrong_other"] = "Something shifts, then holds. Not that one either."
+        p["control_correct"] = "It works. The way opens."
+    if g.get("power_role"):
+        roles["power"] = "the power source"
+        p["power_fact"] = "The way out has no power."
+        p["power_obstacle_ev"] = "The mechanism is dead - no power reaching it."
+        p["power_site_ev"] = "The power for it is fed from here."
+        p["generator_ev"] = "The generator is out of fuel."
+        p["power_restored_desc"] = "Power comes back. The way out responds."
+    if g.get("reveals_route"):
+        p["f_obstacle"] = "There is no way out to be seen yet."
+        p["d_route"] = "The way out is whatever the other end tells you."
+        p["route_reveal_ev"] = ("A route opens up to the {bearing}, one that was "
+                                "never on the map. It's marked for you now.")
+    if g.get("deadline_turns"):
+        p["require_fact"] = "There is a window, and it will not last."
+        p["require_ev"] = "The window is open now. It will close."
+    return p
+
+
+def mechanism_prose(mechanism, world=None):
+    """The FICTION for `mechanism` in `world` (falling back to the
+    grammar-shaped generic set). Phase F §10.1."""
+    wp = getattr(world, "mechanism_prose", None) if world is not None else None
+    if wp is not None and mechanism in wp:
+        return {**_fallback_prose(mechanism), **wp[mechanism]}
+    return _fallback_prose(mechanism)
+
+
+def mech_spec(mechanism, world=None):
+    """Grammar + prose merged, the shape the pre-Phase-F MECHANISMS
+    entry had. `build_mystery` and per-mystery presentation use this."""
+    return {**MECHANISMS.get(mechanism, {}), **mechanism_prose(mechanism, world)}
 
 _MECH_ORDER = list(MECHANISMS)
 
@@ -210,21 +169,6 @@ _MECH_ORDER = list(MECHANISMS)
 # out and independent of the map's '!' marker. Written to take a
 # trailing ", <bearing> of here." clause. Says WHERE, never WHY - no
 # investigation content leaks here.
-_ROUTE_LANDMARKS = {
-    "mountain_pass":  "A notch in the ridgeline shows where a footpath climbs out over the valley wall",
-    "rail_tunnel":    "A railway embankment runs dead straight toward a cutting in the hills",
-    "service_route":  "A concrete dam wall stands across the head of the valley, a service road switchbacking up its face",
-    "boat_crossing":  "Masts and a marina breakwater stand out along the waterfront",
-    "evac_corridor":  "A tall evacuation-route sign still stands over the road, its reflectors catching the light",
-    "power_station":  "A dark tunnel portal is bored into the hillside, lane markings running straight in",
-    "dam_valves":     "The land falls away where a road cuts down and out of the lower valley",
-    "radio_tower":    "A lattice radio mast rises above the treeline, red lamps still blinking at the top",
-    "airfield_plane": "A windsock and a long flat airstrip open out past a chain-link fence",
-    "tidal_causeway": "A stone causeway runs out low across the tidal flats toward a squat shore station",
-}
-for _mk, _lm in _ROUTE_LANDMARKS.items():
-    if _mk in MECHANISMS:
-        MECHANISMS[_mk]["landmark"] = _lm
 
 STORY_FAMILIES = (
     'spatial', 'directional', 'corroborative', 'infrastructural',
@@ -255,13 +199,13 @@ def story_signature(mechanism):
     shape even across different mechanism names (SCENARIO_EXPANSION.md
     §3). A string so it round-trips through JSON cleanly."""
     spec = MECHANISMS.get(mechanism, {})
-    if spec.get('controls'):
+    if spec.get('controls_count'):
         dep = 'control-choice'
-    elif spec.get('item2'):
+    elif spec.get('has_item2'):
         dep = 'checklist'
     elif spec.get('power_role'):
         dep = 'restore-chain'
-    elif spec.get('item'):
+    elif spec.get('has_item'):
         dep = 'single-item'
     else:
         dep = 'none'
@@ -323,6 +267,7 @@ class Mystery:
         self.power_role = None       # role of the 'apply the fix here' site (infrastructural family), else None
         self.power_restored = False  # infrastructural: the dependency chain is satisfied
         self.controls = []            # experimental family: candidate controls, or []
+        self.obvious_control = None   # the decoy control (prose)
         self.correct_control = None   # the control that opens the obstacle
         self.controls_tried = []      # control names pulled so far
         self.knowledge = Knowledge()
@@ -337,6 +282,15 @@ class Mystery:
                                        # behaviour for the other 8 mechanisms.
         self.saw_obstacle = False
         self.escaped = False
+        # Phase F §10.1: world-owned mechanism prose the presentation
+        # code reads after the build (set by build_mystery / from_dict).
+        self.mech_name = "the way out"
+        self.mech_landmark = ""
+        self.power_restored_desc = "The way out has power now."
+        self.assemble_desc = "You fit the parts. The machine is ready."
+        self.control_correct = "It works. The way opens."
+        self.control_wrong_obvious = "Nothing changes. That was not it."
+        self.control_wrong_other = "Something shifts, then holds."
         # time-pressure family (tidal_causeway): a diegetic clock.
         self.deadline = None       # turns until the tide turns; None = no clock / not armed yet
         self.tide_recovery = 0     # while flooded: turns until the causeway reopens
@@ -415,6 +369,7 @@ class Mystery:
             "power_role": self.power_role,
             "power_restored": self.power_restored,
             "controls": list(self.controls),
+            "obvious_control": self.obvious_control,
             "correct_control": self.correct_control,
             "controls_tried": list(self.controls_tried),
             "knowledge": self.knowledge.to_dict(),
@@ -431,6 +386,13 @@ class Mystery:
             "saw_obstacle": self.saw_obstacle,
             "escaped": self.escaped,
             "site_evidence": {r: list(v) for r, v in self._site_evidence.items()},
+            "mech_name": self.mech_name,
+            "mech_landmark": self.mech_landmark,
+            "power_restored_desc": self.power_restored_desc,
+            "assemble_desc": self.assemble_desc,
+            "control_correct": self.control_correct,
+            "control_wrong_obvious": self.control_wrong_obvious,
+            "control_wrong_other": self.control_wrong_other,
         }
 
     @classmethod
@@ -448,6 +410,7 @@ class Mystery:
         m.power_role = d.get("power_role")
         m.power_restored = d.get("power_restored", False)
         m.controls = list(d.get("controls", []))
+        m.obvious_control = d.get("obvious_control")
         m.correct_control = d.get("correct_control")
         m.controls_tried = list(d.get("controls_tried", []))
         m.knowledge = Knowledge.from_dict(d.get("knowledge"))
@@ -464,6 +427,11 @@ class Mystery:
         m.saw_obstacle = d.get("saw_obstacle", False)
         m.escaped = d.get("escaped", False)
         m._site_evidence = {r: list(v) for r, v in d.get("site_evidence", {}).items()}
+        for _k in ("mech_name", "mech_landmark", "power_restored_desc",
+                   "assemble_desc", "control_correct", "control_wrong_obvious",
+                   "control_wrong_other"):
+            if d.get(_k) is not None:
+                setattr(m, _k, d[_k])
         return m
 
 
@@ -801,12 +769,24 @@ def build_mystery(game, target_fact=None):
             recent_signatures=getattr(game.__class__, '_recent_signatures', ()),
             supported=(_manifest.supported_mechanisms if _manifest else ()),
         )
-    spec = MECHANISMS[m.mechanism]
+    # Phase F §10.1: grammar (MECHANISMS) + fiction (world.mechanism_prose)
+    # merged. Every `spec[...]` below is shape-agnostic from here.
+    spec = mech_spec(m.mechanism, getattr(game, 'world', None))
     m.family = spec.get('family')
     m.discovery = spec.get('discovery')
     m.reasoning = spec.get('reasoning')
     m.resolution = spec.get('resolution')
     m.confirmation = spec.get('confirmation')
+    # prose the per-mystery presentation code (mystery_mixin / tui /
+    # world_mixin) needs after the build - stamped so those call sites
+    # don't have to re-resolve the world.
+    m.mech_name = spec.get('name', 'the way out')
+    m.mech_landmark = spec.get('landmark', '')
+    m.power_restored_desc = spec.get('power_restored_desc', 'The way out has power now.')
+    m.assemble_desc = spec.get('assemble_desc', 'You fit the parts. The machine is ready.')
+    m.control_correct = spec.get('control_correct', 'It works. The way opens.')
+    m.control_wrong_obvious = spec.get('control_wrong_obvious', 'Nothing changes. That was not it.')
+    m.control_wrong_other = spec.get('control_wrong_other', 'Something shifts, then holds.')
 
     spawn = game.current_position
     reachable = _reachable_from(game, spawn)
@@ -948,8 +928,9 @@ def build_mystery(game, target_fact=None):
     # room. The obvious control is never the right one.
     if spec.get('controls'):
         m.controls = list(spec['controls'])
+        m.obvious_control = spec.get('obvious_control')
         m.correct_control = rng.choice(
-            [c for c in m.controls if c != spec.get('obvious_control')])
+            [c for c in m.controls if c != m.obvious_control])
 
     # --- build the Escape Proof ---
     k = m.knowledge
@@ -1003,7 +984,7 @@ def build_mystery(game, target_fact=None):
                  location='route', method='search'),
         Evidence('E_require_b',
                  (f"A bank of controls: {', '.join(spec['controls'])}. "
-                  "One of them sets the valley reservoir - but which?"
+                  + spec.get('controls_prompt', "One of them opens the way - but which?")
                   if spec.get('controls')
                   else spec.get('require_ev') or f"You find the {spec['item']} here."),
                  supports=['F_REQUIRE'], location='require', method='search'),
@@ -1041,9 +1022,11 @@ def build_mystery(game, target_fact=None):
     _ns = "north" if _dy < -2 else "south" if _dy > 2 else ""
     _ew = "west" if _dx < -2 else "east" if _dx > 2 else ""
     _bearing = ("-".join(p for p in (_ns, _ew) if p)) or "far"
+    _edge = (getattr(getattr(game, 'world', None), 'prose', {}) or {}).get(
+        "region_edge", "edge of the map")
     for e in ev:
         if e.id == 'E_obstacle_a' and not _reveal:
-            e.text = f"{e.text} It's out toward the {_bearing} edge of the valley."
+            e.text = f"{e.text} It's out toward the {_bearing} {_edge}."
         elif e.id == 'E_route_reveal':
             e.text = e.text.replace('{bearing}', _bearing)
 
@@ -1068,7 +1051,7 @@ def build_mystery(game, target_fact=None):
             if e.id == 'E_require_b':
                 e.text = (f"A bank of controls: {', '.join(spec['controls'])}. "
                           f"The control-room notes are clear: {m.correct_control} "
-                          f"governs the valley reservoir.")
+                          f"{spec.get('controls_lore', 'opens the way')}.")
 
     for e in ev:
         k.add_evidence(e)

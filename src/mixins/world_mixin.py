@@ -449,15 +449,14 @@ class WorldMixin:
         if m is None or getattr(self, '_route_landmark_spotted', False):
             return
         from src.escape import MECHANISMS
-        spec = MECHANISMS.get(m.mechanism, {})
-        feature = spec.get('landmark')
+        feature = getattr(m, 'mech_landmark', '')   # Phase F §10.1: world-owned
         route = m.sites.get('route')
         if not feature or not route:
             return
         known = 'F_ROUTE' in m.knowledge.facts_known()
         # a reveals_route mechanism deliberately withholds the route
         # until the RESPONSE names it - don't point at it early.
-        if spec.get('reveals_route') and not known:
+        if MECHANISMS.get(m.mechanism, {}).get('reveals_route') and not known:
             return
         px, py = self.current_position
         if abs(route[0] - px) + abs(route[1] - py) > self.visibility_radius + 4:

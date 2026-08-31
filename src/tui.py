@@ -271,8 +271,8 @@ def _objective_steps(p, m, k):
     step is highlighted; the journal keeps the detail."""
     try:
         from src.escape import MECHANISMS
-        _spec = MECHANISMS.get(m.mechanism, {})
-        mech_name = _spec.get("name", "the way out")
+        _spec = MECHANISMS.get(m.mechanism, {})   # grammar only (reveals_route)
+        mech_name = getattr(m, "mech_name", None) or "the way out"
     except Exception:
         _spec = {}
         mech_name = "the way out"

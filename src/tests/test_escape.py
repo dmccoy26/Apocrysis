@@ -10,6 +10,9 @@ from src.escape import (
     STORY_FAMILIES, DISCOVERY_PATTERNS, REASONING_PATTERNS,
     RESOLUTION_PATTERNS, CONFIRMATION_PATTERNS,
 )
+# Phase F §10.1: the FICTION (name / landmark / evidence prose) is
+# world-owned; the default world's set for the World-1 assertions here.
+from src.worlds.silence.mechanism_prose import MECHANISM_PROSE
 
 
 class _IO:
@@ -474,7 +477,8 @@ class TestRouteLandmark(unittest.TestCase):
             gmod.Apocrysis._world_investigation = _saved
 
     def test_every_mechanism_has_a_route_landmark(self):
-        for name, spec in MECHANISMS.items():
+        for name in MECHANISMS:
+            spec = MECHANISM_PROSE[name]
             self.assertTrue(spec.get("landmark"), f"{name} has no landmark")
             self.assertNotIn("way out", spec["landmark"].lower(),
                              f"{name} landmark leaks the route role")
@@ -495,7 +499,7 @@ class TestRouteLandmark(unittest.TestCase):
             g = self._force(name, seed=1)
             self.assertNotIn("F_ROUTE", g.mystery.knowledge.facts_known())
             out = self._spot_near_route(g)
-            self.assertIn(MECHANISMS[name]["landmark"][:20], out,
+            self.assertIn(MECHANISM_PROSE[name]["landmark"][:20], out,
                           f"{name}: landmark not announced")
             # says WHERE (a direction or 'close by'), never WHY
             self.assertTrue(any(d in out for d in self._DIRS)
@@ -509,7 +513,7 @@ class TestRouteLandmark(unittest.TestCase):
         # no marker knowledge at all
         self.assertNotIn("route", getattr(g, "_mystery_named", set()))
         out = self._spot_near_route(g)
-        self.assertIn(MECHANISMS["mountain_pass"]["landmark"][:20], out)
+        self.assertIn(MECHANISM_PROSE["mountain_pass"]["landmark"][:20], out)
 
     def test_landmark_beat_fires_once(self):
         g = self._force("airfield_plane", seed=3)
@@ -534,7 +538,7 @@ class TestRouteLandmark(unittest.TestCase):
                 k.discover(eid)
         self.assertIn("F_ROUTE", k.facts_known())
         g._route_landmark_spotted = False
-        self.assertIn(MECHANISMS["radio_tower"]["landmark"][:20],
+        self.assertIn(MECHANISM_PROSE["radio_tower"]["landmark"][:20],
                       self._spot_near_route(g))
 
 

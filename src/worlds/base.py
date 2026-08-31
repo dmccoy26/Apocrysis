@@ -121,6 +121,13 @@ class World:
     # worlds/<w>/population.py - the module (or any object) exposing
     # pick_identity / pick_situation / confidence / describe / loot_pool.
     population: object = None
+    # {mechanism_key: {prose fields}} - the FICTION of each escape
+    # mechanism (name / closed / route / obstacle / require / item /
+    # roles / evidence templates). The GRAMMAR (family, discovery
+    # logic, placement, RNG) stays in escape.MECHANISMS. Required for
+    # an authored world; optional for a fixture world (escape.py has a
+    # generic fallback so a partial world still runs). Phase F §10.1.
+    mechanism_prose: dict = None
     # chapter intro lines + retrospective text: {"chapters": (...),
     # "retro_lead": str, "retro_tail": str}
     chapters: dict = field(default_factory=dict)

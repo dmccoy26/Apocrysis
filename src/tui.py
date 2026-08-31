@@ -887,6 +887,7 @@ class GameScreen(Screen):
                            io=self.io)
             from src.dev import equip_for_depth
             equip_for_depth(_p, depth)
+            _p._return_to_menu_hook = self._worker_return_to_menu
             return _p
 
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
@@ -917,6 +918,10 @@ class GameScreen(Screen):
                 hardcore=self._hardcore,
                 io=self.io,
             )
+        # G3: the in-game `menu` command calls this hook (ui_mixin's
+        # _request_return_to_menu). Set on every player this screen
+        # builds - the first one and each post-win successor.
+        player._return_to_menu_hook = self._worker_return_to_menu
         return player
 
     def _save_or_delete_profile(self):
@@ -986,15 +991,20 @@ class GameScreen(Screen):
                 try:
                     self.player.run_game_loop()
                 except GameClosed:
-                    # G2: this game session was deliberately ended
-                    # (close_game() on the UI thread set the event).
+                    # G2/G3: this game session was deliberately ended -
+                    # either close_game() (UI thread set the event) or
+                    # the in-game `menu` command (_worker_return_to_menu
+                    # set it then raised, right here on the worker).
                     # Persist per the session-end rule (Normal -> save
-                    # once; Hardcore + alive -> nothing, the campaign
-                    # is gone; Hardcore + dead -> delete), tidy this
-                    # session's playlog, and return - the app is still
-                    # perfectly alive, so no app.exit() below.
+                    # once; Hardcore + alive -> nothing, campaign gone;
+                    # Hardcore + dead -> delete), tidy this session's
+                    # playlog, hand the UI thread the teardown (drain
+                    # queue, pop GameScreen -> whatever's beneath, which
+                    # in the real app is MenuScreen), and return - the
+                    # app stays alive, so no app.exit() below.
                     self._persist_on_session_end()
                     self._end_session_playlog()
+                    self.app.call_from_thread(self._finish_session_teardown)
                     return
                 except AppClosed:
                     # Real bug found live: AppClosed raised mid-
@@ -1043,9 +1053,10 @@ class GameScreen(Screen):
             # Belt-and-suspenders: GameClosed raised somewhere other
             # than inside run_game_loop() (e.g. between iterations).
             # The inner handler already returned in the common case;
-            # here just persist once and stop, no app.exit().
+            # here just persist once, hand off the teardown, and stop.
             self._persist_on_session_end()
             self._end_session_playlog()
+            self.app.call_from_thread(self._finish_session_teardown)
             return
         except AppClosed:
             # App is already shutting down for some other reason -
@@ -1094,21 +1105,33 @@ class GameScreen(Screen):
             pass
         self._log_path = None
 
+    def _finish_session_teardown(self):
+        """UI thread. The worker calls this (via call_from_thread) once
+        it has stopped and persisted. Scrubs session-local state so
+        nothing leaks into the next session, then replaces this
+        GameScreen with a fresh MenuScreen (switch_screen, not pop - a
+        1:1 swap, no reliance on what was underneath)."""
+        if self.io is not None:
+            self.io._drain_stale_answers()
+        self._expecting_command = False
+        self._session_closing.clear()
+        self._game_worker = None
+        # MenuScreen sits under every GameScreen (ApocrysisApp.on_mount),
+        # so popping this screen reveals it. Guard the base screen.
+        if self.app.is_running and self in self.app.screen_stack \
+                and self is not self.app.screen_stack[0]:
+            self.app.pop_screen()
+
     async def close_game(self):
         """G2 lifecycle primitive: end THIS game session, leave the
-        Textual application running. Unwired for now - G3 gives the
-        player a way to reach it (the `menu` command) and somewhere to
-        land afterwards (MenuScreen). G5 owns the class-var reset
-        contract. This method only does session teardown:
+        Textual application running. G3 wires a route to it (the
+        in-game `menu` command -> _worker_return_to_menu, which reaches
+        the same GameClosed path from the worker side). G5 owns the
+        class-var reset contract.
 
-          1. release the worker if it's blocked on a prompt
-          2. wait for it to ACTUALLY terminate (not just abandon it)
-          3. (the worker itself saves/deletes exactly once + closes
-             the playlog, in _game_thread's GameClosed branch)
-          4. drain the answer queue + clear session-local flags so
-             nothing leaks into a future session
-          5. pop this screen - the app is now back on its base screen
-        """
+        Signal the worker, wait for it to ACTUALLY terminate (not just
+        abandon it); the worker persists exactly once and runs
+        _finish_session_teardown itself before returning."""
         self._session_closing.set()
         w = self._game_worker
         if w is not None:
@@ -1118,15 +1141,32 @@ class GameScreen(Screen):
                 # WorkerFailed / already-finished - the worker is done
                 # either way, which is all we need.
                 pass
-        self._game_worker = None
-        # Worker has fully stopped: safe to scrub session-local state.
-        if self.io is not None:
-            self.io._drain_stale_answers()
-        self._expecting_command = False
-        self._session_closing.clear()
-        if self.app.is_running and self in self.app.screen_stack \
-                and self is not self.app.screen_stack[0]:
-            self.app.pop_screen()
+        # Normally the worker already tore down via call_from_thread.
+        # If it somehow never reached the handler, finish here.
+        if self._game_worker is not None or self._session_closing.is_set():
+            self._finish_session_teardown()
+
+    def _worker_return_to_menu(self):
+        """Worker thread - the in-game `menu` command, installed as
+        player._return_to_menu_hook. Hardcore first gets the abandon
+        confirm (default = stay); on 'stay' this is a true no-op, the
+        session is never signalled. Otherwise signal the session to end
+        and raise GameClosed to unwind run_game_loop() - _game_thread's
+        handler persists per the session-end rule and _finish_session_
+        teardown pops back to the menu."""
+        p = self.player
+        if getattr(p, "hardcore", False):
+            ask = getattr(p.io, "ask_commit", None)
+            res = ask(
+                "HARDCORE CAMPAIGN - leaving now abandons this campaign. "
+                "There is no save to resume later. Leave anyway?  "
+                "[y] leave  /  [Enter] stay",
+                default="cancel") if ask else "proceed"
+            if res != "proceed":
+                p.io.say("Still here.")
+                return
+        self._session_closing.set()
+        raise GameClosed()
 
     def request_input(self, prompt):
         input_widget = self.query_one("#command_input", Input)
@@ -1372,12 +1412,109 @@ class GameScreen(Screen):
         self._focus_command_box()
 
 
+class MenuScreen(Screen):
+    """G3 milestone 1: a real screen that the in-game `menu` command
+    exits into. Deliberately minimal - it renders the five top-level
+    choices so the shape of the shell is visible from the first screen,
+    but only QUIT is wired. CONTINUE / NEW CAMPAIGN / LOAD GAME /
+    SETTINGS are the next G3 steps (campaign management), layered onto
+    this navigation primitive rather than built alongside it.
+
+    Knows the registry-shaped concept of "a campaign" but no world's
+    fiction - adding World 3 must never touch this class."""
+
+    CSS = """
+    MenuScreen {
+        align: center middle;
+    }
+    #menu_box {
+        width: auto;
+        height: auto;
+        padding: 2 8;
+    }
+    #menu_title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 2;
+    }
+    #menu_items {
+        text-align: center;
+    }
+    #menu_note {
+        text-align: center;
+        margin-top: 2;
+        color: $text-muted;
+    }
+    """
+
+    BINDINGS = [
+        Binding("up", "cursor_up", "Up"),
+        Binding("down", "cursor_down", "Down"),
+        Binding("enter", "activate", "Select"),
+        Binding("q", "quit_app", "Quit"),
+    ]
+
+    _ITEMS = ("CONTINUE", "NEW CAMPAIGN", "LOAD GAME", "SETTINGS", "QUIT")
+
+    def __init__(self):
+        super().__init__()
+        self._sel = 0
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="menu_box"):
+            yield Static("APOCRYSIS\nTHE WORLD REMEMBERS", id="menu_title")
+            yield Static(id="menu_items")
+            yield Static(id="menu_note")
+        yield Footer()
+
+    def on_mount(self):
+        self._render_items()
+
+    def _render_items(self):
+        rows = []
+        for i, item in enumerate(self._ITEMS):
+            if i == self._sel:
+                rows.append(f"[b]▸ {item}[/b]")
+            else:
+                rows.append(f"[dim]  {item}[/dim]")
+        self.query_one("#menu_items", Static).update("\n".join(rows))
+
+    def action_cursor_up(self):
+        self._sel = (self._sel - 1) % len(self._ITEMS)
+        self._render_items()
+
+    def action_cursor_down(self):
+        self._sel = (self._sel + 1) % len(self._ITEMS)
+        self._render_items()
+
+    def action_quit_app(self):
+        self.app.exit()
+
+    def action_activate(self):
+        choice = self._ITEMS[self._sel]
+        if choice == "QUIT":
+            self.app.exit()
+            return
+        # Campaign management is the next G3 step - this milestone is
+        # only the navigation primitive (game <-> menu).
+        self.query_one("#menu_note", Static).update(
+            f"[dim]{choice} is coming in the next G3 step. "
+            f"Press Q to quit for now.[/dim]")
+
+
 class ApocrysisApp(App):
-    """G1: thin shell. Everything that used to live here now lives on
-    GameScreen; this just carries the constructor params through and
-    pushes the game screen on mount. The __init__ signature is
-    preserved exactly (src/cli.py, src/tests/test_ui.py depend on it).
-    Phase G's later steps swap this push for a Menu screen."""
+    """G1: thin shell. The game body lives on GameScreen; the shell
+    just carries the constructor params through. The __init__ signature
+    is preserved exactly (src/cli.py, src/tests/test_ui.py depend on
+    it).
+
+    G3 milestone 1: on mount, MenuScreen is pushed first (the base the
+    shell rests on), then GameScreen on top - so launch still drops
+    straight into the game (cli.py resolves the name) and the in-game
+    `menu` command just pops back to the MenuScreen underneath.
+    Launching INTO the menu (and deleting the pre-Textual name prompt)
+    is a later G3 step."""
 
     def __init__(self, name=None, level=1, seed=None, hardcore=False,
                  start_log=False, dev=None):
@@ -1385,5 +1522,9 @@ class ApocrysisApp(App):
         self._game_kw = dict(game_name=name, level=level, seed=seed,
                              hardcore=hardcore, start_log=start_log, dev=dev)
 
-    def on_mount(self):
-        self.push_screen(GameScreen(**self._game_kw))
+    async def on_mount(self):
+        # Awaited in sequence: MenuScreen must be fully mounted before
+        # GameScreen goes on top of it, or the compositor can try to
+        # render a half-built background screen.
+        await self.push_screen(MenuScreen())
+        await self.push_screen(GameScreen(**self._game_kw))

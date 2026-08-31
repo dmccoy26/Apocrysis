@@ -281,7 +281,8 @@ class UIMixin:
 
             _free = ('m', 'map', 'i', 'inv', 'inventory', 'st', 'stats',
                      'h', '?', 'help', 'commands', 'q', 'quit', 'x',
-                     'exit', 'exit game', 'log', 'wi', 'investigation')
+                     'exit', 'exit game', 'log', 'wi', 'investigation',
+                     'menu')
             if command and command not in _free:
                 self.turns = getattr(self, 'turns', 0) + 1
 
@@ -359,6 +360,7 @@ class UIMixin:
                 'clear': self._v4_clear,
                 'open': self._v4_clear,
                 'log': self._toggle_playlog,
+                'menu': self._request_return_to_menu,
             }
 
             if command in ('q', 'quit'):
@@ -622,6 +624,17 @@ class UIMixin:
                 lines.append(f"  {nf.statement}")
         if len(lines) > 1:
             self.io.say("\n".join(lines))
+
+    def _request_return_to_menu(self):
+        """`menu` command (G3). The game itself has no concept of a
+        shell - it just invokes the hook the presentation layer
+        installs. Classic mode / bots never set one, so there it's an
+        honest no-op message rather than an error."""
+        hook = getattr(self, "_return_to_menu_hook", None)
+        if hook is None:
+            self.io.say("Return to the main menu isn't available here.")
+            return
+        hook()
 
     def _toggle_playlog(self):
         """`log` command: start/stop writing a plain-text transcript of
@@ -991,6 +1004,7 @@ class UIMixin:
             "    1 2 3 ...         equip that weapon from `i`   (W1 W2 = armor)",
             "    equip <weapon>   wear <armor>   drop <thing>   craft <recipe>",
             "",
+            "  menu              return to the main menu",
             "  q or x            quit",
             "",
         ]

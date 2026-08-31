@@ -34,7 +34,8 @@ def _profile_path(name):
     return runtime_paths.resolve("player", profile_filename_for_name(name))
 
 try:
-    from src.tui import ApocrysisApp, GameScreen, TextualIO, AppClosed, GameClosed
+    from src.tui import (ApocrysisApp, GameScreen, MenuScreen, TextualIO,
+                         AppClosed, GameClosed)
     _TEXTUAL_AVAILABLE = True
 except ImportError:
     _TEXTUAL_AVAILABLE = False
@@ -168,8 +169,9 @@ class TestGameClosedLifecycle(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(app.is_running, "app exited on GameClosed (#3)")
             self.assertTrue(worker.is_finished, "worker did not terminate (#6)")
             self.assertIsNone(gs._game_worker)
-            # GameScreen popped - the app is back on its base screen.
-            self.assertIs(app.screen, app.screen_stack[0])
+            # G3: GameScreen popped, revealing the MenuScreen beneath.
+            self.assertIsInstance(app.screen, MenuScreen)
+            self.assertNotIn(gs, app.screen_stack)
             # #8: session-local flag cleared, close event reset.
             self.assertFalse(gs._expecting_command)
             self.assertFalse(gs._session_closing.is_set())
@@ -260,7 +262,135 @@ class TestGameClosedLifecycle(unittest.IsolatedAsyncioTestCase):
             self.assertLessEqual(
                 threading.active_count(), baseline + 1,
                 "worker threads accumulated across sessions (#10)")
-            self.assertIs(app.screen, app.screen_stack[0])
+            self.assertIsInstance(app.screen, MenuScreen)
+            # No Screen pile-up either: base + one MenuScreen.
+            self.assertEqual(len(app.screen_stack), 2)
+
+
+# --------------------------------------------------------------------
+# G3 milestone 1: the `menu` command is a real, working exit from
+# GameScreen into a real MenuScreen. No campaign management yet.
+# --------------------------------------------------------------------
+
+@unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
+class TestReturnToMenu(unittest.IsolatedAsyncioTestCase):
+
+    _NAMES = ("G3Normal", "G3Hard")
+
+    def _clean(self):
+        for n in self._NAMES:
+            f = _profile_path(n)
+            if os.path.exists(f):
+                os.remove(f)
+
+    async def asyncSetUp(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        self._clean()
+
+    async def asyncTearDown(self):
+        await asyncio.sleep(0.3)
+        self._clean()
+
+    async def _type(self, pilot, text):
+        for ch in text:
+            await pilot.press(ch)
+        await pilot.press("enter")
+
+    async def test_menu_command_from_normal_game_lands_on_menuscreen(self):
+        app = ApocrysisApp(name="G3Normal", level=1, seed=1)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            gs = app.screen
+            self.assertIsInstance(gs, GameScreen)
+
+            await self._type(pilot, "menu")
+            await asyncio.wait_for(pilot.pause(0.6), timeout=5)
+
+            self.assertIsInstance(app.screen, MenuScreen)
+            self.assertTrue(app.is_running)
+            self.assertTrue(gs._game_worker is None)
+            # Normal return-to-menu is silent + autosaves.
+            self.assertTrue(os.path.exists(_profile_path("G3Normal")))
+
+    async def test_menu_from_hardcore_stay_is_a_true_noop(self):
+        app = ApocrysisApp(name="G3Hard", level=1, seed=1, hardcore=True)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            gs = app.screen
+            worker = gs._game_worker
+
+            await self._type(pilot, "menu")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            # The abandon confirm is up.
+            self.assertIn("HARDCORE",
+                          gs.query_one("#command_input").placeholder)
+
+            # Bare Enter = stay (default cancel).
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+
+            self.assertIs(app.screen, gs, "left the game on 'stay'")
+            self.assertIs(gs._game_worker, worker, "worker was signalled on 'stay'")
+            self.assertFalse(gs._session_closing.is_set())
+
+    async def test_menu_from_hardcore_leave_abandons_the_campaign(self):
+        app = ApocrysisApp(name="G3Hard", level=1, seed=1, hardcore=True)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            gs = app.screen
+
+            await self._type(pilot, "menu")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            await self._type(pilot, "y")           # leave
+            await asyncio.wait_for(pilot.pause(0.6), timeout=5)
+
+            self.assertIsInstance(app.screen, MenuScreen)
+            self.assertFalse(os.path.exists(_profile_path("G3Hard")),
+                             "Hardcore abandon wrote a profile")
+
+    async def test_menuscreen_quit_exits_the_app(self):
+        app = ApocrysisApp(name="G3Normal", level=1, seed=1)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            await self._type(pilot, "menu")
+            await asyncio.wait_for(pilot.pause(0.6), timeout=5)
+            self.assertIsInstance(app.screen, MenuScreen)
+
+            # QUIT is the selected item by... navigate to it (last).
+            for _ in range(4):
+                await pilot.press("down")
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.3), timeout=5)
+            self.assertFalse(app.is_running)
+
+
+@unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
+class TestMenuCommandDecoupling(unittest.TestCase):
+
+    def test_menu_command_is_a_noop_message_without_a_shell_hook(self):
+        # Classic mode / bots never install _return_to_menu_hook.
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        said = []
+
+        class _IO:
+            renders_natively = False
+            def say(self, *a, **k): said.append(" ".join(str(x) for x in a))
+            def ask(self, *a, **k): return ""
+            def ask_yes_no(self, *a, **k): return False
+
+        g = Apocrysis("Classic", seed=1, io=_IO())
+        g._request_return_to_menu()
+        self.assertTrue(any("main menu isn't available" in s for s in said))
+
+    def test_menuscreen_carries_no_world_fiction(self):
+        # The World-3 seam: adding a world must never touch the shell.
+        import inspect
+        from src.tui import MenuScreen
+        src = inspect.getsource(MenuScreen).lower()
+        for needle in ("silence", "the_wake", "valley", "world.id"):
+            self.assertNotIn(needle, src)
 
 
 if __name__ == "__main__":

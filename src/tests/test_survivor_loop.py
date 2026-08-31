@@ -133,11 +133,16 @@ class TestDeathTransition(_Base):
         heir = Apocrysis.persist_new_survivor(
             self._pf, "Ada", hardcore=False, depth=dying.expeditions_completed)
 
-        # survivor reset
+        # survivor reset - a fresh life (xp 0, full health, new name),
+        # but 1d gives the CAMPAIGN a survivability floor: the heir has a
+        # modest level floor and real gear, still well short of a
+        # survivor who actually reached depth 8.
         self.assertEqual(heir.name, "Ada")
-        self.assertEqual(heir.level, 1)
         self.assertEqual(heir.xp, 0)
+        self.assertGreater(heir.level, 1)                        # floor
+        self.assertLess(heir.level, 8)                           # not a depth-8 character
         self.assertEqual(heir.health, heir.max_health)
+        self.assertGreater(getattr(heir.equipped_weapon, "damage", 0), 6)  # not the screwdriver
         # campaign kept
         self.assertEqual(heir.expeditions_completed, 8)          # depth, not survivor
         self.assertTrue(heir.world_investigation.is_known("DIS_ORGANISED"))
@@ -165,7 +170,7 @@ class TestDeathTransition(_Base):
         prof = Apocrysis.load_profile(self._pf)
         flat = _profile_flat(prof)
         self.assertEqual(flat["expeditions_completed"], 8)   # campaign
-        self.assertEqual(flat["level"], 1)                   # survivor
+        self.assertLess(flat["level"], 8)                    # survivor level != depth
 
     def test_survivor_name_cycles_then_numbers(self):
         from src.cli import _next_survivor_name, _SURVIVOR_POOL
@@ -488,10 +493,12 @@ class TestPhaseBExitCondition(_Base):
         heir = Apocrysis.persist_new_survivor(
             self._pf, _next_survivor_name(1), hardcore=False, depth=6)
 
-        # weak, new name
-        self.assertEqual(heir.level, 1)
+        # a fresh life (xp 0, new name) with the campaign's survivability
+        # floor - weaker than a depth-6 survivor, stronger than L1
         self.assertEqual(heir.xp, 0)
         self.assertNotEqual(heir.name, "Founder")
+        self.assertGreater(heir.level, 1)
+        self.assertLess(heir.level, 6)
         self.assertEqual(heir.health, heir.max_health)
         # knows the campaign
         self.assertTrue(heir.world_investigation.is_known("DIS_FEW_REMAINS"))

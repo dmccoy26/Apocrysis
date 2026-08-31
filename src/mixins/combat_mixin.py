@@ -159,10 +159,30 @@ class CombatMixin:
             if random.random() < escape_model.escape_chance_for(self, zombie, terrain):
                 self.announce_event(f"You got away from the infected.",
                                     kind="success")
+                self.tile_event_cooldowns[self.current_position] = self.day + 3
                 return  # Exit the method to avoid the fight
-            else:
-                self.announce_event("Couldn't get away - you have to fight.",
+
+            # 1d: a failed escape used to mean a full fight against a
+            # target the card just said was ~0% winnable - the player
+            # made the right call and lost a coin flip. Now a failed
+            # escape costs ONE hit, not the run - you break contact.
+            # A *fast* infected is the exception: it ran you down, and
+            # you're in the fight (this keeps "running from a Swift is
+            # dangerous", DESIGN_ESCAPE_MODEL.md).
+            from src.zombies import speed_class_of as _speed
+            if _speed(zombie) == "fast":
+                self.announce_event("It runs you down - you have to fight.",
                                     kind="danger")
+            else:
+                _grab = max(1, round(zombie.attack * 0.75))
+                self.take_damage(_grab)
+                self.announce_event(
+                    "It gets a hand on you as you break away.",
+                    f"You take {_grab} - but you're out of its reach. "
+                    "You're still not clear of this place.",
+                    kind="warning", level=1)
+                self.tile_event_cooldowns[self.current_position] = self.day + 3
+                return
 
         self.io.say(f"Preparing for battle against the infected...")
         self.hunger = max(0, self.hunger - zombie.hunger_cost)
@@ -567,12 +587,20 @@ class CombatMixin:
                 self.backpack.medicine += 1
                 self.io.say("You found some medicine!")
             elif item == "weapon":
-                # Corrected instantiation of MeleeWeapon and RangedWeapon
-                weapon = random.choice([
-                    MeleeWeapon("Sword", 15, 25),
-                    RangedWeapon("Gun", 20, 5)  # Assuming the last number is the ammunition count
-                ])
-
+                # 1d: pull a NAMED weapon from LOOT_WEAPON_TABLE (banded
+                # by depth), same as world_mixin.find_loot - so two
+                # looted guns aren't both just "Gun" and the empty-mag
+                # auto-swap message can name the actual weapon.
+                from src.constants import LOOT_WEAPON_TABLE
+                _elig = {n: s for n, s in LOOT_WEAPON_TABLE.items()
+                         if s.get("min_expedition", 0) <= self.expeditions_completed}
+                _n = random.choice(list(_elig))
+                _s = _elig[_n]
+                if _s["type"] == "ranged":
+                    weapon = RangedWeapon(_n, _s["damage"], _s["max_ammo"],
+                                          _s["durability"])
+                else:
+                    weapon = MeleeWeapon(_n, _s["damage"], _s["durability"])
                 self.backpack.weapons.append(weapon)
                 self.io.say(f"You found a {weapon.name}!")
             elif item == "ammo":

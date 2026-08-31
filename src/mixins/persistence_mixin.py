@@ -7,8 +7,58 @@ import os
 import re
 
 from src import runtime_paths
+from src.constants import LOOT_WEAPON_TABLE, ARMOR_TABLE
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
+
+
+def _apply_heir_advantage(player, depth):
+    """1d: the survivability floor a campaign inherits when a survivor
+    dies. A heir starts a fresh life, but the *campaign's* accumulated
+    preparation carries: a modest level floor, a real weapon (not the
+    class default), one body-armour piece, and the depth-scaled ration
+    floor. Everything here is ~2-3 expeditions behind what a survivor
+    who actually reached `depth` would have, so the heir is still
+    clearly weaker than the survivor they replace - just not
+    defenceless. Combat formulas / encounter rates / the difficulty
+    curve are untouched. See docs/COMBAT_PROGRESSION_PASS.md.
+    """
+    from src.game import depth_supply_bonus
+    if depth <= 0:
+        return
+
+    # level floor ~0.45/depth: depth 3 -> L2, depth 6 -> L3, depth 12 -> L6
+    lvl = max(player.level, 1 + round(depth * 0.45))
+    bump = lvl - player.level
+    if bump > 0:
+        player.level = lvl
+        player.strength += bump
+        player.dexterity += bump
+        player.max_health += 5 * bump
+        player.health = player.max_health
+
+    # a weapon ~4 expeditions back - never a downgrade, and always
+    # short of the best a lucky survivor at this depth might have
+    _band = max(0, depth - 4)
+    _melee = [(n, s) for n, s in LOOT_WEAPON_TABLE.items()
+              if s["type"] == "melee" and s.get("min_expedition", 0) <= _band]
+    if _melee:
+        n, s = max(_melee, key=lambda kv: kv[1]["damage"])
+        if s["damage"] > getattr(player.equipped_weapon, "damage", 0):
+            player.equipped_weapon = MeleeWeapon(n, s["damage"], s["durability"])
+
+    # one body-armour piece ~4 expeditions back
+    _aband = max(0, depth - 4)
+    _body = [(n, s) for n, s in ARMOR_TABLE.items()
+             if s["slot"] == "body" and s.get("min_expedition", 0) <= _aband]
+    if _body and not player.equipped_armor.get("body"):
+        n, s = max(_body, key=lambda kv: kv[1]["reduction"])
+        player.equipped_armor["body"] = Armor(n, s["reduction"], s["durability"], "body")
+
+    # the ration floor (mirrors the depth_supply_bonus a real run accrues)
+    _b = depth_supply_bonus(depth)
+    player.backpack.food = max(player.backpack.food, 10 + _b)
+    player.backpack.water = max(player.backpack.water, 10 + _b)
 
 
 DEFAULT_PROFILE_FILENAME = "apocrysis_profile.json"
@@ -531,14 +581,18 @@ class PersistenceMixin:
     @classmethod
     def persist_new_survivor(cls, campaign_file, heir_name, hardcore, depth):
         """Phase B: this survivor died (non-hardcore). The campaign is
-        still held in the class-vars; a fresh level-1 survivor takes it
-        up. Writes {campaign: <verbatim>, survivor: <fresh>} to
+        still held in the class-vars; a fresh survivor takes it up.
+        Writes {campaign: <verbatim>, survivor: <fresh>} to
         `campaign_file` and returns the heir game (unstarted).
 
-        This is the game LIFECYCLE replacing the survivor - save_profile
-        itself has no death logic (PHASE_B_SPEC.md invariant 5).
+        1d: the campaign inherits a *survivability floor*
+        (_apply_heir_advantage) - the heir is a fresh survivor but not a
+        Level-1-with-a-screwdriver one dropped into a depth-N combat
+        environment. Their own progression still starts near-scratch and
+        stacks on top.
         """
         heir = cls(heir_name, hardcore=hardcore, expeditions_completed=depth)
+        _apply_heir_advantage(heir, depth)
         heir.save_profile(campaign_file)
         return heir
 

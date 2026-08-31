@@ -316,7 +316,8 @@ class TestShellDecoupling(unittest.TestCase):
 
     def test_shell_screens_carry_no_world_fiction(self):
         from src import tui
-        for cls in (tui.MenuScreen, tui.NewCampaignScreen, tui.LoadGameScreen):
+        for cls in (tui.MenuScreen, tui.NewCampaignScreen, tui.LoadGameScreen,
+                    tui.SettingsScreen):
             src = inspect.getsource(cls).lower()
             for needle in ("silence", "the_wake", "the wake", "valley",
                            "world.id =="):

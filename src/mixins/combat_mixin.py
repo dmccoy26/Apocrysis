@@ -367,32 +367,44 @@ class CombatMixin:
             fp = oc["win_pct"]
             ep = cf.escape_pct(self, zombie, terrain)
             tier = cf.threat_tier(fp, oc["p90_frac"])
-            self.io.say("")
-            self.io.say(f"  --- {getattr(zombie, 'identity_label', 'INFECTED').upper()} ---")
-            _line = getattr(zombie, "identity_line", "")
-            if _line:
-                self.io.say(f"  {_line}")
-            self.io.say(f"  {cf.danger_note(zombie)}")
-            self.io.say(f"  Threat:  {tier}")
-            self.io.say(f"  With your {wname} ({wdmg} dmg):   "
-                        f"Fight ~{fp}%    Escape ~{ep}%")
-            if oc["p90_frac"] is not None and fp >= 65 and oc["p90_frac"] >= 0.45:
-                self.io.say("  You'll probably win this - but expect to be "
-                            "near death by the end.")
-            # P1-a companion (spec §3.2): the old flat "if the escape fails
-            # you're fighting it anyway" is false for a slow/normal infected
-            # since 1d431a5 (a failed escape = one grab, break contact) and
-            # it argued for fighting. Speed-class honest now.
-            if speed_class_of(zombie) == "fast":
-                self.io.say("  This one's fast - if the escape fails you're in the fight.")
-            elif fp < 50:
-                self.io.say("  A failed escape costs you a hit, not the fight - "
-                            "you break contact.")
-            self.io.say(f"  Your weapon is {cf.weapon_verdict(fp, oc['p50_frac'])}.")
             bw = cf.better_weapon(self, zombie)
-            if bw is not None:
-                self.io.say(f"  In your pack: {bw[0].name} (~{bw[1]}%) would help"
-                            + (" - press w." if interactive else "."))
+            # G6 (§8): "combat card" preference. `terse` shows the same
+            # numbers on one line instead of the full annotated card;
+            # the decision, the [w] window and the P1 gate are all
+            # unchanged. Absent settings (bots) -> full, as before.
+            _terse = (getattr(self, "_settings", None) or {}).get(
+                "combat_card") == "terse"
+            self.io.say("")
+            if _terse:
+                _label = getattr(zombie, "identity_label", "INFECTED").upper()
+                _bwn = f"  ·  pack: {bw[0].name} ~{bw[1]}%" if bw else ""
+                self.io.say(f"  {_label}  ·  Threat {tier}  ·  "
+                            f"Fight ~{fp}%  Escape ~{ep}%  ·  {wname}{_bwn}")
+            else:
+                self.io.say(f"  --- {getattr(zombie, 'identity_label', 'INFECTED').upper()} ---")
+                _line = getattr(zombie, "identity_line", "")
+                if _line:
+                    self.io.say(f"  {_line}")
+                self.io.say(f"  {cf.danger_note(zombie)}")
+                self.io.say(f"  Threat:  {tier}")
+                self.io.say(f"  With your {wname} ({wdmg} dmg):   "
+                            f"Fight ~{fp}%    Escape ~{ep}%")
+                if oc["p90_frac"] is not None and fp >= 65 and oc["p90_frac"] >= 0.45:
+                    self.io.say("  You'll probably win this - but expect to be "
+                                "near death by the end.")
+                # P1-a companion (spec §3.2): the old flat "if the escape fails
+                # you're fighting it anyway" is false for a slow/normal infected
+                # since 1d431a5 (a failed escape = one grab, break contact) and
+                # it argued for fighting. Speed-class honest now.
+                if speed_class_of(zombie) == "fast":
+                    self.io.say("  This one's fast - if the escape fails you're in the fight.")
+                elif fp < 50:
+                    self.io.say("  A failed escape costs you a hit, not the fight - "
+                                "you break contact.")
+                self.io.say(f"  Your weapon is {cf.weapon_verdict(fp, oc['p50_frac'])}.")
+                if bw is not None:
+                    self.io.say(f"  In your pack: {bw[0].name} (~{bw[1]}%) would help"
+                                + (" - press w." if interactive else "."))
             if not interactive:
                 return "fight" if self.io.ask_yes_no("Do you want to fight?") else "escape"
             letter = self.io.ask_combat_letter()

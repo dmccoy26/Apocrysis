@@ -595,10 +595,11 @@ def _investigation_strip(p):
     return out
 
 
-def _status_block(p):
+def _status_block(p, compact=False):
     """The bottom-right STATUS box: a compact World Investigation strip
     (A.5.1), the OBJECTIVES checklist (external memory of the current
-    mystery), plus any active warnings."""
+    mystery), plus any active warnings. `compact` (G6 HUD density
+    setting) collapses the WARNINGS list to a single line."""
     lines = []
 
     strip = _investigation_strip(p)
@@ -640,8 +641,11 @@ def _status_block(p):
     if warns:
         if lines:
             lines.append("")
-        lines.append("[b][red]WARNINGS[/red][/b]")
-        lines += [f"  [red]![/red] {x}" for x in warns]
+        if compact:
+            lines.append("[red]![/red] " + "  ·  ".join(warns))
+        else:
+            lines.append("[b][red]WARNINGS[/red][/b]")
+            lines += [f"  [red]![/red] {x}" for x in warns]
 
     return "\n".join(lines)
 
@@ -755,7 +759,7 @@ class GameScreen(Screen):
     ]
 
     def __init__(self, *, game_name=None, level=1, seed=None, hardcore=False,
-                 start_log=False, dev=None, world=None):
+                 start_log=False, dev=None, world=None, settings=None):
         # Keyword-only game params: Screen.__init__ already claims the
         # positional `name` (a DOM id concept), so the survivor name
         # comes in as `game_name` and is stashed as self._name exactly
@@ -769,6 +773,11 @@ class GameScreen(Screen):
         # is loaded - apply_profile() re-points self.world from the
         # profile's own world_id.
         self._world = world
+        # G6: player-global preferences (§8). A dict from src.settings;
+        # falls back to the defaults so a directly-constructed
+        # GameScreen (tests) still has every key.
+        from src import settings as _settings_mod
+        self._settings = dict(settings) if settings else _settings_mod.load()
         self._start_log = start_log
         # --dev: story-inspection harness (src/dev.py). Sandboxed.
         self._dev = dev
@@ -894,6 +903,7 @@ class GameScreen(Screen):
             from src.dev import equip_for_depth
             equip_for_depth(_p, depth)
             _p._return_to_menu_hook = self._worker_return_to_menu
+            _p._settings = self._settings
             return _p
 
         profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
@@ -933,6 +943,9 @@ class GameScreen(Screen):
         # _request_return_to_menu). Set on every player this screen
         # builds - the first one and each post-win successor.
         player._return_to_menu_hook = self._worker_return_to_menu
+        # G6: the combat card's full/terse choice (combat_mixin reads
+        # player._settings; absent -> full, so bots are unaffected).
+        player._settings = self._settings
         return player
 
     def _save_or_delete_profile(self):
@@ -990,6 +1003,10 @@ class GameScreen(Screen):
         self.io = TextualIO(self)
         self._prime_campaign_state()
         self.player = self._new_player()
+        # G6: the "play log" preference is an OR with the --no-log CLI
+        # flag / --dev's start_log - either turns the transcript on.
+        if self._settings.get("play_log"):
+            self._start_log = True
         if self._last_load_was_profile:
             # Main thread here (on_mount runs on the app's own event
             # loop) - log_message() directly, not self.io.say()'s
@@ -1390,9 +1407,13 @@ class GameScreen(Screen):
             _cond.append("EXHAUSTED")
         if p.hunger <= 0 or p.thirst <= 0:
             _cond.append("STARVING")
+        _compact = self._settings.get("hud_density") == "compact"
         if _cond:
-            lines += ["", f"[b red]CONDITIONS[/]  "
-                      + " · ".join(f"[#ff8c00]{c}[/]" for c in _cond)]
+            _joined = " · ".join(f"[#ff8c00]{c}[/]" for c in _cond)
+            if _compact:
+                lines += [f"[b red]![/] {_joined}"]
+            else:
+                lines += ["", f"[b red]CONDITIONS[/]  " + _joined]
 
         stats_widget.update("\n".join(lines))
 
@@ -1426,12 +1447,16 @@ class GameScreen(Screen):
         # turn - eat/drink/eq silently vanished from the list until
         # the player submitted another command).
         commands_widget = self.query_one("#commands_text", Static)
-        commands_widget.update(
-            "[b]ACTIONS[/b]   (type `h` for the full command list)\n"
-            + "  ·  ".join(p._action_bar())
-        )
+        if self._settings.get("command_hints", True):
+            commands_widget.update(
+                "[b]ACTIONS[/b]   (type `h` for the full command list)\n"
+                + "  ·  ".join(p._action_bar())
+            )
+        else:
+            commands_widget.update("")
 
-        self.query_one("#status_block", Static).update(_status_block(p))
+        self.query_one("#status_block", Static).update(
+            _status_block(p, compact=_compact))
 
     def on_input_submitted(self, event: Input.Submitted):
         text = event.value
@@ -1588,7 +1613,8 @@ class MenuScreen(Screen):
             self.app.push_screen(LoadGameScreen(), self._on_load_pick)
         else:  # SETTINGS
             self._armed = None
-            note.update("[dim]SETTINGS is coming in G6.[/dim]")
+            self.app.push_screen(SettingsScreen(self.app._settings),
+                                 self._on_settings)
 
     # ---- CONTINUE (two-press confirm card) --------------------------
 
@@ -1626,6 +1652,13 @@ class MenuScreen(Screen):
         if name:
             self._start_game(name=name)
 
+    def _on_settings(self, result):
+        # SettingsScreen.dismiss(<settings dict>); it also wrote the
+        # file on every change. Keep the app's live copy in sync so the
+        # next game started from this menu picks it up.
+        if result:
+            self.app._settings = result
+
     def _start_game(self, *, name, world=None, hardcore=False):
         """Push a GameScreen on top of this menu. When the session ends
         (`menu` command / death / quit) GameScreen pops back to here."""
@@ -1634,6 +1667,7 @@ class MenuScreen(Screen):
             world=world,
             hardcore=hardcore,
             start_log=getattr(self.app, "_start_log", False),
+            settings=self.app._settings,
         ))
 
 
@@ -1884,6 +1918,88 @@ class LoadGameScreen(Screen):
         self._reload()
 
 
+class SettingsScreen(Screen):
+    """G6 (§8): the four player-global preferences. Every toggle writes
+    settings.json immediately; dismisses the final dict. Player
+    preferences only - no Hardcore toggle, no world picker (those are
+    campaign identity, chosen once at creation). No world fiction."""
+
+    CSS = """
+    SettingsScreen {
+        align: center middle;
+    }
+    #set_box {
+        width: 60;
+        height: auto;
+        padding: 2 4;
+        border: round $accent;
+    }
+    #set_title {
+        text-align: center;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    #set_note {
+        color: $text-muted;
+        margin-top: 1;
+    }
+    """
+
+    BINDINGS = [
+        Binding("up", "cursor_up", "Up"),
+        Binding("down", "cursor_down", "Down"),
+        Binding("enter", "toggle", "Toggle"),
+        Binding("space", "toggle", "Toggle"),
+        Binding("escape", "back", "Back"),
+    ]
+
+    def __init__(self, current):
+        super().__init__()
+        from src import settings as _s
+        self._s = _s
+        self._values = _s.load() if current is None else dict(current)
+        self._sel = 0
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="set_box"):
+            yield Static("SETTINGS", id="set_title")
+            yield Static(id="set_rows")
+            yield Static("[dim]Enter / Space toggle  ·  Esc back[/dim]",
+                         id="set_note")
+        yield Footer()
+
+    def on_mount(self):
+        self._render_rows()
+
+    def _render_rows(self):
+        keys = self._s.ORDER
+        out = []
+        for i, k in enumerate(keys):
+            label = self._s.LABELS[k]
+            val = self._s.display(self._values, k)
+            row = f"{label:<18}{val}"
+            out.append(f"[b]▸ {row}[/b]" if i == self._sel
+                       else f"[dim]  {row}[/dim]")
+        self.query_one("#set_rows", Static).update("\n".join(out))
+
+    def action_cursor_up(self):
+        self._sel = (self._sel - 1) % len(self._s.ORDER)
+        self._render_rows()
+
+    def action_cursor_down(self):
+        self._sel = (self._sel + 1) % len(self._s.ORDER)
+        self._render_rows()
+
+    def action_toggle(self):
+        key = self._s.ORDER[self._sel]
+        self._values = self._s.save(self._s.toggled(self._values, key))
+        self._render_rows()
+
+    def action_back(self):
+        self.dismiss(self._values)
+
+
 class ApocrysisApp(App):
     """The shell. The game body lives on GameScreen; MenuScreen is the
     home screen. The __init__ signature is preserved (src/cli.py,
@@ -1903,6 +2019,11 @@ class ApocrysisApp(App):
         self._boot_name = name
         self._boot_kw = dict(game_name=name, level=level, seed=seed,
                              hardcore=hardcore, start_log=start_log, dev=dev)
+        # G6: player-global preferences, loaded once. MenuScreen reads
+        # self.app._settings; SettingsScreen writes the file and updates
+        # this copy; every GameScreen the menu starts is handed it.
+        from src import settings as _settings_mod
+        self._settings = _settings_mod.load()
 
     async def on_mount(self):
         # MenuScreen is always the base the shell rests on. A direct
@@ -1911,4 +2032,5 @@ class ApocrysisApp(App):
         # before the compositor renders it.
         await self.push_screen(MenuScreen())
         if self._dev is not None or self._boot_name is not None:
-            await self.push_screen(GameScreen(**self._boot_kw))
+            await self.push_screen(GameScreen(settings=self._settings,
+                                              **self._boot_kw))

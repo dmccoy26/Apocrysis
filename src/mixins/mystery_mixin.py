@@ -848,11 +848,14 @@ class MysteryMixin:
         # marks that fact KNOWN. Deliberately simple - one isolated
         # transition, so evidence/provenance logic can replace it later
         # without touching anything else. See PHASE_A3_INVESTIGATION.md.
-        # E.2: the finale establishes RESP_THE_ORDER too (the seal
-        # order + the signature at the command centre) - fire its beats
-        # before the main RESP_THE_CHOICE resolution below.
+        # E.2: the finale establishes the world's finale.also_establishes
+        # facts too (World 1: the seal order + the signature at the
+        # command centre) - fire their beats before the main
+        # converge_fact resolution below.
         if getattr(m, 'is_finale', False) and getattr(self, 'world_investigation', None):
-            self._mystery_mark_world_fact('RESP_THE_ORDER')
+            _fin = self.world.finale
+            for _also in (_fin.also_establishes if _fin else ()):
+                self._mystery_mark_world_fact(_also)
 
         _milestone_line = None
         _correction = None
@@ -902,14 +905,10 @@ class MysteryMixin:
         # prose, then (if any) the milestone. One coherent hierarchy.
         _mech_name = MECHANISMS.get(m.mechanism, {}).get('name', 'the way out')
         if getattr(m, 'is_finale', False):
-            self.announce_event("the regional command centre",
-                                f"{_stmt}.", kind="solved")
-            self.io.say(
-                "\nThe command centre is quiet and the transmitter is "
-                "warm. The order is on the desk where it was left, with "
-                "the signature and the date. Outside the compound the "
-                "checkpoint gate stands open, and the road past it is "
-                "clear. There is nothing left to work out.\n")
+            _fin = self.world.finale
+            self.announce_event(_fin.arrival_title, f"{_stmt}.", kind="solved")
+            if _fin.arrival_prose:
+                self.io.say("\n" + _fin.arrival_prose + "\n")
         elif MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
             self.io.say(
                 f"\nYou found the way out - {_stmt}. You worked out that "
@@ -947,29 +946,30 @@ class MysteryMixin:
             else "found the way out")
 
     def _finale_choice(self):
-        """E.3: the one authored binary choice, at the checkpoint road
-        out of the command compound. Numbered prompt, never free text.
-        Records campaign.ending so a relaunched completed campaign shows
-        the resolved state and never re-prompts."""
+        """E.3 / Phase F: the one authored binary choice at the finale
+        location. Numbered prompt, never free text. Records
+        campaign.ending so a relaunched completed campaign shows the
+        resolved state and never re-prompts. All text is world-owned
+        (world.finale)."""
         if getattr(self.__class__, "_campaign_ending", None):
             return
+        _fin = self.world.finale
+        _a_id, _a_line = _fin.option_a
+        _b_id, _b_line = _fin.option_b
         self.announce_event(
-            "THE TRANSMITTER STILL REACHES OUT",
-            "The command centre's antenna can still send past the cordon.",
-            "  1) BROADCAST - send the seal order and the signature out. "
-            "The truth of Protocol Seven leaves the valley. The people "
-            "who held the line lose their silence.",
-            "  2) PROTECT  - walk out without transmitting. Protocol "
-            "Seven stays filed a success. The settlement keeps its "
-            "silence and its chance.",
+            _fin.choice_title,
+            _fin.choice_intro,
+            f"  1) {_a_line}",
+            f"  2) {_b_line}",
             kind="objective")
+        _prompt = f"{_a_id.capitalize()}, or {_b_id}? (1 / 2): "
         pick = ""
         for _ in range(3):
-            pick = (self.io.ask("Broadcast, or protect? (1 / 2): ") or "").strip()
+            pick = (self.io.ask(_prompt) or "").strip()
             if pick in ("1", "2"):
                 break
-        choice = "broadcast" if pick == "1" else "protect"
+        choice = _a_id if pick == "1" else _b_id
         self.__class__._campaign_ending = choice
         from src.campaign import campaign_ending
         used = list(getattr(self.__class__, "_used_mechanisms", []) or [])
-        self.io.say("\n" + campaign_ending(choice, used) + "\n")
+        self.io.say("\n" + campaign_ending(choice, used, self.world) + "\n")

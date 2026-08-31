@@ -10,6 +10,14 @@ from src.worlds.base import WorldFinale
 FINALE = WorldFinale(
     converge_fact="RESP_THE_CHOICE",
     also_establishes=("RESP_THE_ORDER",),
+    escape_kind="checkpoint",
+    site_labels={
+        "route": "the antenna mast",
+        "power": "the regional command centre",
+        "require": "the compound fuel store",
+        "require2": "the motor pool",
+        "closed": "the checkpoint gate",
+    },
     arrival_title="the regional command centre",
     arrival_prose=(
         "The command centre is quiet and the transmitter is warm. The "

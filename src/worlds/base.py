@@ -77,6 +77,9 @@ class WorldFinale:
     """
     converge_fact: str                    # the WorldFact expedition N targets
     also_establishes: tuple = ()          # facts the finale marks known alongside
+    escape_kind: str = "checkpoint"       # how the finale map's way-out reads
+    # {mystery role -> label} stamped onto the bespoke finale map.
+    site_labels: dict = field(default_factory=dict)
     arrival_title: str = ""               # the "MYSTERY SOLVED" banner headline
     arrival_prose: str = ""               # the paragraph after it
     choice_title: str = ""

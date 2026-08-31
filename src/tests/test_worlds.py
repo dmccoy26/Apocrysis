@@ -5,7 +5,7 @@ import dataclasses
 import unittest
 
 from src import constants
-from src.worlds.base import World
+from src.worlds.base import World, WorldManifest
 from src.worlds.silence import SILENCE
 
 
@@ -124,6 +124,12 @@ DUMMY = World(
     # force ~all-plain so every rendered in-range tile is 'Q'.
     map_archetypes={"allplain": {"weights": [0, 0, 0, 1, 0], "blurb": "nothing but Q"}},
     prose={"place_name_fallback": "DUMMYLAND", "leave_verb": "leave DUMMYLAND"},
+    manifest=WorldManifest(
+        id="dummy", title="TEST WORLD",
+        campaign_length=25, difficulty_ramp_length=10,
+        chapter_bounds=(0,), chapter_titles=("DUMMY",),
+    ),
+    chapters={"chapters": ("dummy chapter",)},
 )
 
 

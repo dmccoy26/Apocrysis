@@ -1100,8 +1100,12 @@ class ApocrysisApp(App):
             return f"[{_DIM}]{label}[/] [{_BAND_MARKUP[band]}]{n}[/]"
 
         _exp_n = getattr(p, "expeditions_completed", 0) + 1
-        _ch = chapter_for_expedition(getattr(p, "expeditions_completed", 0))
-        _ch_title = CHAPTER_TITLES[_ch - 1] if 1 <= _ch <= len(CHAPTER_TITLES) else ""
+        _world = getattr(p, "world", None)
+        _manifest = getattr(_world, "manifest", None)
+        _campaign_length = _manifest.campaign_length if _manifest else CAMPAIGN_LENGTH
+        _ch_titles = _manifest.chapter_titles if _manifest else CHAPTER_TITLES
+        _ch = chapter_for_expedition(getattr(p, "expeditions_completed", 0), _world)
+        _ch_title = _ch_titles[_ch - 1] if 1 <= _ch <= len(_ch_titles) else ""
         _mode = "[b red]HARDCORE[/]" if getattr(p, "hardcore", False) else f"[{_DIM}]NORMAL[/]"
         _saved = ("[#ff8c00]● UNSAVED[/]" if getattr(p, "_unsaved", False)
                   else "[#4a9d4a]● SAVED[/]")
@@ -1113,7 +1117,7 @@ class ApocrysisApp(App):
         lines = [
             f"[bold]{_rich_escape(p.name)}[/bold]   {_mode}   {_saved}",
             f"[{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
-            f"[{_HDR}]EXPEDITION {_exp_n} / {CAMPAIGN_LENGTH}[/]"
+            f"[{_HDR}]EXPEDITION {_exp_n} / {_campaign_length}[/]"
             + (f"   [{_DIM}]CH{_ch} — {_ch_title}[/]" if _ch_title else ""),
             f"[{pcol}]{glyph} {phase.upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
             f"Turn {getattr(p, 'turns', 0)}[/]{_vis_note}",

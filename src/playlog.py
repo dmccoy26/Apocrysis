@@ -56,7 +56,7 @@ class PlayLog:
         self._w(f"APOCRYSIS PLAY LOG   {datetime.datetime.now():%Y-%m-%d %H:%M:%S}")
         self._w(f"player      : {p.name}  (level {p.level})")
         try:
-            from src.constants import CAMPAIGN_LENGTH as _CL
+            _CL = p.world.manifest.campaign_length
         except Exception:
             _CL = 25
         self._w(f"expedition  : {p.expeditions_completed + 1} of {_CL}")

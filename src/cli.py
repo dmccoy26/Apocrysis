@@ -70,7 +70,7 @@ def _dev_main(start_log=False, dev=None):
         equip_for_depth(player, depth)
         from src.campaign import chapter_intro
         _ms = len(player.world_investigation.milestones_known())
-        print(chapter_intro(player.expeditions_completed, _ms))
+        print(chapter_intro(player.expeditions_completed, _ms, player.world))
         print(" ")
         if start_log:
             _p = player.start_playlog(path=_log_path)
@@ -91,8 +91,7 @@ def _dev_main(start_log=False, dev=None):
             print("\n(dev: survivor lost - a fresh one takes up the same point)\n")
             continue
         player.save_profile(_dev_profile)   # sandbox only
-        from src.constants import CAMPAIGN_LENGTH
-        if player.expeditions_completed >= CAMPAIGN_LENGTH:
+        if player.expeditions_completed >= player.world.manifest.campaign_length:
             break   # finished the arc from this drop-in point
         cont = input("\n(dev) continue to the next expedition? (y/n): ").strip().lower()
         if cont not in ("y", "yes"):
@@ -236,7 +235,7 @@ def main(start_log=False, dev=None):
         from src.campaign import chapter_intro
         _ms = len(player.world_investigation.milestones_known()) if getattr(
             player, "world_investigation", None) else 0
-        print(chapter_intro(player.expeditions_completed, _ms))
+        print(chapter_intro(player.expeditions_completed, _ms, player.world))
         print(" ")
 
         if start_log:

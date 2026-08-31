@@ -15,7 +15,7 @@ from collections import deque
 import random
 
 from src.constants import (
-    BOLD, GREEN, RESET, CAMPAIGN_LENGTH, DIFFICULTY_RAMP_LENGTH,
+    BOLD, GREEN, RESET,
     IMPASSABLE_TERRAIN,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
@@ -111,14 +111,17 @@ class WorldMixin:
         _wi = getattr(self, 'world_investigation', None)
         if _wi is not None:
             _target = _wi.next_target()
-        # E.2: the last expedition is the bespoke finale - the regional
-        # command centre. It always targets RESP_THE_CHOICE (converging
-        # the whole investigation), never the random roll.
-        _finale = (self.expeditions_completed >= CAMPAIGN_LENGTH - 1
+        # E.2: the last expedition is the bespoke finale - it always
+        # targets the world's finale.converge_fact (converging the whole
+        # investigation), never the random roll.
+        _fin = self.world.finale
+        _converge = _fin.converge_fact if _fin is not None else None
+        _finale = (_converge is not None
+                   and self.expeditions_completed >= self.world.manifest.campaign_length - 1
                    and _wi is not None
-                   and _wi.fact('RESP_THE_CHOICE') is not None)
+                   and _wi.fact(_converge) is not None)
         if _finale:
-            _target = 'RESP_THE_CHOICE'
+            _target = _converge
 
         # C.3.1: guarantee a mystery instead of tuning toward one. v2's
         # irregular valley can occasionally grow too cramped for the
@@ -153,15 +156,8 @@ class WorldMixin:
         if _finale and self.mystery is not None:
             m = self.mystery
             m.is_finale = True
-            m.escape_kind = 'checkpoint'
-            _finale_labels = {
-                'route': 'the antenna mast',
-                'power': 'the regional command centre',
-                'require': 'the compound fuel store',
-                'require2': 'the motor pool',
-                'closed': 'the checkpoint gate',
-            }
-            for _role, _lab in _finale_labels.items():
+            m.escape_kind = _fin.escape_kind
+            for _role, _lab in _fin.site_labels.items():
                 if _role in m.sites:
                     m.site_labels[_role] = _lab
                     _sx, _sy = m.sites[_role]
@@ -296,7 +292,9 @@ class WorldMixin:
 
     def _attach_infected(self, z, key, anchor=None):
         import random as _r
-        from src.worlds.silence import population as _pop
+        _pop = self.world.population
+        if _pop is None:
+            return
         arch = getattr(z, "ARCHETYPE", None) or "common"
         rng = _r.Random(hash(("infected", getattr(self, "_seed", 0),
                               getattr(self, "name", ""), key, arch,
@@ -318,21 +316,14 @@ class WorldMixin:
     # has real content to render. These are standalone Known facts with
     # no deduction chain - NOT loot, they route to self.knowledge, never
     # the backpack (design doc: evidence must not be "just another loot
-    # roll"). Replaced wholesale by contextual evidence generation later.
-    _PHASE_B_CLUES = [
-        ("Someone scratched a tally of days into the doorframe - it stops at 46.",
-         "A tally of days scratched by the door stops at 46."),
-        ("A child's drawing is taped to the wall: stick figures walking toward mountains.",
-         "A child's drawing shows people walking toward the mountains."),
-        ("A note on the fridge: 'Gone to the muster point. Back by dark. - R'",
-         "A fridge note mentions a 'muster point'."),
-        ("The calendar is turned to a month with one date circled hard enough to tear it.",
-         "A calendar has a single date circled hard enough to tear the paper."),
-        ("Boot prints in the dried mud all lead the same way - out the back, north.",
-         "Boot prints here all lead north."),
-    ]
+    # roll"). Phase F: the text is world-owned (world.prose["ambient_
+    # clues"], list of (blurb, journal_line)); WORLD_1_LORE_PASS
+    # replaces this whole path with authored per-band lore.
 
     def _maybe_surface_clue(self):
+        clues = self.world.prose.get("ambient_clues", ())
+        if not clues:
+            return
         seen = getattr(self, '_clue_tiles', None)
         if seen is None:
             seen = self._clue_tiles = set()
@@ -347,7 +338,7 @@ class WorldMixin:
         clue_rng = random.Random(hash(('phase-b-clue', self.name, pos)))
         if clue_rng.random() >= 0.18:
             return
-        available = [c for c in self._PHASE_B_CLUES
+        available = [c for c in clues
                      if c[0] not in getattr(self, '_clue_texts_used', set())]
         if not available:
             return
@@ -512,7 +503,7 @@ class WorldMixin:
         self.won = True
         self.expeditions_completed += 1
         self.__class__.prize_for_next_game = True
-        if self.expeditions_completed >= CAMPAIGN_LENGTH:
+        if self.expeditions_completed >= self.world.manifest.campaign_length:
             self.io.say(
                 f"\n{BOLD}{GREEN}You {reason} after {self.expeditions_completed} "
                 f"expeditions - the outbreak is finally behind you. "
@@ -524,7 +515,7 @@ class WorldMixin:
             if not getattr(self.__class__, '_campaign_ending', None):
                 from src.campaign import campaign_retrospective
                 self.io.say(campaign_retrospective(
-                    getattr(self.__class__, '_used_mechanisms', [])))
+                    getattr(self.__class__, '_used_mechanisms', []), self.world))
             self.io.say(f"\n{BOLD}Your story in this outbreak ends here.{RESET}\n")
             self.backpack.food += 10
             self.backpack.water += 10
@@ -584,7 +575,7 @@ class WorldMixin:
         # was a real problem. The ramp is capped at DIFFICULTY_RAMP_LENGTH
         # (not CAMPAIGN_LENGTH) so lengthening the arc doesn't soften the
         # frozen curve (docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md).
-        t = min(1.0, self.expeditions_completed / DIFFICULTY_RAMP_LENGTH)
+        t = min(1.0, self.expeditions_completed / self.world.manifest.difficulty_ramp_length)
         # Order: Fresh, Regular, Heavy, Swift, Toxic, Armored.
         # v4: Heavy (100 HP) and Armored (120 HP) start at ZERO -
         # meeting one on expedition 0 with a 6-damage starter weapon

@@ -6,111 +6,90 @@
 # of each expedition, keyed to expeditions_completed, plus the
 # campaign-victory retrospective (todo 20c9c192). No mechanics - pure
 # framing over the same expedition loop.
+#
+# Phase F: this file keeps the engine-level chapter *machinery*
+# (chapter_for_expedition, chapter_intro) and reads the per-chapter
+# text, bounds, titles and endings off a World. Every function takes an
+# optional `world`; when omitted it falls back to the default world so
+# legacy call sites and the test suite keep working.
 # ============================================================
 
-from src.constants import CAMPAIGN_LENGTH
-
-# The World-1 arc as 5 chapters + a finale ("The Cordon" -
-# docs/WORLD_TRUTH_CANDIDATES.md). One framing line per chapter; the
-# expedition loop underneath is unchanged. The arc moves from "get out
-# of this valley" to "you have read the whole operation, and it has a
-# transmitter that still works".
-_CHAPTERS = [
-    # CH1 - THE SILENCE
-    "You've been walking for a day. The map ends where the hills close in, and the road you came by is gone behind you. No people. Find the way out of this one, and start reading why it's empty.",
-    # CH2 - THE INFECTED
-    "The settlements are bigger now, and the infected wear the valley's own clothes. This was a place that emptied on purpose - and something was loose here before it did. Find the seam. Find where it started.",
-    # CH3 - THE EVACUATION
-    "You've seen enough marshalling yards now to know the shape of it: signed corridors, supply caches, a whole region walked out along a handful of roads. Follow one. See where it was meant to lead - and where the manifests stop.",
-    # CH4 - THE RESPONSE
-    "The corridors closed on a date, not in a panic. Somebody set that date. Every record you pull now has a signature on it; you're starting to recognise the hand. Work out who ran this, and when they decided how it ended.",
-    # CH5 - THE LAST SIGNAL
-    "The cordon frequency is still live - someone outside has been listening the whole time. And something inside the valley is still transmitting back. Find it. Find out whether anyone is still here to answer.",
-    # FIN - THE TRUTH
-    "The regional command centre is ahead, and its transmitter still reaches past the cordon. You know what the order said now. There are people who held the line, still waiting. One last walk in - and then a choice about what leaves this valley with you.",
-]
-
-# Lowest `expeditions_completed` (0-indexed) at which each chapter
-# begins. CH1 exp 0-4, CH2 5-8, CH3 9-13, CH4 14-18, CH5 19-23, FIN 24.
-_CHAPTER_BOUNDS = (0, 5, 9, 14, 19, 24)
-CHAPTER_TITLES = ("THE SILENCE", "THE INFECTED", "THE EVACUATION",
-                  "THE RESPONSE", "THE LAST SIGNAL", "THE TRUTH")
+from src.worlds import get_world
 
 
-def chapter_for_expedition(expeditions_completed):
-    """1-based chapter index (1..6) for a given expedition depth."""
+def _w(world):
+    return world if world is not None else get_world()
+
+
+def _bounds(world=None):
+    return _w(world).manifest.chapter_bounds
+
+
+def _chapters(world=None):
+    return _w(world).chapters.get("chapters", ())
+
+
+def _campaign_length(world=None):
+    return _w(world).manifest.campaign_length
+
+
+# --- back-compat module names (default world) ----------------------
+_CHAPTER_BOUNDS = get_world().manifest.chapter_bounds
+CHAPTER_TITLES = get_world().manifest.chapter_titles
+_CHAPTERS = get_world().chapters.get("chapters", ())
+
+
+def chapter_for_expedition(expeditions_completed, world=None):
+    """1-based chapter index for a given expedition depth."""
+    bounds = _bounds(world)
     i = 1
-    for lo in _CHAPTER_BOUNDS:
+    for lo in bounds:
         if expeditions_completed >= lo:
-            i = _CHAPTER_BOUNDS.index(lo) + 1
+            i = bounds.index(lo) + 1
     return i
 
 
-def chapter_intro(expeditions_completed, milestones_known=0):
+def chapter_intro(expeditions_completed, milestones_known=0, world=None):
     """The short line at the start of an expedition. Keyed to the chapter
     the depth falls in, but the investigation can run ahead of the raw
     count (replaying early maps after deaths) - so a survivor who has
     surfaced more milestones than their depth implies is shown the
     chapter their understanding has reached, never one behind it."""
-    by_depth = chapter_for_expedition(expeditions_completed)
+    chapters = _chapters(world)
+    by_depth = chapter_for_expedition(expeditions_completed, world)
     # ~1 milestone per chapter of progress; let it pull the framing
     # forward but never past the finale.
     by_investigation = 1 + max(0, milestones_known - 1)
-    ch = min(len(_CHAPTERS), max(by_depth, by_investigation))
+    ch = min(len(chapters), max(by_depth, by_investigation))
     n = expeditions_completed + 1
-    return f"-- Expedition {n} of {CAMPAIGN_LENGTH} --\n{_CHAPTERS[ch - 1]}"
+    return f"-- Expedition {n} of {_campaign_length(world)} --\n{chapters[ch - 1]}"
 
 
-# E.3 - the two authored endings. The choice lands at the checkpoint
-# road out of the command compound, once RESP_THE_ORDER and
-# RESP_PEOPLE_ALIVE are established. Neither is "correct".
-ENDINGS = {
-    "broadcast": (
-        "You bring the command centre's transmitter up and send it all "
-        "out past the cordon - the seal order, the signature, the date it "
-        "was written. A voice answers, eventually. Flat. It acknowledges "
-        "receipt and nothing else.",
-        "Protocol Seven is on record now, outside the line, where it "
-        "can't be filed as a success. What that changes, you won't be "
-        "here to see. The people who held the consolidation point have "
-        "lost their silence - the cordon knows exactly where they are. "
-        "You told the truth, and it cost them.",
-    ),
-    "protect": (
-        "You stand in the command centre with the order in your hand and "
-        "the transmitter warm, and you switch it off. You walk out past "
-        "the empty checkpoint without sending anything.",
-        "Protocol Seven stays a success on someone's ledger. The people "
-        "who held the line keep their silence and their chance. The truth "
-        "of what was done here leaves the valley only with you - one "
-        "survivor, carrying it, unheard. Maybe that was the kinder thing. "
-        "Maybe it was just the safer one.",
-    ),
-}
-
-
-def campaign_ending(choice, used_mechanisms):
+def campaign_ending(choice, used_mechanisms, world=None):
     """The finale screen for a chosen ending, then the ordinary
     what-you-did retrospective underneath."""
-    lead, body = ENDINGS.get(choice, ENDINGS["protect"])
+    endings = _w(world).finale.endings
+    lead, body = endings.get(choice) or next(iter(endings.values()))
     parts = [lead, "", body, "", "--", "",
-             campaign_retrospective(used_mechanisms)]
+             campaign_retrospective(used_mechanisms, world)]
     return "\n".join(parts)
 
 
-def campaign_retrospective(used_mechanisms):
-    """Printed at CAMPAIGN_LENGTH: what the player actually did, read
+def campaign_retrospective(used_mechanisms, world=None):
+    """Printed at campaign_length: what the player actually did, read
     back to them. The revelation the design asked for is 'here is the
     shape of what you understood', not a lore dump."""
+    ch = _w(world).chapters
     if not used_mechanisms:
-        return "You made it through. Every place had a way out; you found each one."
+        return ch.get("retro_empty",
+                      "You made it through. Every place had a way out; "
+                      "you found each one.")
     from src.escape import MECHANISMS
-    lines = ["You got clear of the whole region. Looking back, the way out was never the same twice:"]
+    lines = [ch.get("retro_lead", "Looking back, the way out was never the same twice:")]
     for mech in used_mechanisms:
         name = MECHANISMS.get(mech, {}).get("name", mech)
         lines.append(f"  - {name}")
-    lines.append(
-        "Different every time, and every time it was there for someone who "
-        "worked out what the place was. You were that someone."
-    )
+    lines.append(ch.get("retro_tail",
+                        "Different every time, and every time it was there "
+                        "for someone who worked out what the place was."))
     return "\n".join(lines)

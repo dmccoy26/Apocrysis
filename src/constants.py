@@ -55,20 +55,19 @@ TERRAIN_COLOR = {
     "town": BOLD + MAGENTA,
 }
 
-# Phase A.0: the tile vocabulary, the map legend and the map archetypes
-# are World 1 content and now live in the World that owns them
-# (src/worlds/silence/world.py). Re-exported here so existing
-# `from src.constants import ...` call sites keep working while the
-# engine is migrated to read them off `game.world` (Phase A.0 step 5).
-from src.worlds.silence.world import (  # noqa: F401
+# Phase A.0 / Phase F: the tile vocabulary, legend, archetypes and
+# per-tile move cost are World content and live in the World that owns
+# them (src/worlds/<w>/terrain.py -> game.world.terrain). Re-exported
+# here from the DEFAULT world so existing `from src.constants import
+# ...` call sites keep working while the engine is migrated to read
+# them off `game.world.terrain`.
+from src.worlds.silence.terrain import (  # noqa: F401
     TERRAIN_SYMBOLS,
     TERRAIN_LEGEND,
     MAP_ARCHETYPES,
+    TERRAIN_MOVE_MINUTES,
+    IMPASSABLE_TERRAIN,
 )
-
-# v3 SPRINT: impassable terrain, introduced from generate_map() -
-# movement onto these blocks (world_mixin.py's move_and_search()).
-IMPASSABLE_TERRAIN = {'mountain', 'river'}
 
 # v4: survival pressure retuned down so a full generated expedition can
 # carry a 25-35 turn investigation without the player dying to combat
@@ -98,16 +97,13 @@ MAP_GROWTH_PER_LEVEL = 3
 MAX_MAP_SIZE = 34
 # docs/MAP_REALISM_SPEC.md 1b - the "landscape" generator's width:height.
 MAP_ASPECT = 1.6
-# The full World-1 arc: 5 chapters + finale (docs/APOCRYSIS_ROADMAP.md
-# section 9, docs/ROADMAP_STATUS.md). Expeditions 0..DIFFICULTY_RAMP_LENGTH
-# are the fresh-survivor-viable band; past that, deep expeditions are
-# inheritance-scaled (docs/PHASE_C3_2_7_SUPPORTED_DEPTH.md).
-CAMPAIGN_LENGTH = 25  # expeditions_completed value at which the campaign is beaten
-# The combat / encounter difficulty ramp reaches full strength at this
-# many expeditions and HOLDS there - it is deliberately NOT tied to
-# CAMPAIGN_LENGTH, so extending the arc past 10 does not stretch (and
-# thereby soften) the frozen difficulty curve it was tuned against.
-DIFFICULTY_RAMP_LENGTH = 10
+# Phase F: campaign length and the difficulty-ramp length are per-world
+# (world.manifest). Re-exported here from the DEFAULT world for legacy
+# `from src.constants import CAMPAIGN_LENGTH` call sites; engine code
+# with a game in hand should read game.world.manifest instead.
+from src.worlds.silence.manifest import MANIFEST as _DEFAULT_MANIFEST
+CAMPAIGN_LENGTH = _DEFAULT_MANIFEST.campaign_length
+DIFFICULTY_RAMP_LENGTH = _DEFAULT_MANIFEST.difficulty_ramp_length
 
 BASE_TOWN_MIN_DISTANCE = 6
 TOWN_DISTANCE_GROWTH_PER_LEVEL = 2
@@ -168,17 +164,8 @@ STATUS_EFFECT_DAMAGE = {
 MINUTES_PER_DAY = 240
 DAY_COMPRESSION_SCALE = 1440 / MINUTES_PER_DAY
 
-TERRAIN_MOVE_MINUTES = {
-    'plain': 15,
-    'town': 15,
-    'building': 15,
-    'forest': 20,
-    'water': 30,
-    'mountain': 40,
-    'river': 40,
-    'bridge': 15,
-    'swamp': 35,
-}
+# TERRAIN_MOVE_MINUTES moved to src/worlds/silence/terrain.py (Phase F);
+# re-exported at the top of this file.
 
 # Real bug found live: world_mixin.py's find_loot() used to build
 # every looted weapon as MeleeWeapon(name, 10, 100) regardless of

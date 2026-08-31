@@ -231,6 +231,68 @@ class TestShellNamesNoWorld(unittest.TestCase):
 
 
 @unittest.skipUnless(_AVAILABLE, "textual not installed")
+class TestShellScreensRenderVisibly(unittest.IsolatedAsyncioTestCase):
+    """Regression: the shell screens must put their content ON SCREEN,
+    not just in the DOM. MenuScreen once mounted with a width:auto box
+    whose auto-width computed to 0 (empty Static at first layout) - the
+    DOM was correct, every functional test passed, and the real
+    terminal showed an empty bordered box. These assert the compositor
+    output, not query_one(...).render()."""
+
+    async def asyncSetUp(self):
+        self._home = tempfile.mkdtemp(prefix="apoc_g7vis_")
+        self._prev = os.environ.get("APOCRYSIS_HOME")
+        os.environ["APOCRYSIS_HOME"] = self._home
+        Apocrysis.reset_campaign_state()
+
+    async def asyncTearDown(self):
+        await asyncio.sleep(0.2)
+        if self._prev is None:
+            os.environ.pop("APOCRYSIS_HOME", None)
+        else:
+            os.environ["APOCRYSIS_HOME"] = self._prev
+        shutil.rmtree(self._home, ignore_errors=True)
+
+    @staticmethod
+    def _visible(app):
+        import re
+        svg = app.export_screenshot()
+        runs = re.findall(r">([^<>]+)</text>", svg)
+        return " ".join(runs).replace("&#160;", " ").replace("\xa0", " ")
+
+    async def test_menu_and_each_shell_screen_shows_its_content(self):
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(110, 34)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+
+            seen = self._visible(app)
+            for word in ("APOCRYSIS", "NEW CAMPAIGN", "LOAD GAME",
+                         "SETTINGS", "QUIT"):
+                self.assertIn(word, seen, f"MenuScreen not rendering: {word}")
+
+            ms = app.screen
+            ms._sel = ms._items().index("NEW CAMPAIGN")
+            ms._render_items()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            seen = self._visible(app)
+            for word in ("WORLD", "SURVIVOR", "MODE", "START CAMPAIGN"):
+                self.assertIn(word, seen, f"NewCampaignScreen not rendering: {word}")
+            await pilot.press("escape")
+            await asyncio.wait_for(pilot.pause(0.3), timeout=5)
+
+            ms = app.screen
+            ms._sel = ms._items().index("SETTINGS")
+            ms._render_items()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            seen = self._visible(app)
+            for word in ("Play log", "Combat card", "HUD density"):
+                self.assertIn(word, seen, f"SettingsScreen not rendering: {word}")
+
+
+@unittest.skipUnless(_AVAILABLE, "textual not installed")
 class TestAcceptanceInvariants(unittest.TestCase):
 
     def test_main_tui_path_has_no_pre_textual_input(self):

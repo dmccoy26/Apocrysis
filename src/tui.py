@@ -1498,19 +1498,25 @@ class MenuScreen(Screen):
         align: center middle;
     }
     #menu_box {
-        width: auto;
+        width: 44;
         height: auto;
-        padding: 2 8;
+        padding: 2 4;
+        border: round $accent;
     }
     #menu_title {
+        width: 100%;
         text-align: center;
         text-style: bold;
         margin-bottom: 2;
     }
     #menu_items {
+        width: 100%;
+        height: auto;
         text-align: center;
     }
     #menu_note {
+        width: 100%;
+        height: auto;
         text-align: center;
         margin-top: 2;
         color: $text-muted;
@@ -1556,8 +1562,8 @@ class MenuScreen(Screen):
         yield Header()
         with Vertical(id="menu_box"):
             yield Static("APOCRYSIS\nTHE WORLD REMEMBERS", id="menu_title")
-            yield Static(id="menu_items")
-            yield Static(id="menu_note")
+            yield Static(self._items_markup(), id="menu_items")
+            yield Static("", id="menu_note")
         yield Footer()
 
     def on_mount(self):
@@ -1574,15 +1580,17 @@ class MenuScreen(Screen):
         except Exception:
             pass
 
-    def _render_items(self):
+    def _items_markup(self):
         items = self._items()
+        self._sel = max(0, min(self._sel, len(items) - 1))
         rows = []
         for i, item in enumerate(items):
-            if i == self._sel:
-                rows.append(f"[b]▸ {item}[/b]")
-            else:
-                rows.append(f"[dim]  {item}[/dim]")
-        self.query_one("#menu_items", Static).update("\n".join(rows))
+            rows.append(f"[b]▸ {item}[/b]" if i == self._sel
+                        else f"[dim]  {item}[/dim]")
+        return "\n".join(rows)
+
+    def _render_items(self):
+        self.query_one("#menu_items", Static).update(self._items_markup())
 
     def action_cursor_up(self):
         self._armed = None

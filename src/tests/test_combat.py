@@ -247,5 +247,100 @@ class TestCombatV3(unittest.TestCase):
         self.assertNotIn("Bleeding", self.game.status_effects)  # then expired
 
 
+class TestStatusEffectsOutOfCombat(unittest.TestCase):
+    """1d bug: Bleeding / Poison only ticked inside combat rounds, so an
+    effect left over from a fight sat frozen forever while exploring -
+    visible, harmless, incurable. Now it ticks every game-turn and
+    medicine treats it. Damage/duration numbers unchanged."""
+
+    def setUp(self):
+        with patch("builtins.print"):
+            self.game = Apocrysis("StatusTest", map_size=8, seed=1)
+        # keep the survivor off building tiles so heal-on-entry doesn't
+        # mask the bleed damage
+        g = self.game
+        for row in g.map:
+            for i, c in enumerate(row):
+                if isinstance(c, dict) and c.get("terrain") == "building":
+                    c["terrain"] = "plain"
+        g.turns = 0
+
+    def _walk(self, n):
+        for _ in range(n):
+            self.game.turns += 1
+            self.game._tick_status_effects()
+
+    def test_bleeding_ticks_while_walking(self):
+        self.game.status_effects["Bleeding"] = 3
+        hp = self.game.health
+        self._walk(1)
+        self.assertEqual(self.game.health, hp - 2)          # STATUS_EFFECT_DAMAGE
+        self.assertEqual(self.game.status_effects["Bleeding"], 2)
+
+    def test_poison_ticks_while_walking(self):
+        from src.constants import STATUS_EFFECT_DAMAGE
+        self.game.status_effects["Poison"] = 4
+        hp = self.game.health
+        self._walk(1)
+        self.assertEqual(self.game.health, hp - STATUS_EFFECT_DAMAGE["Poison"])
+        self.assertEqual(self.game.status_effects["Poison"], 3)
+
+    def test_effects_expire_after_their_duration(self):
+        self.game.status_effects["Bleeding"] = 3
+        self._walk(3)
+        self.assertNotIn("Bleeding", self.game.status_effects)
+
+    def test_only_one_tick_per_game_turn(self):
+        self.game.status_effects["Bleeding"] = 3
+        self.game.turns = 5
+        self.game._tick_status_effects()
+        self.game._tick_status_effects()          # same turn - no-op
+        self.game._tick_status_effects()
+        self.assertEqual(self.game.status_effects["Bleeding"], 2)
+
+    def test_medicine_clears_bleeding(self):
+        self.game.status_effects["Bleeding"] = 3
+        self.game.backpack.medicine = 1
+        with patch("builtins.print"):
+            self.game.use_medicine()
+        self.assertNotIn("Bleeding", self.game.status_effects)
+
+    def test_medicine_clears_poison(self):
+        self.game.status_effects["Poison"] = 4
+        self.game.backpack.medicine = 1
+        with patch("builtins.print"):
+            self.game.use_medicine()
+        self.assertNotIn("Poison", self.game.status_effects)
+
+    def test_medicine_does_not_clear_stun(self):
+        self.game.status_effects["Stun"] = 1
+        self.game.backpack.medicine = 1
+        with patch("builtins.print"):
+            self.game.use_medicine()
+        self.assertIn("Stun", self.game.status_effects)
+
+    def test_stun_counts_down_while_walking(self):
+        self.game.status_effects["Stun"] = 1
+        self._walk(1)
+        self.assertNotIn("Stun", self.game.status_effects)
+
+    def test_no_double_tick_when_a_move_walks_into_combat(self):
+        # _tick_status_effects (from the move's _apply_decay) stamps the
+        # game-turn; combat round 1 must then skip its own tick.
+        self.game.status_effects["Bleeding"] = 3
+        self.game.turns = 7
+        self.game._tick_status_effects()                     # the move's decay tick
+        self.assertEqual(self.game.status_effects["Bleeding"], 2)
+        z = FreshZombie()
+        z.health = 1                                         # 1 round, then it dies
+        self.game.equipped_weapon = None
+        self.game.strength = 100
+        with patch("builtins.input", return_value="y"), patch("builtins.print"):
+            self.game.encounter_zombie(z)
+        # round 1 saw the stamp and skipped -> Bleeding is still at 2,
+        # not 1 (no double-count for the turn the move started the fight)
+        self.assertEqual(self.game.status_effects.get("Bleeding"), 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

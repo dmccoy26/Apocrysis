@@ -503,6 +503,14 @@ class UIMixin:
 
             self.print_stat_changes(old_stats)
 
+            # 1d: status effects (Bleeding / Poison / Stun) count down
+            # every game-turn, not only inside combat. _apply_decay
+            # already ticks on move/rest; this covers the turns it
+            # doesn't (search, look, eat, …). The per-turn guard in
+            # _tick_status_effects makes the double call a no-op.
+            if command and command not in _free and not getattr(self, 'won', False):
+                self._tick_status_effects()
+
             # docs/DESIGN_SPATIAL_LANGUAGE.md - objective lifecycle:
             # NEW -> ACTIVE -> DISTRACTED -> REMINDER -> URGENT ->
             # COMPLETE. Resurfaces the next step when the investigation

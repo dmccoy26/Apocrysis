@@ -191,7 +191,19 @@ class ActionsMixin:
             self.backpack.medicine -= 1
             self.health = min(100, self.health + 20)  # Adjust value as per game mechanics
             self.io.say("You use medicine. Health increased.")
-            
+
+            # 1d: medicine treats Bleeding and Poison. The HUD tells the
+            # player they're hurt; reaching for medicine is the obvious
+            # response and until now it did nothing to these.
+            _fx = getattr(self, "status_effects", {})
+            _cleared = [e for e in ("Bleeding", "Poison") if e in _fx]
+            for e in _cleared:
+                del _fx[e]
+            if _cleared:
+                _verb = {"Bleeding": "bandage the bleeding",
+                         "Poison": "treat the poison"}
+                self.io.say("You " + " and ".join(_verb[e] for e in _cleared) + ".")
+
             # Wisdom improves fatigue recovery rate
             fatigue_recovery = max(0, self.wisdom // 4)
             self.fatigue = max(0, self.fatigue - fatigue_recovery)

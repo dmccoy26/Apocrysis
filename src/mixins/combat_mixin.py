@@ -142,7 +142,9 @@ class CombatMixin:
         self.hunger = max(0, self.hunger - zombie.hunger_cost)
         self.thirst = max(0, self.thirst - zombie.thirst_cost)
         self.fatigue = min(100, self.fatigue + zombie.fatigue_cost)
+        _combat_round = 0
         while self.health > 0 and zombie.health > 0:
+            _combat_round += 1
             # Process status effects at start of turn
             if self.status_effects.get("Stun", 0) > 0:
                 self.io.say(f"You are stunned! Turn skipped.")
@@ -185,14 +187,25 @@ class CombatMixin:
             # removed at 0), so "Bleeding" could never be reapplied
             # after its first trigger and its damage never stopped -
             # contradicts the whole point of a duration.
-            for effect in list(self.status_effects.keys()):
-                damage = STATUS_EFFECT_DAMAGE.get(effect)
-                if damage:
-                    self.health -= damage
-                    self.io.say(f"You are affected by {effect}! Lost {damage} health.")
-                self.status_effects[effect] -= 1
-                if self.status_effects[effect] <= 0:
-                    del self.status_effects[effect]
+            # 1d: skip this round's tick if the move that walked into
+            # this fight already ticked status effects this game-turn
+            # (_tick_status_effects stamps self._status_tick_turn). Only
+            # round 1 can collide; rounds 2+ always tick.
+            _pre_ticked = (_combat_round == 1
+                           and getattr(self, "_status_tick_turn", None)
+                               == getattr(self, "turns", 0))
+            if not _pre_ticked:
+                for effect in list(self.status_effects.keys()):
+                    damage = STATUS_EFFECT_DAMAGE.get(effect)
+                    if damage:
+                        self.health -= damage
+                        self.io.say(f"You are affected by {effect}! Lost {damage} health.")
+                    self.status_effects[effect] -= 1
+                    if self.status_effects[effect] <= 0:
+                        del self.status_effects[effect]
+            # this game-turn's status tick is now accounted for - stop
+            # the end-of-turn loop pass double-counting it
+            self._status_tick_turn = getattr(self, "turns", 0)
 
             # Check if the zombie has been defeated
             if zombie.health <= 0:

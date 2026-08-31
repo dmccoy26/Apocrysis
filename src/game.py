@@ -5,6 +5,7 @@ import random
 
 from src.constants import (
     BASE_MAP_SIZE, MAP_GROWTH_PER_LEVEL, MAX_MAP_SIZE, MAP_ASPECT, DAY_COMPRESSION_SCALE,
+    STATUS_EFFECT_DAMAGE,
 )
 from src.worlds.silence import SILENCE
 from src.io_console import ConsoleIO
@@ -360,10 +361,40 @@ class Apocrysis(
         else:
             self._starve_turns = 0
 
+        self._tick_status_effects()
         self._supply_warnings()
         self._hp_warnings()
         self._fatigue_warnings()
         self._ammo_warnings()
+
+    def _tick_status_effects(self):
+        """One decrement + damage pass over active status effects, at
+        most once per game-turn (`self.turns`).
+
+        1d playtest bug: Bleeding / Poison only ticked inside combat
+        rounds, so an effect left over from a fight sat frozen forever
+        while you explored - visible in the HUD CONDITIONS block, doing
+        nothing, curable by nothing. Now it counts down and deals its
+        damage every turn (move / rest / search / …). Combat keeps its
+        own per-round pass; the turn-stamp stops the two double-counting
+        the turn a move walks into a fight. `Stun` counts down here too
+        (so it can't freeze between fights) but has no exploration
+        effect - there is no turn to skip while walking. Damage and
+        durations are unchanged - this only fixes *when* the mechanic
+        runs."""
+        t = getattr(self, "turns", 0)
+        if getattr(self, "_status_tick_turn", None) == t:
+            return
+        self._status_tick_turn = t
+        for effect in list(self.status_effects.keys()):
+            dmg = STATUS_EFFECT_DAMAGE.get(effect)
+            if dmg:
+                self.health = max(0, self.health - dmg)
+                self.io.say(f"You are affected by {effect}! Lost {dmg} health.")
+            self.status_effects[effect] -= 1
+            if self.status_effects[effect] <= 0:
+                del self.status_effects[effect]
+                self.io.say(f"The {effect.lower()} has passed.")
 
     def _fatigue_warnings(self):
         """Fatigue as a standing condition (docs/FATIGUE_INVESTIGATION_

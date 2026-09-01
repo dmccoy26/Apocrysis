@@ -9,7 +9,6 @@ from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon, Armor
 from src.mixins.persistence_mixin import profile_filename_for_name
-from src.player import PlayerClass
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (
     FreshZombie, RegularZombie, HeavyZombie,

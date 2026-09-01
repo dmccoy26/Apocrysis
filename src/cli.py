@@ -8,7 +8,6 @@ from src.items import Backpack, MeleeWeapon, RangedWeapon
 from src.mixins.persistence_mixin import (
     profile_filename_for_name, _profile_flat, clean_display_name,
 )
-from src.player import PlayerClass
 from src.zombies import FreshZombie, RegularZombie, HeavyZombie
 
 
@@ -141,9 +140,9 @@ def _next_survivor_name(n):
 def main(start_log=False, dev=None):
     if dev is not None:
         return _dev_main(start_log=start_log, dev=dev)
-    # v3 SPRINT step 1: no class prompt (classes are level-based now -
-    # src/player.py's CLASS_TIERS, combat_mixin.py's level_up()) and
-    # no re-entering your name/starting-over every launch. A profile
+    # v3 SPRINT step 1: no class prompt (v5: no player classes at all -
+    # stat growth is level-based, src/player.py + combat_mixin.level_up())
+    # and no re-entering your name/starting-over every launch. A profile
     # (name/level/xp/stats/backpack/weapon - PersistenceMixin's
     # save_profile()/load_profile(), distinct from the full-state
     # named save slots below) auto-loads if one exists; map size is
@@ -335,15 +334,11 @@ def run_tests():
     hz = HeavyZombie()
     assert hz.name == "Heavy Zombie" and hz.health == 100
     
-    # Test PlayerClass & Apocrysis initialization
-    pc = PlayerClass(100, 100, 100, 0, 10, 10, 10, 10, MeleeWeapon("Knife", 5, 10))
-    assert pc.health == 100
-    
     # Test Apocrysis map size and player setup
     ap = Apocrysis("TestPlayer", map_size=10, seed=1)
     assert ap.map_size == 10
     assert len(ap.map) == 10
-    assert ap.player_class is not None
+    assert ap.strength > 0 and ap.dexterity > 0
     assert ap.health > 0
     assert hasattr(ap, 'status_effects')
     
@@ -369,10 +364,9 @@ def run_tests():
     ap_stats.use_medicine()
     assert ap_stats.health == min(100, current_health + 20), "Health should increase by 20 after using medicine"
     
-    # Test weapon equipping and battle logic. v3: no class choice, so
-    # the starting weapon is whatever STARTER_CLASS_NAME's PlayerClass
-    # gives (src/player.py) - test the equip-swap mechanic generically
-    # rather than assuming a specific starting weapon type.
+    # Test weapon equipping and battle logic. The starting weapon is
+    # the world's (src/loot.py's starter_spec) - test the equip-swap
+    # mechanic generically rather than assuming a specific type.
     ap_battle = Apocrysis("BattleTest", map_size=5, seed=1)
     starting_weapon = ap_battle.equipped_weapon
     ap_battle.backpack.weapons.append(MeleeWeapon("Axe", 8, 50))

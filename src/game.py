@@ -153,9 +153,9 @@ class Apocrysis(
         # class-var (apply_profile restores that from the profile).
         self.survivor_knowledge = SurvivorKnowledge(type(self)._survivor_knowledge)
 
-        # v3 SPRINT: no player_class param - every new game starts as
-        # the easiest tier's representative class (initialize_player()
-        # in actions_mixin.py). `level` lets a caller continuing a
+        # v5: no player classes. Every new game starts from
+        # STARTING_ATTRS (initialize_player() in actions_mixin.py).
+        # `level` lets a caller continuing a
         # persisted profile (cli.py's main()) carry the player's
         # accumulated level into a FRESH game's map sizing/distance/
         # obstacles (generate_map(), below) - level/xp/stats

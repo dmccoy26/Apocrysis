@@ -282,7 +282,6 @@ class PersistenceMixin:
         filename = runtime_paths.resolve("save", filename)
         data = {
             "name": self.name,
-            "player_class": self.player_class,
             "map_size": self.map_size,
             "health": self.health,
             "max_health": self.max_health,
@@ -381,13 +380,8 @@ class PersistenceMixin:
             level=data.get("level", 1),
         )
 
-        # player_class is no longer chosen (v3) - restored here purely
-        # for older-save display/compatibility; initialize_player()
-        # already set it to the current STARTER_CLASS_NAME, and the
-        # tier system (combat_mixin.py's level_up()) is what actually
-        # updates it going forward.
-        player.player_class = data.get("player_class", player.player_class)
-
+        # An old save's "player_class" field (v1-4 abstraction, removed
+        # in v5) is simply ignored - nothing reads it.
         player.health = data.get("health", 100)
         player.max_health = data.get("max_health", 100)
         player.hunger = data.get("hunger", 95)
@@ -491,7 +485,6 @@ class PersistenceMixin:
         #               survivor record is replaced (PHASE_B_SPEC.md).
         survivor = {
             "name": self.name,
-            "player_class": self.player_class,
             "level": self.level,
             "xp": self.xp,
             "max_xp": self.max_xp,
@@ -767,7 +760,6 @@ class PersistenceMixin:
         self.__class__._campaign_ending = profile.get("ending")
 
         self.name = profile.get("name", self.name)
-        self.player_class = profile.get("player_class", self.player_class)
         self.hardcore = profile.get("hardcore", getattr(self, "hardcore", False))
         self.expeditions_completed = profile.get("expeditions_completed", self.expeditions_completed)
         self._distance_walked = float(profile.get("distance_walked", 0.0) or 0.0)  # 1d HUD

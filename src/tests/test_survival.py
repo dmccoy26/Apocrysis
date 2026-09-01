@@ -9,22 +9,13 @@ from src.constants import TERRAIN_SYMBOLS
 from src.game import Apocrysis
 from src.items import Backpack, MeleeWeapon, RangedWeapon, Armor
 from src.mixins.persistence_mixin import profile_filename_for_name
-from src.player import PlayerClass
+from src.player import TIER_BONUS
 from src.text_utils import _visible_len, _display_ljust
 from src.zombies import (
     FreshZombie, RegularZombie, HeavyZombie,
     SwiftZombie, ToxicZombie, ArmoredZombie,
 )
 
-
-
-class TestPlayerClass(unittest.TestCase):
-    def test_update_status_clamps_to_0_100(self):
-        pc = PlayerClass(50, 50, 50, 0, 10, 10, 10, 10, None)
-        pc.update_status(health_delta=-1000, hunger_delta=1000, thirst_delta=5)
-        self.assertEqual(pc.health, 0)
-        self.assertEqual(pc.hunger, 100)
-        self.assertEqual(pc.thirst, 55)
 
 
 class TestApocrysisCore(unittest.TestCase):
@@ -134,44 +125,61 @@ class TestApocrysisCore(unittest.TestCase):
             self.game.rest()
         self.assertEqual(self.game.fatigue, 0)
 
-    def test_single_level_up_below_threshold_does_not_change_class(self):
-        self.game.level = 2  # below the first real threshold (5)
-        starting_class = self.game.player_class
+    def _stats(self):
+        g = self.game
+        return dict(strength=g.strength, dexterity=g.dexterity,
+                    intelligence=g.intelligence, wisdom=g.wisdom,
+                    max_health=g.max_health)
+
+    def test_level_up_below_a_threshold_is_flat_growth_only(self):
+        self.game.level = 2  # below the first tier threshold (5)
+        before = self._stats()
         with patch("builtins.print"):
             self.game.level_up()
         self.assertEqual(self.game.level, 3)
-        self.assertEqual(self.game.player_class, starting_class)
+        after = self._stats()
+        # +1 str/dex/int/wis, +5 max_health, no tier bonus
+        self.assertEqual(after["strength"], before["strength"] + 1)
+        self.assertEqual(after["dexterity"], before["dexterity"] + 1)
+        self.assertEqual(after["intelligence"], before["intelligence"] + 1)
+        self.assertEqual(after["wisdom"], before["wisdom"] + 1)
+        self.assertEqual(after["max_health"], before["max_health"] + 5)
 
-    def test_level_up_crossing_a_tier_threshold_blends_stats(self):
-        self.game.level = 4  # level_up() -> 5, TIER_LEVEL_THRESHOLDS[1]
-        starting_class = self.game.player_class
+    def test_level_up_crossing_a_tier_threshold_adds_the_tier_bonus(self):
+        self.game.level = 4  # level_up() -> 5, a tier threshold
+        before = self._stats()
         with patch("builtins.print"):
             self.game.level_up()
         self.assertEqual(self.game.level, 5)
-        self.assertNotEqual(self.game.player_class, starting_class)
+        b = TIER_BONUS[5]
+        after = self._stats()
+        # flat +1 PLUS the tier bonus
+        self.assertEqual(after["strength"], before["strength"] + 1 + b["strength"])
+        self.assertEqual(after["dexterity"], before["dexterity"] + 1 + b["dexterity"])
+        self.assertEqual(after["intelligence"], before["intelligence"] + 1 + b["intelligence"])
+        self.assertEqual(after["wisdom"], before["wisdom"] + 1 + b["wisdom"])
+        self.assertEqual(after["max_health"], before["max_health"] + 5 + b["max_health"])
 
-    def test_multi_level_xp_jump_crosses_every_threshold_in_between(self):
-        # award_xp()'s while loop calls level_up() once per level -
-        # a big XP gain crossing multiple tier thresholds (5, 10)
-        # must apply BOTH tier blends, not just the final one.
+    def test_multi_level_xp_jump_applies_every_tier_bonus_in_between(self):
+        # award_xp()'s while loop calls level_up() once per level - a
+        # big XP gain crossing thresholds 5 AND 10 must apply BOTH tier
+        # bonuses, not just the final one.
         self.game.level = 4
         self.game.xp = 0
         self.game.max_xp = 100
+        before = self._stats()
         with patch("builtins.print"):
             self.game.award_xp(100000)  # max_xp grows 1.5x/level - well past level 10
         self.assertGreaterEqual(self.game.level, 10)
-
-        # Whichever thresholds were actually crossed, player_class
-        # must reflect the HIGHEST one reached (proves every
-        # intermediate crossing ran in order, not just the final one
-        # landing by coincidence - e.g. if only the level-10 blend had
-        # run and level 15/20 were silently skipped, this would still
-        # show a stale tier here).
-        from src.player import TIER_LEVEL_THRESHOLDS, tier_representative
-        expected_tier = max(
-            i for i, t in enumerate(TIER_LEVEL_THRESHOLDS) if t <= self.game.level
-        )
-        self.assertEqual(self.game.player_class, tier_representative(expected_tier))
+        gained = self.game.level - 4
+        after = self._stats()
+        crossed = [lv for lv in TIER_BONUS if 4 < lv <= self.game.level]
+        self.assertIn(5, crossed)
+        self.assertIn(10, crossed)
+        for stat in ("strength", "dexterity", "intelligence", "wisdom"):
+            expect = before[stat] + gained + sum(TIER_BONUS[lv][stat] for lv in crossed)
+            self.assertEqual(after[stat], expect,
+                             f"{stat}: every crossed tier bonus must have run")
 
 
 class TestTimeAndDecay(unittest.TestCase):

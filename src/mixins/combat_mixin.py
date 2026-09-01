@@ -5,18 +5,7 @@ import random
 
 from src.constants import BOLD, GREEN, RESET, STATUS_EFFECT_DAMAGE
 from src.items import MeleeWeapon, RangedWeapon
-from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representative
-from src.zombies import Zombie, ToxicZombie
-
-
-# Auto-extracted from the original monolithic apocrysis.py during
-# the src/ restructuring - see README.md for the project layout.
-
-import random
-
-from src.constants import BOLD, GREEN, RESET, STATUS_EFFECT_DAMAGE
-from src.items import MeleeWeapon, RangedWeapon
-from src.player import PLAYER_CLASSES, TIER_LEVEL_THRESHOLDS, tier_representative
+from src.player import TIER_BONUS
 from src.zombies import Zombie, ToxicZombie, speed_class_of
 from src import escape_model
 
@@ -546,33 +535,23 @@ class CombatMixin:
         # construction as long as the check stays HERE (per level_up
         # call) rather than being computed once elsewhere from a
         # final level, which could skip intermediate crossings.
-        if self.level not in TIER_LEVEL_THRESHOLDS:
+        bonus = TIER_BONUS.get(self.level)
+        if bonus is None:
             return
 
-        tier_index = TIER_LEVEL_THRESHOLDS.index(self.level)
-
-        if tier_index == 0:
-            return  # tier 0 is the starting baseline, nothing to blend in
-
-        new_rep = PLAYER_CLASSES[tier_representative(tier_index)]
-        prev_rep = PLAYER_CLASSES[tier_representative(tier_index - 1)]
-
-        # Additive, never a reset - equipped weapon untouched.
-        strength_delta = max(0, new_rep.strength - prev_rep.strength)
-        dexterity_delta = max(0, new_rep.dexterity - prev_rep.dexterity)
-        intelligence_delta = max(0, new_rep.intelligence - prev_rep.intelligence)
-        wisdom_delta = max(0, new_rep.wisdom - prev_rep.wisdom)
-        self.strength += strength_delta
-        self.dexterity += dexterity_delta
-        self.intelligence += intelligence_delta
-        self.wisdom += wisdom_delta
-        self.max_health += new_rep.health - prev_rep.health
+        # Additive, never a reset - equipped weapon untouched. These
+        # are the exact deltas the old class-tier blend produced
+        # (src/player.py), now plain data.
+        self.strength += bonus["strength"]
+        self.dexterity += bonus["dexterity"]
+        self.intelligence += bonus["intelligence"]
+        self.wisdom += bonus["wisdom"]
+        self.max_health += bonus["max_health"]
         self.health = min(self.max_health, self.health)
 
-        self.player_class = tier_representative(tier_index)
         self.io.say(
-            f"{BOLD}{GREEN}You've grown into a new class: "
-            f"{self.player_class}!{RESET}"
+            f"{BOLD}{GREEN}You've come through something - you're "
+            f"harder to put down now.{RESET}"
         )
 
     def take_damage(self, damage):

@@ -5,7 +5,7 @@ import copy
 import random
 
 from src.items import MeleeWeapon, RangedWeapon, Armor, format_weapon_list, format_armor_list
-from src.player import PLAYER_CLASSES, STARTER_CLASS_NAME
+from src.player import STARTING_ATTRS
 
 
 class ActionsMixin:
@@ -71,30 +71,23 @@ class ActionsMixin:
         return _loot.craft_recipes(getattr(self, "world", None))
 
     def initialize_player(self):
-        # v3: no class choice at game start (SPRINT plan, step 1) -
-        # every new game begins as the easiest tier's representative
-        # class (src/player.py's STARTER_CLASS_NAME). Stat growth
-        # from there comes from leveling and tier blending
-        # (combat_mixin.py's level_up()), not an initial pick.
-        attrs = self.initialize_player_class(STARTER_CLASS_NAME)
-        # Kept for save-file/display compatibility - no longer a
-        # user choice, tracks the current tier's representative class
-        # (updated by combat_mixin.py's level_up() on a tier-up).
-        self.player_class = STARTER_CLASS_NAME
-
-        self.health = attrs.health
-        self.hunger = attrs.hunger
-        self.thirst = attrs.thirst
-        self.fatigue = attrs.fatigue
-        self.strength = attrs.strength
-        self.dexterity = attrs.dexterity
-        self.intelligence = attrs.intelligence
-        self.wisdom = attrs.wisdom
-        # F.10: the starting weapon is the world's, not the vestigial
-        # tier-0 class weapon. It's built fresh here (a new MeleeWeapon,
-        # never a shared PLAYER_CLASSES instance - combat mutates
-        # durability/ammo in place, and one game's wear used to carry
-        # into every later game in the process). The Silence's starter
+        # v5: no player classes. Every survivor starts from the same
+        # baseline (src/player.py's STARTING_ATTRS); stat growth comes
+        # from leveling + the tier bonuses (combat_mixin.level_up()).
+        # Meaningful per-survivor starting variation is a separate,
+        # not-yet-made design decision.
+        self.health = STARTING_ATTRS["health"]
+        self.hunger = STARTING_ATTRS["hunger"]
+        self.thirst = STARTING_ATTRS["thirst"]
+        self.fatigue = STARTING_ATTRS["fatigue"]
+        self.strength = STARTING_ATTRS["strength"]
+        self.dexterity = STARTING_ATTRS["dexterity"]
+        self.intelligence = STARTING_ATTRS["intelligence"]
+        self.wisdom = STARTING_ATTRS["wisdom"]
+        # F.10: the starting weapon is the world's. Built fresh here (a
+        # new MeleeWeapon - combat mutates durability/ammo in place, and
+        # one game's wear used to carry into every later game in the
+        # process when this was a shared instance). The Silence's starter
         # is still the household knife + variant roll, so this stays
         # RNG-identical there; The Wake comes in with a ship tool.
         from src import loot as _loot
@@ -105,17 +98,6 @@ class ActionsMixin:
             _name, _st["damage"], _st["durability"])
         # RangedWeapon.__init__ already starts ammo at max_ammo - no
         # separate top-up needed here.
-
-    def initialize_player_class(self, player_class_name):
-        # No longer @staticmethod (v3 SPRINT step 6) - the fallback
-        # message below needs self.io. Always called as
-        # self.initialize_player_class(...) already, so this changes
-        # nothing at any call site.
-        if player_class_name in PLAYER_CLASSES:
-            return PLAYER_CLASSES[player_class_name]
-        else:
-            self.io.say(f"Invalid player class '{player_class_name}' selected. Defaulting to 'gamer'.")
-            return None
 
     def eat(self):
         if self.backpack.food > 0:

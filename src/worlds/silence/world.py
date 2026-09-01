@@ -79,6 +79,15 @@ SILENCE = World(
                      "where the hills close in - is all laid out now. It "
                      "won't tell you what's moving out there."),
         "abandonment_flavour": _ABANDONMENT_FLAVOUR,
+        # HUD location sub-label: the generator's zone key -> the word
+        # the player sees. This vocabulary is The Silence's; a world
+        # that wants a location sub-label declares its own (F.11 class -
+        # 'downtown' must never surface on a starship).
+        "zone_labels": {
+            "rural": "rural", "suburban": "suburban",
+            "industrial": "industrial", "downtown": "downtown",
+            "wilderness": "wilderness",
+        },
         # World Investigation screen: player-facing name + question per
         # thread. The player never sees the raw thread id.
         "thread_titles": {

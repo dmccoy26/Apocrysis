@@ -871,7 +871,13 @@ class GameScreen(Screen):
         clk = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
         # 1d HUD: the zone, plus a plain note when this ground is slow
         # to cross (so "why is travel dragging" has an answer on screen).
-        _z = p._current_zone() if hasattr(p, "_current_zone") else ""
+        # The zone WORD is world-owned vocabulary (F.11 class): a world
+        # that doesn't declare `zone_labels` shows nothing here - it does
+        # NOT inherit Silence's 'downtown' / 'suburban' / 'wilderness'.
+        # The Wake's section system will fill this slot later.
+        _zk = p._current_zone() if hasattr(p, "_current_zone") else ""
+        _z = ((getattr(p.world, "prose", None) or {})
+              .get("zone_labels", {}).get(_zk, ""))
         _cell = p.map[p.current_position[1]][p.current_position[0]]
         _terr = _cell.get("terrain") if isinstance(_cell, dict) else None
         _slow = ((getattr(getattr(p.world, "terrain", None), "prose", None)

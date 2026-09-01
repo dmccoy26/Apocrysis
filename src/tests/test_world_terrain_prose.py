@@ -66,6 +66,24 @@ class TestTerrainProseSeam(unittest.TestCase):
                 # tp() returns it when a world authors nothing
                 self.assertEqual(tp(bare, group, key), line)
 
+    def test_hud_zone_sublabel_vocabulary_is_world_owned(self):
+        # F.11 class: the HUD location sub-label ('downtown' etc.) is
+        # The Silence's geography vocabulary. A world that wants a
+        # sub-label declares `zone_labels`; The Wake declares none, so
+        # the slot stays blank rather than showing a valley word on a
+        # starship. (tui._refresh_location_line reads it exactly this
+        # way.)
+        _ZONE_KEYS = ("rural", "suburban", "industrial", "downtown",
+                      "wilderness")
+        silence = get_world("silence")
+        self.assertEqual(set(silence.prose["zone_labels"]), set(_ZONE_KEYS))
+        for zk in _ZONE_KEYS:                       # Silence: unchanged output
+            self.assertEqual(silence.prose["zone_labels"][zk], zk)
+        wake_labels = (get_world("the_wake").prose or {}).get("zone_labels", {})
+        for zk in _ZONE_KEYS:
+            self.assertEqual(wake_labels.get(zk, ""), "",
+                             f"The Wake HUD would show {zk!r}")
+
     def test_no_engine_module_hard_codes_the_environment(self):
         import src.mixins.world_mixin as wm
         import src.mixins.mystery_mixin as mm

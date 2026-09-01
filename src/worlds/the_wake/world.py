@@ -47,6 +47,11 @@ THE_WAKE = World(
             "waders": "You found a sealed hardsuit! Breaches and grav-out "
                       "sections no longer slow you down as much.",
         },
+        # No `zone_labels`: the HUD location sub-label stays blank on The
+        # Wake rather than borrowing Silence's valley zone words. The
+        # 25-level section system (docs/WAKE_SPINE_INVESTIGATION.md) will
+        # fill this slot with the ship-section name.
+        #
         # The ship has no sky - it keeps a clock and a lighting
         # schedule. Same four internal phase roles, ship words.
         "day_cycle": {

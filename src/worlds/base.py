@@ -39,7 +39,14 @@ class WorldManifest:
     constants.py / campaign.py. Phase F §2.
 
     supported_mechanisms: the subset of escape.MECHANISMS this world
-    uses. Empty tuple = all of them (World 1's historical behaviour)."""
+    uses. Empty tuple = all of them (World 1's historical behaviour).
+
+    map_transit: the expedition reads as moving THROUGH the place -
+    spawn against one side wall, the way out carved in the opposite
+    wall, roughly level. A ship you traverse bow-to-stern, not a valley
+    you wander. False (the default) = the historical random-interior
+    spawn + nearest-edge gap. Silence leaves it False -> generator RNG
+    and the golden fixture are untouched."""
     id: str
     title: str
     subtitle: str = ""
@@ -48,6 +55,7 @@ class WorldManifest:
     chapter_bounds: tuple = (0,)          # lowest expeditions_completed per chapter
     chapter_titles: tuple = ()
     supported_mechanisms: tuple = ()
+    map_transit: bool = False
 
 
 @dataclass(frozen=True)

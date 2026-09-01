@@ -59,6 +59,34 @@ class MapGenerator:
 
     # ---- spawn / settlements -------------------------------------
 
+    def _transit_layout(self):
+        """World opts into a traverse: spawn on one side wall, the way
+        out on the opposite one (WorldManifest.map_transit). Off by
+        default - the historical random-interior spawn is unchanged."""
+        m = getattr(self.g.world, "manifest", None)
+        return bool(m is not None and getattr(m, "map_transit", False))
+
+    def _transit_spawn(self):
+        """Wake against the middle of one end wall. Records the side on
+        `game._transit_side` so the escape pass (src/escape.py) carves
+        the way out in the OPPOSITE wall, roughly level. One rng.choice
+        + one rng.shuffle - only reached when a world opts in, so no
+        other world's RNG stream moves."""
+        g = self.g
+        side = g.rng.choice(('west', 'east'))
+        x = 1 if side == 'west' else g.map_w - 2
+        band = list(range(g.map_h // 4, g.map_h - g.map_h // 4)) or [g.map_h // 2]
+        g.rng.shuffle(band)
+        y = next((yy for yy in band
+                  if g.map[yy][x]['terrain'] not in self._impassable), None)
+        if y is None:
+            y = g.map_h // 2
+            g.map[y][x] = {'terrain': 'plain', 'zone': 'wilderness',
+                           'content': '-', 'explored': False}
+        g._transit_side = side
+        g._transit_spawn_y = y
+        return (x, y)
+
     def _pick_random_walkable_tile(self):
         g = self.g
         margin = 3 if g.map_size >= 10 else 1
@@ -497,7 +525,11 @@ class MapGenerator:
         elif self.variant == "landscape":
             self._landscape_terrain()
 
-        spawn = self._pick_random_walkable_tile()
+        g._transit_side = None
+        if self._transit_layout():
+            spawn = self._transit_spawn()
+        else:
+            spawn = self._pick_random_walkable_tile()
         g.current_position = spawn
         g.map[spawn[1]][spawn[0]]['content'] = 'P'
 

@@ -147,7 +147,10 @@ class WorldMixin:
         # shipping a story-less "reach the town" expedition. v1 is frozen
         # and never hits the degenerate path, so the loop runs exactly
         # once for v1 - RNG consumption and byte-identity are unchanged.
-        _max_map_tries = 12 if getattr(self, '_mapgen', 'v1') in ('v2', 'landscape') else 1
+        _mf = getattr(self.world, 'manifest', None)
+        _transit_world = bool(_mf is not None and getattr(_mf, 'map_transit', False))
+        _max_map_tries = (12 if (getattr(self, '_mapgen', 'v1') in ('v2', 'landscape')
+                                 or _transit_world) else 1)
         self.mystery = None
         _mystery_exc = None
         for _try in range(_max_map_tries):

@@ -568,6 +568,35 @@ def _carve_escape_pass(game, reachable):
                 all_gaps.append((bx, by, ix, iy))
 
     reachable_gaps = [g for g in all_gaps if (g[2], g[3]) in reachable]
+
+    # §F.12: a transit world (WorldManifest.map_transit) wakes the
+    # player against one side wall - the way out is the OPPOSITE wall,
+    # as level with the spawn as the ring allows, so the expedition
+    # reads as crossing the ship rather than stepping out the nearest
+    # door. Only reached when a world opts in; every other world falls
+    # through to the historical selection below unchanged.
+    _tside = getattr(game, "_transit_side", None)
+    if _tside:
+        want_ix = n - 2 if _tside == 'west' else 1    # inner col of the far wall
+        want_bx = n - 1 if _tside == 'west' else 0
+        spawn_y = getattr(game, "_transit_spawn_y", sy)
+        far = [g for g in all_gaps if g[2] == want_ix]
+        far_reach = [g for g in far if (g[2], g[3]) in reachable]
+        pool = far_reach or far
+        if pool:
+            bx, by, ix, iy = min(pool, key=lambda g: abs(g[3] - spawn_y))
+            if not far_reach:
+                _carve_line(game, (sx, sy), (ix, iy))
+        else:
+            iy = min(max(spawn_y, 1), n - 2)
+            ix, bx, by = want_ix, want_bx, iy
+            game.map[iy][ix] = {'terrain': 'plain', 'content': '-',
+                                'zone': 'wilderness', 'explored': False}
+            _carve_line(game, (sx, sy), (ix, iy))
+        game.map[by][bx] = {'terrain': 'plain', 'content': '-', 'zone': 'wilderness',
+                            'explored': False, 'escape_gap': True}
+        return (bx, by), (ix, iy)
+
     _bound = getattr(game, "_lever_bound_gap", None)   # C.3.2a-5 lever 2
     if reachable_gaps and _bound is not None:
         # measurement-only. The gap is kept within a bounded distance of

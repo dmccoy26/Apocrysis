@@ -25,4 +25,8 @@ MANIFEST = WorldManifest(
         "power_station", "radio_tower", "service_route", "dam_valves",
         "rail_tunnel", "evac_corridor", "airfield_plane", "mountain_pass",
     ),
+    # §F.12: an expedition on the ship is a traverse - you wake against
+    # one end bulkhead and the way out is the far one. Not a valley you
+    # wander out of the nearest side of.
+    map_transit=True,
 )

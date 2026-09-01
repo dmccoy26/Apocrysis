@@ -179,16 +179,19 @@ class KnowledgeMixin:
                 self.mystery_arrive(x, y)
                 return
 
+        _pl = (getattr(self.world, "prose", None) or {}).get("places") or {}
         if terrain == 'building':
-            self.io.say("A building. Empty. " + (
+            self.io.say(self._places("look_building", "A building. Empty.") + " " + (
                 {'evacuated': "They left in a hurry.", 'barricaded': "Boarded up from inside.",
                  'burned': "Fire-damaged.", 'looted': "Already stripped.",
                  'occupied_recently': "Someone was here not long ago.", 'sealed': "Sealed from outside.",
                  'flooded': "Water damage.", 'quiet': "Just left, undisturbed."}.get(cause, "")))
         elif terrain == 'town':
-            self.io.say("A settlement street. Quiet.")
+            self.io.say(self._places("look_settlement", "A settlement street. Quiet."))
         else:
-            self.io.say(f"Open {terrain or 'ground'}. Nothing here that matters.")
+            _t = (_pl.get("look_terrain_words") or {}).get(terrain, terrain or 'ground')
+            self.io.say(_pl.get("look_open", "Open {t}. Nothing here that matters.")
+                        .format(t=_t))
         self._look_recall_bearing()
 
     def _look_recall_bearing(self):

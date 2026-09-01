@@ -88,6 +88,27 @@ SILENCE = World(
             "industrial": "industrial", "downtown": "downtown",
             "wilderness": "wilderness",
         },
+        # The town / settlement subsystem is player-facing built
+        # environment - 'Town Center', 'settlement street', the
+        # districts. World-owned (F.11 class). Values here reproduce the
+        # pre-refactor strings exactly.
+        "places": {
+            "settlement_found": "You've found a settlement - it's worth exploring before moving on.",
+            "district_line": "You're in the {d} district.",
+            "district_words": {"downtown": "downtown", "commercial": "commercial",
+                               "residential": "residential"},
+            "center_quiet": ("The Town Center looks quiet - too quiet. You should "
+                             "search the settlement's buildings and streets before "
+                             "assuming it's safe to call this home."),
+            "center_info": ("The Town Center. Records, notices, a wall of missing-person "
+                            "photos - the most information in one place you've found. "
+                            "But no one's here, and this isn't the way out."),
+            "center_reached": "reached the Town Center",
+            "look_building": "A building. Empty.",
+            "look_settlement": "A settlement street. Quiet.",
+            "look_open": "Open {t}. Nothing here that matters.",
+            "look_terrain_words": {},   # {} -> the raw role name, unchanged
+        },
         # World Investigation screen: player-facing name + question per
         # thread. The player never sees the raw thread id.
         "thread_titles": {

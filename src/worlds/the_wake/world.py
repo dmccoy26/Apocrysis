@@ -52,6 +52,37 @@ THE_WAKE = World(
         # 25-level section system (docs/WAKE_SPINE_INVESTIGATION.md) will
         # fill this slot with the ship-section name.
         #
+        # The town / settlement subsystem, ship-fictioned (F.11 class):
+        # a generated "settlement" is a held section / the muster point,
+        # not a town with streets and a centre. The T/H/R/S/B map glyphs
+        # are re-captioned in the terrain legend (Muster/Hab/Run/Store/
+        # Bay); this covers the prose. Districts: the enclave is small,
+        # so its "downtown/commercial/residential" rings read as core /
+        # stores / quarters.
+        "places": {
+            "settlement_found": "You've reached a section someone's still holding - search it before you move on.",
+            "district_line": "You're in {d}.",
+            "district_words": {"downtown": "the muster point",
+                               "commercial": "the stores",
+                               "residential": "the crew quarters"},
+            "center_quiet": ("The muster point is dark and cold. Check the "
+                             "compartments around it before you trust it."),
+            "center_info": ("The muster point. A crew roster with names struck "
+                            "through, standing notices, a status log still ticking "
+                            "over - the most in one place you've found. No one here "
+                            "now, and this isn't the way off."),
+            "center_reached": "reached the muster point",
+            "look_building": "A compartment. Sealed and empty.",
+            "look_settlement": "A passage through the held section. Quiet.",
+            "look_open": "{t}. Nothing here worth stopping for.",
+            "look_terrain_words": {
+                "forest": "Wreckage", "water": "A run open to vacuum",
+                "swamp": "A stretch with the gravity gone", "plain": "Open deck",
+                "mountain": "Hull plate", "town": "The held section",
+                "bridge": "A gangway", "building": "A compartment",
+            },
+        },
+        #
         # The ship has no sky - it keeps a clock and a lighting
         # schedule. Same four internal phase roles, ship words.
         "day_cycle": {

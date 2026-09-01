@@ -48,7 +48,13 @@ _PLACE_LEAKS = ("valley", "ranger station", "forestry", "hydro station",
                 # F.11-class - one-time discoverables + day/night dressing.
                 # A ship has no waders and no sunrise.
                 "waders", "water and swamp", "working flashlight",
-                "you found map", "you found flashlight", "you found waders")
+                "you found map", "you found flashlight", "you found waders",
+                # F.11-class - the town / settlement subsystem. A ship
+                # has no town centre, streets or districts.
+                "town center", "town centre", "settlement street",
+                "buildings and streets", "missing-person", "a settlement",
+                "downtown district", "residential district",
+                "commercial district")
 
 # World-1 COMBAT prose - "the infected" is hardcoded in combat_mixin's
 # battle lines. Reported separately (it's the deferred sweep's scope,

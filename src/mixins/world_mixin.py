@@ -810,25 +810,26 @@ class WorldMixin:
             and current_tile.get('content') == 'T'
             and not self.settlement_explored
         ):
-            self.io.say(
+            self.io.say(self._places(
+                "center_quiet",
                 "The Town Center looks quiet - too quiet. You should "
                 "search the settlement's buildings and streets before "
-                "assuming it's safe to call this home."
-            )
+                "assuming it's safe to call this home."))
             return
 
         if _mystery is not None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
-            self.io.say(
+            self.io.say(self._places(
+                "center_info",
                 "The Town Center. Records, notices, a wall of missing-person "
                 "photos - the most information in one place you've found. "
-                "But no one's here, and this isn't the way out."
-            )
+                "But no one's here, and this isn't the way out."))
             self.mystery_arrive(*self.current_position)
             self._maybe_surface_clue()
             return
 
         if _mystery is None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
-            self.finish_expedition(reason="reached the Town Center")
+            self.finish_expedition(
+                reason=self._places("center_reached", "reached the Town Center"))
             return
 
         # Apply terrain-specific effects
@@ -850,13 +851,18 @@ class WorldMixin:
                 # block of letters).
                 if not self.settlement_explored:
                     self.settlement_explored = True
-                    self.io.say("You've found a settlement - it's worth exploring before moving on.")
+                    self.io.say(self._places(
+                        "settlement_found",
+                        "You've found a settlement - it's worth exploring before moving on."))
                 district = current_tile.get('district')
                 # Only when it changes - not on every tile of the same
                 # district (playtest: repeated identical lines).
                 if district and district != getattr(self, '_last_district', None):
                     self._last_district = district
-                    self.io.say(f"You're in the {district} district.")
+                    _pl = self.world.prose.get("places") or {}
+                    _dw = (_pl.get("district_words") or {}).get(district, district)
+                    self.io.say(_pl.get("district_line", "You're in the {d} district.")
+                                .format(d=_dw))
 
             _first_visit = not current_tile.get('_seen_desc')
             current_tile['_seen_desc'] = True
@@ -934,6 +940,14 @@ class WorldMixin:
             self.find_loot()
 
         self.tile_event_cooldowns[self.current_position] = self.day + 3
+
+    def _places(self, key, default):
+        """A player-facing line about the settlement / built environment,
+        world-owned. `world.prose["places"][key]` overrides the valley
+        default so a ship says 'muster point' / 'held section' instead
+        of 'Town Center' / 'settlement street'. F.11 class - F.11 swept
+        terrain prose but not the town/settlement subsystem."""
+        return ((self.world.prose.get("places") or {}).get(key) or default)
 
     def _discoverable_line(self, key, default):
         """The pickup line for a one-time discoverable (`waders`,

@@ -84,6 +84,53 @@ class TestTerrainProseSeam(unittest.TestCase):
             self.assertEqual(wake_labels.get(zk, ""), "",
                              f"The Wake HUD would show {zk!r}")
 
+    def test_settlement_vocabulary_is_world_owned(self):
+        # F.11 class: the town / settlement subsystem ('Town Center',
+        # 'settlement street', the districts) is The Silence's built
+        # environment. The Wake owns its own via world.prose["places"].
+        sil = get_world("silence").prose["places"]
+        wake = get_world("the_wake").prose["places"]
+        # Silence: unchanged strings
+        self.assertEqual(sil["center_reached"], "reached the Town Center")
+        self.assertIn("Town Center", sil["center_info"])
+        # The Wake: no valley built-environment words in any places string
+        _BAD = ("town center", "town centre", "settlement", "street",
+                "district", "missing-person", "call this home")
+        for key, val in wake.items():
+            if isinstance(val, str):
+                low = val.lower()
+                for b in _BAD:
+                    self.assertNotIn(b, low, f"places[{key!r}] = {val!r}")
+        for d, word in wake["district_words"].items():
+            self.assertNotIn("district", word.lower())
+
+    def test_the_wake_look_transcript_has_no_town_vocabulary(self):
+        for seed in (11, 23, 47):
+            lines = []
+
+            class _IO:
+                renders_natively = False
+                def say(self, *a, **k): lines.append(" ".join(str(x) for x in a))
+                def ask(self, *a, **k): return ""
+                def ask_yes_no(self, *a, **k): return False
+
+            with patch("builtins.print"):
+                g = Apocrysis("T", map_size=18, seed=seed, world="the_wake",
+                              expeditions_completed=6, io=_IO())
+            import random
+            for i in range(120):
+                random.seed(seed * 10 + i)
+                try:
+                    g.move_and_search(random.choice("nsew"))
+                    g.knowledge_look()
+                except Exception:
+                    pass
+            t = "\n".join(lines).lower()
+            for bad in ("town center", "settlement street", "a settlement",
+                        "buildings and streets", "missing-person",
+                        "downtown district", "residential district"):
+                self.assertNotIn(bad, t, f"seed {seed}: {bad!r} on a ship")
+
     def test_no_engine_module_hard_codes_the_environment(self):
         import src.mixins.world_mixin as wm
         import src.mixins.mystery_mixin as mm

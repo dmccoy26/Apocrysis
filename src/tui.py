@@ -31,7 +31,7 @@ from src.game import Apocrysis
 from src.worlds import get_world, world_ids
 from src.constants import stat_band, CAMPAIGN_LENGTH
 from src.campaign import chapter_for_expedition, CHAPTER_TITLES
-from src.mixins.persistence_mixin import profile_filename_for_name
+from src.mixins.persistence_mixin import profile_filename_for_name, campaign_filename
 from src.nav import honest_bearing
 
 
@@ -906,7 +906,8 @@ class GameScreen(Screen):
             _p._settings = self._settings
             return _p
 
-        profile = Apocrysis.load_profile_by_name(self._name) if self._name else None
+        profile = (Apocrysis.load_campaign(self._world, self._name)
+                   if self._name else None)
         self._last_load_was_profile = profile is not None
         if profile is not None:
             from src.mixins.persistence_mixin import _profile_flat
@@ -960,7 +961,8 @@ class GameScreen(Screen):
             else:
                 p.save_profile(_dev_profile)
             return
-        campaign_file = profile_filename_for_name(self._name or p.name)
+        campaign_file = campaign_filename(
+            getattr(p.world, "id", None), self._name or p.name)
         if p.health <= 0:
             if p.hardcore:
                 p.delete_profile()
@@ -994,7 +996,7 @@ class GameScreen(Screen):
         flat = {}
         if self._name:
             from src.mixins.persistence_mixin import _profile_flat
-            _prof = Apocrysis.load_profile_by_name(self._name)
+            _prof = Apocrysis.load_campaign(self._world, self._name)
             if _prof is not None:
                 flat = _profile_flat(_prof)
         Apocrysis.reset_campaign_state(restore_from=flat)
@@ -1653,7 +1655,7 @@ class MenuScreen(Screen):
                 f"[dim]Press Enter again to resume.[/dim]")
             return
         self._armed = None
-        self._start_game(name=s["name"])
+        self._start_game(name=s["name"], world=s.get("world_id"))
 
     # ---- starting a game ------------------------------------------
 
@@ -1664,12 +1666,13 @@ class MenuScreen(Screen):
         world_id, name, hardcore = result
         self._start_game(name=name, world=world_id, hardcore=hardcore)
 
-    def _on_load_pick(self, name):
-        # LoadGameScreen.dismiss(name) to load, or None (Back / nothing
-        # left after deletes). GameScreen's profile path takes the
-        # world from the profile's own world_id.
-        if name:
-            self._start_game(name=name)
+    def _on_load_pick(self, result):
+        # LoadGameScreen.dismiss((world_id, name)) to load, or None
+        # (Back / nothing left after deletes). Same survivor name can
+        # exist in two worlds, so the world must come through too.
+        if result:
+            world_id, name = result
+            self._start_game(name=name, world=world_id)
 
     def _on_settings(self, result):
         # SettingsScreen.dismiss(<settings dict>); it also wrote the
@@ -1787,18 +1790,22 @@ class NewCampaignScreen(Screen):
             err.update("Enter a name for your survivor.")
             return
 
-        collides = Apocrysis.load_profile_by_name(name) is not None
+        # Collision is per (world, survivor) - the same name can hold a
+        # separate campaign in each world.
+        collides = Apocrysis.load_campaign(world_id, name) is not None
+        world_title = get_world(world_id).manifest.title
         if collides and not hardcore:
             err.update(
-                f"{name} already has a campaign - use CONTINUE. "
-                f"(LOAD arrives in G4.)")
+                f"{name} already has a campaign in {world_title} - "
+                f"use CONTINUE or LOAD GAME to resume it.")
             return
         if collides and hardcore:
             # A Hardcore run has no file; it can't clobber the Normal
             # profile, but say so plainly.
             err.update(
-                f"[dim]Note: a Normal campaign named {name} exists. This "
-                f"Hardcore run is separate and unsaved.[/dim]")
+                f"[dim]Note: a Normal campaign named {name} exists in "
+                f"{world_title}. This Hardcore run is separate and "
+                f"unsaved.[/dim]")
 
         self.dismiss((world_id, name, hardcore))
 
@@ -1918,20 +1925,23 @@ class LoadGameScreen(Screen):
         if not self._rows:
             self.dismiss(None)
             return
-        self.dismiss(self._rows[self._sel]["name"])
+        r = self._rows[self._sel]
+        self.dismiss((r.get("world_id"), r["name"]))
 
     def action_delete(self):
         if not self._rows:
             return
-        target = self._rows[self._sel]["name"]
+        r = self._rows[self._sel]
+        target = r["name"]
+        key = (r.get("world_id"), target)
         note = self.query_one("#lg_note", Static)
-        if self._armed_delete != target:
-            self._armed_delete = target
+        if self._armed_delete != key:
+            self._armed_delete = key
             note.update(
-                f"[b]Delete {target}'s campaign? This can't be undone.[/b] "
-                f"[dim]Press D again.[/dim]")
+                f"[b]Delete {target}'s {r['world_title']} campaign? "
+                f"This can't be undone.[/b] [dim]Press D again.[/dim]")
             return
-        Apocrysis.delete_campaign(target)
+        Apocrysis.delete_campaign(target, r.get("world_id"))
         self._armed_delete = None
         note.update(f"[dim]Deleted {target}.[/dim]")
         self._reload()

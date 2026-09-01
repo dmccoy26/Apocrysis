@@ -122,6 +122,25 @@ def clean_display_name(raw, fallback="Survivor"):
     return kept[:24].strip() or fallback
 
 
+def _name_slug(name):
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", (name or "").strip()) or "player"
+
+
+def campaign_filename(world_id, name):
+    """The on-disk filename for a (world, survivor) campaign. The
+    default world keeps the bare ``apocrysis_profile_<name>.json`` so
+    every pre-multi-world save still resolves; other worlds get
+    ``apocrysis_profile_<world>__<name>.json``, so the same survivor
+    name can hold a separate campaign in each world (G: campaign
+    identity is world + survivor + mode, not survivor alone).
+    """
+    from src.worlds import DEFAULT_WORLD_ID
+    base = _name_slug(name)
+    if not world_id or world_id == DEFAULT_WORLD_ID:
+        return f"apocrysis_profile_{base}.json"
+    return f"apocrysis_profile_{_name_slug(world_id)}__{base}.json"
+
+
 def profile_filename_for_name(name):
     """
     Derives a per-player profile filename from a display name, e.g.
@@ -130,9 +149,11 @@ def profile_filename_for_name(name):
     name can't escape the current directory or collide with the
     named SESSION save-slot files (apocrysis_save*.json - a
     different concept, see the profile-persistence note below).
+
+    This is the default-world / classic-mode filename; the shell uses
+    campaign_filename(world_id, name) directly.
     """
-    slug = re.sub(r"[^A-Za-z0-9_-]+", "_", name.strip()) or "player"
-    return f"apocrysis_profile_{slug}.json"
+    return campaign_filename(None, name)
 
 
 def _serialize_weapon(w):
@@ -604,6 +625,17 @@ class PersistenceMixin:
         return out
 
     @classmethod
+    def load_campaign(cls, world_id, name):
+        """Load a Normal campaign by (world, survivor). For the default
+        world / legacy saves this is just load_profile_by_name (which
+        also migrates the pre-multi-profile single file); other worlds
+        read their own ``<world>__<name>.json``."""
+        from src.worlds import DEFAULT_WORLD_ID
+        if not world_id or world_id == DEFAULT_WORLD_ID:
+            return cls.load_profile_by_name(name)
+        return cls.load_profile(campaign_filename(world_id, name))
+
+    @classmethod
     def load_profile_by_name(cls, name):
         """
         Loads the profile for `name` from its own per-name file. The
@@ -645,12 +677,14 @@ class PersistenceMixin:
         return heir
 
     @staticmethod
-    def delete_campaign(name):
-        """G4: remove a Normal campaign by survivor name (the Phase-G
-        LOAD GAME screen's Delete). Distinct from the instance-bound
-        delete_profile() below - here there's no live game, just a name
-        the player picked off a list. Returns True if a file went."""
-        path = runtime_paths.resolve("player", profile_filename_for_name(name))
+    def delete_campaign(name, world_id=None):
+        """G4: remove a Normal campaign by (world, survivor) - the
+        Phase-G LOAD GAME screen's Delete. Distinct from the
+        instance-bound delete_profile() below: here there's no live
+        game, just a row the player picked off a list. Returns True if
+        a file went."""
+        path = runtime_paths.resolve(
+            "player", campaign_filename(world_id, name))
         if os.path.exists(path):
             os.remove(path)
             return True
@@ -662,7 +696,9 @@ class PersistenceMixin:
         for a hardcore character who died, so the next launch can't
         reload a dead hardcore run under this name.
         """
-        filename = runtime_paths.resolve("player", profile_filename_for_name(self.name))
+        filename = runtime_paths.resolve(
+            "player",
+            campaign_filename(getattr(self.world, "id", None), self.name))
         if os.path.exists(filename):
             os.remove(filename)
 

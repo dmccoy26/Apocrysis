@@ -254,7 +254,7 @@ class TestLoadGameScreen(unittest.IsolatedAsyncioTestCase):
 
             await pilot.press("d")            # arm
             await asyncio.wait_for(pilot.pause(0.1), timeout=5)
-            self.assertEqual(lg._armed_delete, "Cole")
+            self.assertEqual(lg._armed_delete[1], "Cole")
             path = runtime_paths.resolve(
                 "player", profile_filename_for_name("Cole"))
             self.assertTrue(os.path.exists(path))
@@ -272,7 +272,7 @@ class TestLoadGameScreen(unittest.IsolatedAsyncioTestCase):
             lg = await self._open_load(pilot, app)
             await pilot.press("d")
             await asyncio.wait_for(pilot.pause(0.1), timeout=5)
-            self.assertEqual(lg._armed_delete, "Cole")
+            self.assertEqual(lg._armed_delete[1], "Cole")
             await pilot.press("down")
             await asyncio.wait_for(pilot.pause(0.1), timeout=5)
             self.assertIsNone(lg._armed_delete)

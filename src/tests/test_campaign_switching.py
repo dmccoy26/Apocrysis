@@ -16,13 +16,15 @@ import tempfile
 import unittest
 
 try:
-    from src.tui import ApocrysisApp, MenuScreen, LoadGameScreen, GameScreen
+    from src.tui import (ApocrysisApp, MenuScreen, NewCampaignScreen,
+                         LoadGameScreen, GameScreen)
     _TEXTUAL_AVAILABLE = True
 except ImportError:
     _TEXTUAL_AVAILABLE = False
 
 from src.game import Apocrysis
-from src.mixins.persistence_mixin import profile_filename_for_name
+from src.mixins.persistence_mixin import (profile_filename_for_name,
+                                         campaign_filename)
 
 
 @unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
@@ -54,7 +56,7 @@ class TestCampaignSwitching(unittest.IsolatedAsyncioTestCase):
         Apocrysis._survivors_lost = 3
         Apocrysis._campaign_ending = "the_broadcast"
         a = Apocrysis("Alba", seed=1, world="silence")
-        a.save_profile(profile_filename_for_name("Alba"))
+        a.save_profile(campaign_filename("silence", "Alba"))
         Apocrysis.reset_campaign_state()
 
     def _save_B(self):
@@ -62,7 +64,7 @@ class TestCampaignSwitching(unittest.IsolatedAsyncioTestCase):
         Apocrysis.reset_campaign_state()
         Apocrysis._world_investigation = {"WAKE_ALONE": "known"}
         b = Apocrysis("Bront", seed=2, world="the_wake")
-        b.save_profile(profile_filename_for_name("Bront"))
+        b.save_profile(campaign_filename("the_wake", "Bront"))
         Apocrysis.reset_campaign_state()
 
     # ---- navigation helpers -------------------------------------
@@ -177,6 +179,70 @@ class TestCampaignSwitching(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(Apocrysis._survivors_lost, 0)
             self.assertIsNone(Apocrysis._campaign_ending)
             self.assertFalse(Apocrysis.prize_for_next_game)
+
+    async def test_same_survivor_name_runs_a_campaign_in_each_world(self):
+        # The reported bug: a "Balthus" in The Silence blocked making a
+        # "Balthus" in The Wake. Campaign identity is (world, survivor).
+        from src import runtime_paths
+        Apocrysis("Balthus", seed=1, world="silence").save_profile(
+            campaign_filename("silence", "Balthus"))
+
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            ms = app.screen
+            ms._sel = ms._items().index("NEW CAMPAIGN")
+            ms._render_items()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+
+            nc = app.screen
+            nc.query_one("#nc_world").children[1].value = True   # the_wake
+            await pilot.pause(0.1)
+            nc.query_one("#nc_name").focus()
+            for ch in "Balthus":
+                await pilot.press(ch)
+            await pilot.pause(0.1)
+            nc._start()
+            await asyncio.wait_for(pilot.pause(1.0), timeout=8)
+
+            gs = app.screen
+            self.assertIsInstance(gs, GameScreen, "Wake Balthus was rejected")
+            self.assertEqual(gs.player.world.id, "the_wake")
+            self.assertEqual(gs.player.name, "Balthus")
+            # the Silence Balthus is a separate file, untouched
+            self.assertTrue(os.path.exists(runtime_paths.resolve(
+                "player", campaign_filename("silence", "Balthus"))))
+
+            await self._to_menu(app, pilot)
+            # LOAD now lists two Balthus rows, one per world
+            rows = Apocrysis.list_campaign_summaries()
+            worlds = sorted(r["world_id"] for r in rows if r["name"] == "Balthus")
+            self.assertEqual(worlds, ["silence", "the_wake"])
+
+    async def test_second_campaign_same_name_same_world_is_still_rejected(self):
+        Apocrysis("Twin", seed=1, world="the_wake").save_profile(
+            campaign_filename("the_wake", "Twin"))
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            ms = app.screen
+            ms._sel = ms._items().index("NEW CAMPAIGN")
+            ms._render_items()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            nc = app.screen
+            nc.query_one("#nc_world").children[1].value = True   # the_wake
+            await pilot.pause(0.1)
+            nc.query_one("#nc_name").focus()
+            for ch in "Twin":
+                await pilot.press(ch)
+            await pilot.pause(0.1)
+            nc._start()
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            self.assertIsInstance(app.screen, NewCampaignScreen)
+            self.assertIn("already has a campaign",
+                          str(nc.query_one("#nc_error").render()))
 
 
 @unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")

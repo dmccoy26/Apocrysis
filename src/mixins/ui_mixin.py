@@ -525,7 +525,7 @@ class UIMixin:
 
         if getattr(self, 'playlog', None) is not None:
             from src.playlog import TeeIO
-            reason = ("won - escaped the valley" if getattr(self, 'won', False)
+            reason = ("won - got out" if getattr(self, 'won', False)
                       else "died" if self.health <= 0
                       else "quit")
             log_path = self.playlog.path
@@ -989,7 +989,7 @@ class UIMixin:
             "    take            pick something up off the ground",
             "    open            open or clear the thing in your way",
             "    pull <thing>    work a control / lever / valve",
-            "    escape          leave the valley, once you're ready",
+            f"    escape          {self.world.prose.get('leave_verb', 'get out')}, once you're ready",
             "    search          go over a place again (usually not needed)",
             "",
             "  Survive",

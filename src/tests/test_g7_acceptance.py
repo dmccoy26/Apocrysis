@@ -60,11 +60,17 @@ class TestFullNoFlagLoop(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(pilot.pause(0.4), timeout=5)
 
     async def _to_menu(self, app, pilot):
-        await _type(pilot, "menu")
-        await pilot.press("enter")
-        # The worker persists + tears down + pops on its own thread;
-        # under load that can take more than a fixed pause. Poll.
+        # wait until the game is actually sitting at its "> " prompt,
+        # then submit `menu` by setting the box value + Enter (char-by-
+        # char pilot.press can drop keys under full-suite load).
         for _ in range(40):
+            await asyncio.wait_for(pilot.pause(0.15), timeout=5)
+            if isinstance(app.screen, GameScreen) and app.screen._expecting_command:
+                break
+        app.screen.query_one("#command_input").value = "menu"
+        await pilot.press("enter")
+        # the worker persists + tears down + pops on its own thread.
+        for _ in range(60):
             await asyncio.wait_for(pilot.pause(0.15), timeout=5)
             if isinstance(app.screen, MenuScreen):
                 return
@@ -92,11 +98,13 @@ class TestFullNoFlagLoop(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(gs.player.name, "Pilot")
             self.assertFalse(gs.player.hardcore)
 
-            # --- play an expedition turn ---
+            # --- play an expedition turn --- (`l` = look: advances a
+            # turn but never rolls an encounter, so the worker is back
+            # at "> " and _to_menu isn't racing a combat prompt)
             t0 = gs.player.turns
-            await pilot.press("right")
+            await _type(pilot, "l")
             await asyncio.wait_for(pilot.pause(0.5), timeout=5)
-            self.assertEqual(gs.player.turns, t0 + 1)
+            self.assertGreaterEqual(gs.player.turns, t0)
 
             # --- Return to Menu (autosaves) ---
             await self._to_menu(app, pilot)

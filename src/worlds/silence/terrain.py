@@ -66,3 +66,53 @@ IMPASSABLE_TERRAIN = frozenset({'mountain', 'river'})
 # worldgen/generator.py's positional terrain roll order - the archetype
 # weight vectors above line up with this.
 GENERATOR_TERRAIN_ORDER = ('forest', 'building', 'water', 'plain', 'swamp')
+
+# §F.11: the fiction of moving through the valley. Verbatim the strings
+# that were hard-coded in world_mixin / tui - so The Silence's output
+# is byte-identical.
+TERRAIN_PROSE = {
+    "enter": {
+        "shelter": "You enter a building. It's a safe zone.",
+        "slow": "You wade through water. Movement is difficult.",
+        "dense": "You move through dense forest.",
+    },
+    "reenter": {
+        "shelter": "Back inside - safe for now.",
+        "slow": "More water. Slow going.",
+    },
+    "hazard": {
+        "slow": "The cold water chills you. You lost some health.",
+    },
+    "barrier": {
+        "edge_first": "The mountains rise up sheer and impossibly high. "
+                      "There's no way through here - and looking along "
+                      "them, no obvious way through anywhere.",
+        "edge": "The mountains block the way. There's no crossing them.",
+        "interior": "You can't cross the mountain here.",
+    },
+    "crossing": {
+        "blocked": "You can't cross the river here.",
+        "title": "THE RIVER",
+        "prompt": "Swim across?  ~{pct}% you make it clean.",
+        "prompt_body": "Fail and you're swept back to this bank - a hard "
+                       "knock and you may lose something loose from your "
+                       "pack. Waders help a lot.",
+        "ask": "Swim for it?",
+        "ok": "You get across, soaked and cold but on the far bank.",
+        "fail": "The current takes you and dumps you back where you started.",
+        "loss": "You lost some {k} to the water.",
+    },
+    "spot": {
+        "shelter": "You spot a building standing alone in the distance.",
+        "settlement": "Rooftops in the distance - there's a settlement out there.",
+    },
+    "label": {
+        "forest": "FOREST", "water": "WATER", "swamp": "SWAMP",
+        "plain": "OPEN GROUND", "building": "A BUILDING",
+        "mountain": "THE MOUNTAIN WALL", "settlement": "SETTLEMENT",
+    },
+    "hud_slow": {
+        "water": "slow going", "swamp": "slow, tiring ground",
+        "forest": "slower under cover",
+    },
+}

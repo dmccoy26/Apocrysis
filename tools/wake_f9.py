@@ -37,7 +37,14 @@ from tools.balance_autoplay import BotIO
 _PLACE_LEAKS = ("valley", "ranger station", "forestry", "hydro station",
                 "reservoir", "the cordon", "protocol seven", "crop-duster",
                 "the marina", "highway patrol", "airstrip", "the ridge",
-                "ranger depot")
+                "ranger depot",
+                # §F.11 - generated environmental fiction. A forest /
+                # wading / a river bank on a spaceship is the world
+                # generator not believing the world it's generating.
+                "forest", "wade through water", "the far bank",
+                "the current takes you", "swim for it", "mountains rise",
+                "cross the mountain", "cross the river", "dense forest",
+                "off the ridge", "back to the pass")
 
 # World-1 COMBAT prose - "the infected" is hardcoded in combat_mixin's
 # battle lines. Reported separately (it's the deferred sweep's scope,

@@ -607,8 +607,8 @@ class MysteryMixin:
                 f"operated - there's nowhere to use it here.")
         elif m.controls and not m.obstacle_open:
             self.io.say(
-                "Too deep to wade, and nothing to move here. Whatever holds "
-                "this water back is set from the control room, not here.")
+                "Nothing to be done here by hand. Whatever holds this is "
+                "worked from the controls, not from here.")
         elif m.requirement_items and not m.obstacle_open:
             _miss = self._mystery_missing_items()
             if _miss:
@@ -835,9 +835,9 @@ class MysteryMixin:
             return
         if not on_tile:
             self.io.say(
-                "You follow the directions off the ridge and keep going."
+                "You follow the route it gave you and keep going."
                 if MECHANISMS.get(m.mechanism, {}).get('reveals_route')
-                else "You make your way back to the pass and start walking.")
+                else "You make your way back to the way out and start walking.")
             self._update_time(90)
         m.escaped = True
         self._objective_complete()   # lifecycle: COMPLETE (one beat only)

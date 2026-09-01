@@ -39,6 +39,7 @@ from src.worlds.silence.terrain import (
     MAP_ARCHETYPES,
     TERRAIN_MOVE_MINUTES,
     IMPASSABLE_TERRAIN,
+    TERRAIN_PROSE,
     GENERATOR_TERRAIN_ORDER,
 )
 from src.worlds.silence.truth import WORLD_FACTS
@@ -52,6 +53,7 @@ _TERRAIN = WorldTerrain(
     move_minutes=TERRAIN_MOVE_MINUTES,
     impassable=IMPASSABLE_TERRAIN,
     generator_terrain_order=GENERATOR_TERRAIN_ORDER,
+    prose=TERRAIN_PROSE,
 )
 
 

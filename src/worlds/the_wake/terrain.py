@@ -51,6 +51,57 @@ TERRAIN_MOVE_MINUTES = {
 IMPASSABLE_TERRAIN = frozenset({'mountain', 'river'})
 GENERATOR_TERRAIN_ORDER = ('forest', 'building', 'water', 'plain', 'swamp')
 
+# §F.11: the fiction of moving through the ship. Same semantic slots as
+# The Silence, ship claims instead of valley claims. Roles: shelter =
+# a sealed compartment, slow = a breach open to vac, dense = a section
+# torn off its frame, barrier = the outer hull, crossing = a gap blown
+# in the deck (rivers don't generate here - kept for completeness).
+TERRAIN_PROSE = {
+    "enter": {
+        "shelter": "You get the hatch shut behind you. Pressurised, and for now safe.",
+        "slow": "You work through a stretch open to vacuum - suit stiff, every move slow.",
+        "dense": "You climb through a section half torn off its frame.",
+    },
+    "reenter": {
+        "shelter": "Back in a sealed compartment. Safe for now.",
+        "slow": "More of the breach. Slow going.",
+    },
+    "hazard": {
+        "slow": "The cold reaches through the suit. You lost some health.",
+    },
+    "barrier": {
+        "edge_first": "The outer hull. Solid plate, and past it nothing - "
+                      "no way through here, and none you can see anywhere "
+                      "along it.",
+        "edge": "The hull. There's no way through it.",
+        "interior": "Hull plate. Nothing gets through here.",
+    },
+    "crossing": {
+        "blocked": "The deck's blown out here. No way across.",
+        "title": "THE GAP",
+        "prompt": "Jump it?  ~{pct}% you land clean.",
+        "prompt_body": "Miss and you're back on this side, hard - and you "
+                       "may lose something loose from your pack.",
+        "ask": "Jump for it?",
+        "ok": "You land it, jarred but over.",
+        "fail": "You come up short and slam back onto this side.",
+        "loss": "You lost some {k} into the gap.",
+    },
+    "spot": {
+        "shelter": "A compartment stands sealed off on its own up ahead.",
+        "settlement": "Lights further in - a section with power still on it.",
+    },
+    "label": {
+        "forest": "WRECKAGE", "water": "BREACH", "swamp": "DRIFTFIELD",
+        "plain": "CORRIDOR", "building": "A COMPARTMENT",
+        "mountain": "THE HULL", "settlement": "AN ENCLAVE",
+    },
+    "hud_slow": {
+        "water": "vac - move slow", "swamp": "grav out - haul yourself along",
+        "forest": "climbing through wreckage",
+    },
+}
+
 TERRAIN = WorldTerrain(
     symbols=TERRAIN_SYMBOLS,
     legend=TERRAIN_LEGEND,
@@ -58,4 +109,5 @@ TERRAIN = WorldTerrain(
     move_minutes=TERRAIN_MOVE_MINUTES,
     impassable=IMPASSABLE_TERRAIN,
     generator_terrain_order=GENERATOR_TERRAIN_ORDER,
+    prose=TERRAIN_PROSE,
 )

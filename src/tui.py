@@ -241,8 +241,11 @@ def _gear_lines(items, slot_tag=""):
 
 def _location_name(p):
     """A short name for where the player is standing - the mystery
-    site label if they're on a named site, otherwise terrain-derived."""
+    site label if they're on a named site, otherwise terrain-derived
+    (§F.11: the labels are the world's, via world.terrain.prose)."""
     fallback = p.world.prose.get("place_name_fallback", "THE VALLEY")
+    _labels = (getattr(getattr(p.world, "terrain", None), "prose", None)
+               or {}).get("label", {})
     x, y = p.current_position
     cell = p.map[y][x]
     if isinstance(cell, dict):
@@ -250,12 +253,9 @@ def _location_name(p):
             return cell["site_label"].upper()
         if cell.get("terrain") == "town":
             d = cell.get("district")
-            return f"{d.upper()} DISTRICT" if d else "SETTLEMENT"
-        t = cell.get("terrain")
-        names = {"forest": "FOREST", "water": "WATER", "swamp": "SWAMP",
-                 "plain": "OPEN GROUND", "building": "A BUILDING",
-                 "mountain": "THE MOUNTAIN WALL"}
-        return names.get(t, fallback)
+            return (f"{d.upper()} DISTRICT" if d
+                    else _labels.get("settlement", "SETTLEMENT"))
+        return _labels.get(cell.get("terrain"), fallback)
     return fallback
 
 
@@ -868,8 +868,8 @@ class GameScreen(Screen):
         _z = p._current_zone() if hasattr(p, "_current_zone") else ""
         _cell = p.map[p.current_position[1]][p.current_position[0]]
         _terr = _cell.get("terrain") if isinstance(_cell, dict) else None
-        _slow = {"water": "slow going", "swamp": "slow, tiring ground",
-                 "forest": "slower under cover"}.get(_terr, "")
+        _slow = ((getattr(getattr(p.world, "terrain", None), "prose", None)
+                  or {}).get("hud_slow", {}).get(_terr, ""))
         _help = "arrows move · type a command + Enter · ? for help"
         _sub = "  ·  ".join(x for x in (_z, _slow) if x)
         tail = f"{_sub}   —   {_help}" if _sub else _help

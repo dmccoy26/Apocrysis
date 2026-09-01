@@ -63,6 +63,15 @@ class WorldTerrain:
     impassable: frozenset = frozenset({'mountain', 'river'})
     # generator's positional terrain roll order (worldgen/generator.py).
     generator_terrain_order: tuple = ('forest', 'building', 'water', 'plain', 'swamp')
+    # §F.11: the player-facing fiction of MOVING through this world -
+    # entry lines, the "can't cross" lines, the swim/gap crossing, the
+    # distant-sighting lines, the HUD location label + travel-drag
+    # note. Keyed by semantic slot, not raw terrain name. None -> the
+    # engine's bland generic set (src/loot.py-style fallback, in
+    # world_mixin._TERRAIN_PROSE). "You push through deep forest" is a
+    # claim about the physical world; it belongs here, not in the
+    # engine.
+    prose: dict = None
 
 
 @dataclass(frozen=True)

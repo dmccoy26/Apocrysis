@@ -22,6 +22,7 @@ from src.constants import (
     ZOMBIE_MAP_DENSITY, ENCOUNTER_CHANCE_DAY, ENCOUNTER_CHANCE_NIGHT,
 )
 from src import loot as _loot
+from src.terrain_prose import tp as _tp
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import (
     Zombie, FreshZombie, RegularZombie, HeavyZombie,
@@ -410,13 +411,13 @@ class WorldMixin:
         if not new_here:
             return
         if 'settlement' in new_here:
-            self.io.say("Rooftops in the distance - there's a settlement out there.")
+            self.io.say(_tp(self.world, "spot", "settlement"))
         elif getattr(self, '_building_sightings', 0) < 3:
             # After a few, the player has the idea - a building-dense map
             # would otherwise fire this almost every move (playtest:
             # reading fatigue). Settlements always announce.
             self._building_sightings = getattr(self, '_building_sightings', 0) + 1
-            self.io.say("You spot a building standing alone in the distance.")
+            self.io.say(_tp(self.world, "spot", "shelter"))
 
     def _spot_threats(self):
         """docs/DESIGN_ESCAPE_MODEL.md §2 - warning before contact for an
@@ -673,35 +674,34 @@ class WorldMixin:
         True if the survivor is now across. Only the landscape generator
         makes rivers a real boundary - elsewhere a river stays a wall."""
         if getattr(self, '_mapgen', 'v1') != 'landscape':
-            self.io.say("You can't cross the river here.")
+            self.io.say(_tp(self.world, "crossing", "blocked"))
             return False
         pct = round(self._swim_odds() * 100)
         self.announce_event(
-            "THE RIVER",
-            f"Swim across?  ~{pct}% you make it clean.",
-            "Fail and you're swept back to this bank - a hard knock and "
-            "you may lose something loose from your pack. Waders help a lot.",
+            _tp(self.world, "crossing", "title"),
+            _tp(self.world, "crossing", "prompt").format(pct=pct),
+            _tp(self.world, "crossing", "prompt_body"),
             kind="warning")
-        if not self.io.ask_yes_no("Swim for it?"):
+        if not self.io.ask_yes_no(_tp(self.world, "crossing", "ask")):
             return False
         import random as _r
         self._update_time(45)
         self.fatigue = min(100, self.fatigue + 15)
         if _r.random() < self._swim_odds():
-            self.io.say("You get across, soaked and cold but on the far bank.")
+            self.io.say(_tp(self.world, "crossing", "ok"))
             self.health = max(1, self.health - 3)
             self.current_position = (rx, ry)
             self.visited.add((rx, ry))
             return True
         # failure - swept back, a knock, maybe a dropped item
-        self.io.say("The current takes you and dumps you back where you started.")
+        self.io.say(_tp(self.world, "crossing", "fail"))
         self.health = max(1, self.health - _r.randint(8, 16))
         loose = [k for k in ("medicine", "ammo") if getattr(self.backpack, k, 0) > 0]
         if loose and _r.random() < 0.4:
             k = _r.choice(loose)
             lost = min(getattr(self.backpack, k), _r.randint(1, 3))
             setattr(self.backpack, k, getattr(self.backpack, k) - lost)
-            self.io.say(f"You lost some {k} to the water.")
+            self.io.say(_tp(self.world, "crossing", "loss").format(k=k))
         return False
 
     def move_and_search(self, direction):
@@ -735,15 +735,11 @@ class WorldMixin:
                     seen = self._edge_seen = set()
                 if direction not in seen:
                     seen.add(direction)
-                    self.io.say(
-                        "The mountains rise up sheer and impossibly high. "
-                        "There's no way through here - and looking along "
-                        "them, no obvious way through anywhere."
-                    )
+                    self.io.say(_tp(self.world, "barrier", "edge_first"))
                 else:
-                    self.io.say("The mountains block the way. There's no crossing them.")
+                    self.io.say(_tp(self.world, "barrier", "edge"))
             else:
-                self.io.say("You can't cross the mountain here.")
+                self.io.say(_tp(self.world, "barrier", "interior"))
             return
 
         # v4 Phase C: the generated mystery's obstacle blocks the way
@@ -873,22 +869,23 @@ class WorldMixin:
                 # (playtest: re-reading the same paragraph while pacing
                 # an area is what trains the eye to stop reading).
                 if _first_visit:
-                    self.io.say("You enter a building. It's a safe zone.")
+                    self.io.say(_tp(self.world, "enter", "shelter"))
                     self.io.say(f"Restored {heal_amount} health and recovered some fatigue.")
                 else:
-                    self.io.say(f"Back inside - safe for now. (+{heal_amount} health)")
+                    self.io.say(_tp(self.world, "reenter", "shelter")
+                                + f" (+{heal_amount} health)")
 
             elif terrain == 'water':
-                self.io.say("You wade through water. Movement is difficult."
-                            if _first_visit else "More water. Slow going.")
+                self.io.say(_tp(self.world, "enter", "slow") if _first_visit
+                            else _tp(self.world, "reenter", "slow"))
                 self.fatigue = min(100, self.fatigue + 4) # slow-movement penalty (1d: 10 -> 4, so a water tile is ~+6 total not +15)
                 if self.rng.random() < 0.2:
                     self.health -= 5
-                    self.io.say("The cold water chills you. You lost some health.")
+                    self.io.say(_tp(self.world, "hazard", "slow"))
 
             elif terrain == 'forest':
                 if _first_visit:
-                    self.io.say("You move through dense forest.")
+                    self.io.say(_tp(self.world, "enter", "dense"))
 
         self._spot_landmarks()
         self._spot_threats()

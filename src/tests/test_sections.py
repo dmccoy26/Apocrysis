@@ -10,6 +10,7 @@ from src.worlds import get_world
 from src.sections import (
     section_index_for, section_name_for, section_archetype_for,
     sections_ahead, section_count, has_spine, campaign_objective_line,
+    level_type_for, is_section_transit_level,
 )
 
 WAKE = get_world("the_wake")
@@ -107,6 +108,82 @@ class TestCampaignObjectiveLine(unittest.TestCase):
         Apocrysis.reset_campaign_state()
         g = Apocrysis("S", seed=1, io=_IO())
         self.assertIsNone(campaign_objective_line(g))
+        Apocrysis.reset_campaign_state()
+
+
+class TestLevelTypeSchedule(unittest.TestCase):
+    def tearDown(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+
+    def test_schedule_has_one_entry_per_pre_finale_level(self):
+        self.assertEqual(len(WAKE.manifest.level_types), 24)  # 25 - finale
+
+    def test_silence_has_no_schedule_every_level_is_fact(self):
+        self.assertEqual(SILENCE.manifest.level_types, ())
+        for exp in (0, 5, 12, 24):
+            self.assertEqual(level_type_for(exp, SILENCE), "fact")
+            self.assertFalse(is_section_transit_level(exp, SILENCE))
+
+    def test_encounter_levels_still_carry_a_fact(self):
+        # §5.2: L8/L17/L24 are contact beats but the DAG needs the slot
+        for exp in (7, 16, 23):
+            self.assertEqual(level_type_for(exp, WAKE), "encounter")
+            self.assertFalse(is_section_transit_level(exp, WAKE))
+
+    def test_traversal_quiet_discovery_are_no_mystery_crossings(self):
+        for exp in (3, 4, 11, 12, 20, 22):
+            self.assertTrue(is_section_transit_level(exp, WAKE),
+                            f"exp {exp} should be a section crossing")
+
+    def test_finale_level_is_never_a_crossing(self):
+        self.assertFalse(is_section_transit_level(24, WAKE))
+
+    def test_a_scheduled_crossing_builds_no_mystery_and_a_reachable_exit(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
+                      expeditions_completed=3)   # L4 traversal
+        self.assertIsNone(g.mystery)
+        self.assertIsNotNone(g.section_exit)
+        ex, ey = g.section_exit
+        self.assertEqual(g.map[ey][ex].get("escape_gap"), True)
+        # reachable from spawn over passable terrain
+        from src.escape import _reachable_from
+        self.assertIn(g.section_exit, _reachable_from(g, g.current_position))
+
+    def test_reaching_the_exit_finishes_the_expedition(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
+                      expeditions_completed=3)
+        ex, ey = g.section_exit
+        # step in from the wall, then walk back onto the gap
+        for (nx, ny, d) in ((ex + 1, ey, "w"), (ex - 1, ey, "e"),
+                            (ex, ey + 1, "n"), (ex, ey - 1, "s")):
+            if 0 <= nx < g.map_w and 0 <= ny < g.map_h:
+                c = g.map[ny][nx]
+                if isinstance(c, dict) and c.get("terrain") not in ("mountain", "river"):
+                    g.current_position = (nx, ny)
+                    g.move_and_search(d)
+                    break
+        self.assertTrue(getattr(g, "won", False))
+        self.assertEqual(g.expeditions_completed, 4)
+        Apocrysis.reset_campaign_state()
+
+    def test_section_exit_round_trips_through_save_load(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        import tempfile, os
+        g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
+                      expeditions_completed=3)
+        sx = g.section_exit
+        with tempfile.TemporaryDirectory() as d:
+            pf = os.path.join(d, "s.json")
+            g.save_game(pf)
+            g2 = Apocrysis.load_game(pf)
+        self.assertEqual(g2.section_exit, sx)
+        self.assertIsNone(g2.mystery)
         Apocrysis.reset_campaign_state()
 
 

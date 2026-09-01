@@ -66,6 +66,14 @@ class WorldManifest:
     section_bounds: tuple = ()
     section_names: tuple = ()
     section_archetypes: tuple = ()
+    # Per pre-finale level (index == expeditions_completed), the level's
+    # TYPE: "" / "fact" -> the ordinary escape-mystery level carrying a
+    # WorldFact (today's only kind); "traversal" / "discovery" /
+    # "encounter" / "quiet" -> a section-transit level: no mystery, a
+    # carved far-wall exit the player crosses to finish, with its own
+    # framing. Requires map_transit. Empty tuple -> every level is a
+    # fact level (The Silence). WAKE_SPINE_INVESTIGATION.md §5.1.
+    level_types: tuple = ()
 
 
 @dataclass(frozen=True)

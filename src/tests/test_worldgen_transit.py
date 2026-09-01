@@ -49,11 +49,22 @@ class TestTransitLayout(unittest.TestCase):
         self.assertTrue(seen_west and seen_east, "both start walls should occur")
 
     def test_wake_never_ships_a_story_less_expedition(self):
-        # the degenerate-map retry loop is enabled for a transit world
-        # (it is not for a plain v1 world) - 0 failures across a wide sweep.
-        misses = [(s, e) for s in range(1, 60) for e in range(0, 18)
-                  if Apocrysis("T", seed=s, io=_IO(), world="the_wake",
-                               expeditions_completed=e).mystery is None]
+        # Every expedition is either an escape-mystery level OR a
+        # scheduled section crossing (WAKE_SPINE §5) with a carved exit -
+        # never a degenerate "nothing here" map. The retry loop (enabled
+        # for a transit world) backs both. 0 failures across a wide sweep.
+        from src.sections import is_section_transit_level
+        WAKE = get_world("the_wake")
+        misses = []
+        for s in range(1, 60):
+            for e in range(0, 18):
+                g = Apocrysis("T", seed=s, io=_IO(), world="the_wake",
+                              expeditions_completed=e)
+                if g.mystery is not None:
+                    continue
+                if is_section_transit_level(e, WAKE) and g.section_exit is not None:
+                    continue
+                misses.append((s, e))
         self.assertEqual(misses, [])
 
     def test_the_silence_spawn_is_not_forced_to_an_edge(self):

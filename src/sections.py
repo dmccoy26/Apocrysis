@@ -59,6 +59,33 @@ def section_archetype_for(expeditions_completed, world=None):
     return arch[i] if i < len(arch) else None
 
 
+_FACT_TYPES = ("", "fact")
+# The types that are TRUE no-mystery section crossings. "encounter" is
+# NOT here: an encounter level still carries a WorldFact (it's a
+# next_target() level with survivor-contact framing) - the DAG needs
+# those slots. WAKE_SPINE_INVESTIGATION.md §5.1/§5.2.
+_SECTION_LEVEL_TYPES = ("traversal", "discovery", "quiet")
+
+
+def level_type_for(expeditions_completed, world=None):
+    """The scheduled TYPE of a given level - 'fact' (the ordinary
+    escape-mystery level) unless the world's `level_types` says
+    otherwise. WAKE_SPINE_INVESTIGATION.md §5.1."""
+    lts = getattr(_manifest(world), "level_types", ())
+    if not lts or not (0 <= expeditions_completed < len(lts)):
+        return "fact"
+    return lts[expeditions_completed] or "fact"
+
+
+def is_section_transit_level(expeditions_completed, world=None):
+    """True when this level is a scheduled non-fact beat - no mystery,
+    cross the section to the far-wall exit. Only meaningful for a
+    map_transit world."""
+    if level_type_for(expeditions_completed, world) not in _SECTION_LEVEL_TYPES:
+        return False
+    return bool(getattr(_manifest(world), "map_transit", False))
+
+
 def campaign_objective_line(player):
     """The CAMPAIGN HUD line (WAKE_SPINE_INVESTIGATION.md §5.5) - the
     long-term purpose: 'REACH MAIN ENGINEERING - 4 SECTIONS AHEAD'.

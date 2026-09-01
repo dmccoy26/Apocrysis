@@ -651,6 +651,26 @@ def _carve_escape_pass(game, reachable):
     return (bx, by), (ix, iy)
 
 
+def carve_section_transit(game):
+    """A scheduled non-fact 'section' level (WAKE_SPINE_INVESTIGATION.md
+    §5): no mystery, just a crossing. Carve the far-wall exit exactly as
+    build_mystery would (reusing the map_transit spawn-side logic), and
+    return that exit tile (the gap in the hull) - reaching it finishes
+    the expedition. Returns None if the map came out degenerate.
+    """
+    spawn = game.current_position
+    reachable = _reachable_from(game, spawn)
+    try:
+        gap_tile, _inner = _carve_escape_pass(game, reachable)
+    except Exception:
+        return None
+    # carving can open new ground - confirm the gap is actually reachable
+    if gap_tile not in _reachable_from(game, spawn):
+        return None
+    game.map[gap_tile[1]][gap_tile[0]]['escape_gap'] = True
+    return gap_tile
+
+
 def _scaled_beat_count(game, form, reachable):
     """C.3.2a-6 (measurement-only, docs/PHASE_C3_2_6_SPEC.md): how many
     extra required intermediate beats to insert, as a function of map

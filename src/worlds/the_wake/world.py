@@ -40,6 +40,31 @@ THE_WAKE = World(
         # section. No bearing - "N sections ahead" is honest progress,
         # a compass claim across freshly-generated sections would be a
         # lie. World-owned: a world without this block shows no line.
+        # WAKE_SPINE §5.1: the framing for a scheduled non-fact level - a
+        # section crossing with no mystery. (scene line, objective line)
+        # per type; "reached" is the finish reason. World-owned: a world
+        # with no map_transit / level_types never shows any of it.
+        "section_levels": {
+            "traversal": (
+                "This stretch is a hard push - a section open to vacuum, "
+                "or torn half off its frame. No time to read the ground; "
+                "just get across.",
+                "Push through to the next section."),
+            "discovery": (
+                "There's something worth having in this section - the crew "
+                "left kit behind when they pulled back. Cross it with your "
+                "eyes open.",
+                "Work across the section."),
+            "encounter": (
+                "This section still has people in it. Or things that used "
+                "to be. Either way you're not crossing it quietly.",
+                "Get through to the far side."),
+            "quiet": (
+                "A quieter stretch of the ship. Nothing moving. Catch your "
+                "breath and keep going.",
+                "Cross to the next section."),
+            "reached": "reach the section boundary and cross into the next",
+        },
         "campaign_objective": {
             "revealed_when": "SECTIONS_SEALED",
             "goal": "REACH MAIN ENGINEERING",

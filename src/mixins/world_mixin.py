@@ -126,7 +126,16 @@ class WorldMixin:
         # A.4.2: each expedition targets the next un-known WorldFact.
         _target = None
         _wi = getattr(self, 'world_investigation', None)
-        if _wi is not None:
+        # WAKE_SPINE_INVESTIGATION.md §5: a scheduled non-fact level is a
+        # section crossing - no mystery, no fact, just push through to
+        # the far-wall exit. Decided here, where a fact level would pick
+        # its target.
+        from src.sections import is_section_transit_level, level_type_for
+        self.section_exit = None
+        self._section_level_type = None
+        _section_level = is_section_transit_level(
+            getattr(self, 'expeditions_completed', 0), self.world)
+        if _wi is not None and not _section_level:
             _target = _wi.next_target()
         # E.2: the last expedition is the bespoke finale - it always
         # targets the world's finale.converge_fact (converging the whole
@@ -139,6 +148,7 @@ class WorldMixin:
                    and _wi.fact(_converge) is not None)
         if _finale:
             _target = _converge
+            _section_level = False   # the finale is always its own thing
 
         # C.3.1: guarantee a mystery instead of tuning toward one. v2's
         # irregular valley can occasionally grow too cramped for the
@@ -153,7 +163,27 @@ class WorldMixin:
                                  or _transit_world) else 1)
         self.mystery = None
         _mystery_exc = None
+        if _section_level:
+            # A section crossing: carve the far-wall exit, no mystery. If
+            # the map comes out degenerate after every retry, fall back
+            # to an ordinary fact level rather than ship a broken map.
+            from src.escape import carve_section_transit
+            for _try in range(_max_map_tries):
+                if _try > 0:
+                    town_center = gen.generate()
+                _exit = carve_section_transit(self)
+                if _exit is not None:
+                    self.section_exit = _exit
+                    self._section_level_type = level_type_for(
+                        self.expeditions_completed, self.world)
+                    break
+            if self.section_exit is None:
+                _section_level = False
+                if _wi is not None:
+                    _target = _wi.next_target()
         for _try in range(_max_map_tries):
+            if _section_level:
+                break
             if _try > 0:
                 town_center = gen.generate()
             try:
@@ -213,6 +243,11 @@ class WorldMixin:
             for _role, _xy in self.mystery.sites.items():
                 _nodes[f'site_{_role}'] = _xy
                 _mystery_nodes.append(f'site_{_role}')
+        elif getattr(self, 'section_exit', None) is not None:
+            # a section crossing: the far-wall exit is the only required
+            # node (no sites), and it must be reachable from spawn.
+            _nodes['exit'] = self.section_exit
+            _mystery_nodes.append('exit')
         _required = list(_mystery_nodes) + (['town'] if 'town' in _nodes else [])
         self._map_graph = MapGraph(self.map, (self.map_w, self.map_h), _nodes)
         _blocked = [nm for nm in self._map_graph.unreachable_from('spawn')
@@ -238,6 +273,9 @@ class WorldMixin:
         if self.mystery is not None:
             protected = set(self.mystery.sites.values()) | {self.mystery.escape_tile}
             protected |= self._map_graph.critical_path_tiles('spawn', *_mystery_nodes)
+        elif getattr(self, 'section_exit', None) is not None:
+            protected = {self.section_exit}
+            protected |= self._map_graph.critical_path_tiles('spawn', 'exit')
 
         def _passable_neighbours(x, y):
             n = 0
@@ -803,9 +841,17 @@ class WorldMixin:
         # escape). The reach-the-Town-Center win only applies to the
         # fallback (no mystery on this map).
         _mystery = getattr(self, 'mystery', None)
+        _section_exit = getattr(self, 'section_exit', None)
+
+        # WAKE_SPINE_INVESTIGATION.md §5: a scheduled section crossing -
+        # no mystery, no settlement win, just reach the far-wall exit.
+        if _section_exit is not None and self.current_position == _section_exit:
+            self.finish_expedition(reason=self._section_cross_reason())
+            return
 
         if (
             _mystery is None
+            and _section_exit is None
             and isinstance(current_tile, dict)
             and current_tile.get('content') == 'T'
             and not self.settlement_explored
@@ -827,7 +873,7 @@ class WorldMixin:
             self._maybe_surface_clue()
             return
 
-        if _mystery is None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
+        if _mystery is None and _section_exit is None and isinstance(current_tile, dict) and current_tile.get('content') == 'T':
             self.finish_expedition(
                 reason=self._places("center_reached", "reached the Town Center"))
             return
@@ -948,6 +994,26 @@ class WorldMixin:
         of 'Town Center' / 'settlement street'. F.11 class - F.11 swept
         terrain prose but not the town/settlement subsystem."""
         return ((self.world.prose.get("places") or {}).get(key) or default)
+
+    def _section_levels_prose(self):
+        return (getattr(self.world, "prose", None) or {}).get("section_levels", {}) or {}
+
+    def _section_brief(self):
+        """(scene line, objective line) for a scheduled section crossing -
+        keyed to its type (traversal / discovery / encounter / quiet),
+        world-owned. Returns None on a non-section level."""
+        t = getattr(self, "_section_level_type", None)
+        if not t:
+            return None
+        p = self._section_levels_prose()
+        entry = p.get(t) or p.get("traversal")
+        if isinstance(entry, (list, tuple)) and len(entry) >= 2:
+            return entry[0], entry[1]
+        return ("You push on through the section.", "Reach the far side.")
+
+    def _section_cross_reason(self):
+        return self._section_levels_prose().get(
+            "reached", "cross into the next section")
 
     def _discoverable_line(self, key, default):
         """The pickup line for a one-time discoverable (`waders`,

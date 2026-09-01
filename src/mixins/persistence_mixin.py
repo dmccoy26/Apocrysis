@@ -317,6 +317,11 @@ class PersistenceMixin:
             "map_revealed": getattr(self, 'map_revealed', False),
             "knowledge": self.knowledge.to_dict() if getattr(self, 'knowledge', None) else None,
             "mystery": self.mystery.to_dict() if getattr(self, 'mystery', None) else None,
+            # WAKE_SPINE §5: a scheduled section-crossing level has no
+            # mystery - its win tile is the carved far-wall exit.
+            "section_exit": (list(self.section_exit)
+                             if getattr(self, 'section_exit', None) else None),
+            "section_level_type": getattr(self, '_section_level_type', None),
         }
 
         for w in self.backpack.weapons:
@@ -424,6 +429,11 @@ class PersistenceMixin:
         # built fresh during cls(...) above, same as before this fix.
         if "map" in data:
             player.map = cls._deserialize_map(data["map"])
+
+        if "section_exit" in data:
+            _sx = data.get("section_exit")
+            player.section_exit = tuple(_sx) if _sx else None
+            player._section_level_type = data.get("section_level_type")
 
         player.current_position = tuple(data.get("current_position", [12, 12]))
         player.time_of_day = data.get("time_of_day", 480)

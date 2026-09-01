@@ -652,6 +652,22 @@ class BotIO:
 
     def _next_move(self):
         p = self.player
+        # WAKE_SPINE §5: a scheduled section crossing - head straight for
+        # the carved far-wall exit (no mystery, no town center).
+        _sx = getattr(p, "section_exit", None)
+        if _sx is not None:
+            if getattr(self, "_sx_cached", None) != _sx or not self._path:
+                self._sx_cached = _sx
+                self._path = _bfs_path(p, p.current_position, _sx)
+                self._path_index = 0
+            if self._path:
+                while self._path_index < len(self._path):
+                    d = self._path[self._path_index]
+                    self._path_index += 1
+                    if self._step_is_legal(d):
+                        return d
+            return self._random_legal_step()
+
         if self._town_center is None:
             self._town_center = _find_town_center(p)
             if self._town_center is not None:
@@ -744,7 +760,8 @@ def play_one_game(level, expeditions_completed, seed, max_turns, verbose=False,
     # Center on a no-mystery map.
     objective = (player.mystery.escape_tile
                  if getattr(player, 'mystery', None) is not None
-                 else _find_town_center(player))
+                 else getattr(player, 'section_exit', None)
+                 or _find_town_center(player))
     if io._spawn is not None and objective is not None:
         path = _bfs_path(player, io._spawn, objective)
         io.metrics.spawn_to_objective_distance = len(path) if path else 0

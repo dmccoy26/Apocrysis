@@ -30,6 +30,23 @@ SECTION_ARCHETYPES = (
     "damaged", "open_decks", "engineering",
 )
 
+# The per-level type schedule (WAKE_SPINE_INVESTIGATION.md §5.2), one
+# entry per pre-finale level (index == expeditions_completed; level 25
+# is the special-cased finale). "fact" = the ordinary escape-mystery
+# level; the rest are section-transit beats (no mystery, cross to the
+# far-wall exit). 15 fact / 3 traversal / 2 discovery / 3 encounter /
+# 1 quiet = 24. Chapters / hypotheses / finale are unchanged - this is
+# pacing, not re-authoring.
+LEVEL_TYPES = (
+    "fact", "fact", "fact",                       # 1-3   BRIDGE
+    "traversal", "discovery", "fact", "fact",      # 4-7   CREW SECTION
+    "encounter", "fact", "fact", "fact",           # 8-11  CRYO / MEDICAL
+    "quiet", "traversal", "fact", "fact",          # 12-15 HABITATION
+    "fact", "encounter", "fact", "fact",           # 16-19 OFFICER / RECORDS
+    "fact", "discovery", "fact",                   # 20-22 ENGINEERING APPROACH
+    "traversal", "encounter",                      # 23-24 MAIN ENGINEERING
+)
+
 MANIFEST = WorldManifest(
     id="the_wake",
     title="The Wake",
@@ -43,6 +60,7 @@ MANIFEST = WorldManifest(
     section_bounds=SECTION_BOUNDS,
     section_names=SECTION_NAMES,
     section_archetypes=SECTION_ARCHETYPES,
+    level_types=LEVEL_TYPES,
     # 8 of the 10 grammars - the ones whose shape fits a ship (§7).
     # boat_crossing and tidal_causeway are dropped (§10.3).
     supported_mechanisms=(

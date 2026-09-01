@@ -163,6 +163,21 @@ class UIMixin:
                     f"Blocked - but a survivor before you would have "
                     f"looked there first. It's marked{f', {_b}' if _b else ''}.",
                     kind="objective", level=1)
+        elif (_m is None and getattr(self, 'section_exit', None) is not None
+              and not getattr(self, '_opening_beat_shown', False)):
+            # WAKE_SPINE §5: a scheduled section crossing - name it, and
+            # point at the marked exit. No mystery, no leads.
+            self._opening_beat_shown = True
+            _brief = self._section_brief()
+            if _brief:
+                _scene, _obj = _brief
+                from src.nav import bearing
+                _b = bearing(self.current_position, self.section_exit)
+                self.io.say(_scene)
+                self.announce_event(
+                    "the way through",
+                    f"{_obj} It's marked{f', {_b}' if _b else ''}.",
+                    kind="objective", level=1)
 
         while self.health > 0 and not getattr(self, 'won', False):
             # v3 SPRINT fix: this used to be cached once per turn
@@ -787,6 +802,12 @@ class UIMixin:
         degrade to walking onto every building again. `!` = a lead
         you've found (a named site, or the blocked route); `+` = that
         route once it's open. Returns None for tiles with no marker."""
+        _sx = getattr(self, 'section_exit', None)
+        if _sx is not None and (x, y) == _sx:
+            # WAKE_SPINE §5: the section crossing's exit - always shown
+            # (the whole level is "head that way"), rendered like an
+            # opened route.
+            return f"{BOLD}{GREEN}+{RESET}"
         m = getattr(self, 'mystery', None)
         if m is None:
             return None

@@ -261,6 +261,11 @@ class WorldMixin:
         # Zombie placement (frozen balance) - unchanged shape.
         total_tiles = self.map_w * self.map_h
         num_zombies = int(total_tiles * ZOMBIE_MAP_DENSITY)
+        # WAKE_SPINE §5 F.9 finding: a "quiet" crossing must feel like
+        # breathing room. Every other level keeps the frozen density.
+        if getattr(self, '_section_level_type', None) == 'quiet':
+            from src.constants import QUIET_THREAT_FACTOR
+            num_zombies = int(num_zombies * QUIET_THREAT_FACTOR)
 
         placed_zombies = 0
         attempts = 0

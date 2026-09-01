@@ -37,9 +37,15 @@ SECTION_ARCHETYPES = (
 # far-wall exit). 15 fact / 3 traversal / 2 discovery / 3 encounter /
 # 1 quiet = 24. Chapters / hypotheses / finale are unchanged - this is
 # pacing, not re-authoring.
+# F.9 correction pass (2026-09-01): L4 was a traversal, giving the
+# opening "L3 hook -> traversal -> traversal -> payoff". Moved the
+# traversal to L7 so L3's hook is answered first: "hook -> payoff ->
+# device -> traversal -> contact". L5 stays a discovery (the H1
+# device-recovery slot). Endgame unchanged here - L24's fix is that
+# `encounter` becomes a real convergence beat (separate change).
 LEVEL_TYPES = (
     "fact", "fact", "fact",                       # 1-3   BRIDGE
-    "traversal", "discovery", "fact", "fact",      # 4-7   CREW SECTION
+    "fact", "discovery", "fact", "traversal",      # 4-7   CREW SECTION
     "encounter", "fact", "fact", "fact",           # 8-11  CRYO / MEDICAL
     "quiet", "traversal", "fact", "fact",          # 12-15 HABITATION
     "fact", "encounter", "fact", "fact",           # 16-19 OFFICER / RECORDS

@@ -76,6 +76,13 @@ from src.worlds.silence.terrain import (  # noqa: F401
 # where it stops overwriting the investigation loop. Tune against
 # tools/mystery_solver.py's solve rate + the balance harness.
 ZOMBIE_MAP_DENSITY = 0.04        # was 0.10
+# WAKE_SPINE_INVESTIGATION.md §5 / F.9 finding: a scheduled "quiet"
+# section crossing has to actually read as breathing room. The frozen
+# density made "catch your breath" a lie (F.9 read: six Changed, a
+# weapon breaking, 66 HP on the quiet level). A quiet level runs at a
+# fraction of the normal hostile population - still a real expedition,
+# not a walking sim. Only the "quiet" level type is affected.
+QUIET_THREAT_FACTOR = 0.4
 ENCOUNTER_CHANCE_DAY = 0.10       # was 0.30
 ENCOUNTER_CHANCE_NIGHT = 0.20     # was 0.50
 

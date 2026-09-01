@@ -126,13 +126,19 @@ class TestLevelTypeSchedule(unittest.TestCase):
             self.assertFalse(is_section_transit_level(exp, SILENCE))
 
     def test_encounter_levels_still_carry_a_fact(self):
-        # §5.2: L8/L17/L24 are contact beats but the DAG needs the slot
-        for exp in (7, 16, 23):
-            self.assertEqual(level_type_for(exp, WAKE), "encounter")
-            self.assertFalse(is_section_transit_level(exp, WAKE))
+        # encounter beats aren't no-mystery crossings (yet) - the DAG
+        # needs the slot. Derived from the manifest so a schedule tweak
+        # doesn't silently break the invariant.
+        for i, t in enumerate(WAKE.manifest.level_types):
+            if t == "encounter":
+                self.assertEqual(level_type_for(i, WAKE), "encounter")
+                self.assertFalse(is_section_transit_level(i, WAKE))
 
     def test_traversal_quiet_discovery_are_no_mystery_crossings(self):
-        for exp in (3, 4, 11, 12, 20, 22):
+        crossings = [i for i, t in enumerate(WAKE.manifest.level_types)
+                     if t in ("traversal", "discovery", "quiet")]
+        self.assertTrue(crossings)
+        for exp in crossings:
             self.assertTrue(is_section_transit_level(exp, WAKE),
                             f"exp {exp} should be a section crossing")
 
@@ -143,7 +149,7 @@ class TestLevelTypeSchedule(unittest.TestCase):
         from src.game import Apocrysis
         Apocrysis.reset_campaign_state()
         g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
-                      expeditions_completed=3)   # L4 traversal
+                      expeditions_completed=6)   # L7 traversal (a crossing)
         self.assertIsNone(g.mystery)
         self.assertIsNotNone(g.section_exit)
         ex, ey = g.section_exit
@@ -156,7 +162,7 @@ class TestLevelTypeSchedule(unittest.TestCase):
         from src.game import Apocrysis
         Apocrysis.reset_campaign_state()
         g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
-                      expeditions_completed=3)
+                      expeditions_completed=6)
         ex, ey = g.section_exit
         # step in from the wall, then walk back onto the gap
         for (nx, ny, d) in ((ex + 1, ey, "w"), (ex - 1, ey, "e"),
@@ -168,7 +174,7 @@ class TestLevelTypeSchedule(unittest.TestCase):
                     g.move_and_search(d)
                     break
         self.assertTrue(getattr(g, "won", False))
-        self.assertEqual(g.expeditions_completed, 4)
+        self.assertEqual(g.expeditions_completed, 7)
         Apocrysis.reset_campaign_state()
 
     def test_section_exit_round_trips_through_save_load(self):
@@ -176,7 +182,7 @@ class TestLevelTypeSchedule(unittest.TestCase):
         Apocrysis.reset_campaign_state()
         import tempfile, os
         g = Apocrysis("W", seed=11, io=_IO(), world="the_wake",
-                      expeditions_completed=3)
+                      expeditions_completed=6)
         sx = g.section_exit
         with tempfile.TemporaryDirectory() as d:
             pf = os.path.join(d, "s.json")

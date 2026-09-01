@@ -651,6 +651,32 @@ def _carve_escape_pass(game, reachable):
     return (bx, by), (ix, iy)
 
 
+def place_encounter_beat(game):
+    """An ENCOUNTER crossing (WAKE_SPINE §5 / F.9 pass 2): pick the tile
+    where the authored person / scene sits. It must be ON the walk from
+    spawn to the section exit - the beat is load-bearing, the player
+    cannot be allowed to route around it. Prefer a compartment
+    (`building`) a little past the midpoint so it reads as a place
+    someone would be. Returns (x, y) or None if the map is degenerate.
+    """
+    from src.worldgen.reachable import shortest_path
+    spawn = game.current_position
+    exit_xy = getattr(game, "section_exit", None)
+    if exit_xy is None:
+        return None
+    path = shortest_path(game.map, game.map_size, spawn, exit_xy)
+    if not path or len(path) < 4:
+        return None
+    # a little past the midpoint, strictly ON the spawn->exit walk so
+    # the player cannot route around it
+    beat = path[int(len(path) * 0.55)]
+    if beat in (spawn, exit_xy):
+        beat = path[len(path) // 2]
+    if beat in (spawn, exit_xy):
+        return None
+    return beat
+
+
 def carve_section_transit(game):
     """A scheduled non-fact 'section' level (WAKE_SPINE_INVESTIGATION.md
     §5): no mystery, just a crossing. Carve the far-wall exit exactly as

@@ -652,13 +652,18 @@ class BotIO:
 
     def _next_move(self):
         p = self.player
-        # WAKE_SPINE §5: a scheduled section crossing - head straight for
-        # the carved far-wall exit (no mystery, no town center).
+        # WAKE_SPINE §5: a scheduled section crossing - head for the
+        # carved far-wall exit (no mystery, no town center). An encounter
+        # crossing has a load-bearing beat tile to reach first.
         _sx = getattr(p, "section_exit", None)
         if _sx is not None:
-            if getattr(self, "_sx_cached", None) != _sx or not self._path:
-                self._sx_cached = _sx
-                self._path = _bfs_path(p, p.current_position, _sx)
+            _beat = getattr(p, "_encounter_beat", None)
+            _goal = (_beat if (_beat is not None
+                               and not getattr(p, "_encounter_beat_seen", False))
+                     else _sx)
+            if getattr(self, "_sx_cached", None) != _goal or not self._path:
+                self._sx_cached = _goal
+                self._path = _bfs_path(p, p.current_position, _goal)
                 self._path_index = 0
             if self._path:
                 while self._path_index < len(self._path):

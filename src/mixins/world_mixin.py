@@ -130,12 +130,20 @@ class WorldMixin:
         # section crossing - no mystery, no fact, just push through to
         # the far-wall exit. Decided here, where a fact level would pick
         # its target.
-        from src.sections import is_section_transit_level, level_type_for
+        from src.sections import (is_section_transit_level, is_encounter_level,
+                                  level_type_for)
         self.section_exit = None
         self._section_level_type = None
-        _section_level = is_section_transit_level(
-            getattr(self, 'expeditions_completed', 0), self.world)
-        if _wi is not None and not _section_level:
+        self._encounter_beat = None
+        self._encounter_fact = None
+        self._encounter_beat_seen = False
+        _exp_now = getattr(self, 'expeditions_completed', 0)
+        _plain_crossing = is_section_transit_level(_exp_now, self.world)
+        _encounter_level = is_encounter_level(_exp_now, self.world)
+        _section_level = _plain_crossing or _encounter_level
+        # A plain crossing carries no fact; an encounter crossing DOES -
+        # it just delivers it through a person/scene, not a console.
+        if _wi is not None and not _plain_crossing:
             _target = _wi.next_target()
         # E.2: the last expedition is the bespoke finale - it always
         # targets the world's finale.converge_fact (converging the whole
@@ -149,6 +157,7 @@ class WorldMixin:
         if _finale:
             _target = _converge
             _section_level = False   # the finale is always its own thing
+            _encounter_level = False
 
         # C.3.1: guarantee a mystery instead of tuning toward one. v2's
         # irregular valley can occasionally grow too cramped for the
@@ -167,18 +176,26 @@ class WorldMixin:
             # A section crossing: carve the far-wall exit, no mystery. If
             # the map comes out degenerate after every retry, fall back
             # to an ordinary fact level rather than ship a broken map.
-            from src.escape import carve_section_transit
+            from src.escape import carve_section_transit, place_encounter_beat
             for _try in range(_max_map_tries):
                 if _try > 0:
                     town_center = gen.generate()
                 _exit = carve_section_transit(self)
-                if _exit is not None:
-                    self.section_exit = _exit
-                    self._section_level_type = level_type_for(
-                        self.expeditions_completed, self.world)
-                    break
+                if _exit is None:
+                    continue
+                self.section_exit = _exit
+                self._section_level_type = level_type_for(
+                    self.expeditions_completed, self.world)
+                if _encounter_level:
+                    _beat = place_encounter_beat(self)
+                    if _beat is None:      # degenerate - retry the map
+                        self.section_exit = None
+                        continue
+                    self._encounter_beat = _beat
+                    self._encounter_fact = _target
+                break
             if self.section_exit is None:
-                _section_level = False
+                _section_level = _encounter_level = False
                 if _wi is not None:
                     _target = _wi.next_target()
         for _try in range(_max_map_tries):
@@ -244,10 +261,14 @@ class WorldMixin:
                 _nodes[f'site_{_role}'] = _xy
                 _mystery_nodes.append(f'site_{_role}')
         elif getattr(self, 'section_exit', None) is not None:
-            # a section crossing: the far-wall exit is the only required
-            # node (no sites), and it must be reachable from spawn.
+            # a section crossing: the far-wall exit is required. An
+            # encounter crossing also has a load-bearing beat tile that
+            # must be reachable (it sits on the spawn->exit walk).
             _nodes['exit'] = self.section_exit
             _mystery_nodes.append('exit')
+            if getattr(self, '_encounter_beat', None) is not None:
+                _nodes['beat'] = self._encounter_beat
+                _mystery_nodes.append('beat')
         _required = list(_mystery_nodes) + (['town'] if 'town' in _nodes else [])
         self._map_graph = MapGraph(self.map, (self.map_w, self.map_h), _nodes)
         _blocked = [nm for nm in self._map_graph.unreachable_from('spawn')
@@ -280,7 +301,11 @@ class WorldMixin:
             protected |= self._map_graph.critical_path_tiles('spawn', *_mystery_nodes)
         elif getattr(self, 'section_exit', None) is not None:
             protected = {self.section_exit}
-            protected |= self._map_graph.critical_path_tiles('spawn', 'exit')
+            _corr = ['exit']
+            if getattr(self, '_encounter_beat', None) is not None:
+                protected.add(self._encounter_beat)
+                _corr.append('beat')
+            protected |= self._map_graph.critical_path_tiles('spawn', *_corr)
 
         def _passable_neighbours(x, y):
             n = 0
@@ -847,10 +872,30 @@ class WorldMixin:
         # fallback (no mystery on this map).
         _mystery = getattr(self, 'mystery', None)
         _section_exit = getattr(self, 'section_exit', None)
+        _beat = getattr(self, '_encounter_beat', None)
+
+        # WAKE_SPINE §5 / F.9 pass 2: an ENCOUNTER crossing has an
+        # authored person/scene on the walk that carries this level's
+        # WorldFact. Reaching it fires the beat and establishes the fact.
+        if (_beat is not None and self.current_position == _beat
+                and not getattr(self, '_encounter_beat_seen', False)):
+            self._encounter_beat_seen = True
+            self._show_encounter_beat()   # the scene now; the fact lands on win
 
         # WAKE_SPINE_INVESTIGATION.md §5: a scheduled section crossing -
         # no mystery, no settlement win, just reach the far-wall exit.
+        # An encounter crossing cannot complete until its beat is passed.
         if _section_exit is not None and self.current_position == _section_exit:
+            if _beat is not None and not getattr(self, '_encounter_beat_seen', False):
+                from src.nav import bearing
+                _bb = bearing(self.current_position, _beat)
+                self.io.say(
+                    "You're at the way through - but there's someone back "
+                    f"that way{f', {_bb}' if _bb else ''} you haven't reached "
+                    "yet. You don't leave this section without seeing them.")
+                return
+            if _beat is not None:
+                self._establish_encounter_fact()
             self.finish_expedition(reason=self._section_cross_reason())
             return
 
@@ -1019,6 +1064,35 @@ class WorldMixin:
     def _section_cross_reason(self):
         return self._section_levels_prose().get(
             "reached", "cross into the next section")
+
+    def _encounter_beat_prose(self):
+        """The authored person / scene lines for an encounter crossing,
+        keyed by the section it's in (BRIDGE / CREW SECTION / ...).
+        World-owned - The Silence has no encounter levels."""
+        from src.sections import section_name_for
+        beats = self._section_levels_prose().get("encounter_beats") or {}
+        key = section_name_for(getattr(self, "expeditions_completed", 0), self.world)
+        entry = beats.get(key) or {}
+        return entry.get("lines", []), entry.get("marker", "someone is here")
+
+    def _show_encounter_beat(self):
+        """Play the authored person / scene. The WorldFact it carries is
+        NOT established here - it lands when the crossing is completed
+        (finish_expedition), exactly like a mystery's fact lands on
+        escape. Otherwise a bot that sees the beat then dies would burn
+        the milestone banner before the winning attempt."""
+        lines, _ = self._encounter_beat_prose()
+        for ln in lines:
+            self.io.say(ln)
+
+    def _establish_encounter_fact(self):
+        """Called from finish_expedition for an encounter crossing:
+        establish the beat's WorldFact with the full milestone /
+        hypothesis-correction machinery (the same _mystery_mark_world_
+        fact a solved mystery uses)."""
+        fid = getattr(self, "_encounter_fact", None)
+        if fid and getattr(self, "_encounter_beat_seen", False):
+            self._mystery_mark_world_fact(fid)
 
     def _discoverable_line(self, key, default):
         """The pickup line for a one-time discoverable (`waders`,

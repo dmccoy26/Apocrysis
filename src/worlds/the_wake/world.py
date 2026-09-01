@@ -64,6 +64,62 @@ THE_WAKE = World(
                 "breath and keep going.",
                 "Cross to the next section."),
             "reached": "reach the section boundary and cross into the next",
+            # F.9 pass 2: an ENCOUNTER crossing delivers its WorldFact
+            # through a person / a scene on the walk, not a console.
+            # Keyed by section. `lines` are said on reaching the beat
+            # tile, then the DAG fact establishes; `marker` is the
+            # one-line "what's ahead" for the opening objective. DRAFT
+            # PROSE - for review after the mechanical implementation.
+            "encounter_beats": {
+                "CRYO / MEDICAL": {
+                    "marker": "someone in there is still alive",
+                    "lines": (
+                        "There's a light on in the compartment ahead - "
+                        "steady, not the flicker of a failing panel. Someone "
+                        "wired a lamp straight off a cell.",
+                        "A woman in a torn duty jacket sits against the far "
+                        "bulkhead, a length of pipe across her knees. She "
+                        "watches you the whole way in and doesn't get up.",
+                        "\"You came from forward.\" Not a question. She looks "
+                        "you over again. \"Forward's clear enough to walk. "
+                        "God. We'd stopped thinking anyone was.\"",
+                        "She talks while you catch your breath - low and "
+                        "fast, everything she's worked out holed up in here "
+                        "listening to the ship through the walls. By the "
+                        "time you move on, you know something you didn't.",
+                    ),
+                },
+                "OFFICER / RECORDS": {
+                    "marker": "there's someone at the records console",
+                    "lines": (
+                        "The records office door is wedged half open. The "
+                        "screens inside are still lit.",
+                        "Someone is in the chair. Has been a long time. A "
+                        "section officer's coat, the seat turned to face the "
+                        "door - they saw who came last, and didn't get up "
+                        "for them either.",
+                        "The screen in front of them is frozen on one open "
+                        "file, the cursor still blinking in it. You read it "
+                        "over their shoulder, all of it, twice.",
+                    ),
+                },
+                "MAIN ENGINEERING": {
+                    "marker": "the last held section is on the way",
+                    "lines": (
+                        "The passage opens onto the last held section - "
+                        "right up against engineering. Blankets, water cans, "
+                        "a camp stove. People.",
+                        "They're rationing the light. One of them has been "
+                        "working a hand-crank charger in the corner for "
+                        "hours, by the state of their arm.",
+                        "Nobody asks who you are. One of them just points - "
+                        "at the thermometer on the bulkhead, then at the "
+                        "line marked on the water tank, then at the door to "
+                        "engineering.",
+                        "You do the arithmetic they finished days ago.",
+                    ),
+                },
+            },
         },
         "campaign_objective": {
             "revealed_when": "SECTIONS_SEALED",

@@ -53,7 +53,7 @@ class TestTransitLayout(unittest.TestCase):
         # scheduled section crossing (WAKE_SPINE §5) with a carved exit -
         # never a degenerate "nothing here" map. The retry loop (enabled
         # for a transit world) backs both. 0 failures across a wide sweep.
-        from src.sections import is_section_transit_level
+        from src.sections import crosses_section
         WAKE = get_world("the_wake")
         misses = []
         for s in range(1, 60):
@@ -62,7 +62,7 @@ class TestTransitLayout(unittest.TestCase):
                               expeditions_completed=e)
                 if g.mystery is not None:
                     continue
-                if is_section_transit_level(e, WAKE) and g.section_exit is not None:
+                if crosses_section(e, WAKE) and g.section_exit is not None:
                     continue
                 misses.append((s, e))
         self.assertEqual(misses, [])

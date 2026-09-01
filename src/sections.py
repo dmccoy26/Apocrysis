@@ -78,12 +78,31 @@ def level_type_for(expeditions_completed, world=None):
 
 
 def is_section_transit_level(expeditions_completed, world=None):
-    """True when this level is a scheduled non-fact beat - no mystery,
-    cross the section to the far-wall exit. Only meaningful for a
-    map_transit world."""
+    """True when this level is a scheduled plain crossing - no mystery,
+    no fact, just push through to the far-wall exit. Only meaningful for
+    a map_transit world. `encounter` is NOT one of these (see
+    is_encounter_level)."""
     if level_type_for(expeditions_completed, world) not in _SECTION_LEVEL_TYPES:
         return False
     return bool(getattr(_manifest(world), "map_transit", False))
+
+
+def is_encounter_level(expeditions_completed, world=None):
+    """True when this level is a scheduled ENCOUNTER beat - a section
+    crossing (no mystery, cross to the exit) that ALSO carries its
+    DAG-selected WorldFact, delivered through an authored person / scene
+    on the critical path rather than a console. WAKE_SPINE_INVESTIGATION
+    .md §5 / F.9 correction pass 2. map_transit worlds only."""
+    if level_type_for(expeditions_completed, world) != "encounter":
+        return False
+    return bool(getattr(_manifest(world), "map_transit", False))
+
+
+def crosses_section(expeditions_completed, world=None):
+    """Either kind of crossing (plain OR encounter) - the map is a
+    traverse to the far-wall exit, not a mystery."""
+    return (is_section_transit_level(expeditions_completed, world)
+            or is_encounter_level(expeditions_completed, world))
 
 
 def campaign_objective_line(player):

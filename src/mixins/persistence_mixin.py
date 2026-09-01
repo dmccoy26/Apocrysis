@@ -322,6 +322,10 @@ class PersistenceMixin:
             "section_exit": (list(self.section_exit)
                              if getattr(self, 'section_exit', None) else None),
             "section_level_type": getattr(self, '_section_level_type', None),
+            "encounter_beat": (list(self._encounter_beat)
+                               if getattr(self, '_encounter_beat', None) else None),
+            "encounter_fact": getattr(self, '_encounter_fact', None),
+            "encounter_beat_seen": bool(getattr(self, '_encounter_beat_seen', False)),
         }
 
         for w in self.backpack.weapons:
@@ -434,6 +438,10 @@ class PersistenceMixin:
             _sx = data.get("section_exit")
             player.section_exit = tuple(_sx) if _sx else None
             player._section_level_type = data.get("section_level_type")
+            _bt = data.get("encounter_beat")
+            player._encounter_beat = tuple(_bt) if _bt else None
+            player._encounter_fact = data.get("encounter_fact")
+            player._encounter_beat_seen = bool(data.get("encounter_beat_seen", False))
 
         player.current_position = tuple(data.get("current_position", [12, 12]))
         player.time_of_day = data.get("time_of_day", 480)

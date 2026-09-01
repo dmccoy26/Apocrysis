@@ -169,9 +169,19 @@ class UIMixin:
             # point at the marked exit. No mystery, no leads.
             self._opening_beat_shown = True
             _brief = self._section_brief()
-            if _brief:
+            from src.nav import bearing
+            _beat = getattr(self, '_encounter_beat', None)
+            if _beat is not None:
+                # an encounter crossing: point at the person/scene first
+                _, _marker = self._encounter_beat_prose()
+                _bb = bearing(self.current_position, _beat)
+                self.announce_event(
+                    "the way through",
+                    f"On the way across, {_marker}{f' - {_bb}' if _bb else ''}. "
+                    "You reach that before you leave this section.",
+                    kind="objective", level=1)
+            elif _brief:
                 _scene, _obj = _brief
-                from src.nav import bearing
                 _b = bearing(self.current_position, self.section_exit)
                 self.io.say(_scene)
                 self.announce_event(
@@ -808,6 +818,13 @@ class UIMixin:
             # (the whole level is "head that way"), rendered like an
             # opened route.
             return f"{BOLD}{GREEN}+{RESET}"
+        _bt = getattr(self, '_encounter_beat', None)
+        if _bt is not None and (x, y) == _bt:
+            # the authored person/scene on the crossing - a lead you're
+            # headed for until you've reached it.
+            if getattr(self, '_encounter_beat_seen', False):
+                return None
+            return f"{BOLD}{YELLOW}!{RESET}"
         m = getattr(self, 'mystery', None)
         if m is None:
             return None

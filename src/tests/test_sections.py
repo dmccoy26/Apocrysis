@@ -10,7 +10,8 @@ from src.worlds import get_world
 from src.sections import (
     section_index_for, section_name_for, section_archetype_for,
     sections_ahead, section_count, has_spine, campaign_objective_line,
-    level_type_for, is_section_transit_level,
+    level_type_for, is_section_transit_level, is_encounter_level,
+    crosses_section,
 )
 
 WAKE = get_world("the_wake")
@@ -190,6 +191,69 @@ class TestLevelTypeSchedule(unittest.TestCase):
             g2 = Apocrysis.load_game(pf)
         self.assertEqual(g2.section_exit, sx)
         self.assertIsNone(g2.mystery)
+        Apocrysis.reset_campaign_state()
+
+
+class TestEncounterBeats(unittest.TestCase):
+    def tearDown(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+
+    def _enc_exp(self):
+        return next(i for i, t in enumerate(WAKE.manifest.level_types)
+                    if t == "encounter")
+
+    def test_encounter_is_a_crossing_that_carries_a_fact(self):
+        exp = self._enc_exp()
+        self.assertTrue(is_encounter_level(exp, WAKE))
+        self.assertFalse(is_section_transit_level(exp, WAKE))   # not a plain one
+        self.assertTrue(crosses_section(exp, WAKE))
+        self.assertFalse(is_encounter_level(exp, SILENCE))
+
+    def test_encounter_level_builds_no_mystery_but_a_beat_on_the_path(self):
+        from src.game import Apocrysis
+        from src.worldgen.reachable import shortest_path
+        exp = self._enc_exp()
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("W", seed=exp + 3, io=_IO(), world="the_wake",
+                      expeditions_completed=exp)
+        self.assertIsNone(g.mystery)
+        self.assertIsNotNone(g.section_exit)
+        self.assertIsNotNone(g._encounter_beat)
+        self.assertIsNotNone(g._encounter_fact)
+        path = shortest_path(g.map, g.map_size, g.current_position, g.section_exit)
+        self.assertIn(g._encounter_beat, path,
+                      "the beat must sit on the spawn->exit walk")
+
+    def test_cannot_leave_the_section_without_passing_the_beat(self):
+        from src.game import Apocrysis
+        exp = self._enc_exp()
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("W", seed=exp + 3, io=_IO(), world="the_wake",
+                      expeditions_completed=exp)
+        # teleport straight to the exit without touching the beat
+        g.current_position = g.section_exit
+        g.io.log.clear()
+        g.move_and_search("z")   # any no-op move re-runs the arrival check
+        self.assertFalse(getattr(g, "won", False))
+        blob = " ".join(g.io.log).lower()
+        self.assertIn("haven't reached", blob)
+
+    def test_the_fact_lands_on_completion_not_on_beat_touch(self):
+        # a bot that sees the beat then dies must NOT burn the milestone
+        from src.game import Apocrysis
+        exp = self._enc_exp()
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("W", seed=exp + 3, io=_IO(), world="the_wake",
+                      expeditions_completed=exp)
+        fid = g._encounter_fact
+        g.current_position = g._encounter_beat
+        g.move_and_search("z")
+        self.assertTrue(g._encounter_beat_seen)
+        self.assertFalse(g.world_investigation.is_known(fid),
+                         "fact must not be established just by reaching the beat")
+        g._establish_encounter_fact()
+        self.assertTrue(g.world_investigation.is_known(fid))
         Apocrysis.reset_campaign_state()
 
 

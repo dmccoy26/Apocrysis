@@ -149,7 +149,14 @@ class TestTheWakeRuns(unittest.TestCase):
             g = Apocrysis("Wake", seed=100 + depth, io=_IO(["1"]),
                           world="the_wake", expeditions_completed=depth)
             if g.mystery is None:
-                depth += 1
+                # a section crossing. An encounter crossing carries a
+                # fact through its authored beat - fire it, then finish.
+                if getattr(g, "_encounter_beat", None) is not None:
+                    g._encounter_beat_seen = True
+                    g._show_encounter_beat()
+                    g._establish_encounter_fact()
+                g.finish_expedition(reason="crossed the section")
+                depth = g.expeditions_completed
                 continue
             out = _solve(g)
             for _c in ("DIDN'T FAIL", "WASN'T PANIC", "ISN'T A BARRICADE",

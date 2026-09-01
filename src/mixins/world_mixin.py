@@ -510,17 +510,22 @@ class WorldMixin:
                 continue  # 'route' -> _spot_route_landmark (audit 1b)
             if abs(xy[0] - px) + abs(xy[1] - py) > r:
                 continue
-            # only if the player already has the marker (knows the fact
-            # / has been there) - _mystery_site_mark decides that; reuse
-            # its answer rather than re-deriving.
-            if not self._mystery_site_mark(*xy):
+            # Normal: only once the player already holds the marker
+            # (knows the fact / has been there) - _mystery_site_mark
+            # decides that. Hardcore: there is no advance marker, but
+            # coming within sight of the place IS discovery through
+            # exploration - name it as a heading (not "the marked
+            # spot"), and let stepping onto the tile be what pins it.
+            _hc = getattr(self, 'hardcore', False)
+            if not _hc and not self._mystery_site_mark(*xy):
                 continue
             seen.add(role)
             label = m.site_labels.get(role)
             if label and role not in named:
+                body = ("Head for it." if _hc
+                        else "It's the marked spot - head for it.")
                 self.announce_event(f"you can make out {label} ahead",
-                                    "It's the marked spot - head for it.",
-                                    kind="discovery", level=1)
+                                    body, kind="discovery", level=1)
 
 
     def finish_expedition(self, reason="found the way out"):

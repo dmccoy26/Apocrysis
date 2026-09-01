@@ -330,6 +330,13 @@ def _objective_steps(p, m, k):
             return bearing            # bare bearing only (the A arm)
         hx, hy = p.current_position
         dist = abs(xy[0] - hx) + abs(xy[1] - hy)
+        if getattr(p, "hardcore", False):
+            # Hardcore: no POI marker until you stand on it. Guidance is
+            # a bearing and a rough distance; the search is yours.
+            _b = bearing.strip(" ()")
+            if not _b or _b == "near here":
+                return f" - {dist} tiles off, no marker"
+            return f" - {_b}, ~{dist} tiles"
         vr = getattr(p, "visibility_radius", 3)
         if dist <= vr:
             return " - the marker's in sight"

@@ -361,6 +361,25 @@ class MysteryMixin:
         d = "-".join(x for x in (ns, ew) if x)
         return f" ({d} of you)" if d else " (close by)"
 
+    def _lead_loc(self, role):
+        """The 'where is it' tail for a just-learned lead's announcement.
+        Normal: the heading plus 'marked on your map'. Hardcore: no
+        marker is placed - a bearing and a rough tile count, and the
+        player searches for it (a POI marker in Hardcore is earned by
+        stepping onto the tile)."""
+        if not getattr(self, 'hardcore', False):
+            return f"{self._mystery_heading(role)}, marked on your map"
+        m = self._mystery()
+        xy = m.sites.get(role) if m else None
+        if not xy:
+            return " somewhere out there - no fix on it"
+        px, py = self.current_position
+        dist = abs(xy[0] - px) + abs(xy[1] - py)
+        ns = "north" if xy[1] - py < -1 else "south" if xy[1] - py > 1 else ""
+        ew = "west" if xy[0] - px < -1 else "east" if xy[0] - px > 1 else ""
+        b = "-".join(x for x in (ns, ew) if x)
+        return f" {b}, about {dist} tiles" if b else f" close, within a few tiles"
+
     def _mystery_reveal(self, evidence_id):
         m = self._mystery()
         if m and m.knowledge.discover(evidence_id):
@@ -392,31 +411,34 @@ class MysteryMixin:
                 # everything, so don't double up.
                 pass
             elif m.site_labels.get('route'):
+                _tail = ("It's marked on your map now."
+                         if not getattr(self, 'hardcore', False)
+                         else f"No marker -{self._lead_loc('route')}. You'll have to find it.")
                 self.announce_event(f"the route is at {m.site_labels['route']}",
-                                    "It's marked on your map now.", kind="lead")
+                                    _tail, kind="lead")
         if 'F_POWER' in new_facts and m.site_labels.get('power'):
-            _pdir = self._mystery_heading('power')
+            _ploc = self._lead_loc('power')
             if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
                 self.announce_event(
                     f"the transmitter is fed from {m.site_labels['power']}",
-                    f"Get it running and the outside can guide you out. It's{_pdir}, marked on your map.",
+                    f"Get it running and the outside can guide you out. It's{_ploc}.",
                     kind="lead")
             else:
                 self.announce_event(
                     f"the way out is powered from {m.site_labels['power']}",
-                    f"Sort out what's wrong there - it's{_pdir}, marked on your map.",
+                    f"Sort out what's wrong there - it's{_ploc}.",
                     kind="lead")
         if 'F_REQUIRE' in new_facts and m.site_labels.get('require'):
-            _rdir = self._mystery_heading('require')
+            _rloc = self._lead_loc('require')
             if m.controls:
                 self.announce_event(
                     f"whatever clears the way is set from {m.site_labels['require']}",
-                    f"You'll have to work out which control. It's{_rdir}, marked on your map.",
+                    f"You'll have to work out which control. It's{_rloc}.",
                     kind="lead")
             else:
                 self.announce_event(
                     f"the {m.requirement_item} is kept at {m.site_labels['require']}",
-                    f"It's{_rdir}, marked on your map.", kind="lead")
+                    f"It's{_rloc}.", kind="lead")
 
         now = k.hypothesis_state()
         if now != hyp_before and k.hypothesis is not None:

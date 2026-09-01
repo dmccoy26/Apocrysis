@@ -819,15 +819,27 @@ class UIMixin:
         # "wander until you hit the right building" into "head for the
         # entry point, then follow the leads" (docs/NAV_INVESTIGATION_
         # RESULTS.md: marker salience + earliness is the lever).
-        role_known = {'closed': True,
-                      'route': 'F_ROUTE' in known, 'require': 'F_REQUIRE' in known,
-                      'power': 'F_POWER' in known}
+        # Hardcore: a POI marker is EARNED BY CONTACT. A site is marked
+        # only once the player has physically been there (`_mystery_named`,
+        # added on arrival) - never from advance knowledge of the fact
+        # that points to it, and never from a survivor-lore shortcut. The
+        # site stays real, discoverable and interactable; only its map
+        # glyph waits. The way-out marker (escape_tile / obstacle_tile,
+        # handled above) is deliberately NOT gated - the player still
+        # sees the objective they are navigating toward, just not the
+        # search targets. Rendering seam only; the generator is untouched.
+        _advance = not getattr(self, 'hardcore', False)
+        role_known = {'closed': _advance,
+                      'route': _advance and 'F_ROUTE' in known,
+                      'require': _advance and 'F_REQUIRE' in known,
+                      'power': _advance and 'F_POWER' in known}
         # B.2 BLUE_SIGNS: a survivor who learned that Protocol Seven
         # blue-signed its routes can pick the signed corridor out from
         # the start of an evac_corridor expedition (they still walk to
-        # it). Legibility, not power.
+        # it). Legibility, not power - and still advance knowledge, so
+        # Hardcore doesn't get it.
         _sk = getattr(self, 'survivor_knowledge', None)
-        if (_sk is not None and _sk.has('BLUE_SIGNS')
+        if (_advance and _sk is not None and _sk.has('BLUE_SIGNS')
                 and m.mechanism == 'evac_corridor'):
             role_known['route'] = True
         named = getattr(self, '_mystery_named', set())

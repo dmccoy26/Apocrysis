@@ -56,6 +56,16 @@ class WorldManifest:
     chapter_titles: tuple = ()
     supported_mechanisms: tuple = ()
     map_transit: bool = False
+    # The spatial spine (The Wake, WAKE_SPINE_INVESTIGATION.md §5).
+    # section_bounds: lowest expeditions_completed per section - a step
+    # function, parallel to chapter_bounds but a SEPARATE axis (sections
+    # are spatial: HUD label + terrain archetype + "N sections ahead";
+    # chapters stay the narrative arc). section_names / section_archetypes
+    # run parallel to section_bounds. Empty = no spine (The Silence): the
+    # generator keeps its RNG archetype roll and every HUD slot it has.
+    section_bounds: tuple = ()
+    section_names: tuple = ()
+    section_archetypes: tuple = ()
 
 
 @dataclass(frozen=True)

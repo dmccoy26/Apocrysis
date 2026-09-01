@@ -867,6 +867,16 @@ class GameScreen(Screen):
             return
         p = self.player
         loc = _location_name(p)
+        # The spatial spine (WAKE_SPINE_INVESTIGATION.md §5.5): a world
+        # with sections prefixes the LOCATION line with the section it's
+        # in - "CREW SECTION · A COMPARTMENT". No spine -> unchanged.
+        try:
+            from src.sections import section_name_for
+            _sec = section_name_for(getattr(p, "expeditions_completed", 0), p.world)
+        except Exception:
+            _sec = None
+        if _sec and _sec.upper() not in loc.upper():
+            loc = f"{_sec} · {loc}"
         phase = getattr(p, "day_phase", "day")
         clk = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
         # 1d HUD: the zone, plus a plain note when this ground is slow

@@ -1,0 +1,123 @@
+"""The spatial spine - WAKE_SPINE_INVESTIGATION.md §5.
+
+Sections are The Wake's Bridge -> Main Engineering progression: a
+SEPARATE axis from chapters. The Silence has no spine and must be
+untouched by any of it.
+"""
+import unittest
+
+from src.worlds import get_world
+from src.sections import (
+    section_index_for, section_name_for, section_archetype_for,
+    sections_ahead, section_count, has_spine,
+)
+
+WAKE = get_world("the_wake")
+SILENCE = get_world("silence")
+
+
+class TestSilenceHasNoSpine(unittest.TestCase):
+    def test_all_helpers_return_none_for_silence(self):
+        self.assertFalse(has_spine(SILENCE))
+        self.assertEqual(section_count(SILENCE), 0)
+        for exp in (0, 5, 12, 24):
+            self.assertIsNone(section_index_for(exp, SILENCE))
+            self.assertIsNone(section_name_for(exp, SILENCE))
+            self.assertIsNone(section_archetype_for(exp, SILENCE))
+            self.assertIsNone(sections_ahead(exp, SILENCE))
+
+    def test_silence_manifest_untouched(self):
+        self.assertEqual(SILENCE.manifest.section_bounds, ())
+        self.assertEqual(SILENCE.manifest.campaign_length, 25)
+
+
+class TestWakeSpine(unittest.TestCase):
+    def test_seven_sections_owner_locked_bounds(self):
+        self.assertEqual(WAKE.manifest.section_bounds, (0, 3, 7, 11, 15, 19, 22))
+        self.assertEqual(section_count(WAKE), 7)
+        self.assertEqual(len(WAKE.manifest.section_names), 7)
+        self.assertEqual(len(WAKE.manifest.section_archetypes), 7)
+
+    def test_campaign_is_25_levels(self):
+        self.assertEqual(WAKE.manifest.campaign_length, 25)
+
+    def test_section_index_is_monotone_over_the_whole_campaign(self):
+        prev = -1
+        for exp in range(25):
+            i = section_index_for(exp, WAKE)
+            self.assertGreaterEqual(i, prev)
+            prev = i
+        self.assertEqual(section_index_for(0, WAKE), 0)
+        self.assertEqual(section_index_for(2, WAKE), 0)
+        self.assertEqual(section_index_for(3, WAKE), 1)
+        self.assertEqual(section_index_for(24, WAKE), 6)
+
+    def test_sections_ahead_counts_down_to_zero(self):
+        self.assertEqual(sections_ahead(0, WAKE), 6)
+        self.assertEqual(sections_ahead(3, WAKE), 5)
+        self.assertEqual(sections_ahead(22, WAKE), 0)
+        self.assertEqual(sections_ahead(24, WAKE), 0)
+
+    def test_every_section_archetype_is_a_real_wake_archetype(self):
+        for a in WAKE.manifest.section_archetypes:
+            self.assertIn(a, WAKE.map_archetypes)
+
+    def test_first_and_last_sections_read_bridge_and_engineering(self):
+        self.assertEqual(section_name_for(0, WAKE), "BRIDGE")
+        self.assertEqual(section_name_for(24, WAKE), "MAIN ENGINEERING")
+
+
+class TestChaptersRespacedToSectionStarts(unittest.TestCase):
+    def test_chapter_bounds_align_with_section_boundaries(self):
+        # each chapter intro should fire on entering a section (§5.4)
+        secs = set(WAKE.manifest.section_bounds)
+        for b in WAKE.manifest.chapter_bounds:
+            self.assertIn(b, secs, f"chapter boundary {b} is mid-section")
+
+    def test_still_five_chapters(self):
+        self.assertEqual(len(WAKE.manifest.chapter_bounds), 5)
+        self.assertEqual(len(WAKE.manifest.chapter_titles), 5)
+
+
+class TestGeneratorHonoursTheSectionArchetype(unittest.TestCase):
+    def test_wake_map_archetype_is_section_driven_not_random(self):
+        from src.game import Apocrysis
+        # section 6 (exp 22-24) = "engineering"; section 0 = "habitation"
+        for exp, want in ((0, "habitation"), (22, "engineering"),
+                          (19, "open_decks")):
+            Apocrysis.reset_campaign_state()
+            g = Apocrysis("W", seed=exp + 1, io=_IO(), world="the_wake",
+                          expeditions_completed=exp)
+            self.assertEqual(g.map_archetype, want)
+        Apocrysis.reset_campaign_state()
+
+    def test_silence_archetype_still_comes_from_the_rng_roll(self):
+        # byte-identity guard: the roll is consumed and NOT overridden
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        g1 = Apocrysis("S", seed=42, io=_IO())
+        Apocrysis.reset_campaign_state()
+        g2 = Apocrysis("S", seed=42, io=_IO())
+        self.assertEqual(g1.map_archetype, g2.map_archetype)
+        self.assertIn(g1.map_archetype, SILENCE.map_archetypes)
+        Apocrysis.reset_campaign_state()
+
+
+class _IO:
+    renders_natively = True
+
+    def __init__(self):
+        self.log = []
+
+    def say(self, *a, **k):
+        self.log.append(" ".join(str(x) for x in a))
+
+    def ask(self, prompt=""):
+        return ""
+
+    def ask_yes_no(self, prompt):
+        return False
+
+
+if __name__ == "__main__":
+    unittest.main()

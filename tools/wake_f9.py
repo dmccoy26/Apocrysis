@@ -419,17 +419,28 @@ def run_checks(world, runs):
     else:
         print("  [ok]  every expedition carries >1 story beat")
 
-    # 7. finale: consequence established before the choice
+    # 7. finale: consequence established before the choice.
+    # Under the 25-level spine the FIN-chain facts land on their own
+    # levels (WAKE_RESTART_RELEASES on ~22), so the finale need not
+    # re-narrate them - the consequence just has to be KNOWN before the
+    # choice prompt, whether it landed in the finale or earlier.
     for ri, run in enumerate(runs):
-        fin = next((r for r in run["expeditions"]
+        exps = run["expeditions"]
+        fin = next((r for r in exps
                     if r.get("is_finale") and r.get("outcome") == "won"), None)
         if not fin:
             continue
+        known_before_finale = set()
+        for r in exps:
+            if r is fin:
+                break
+            known_before_finale |= r.get("known_after", set())
         text = "\n".join(ln for (_e, ln) in fin["stream"])
         i_choice = text.find("1)")
         i_release = text.lower().find("lifts every standing deck-seal")
         i_release = text.lower().find("releases") if i_release < 0 else i_release
-        if 0 <= i_release < i_choice or i_choice < 0:
+        narrated_in_finale = (0 <= i_release < i_choice) or i_choice < 0
+        if narrated_in_finale or "WAKE_RESTART_RELEASES" in known_before_finale:
             print("  [ok]  finale: the consequence is established before the choice prompt")
         else:
             ok = False

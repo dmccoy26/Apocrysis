@@ -447,7 +447,16 @@ class MapGenerator:
         terrain_types = self._terrain_order
 
         _archetypes = g.world.map_archetypes
+        # The roll is always consumed (RNG order unchanged for every
+        # world). A world with a spatial spine then overrides the result
+        # with its section's archetype - so the terrain reads as one
+        # continuous journey, not a fresh random room each expedition.
+        # The Silence has no spine: the roll stands, byte-identical.
         g.map_archetype = g.rng.choice(list(_archetypes))
+        from src.sections import section_archetype_for
+        _forced = section_archetype_for(g.expeditions_completed, g.world)
+        if _forced is not None and _forced in _archetypes:
+            g.map_archetype = _forced
         _arch = _archetypes[g.map_archetype]
 
         obstacle_density = min(

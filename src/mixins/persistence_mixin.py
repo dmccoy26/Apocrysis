@@ -7,7 +7,7 @@ import os
 import re
 
 from src import runtime_paths
-from src.constants import LOOT_WEAPON_TABLE, ARMOR_TABLE
+from src import loot as _loot
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import Zombie, FreshZombie, RegularZombie, HeavyZombie
 
@@ -39,8 +39,9 @@ def _apply_heir_advantage(player, depth):
 
     # a weapon ~4 expeditions back - never a downgrade, and always
     # short of the best a lucky survivor at this depth might have
+    _world = getattr(player, "world", None)
     _band = max(0, depth - 4)
-    _melee = [(n, s) for n, s in LOOT_WEAPON_TABLE.items()
+    _melee = [(n, s) for n, s in _loot.weapon_table(_world).items()
               if s["type"] == "melee" and s.get("min_expedition", 0) <= _band]
     if _melee:
         n, s = max(_melee, key=lambda kv: kv[1]["damage"])
@@ -49,7 +50,7 @@ def _apply_heir_advantage(player, depth):
 
     # one body-armour piece ~4 expeditions back
     _aband = max(0, depth - 4)
-    _body = [(n, s) for n, s in ARMOR_TABLE.items()
+    _body = [(n, s) for n, s in _loot.armor_table(_world).items()
              if s["slot"] == "body" and s.get("min_expedition", 0) <= _aband]
     if _body and not player.equipped_armor.get("body"):
         n, s = max(_body, key=lambda kv: kv[1]["reduction"])

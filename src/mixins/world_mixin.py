@@ -18,9 +18,10 @@ from src.constants import (
     BOLD, GREEN, RESET,
     IMPASSABLE_TERRAIN as _DEFAULT_IMPASSABLE,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
-    TERRAIN_MOVE_MINUTES as _DEFAULT_MOVE_MINUTES, LOOT_WEAPON_TABLE, ARMOR_TABLE,
+    TERRAIN_MOVE_MINUTES as _DEFAULT_MOVE_MINUTES,
     ZOMBIE_MAP_DENSITY, ENCOUNTER_CHANCE_DAY, ENCOUNTER_CHANCE_NIGHT,
 )
+from src import loot as _loot
 from src.items import MeleeWeapon, RangedWeapon, Armor
 from src.zombies import (
     Zombie, FreshZombie, RegularZombie, HeavyZombie,
@@ -981,23 +982,15 @@ class WorldMixin:
 
             if loot_type == "weapon":
                 # Real stat variance per name, and the correct weapon
-                # type (melee vs ranged) - see LOOT_WEAPON_TABLE's own
-                # comment in constants.py for the bug this replaced.
+                # type (melee vs ranged). F.10: the vocabulary is the
+                # world's (src/loot.py); the band gate is the engine's.
                 eligible_weapons = {
-                    name: spec for name, spec in LOOT_WEAPON_TABLE.items()
+                    name: spec for name, spec in _loot.weapon_table(self.world).items()
                     if spec.get('min_expedition', 0) <= self.expeditions_completed
                 }
                 new_weapon_name = self.rng.choice(list(eligible_weapons.keys()))
-                spec = eligible_weapons[new_weapon_name]
-                if spec["type"] == "ranged":
-                    new_weapon = RangedWeapon(
-                        new_weapon_name, spec["damage"],
-                        spec["max_ammo"], spec["durability"],
-                    )
-                else:
-                    new_weapon = MeleeWeapon(
-                        new_weapon_name, spec["damage"], spec["durability"],
-                    )
+                new_weapon = _loot.build_weapon(
+                    new_weapon_name, eligible_weapons[new_weapon_name])
                 if self.backpack.add_weapon(new_weapon):
                     self.io.say(f"You obtained a {new_weapon.name}.")
                 else:
@@ -1013,7 +1006,7 @@ class WorldMixin:
                 # Equipment-slot investigation: same expedition-banding
                 # pattern as weapons above.
                 eligible_armor = {
-                    name: spec for name, spec in ARMOR_TABLE.items()
+                    name: spec for name, spec in _loot.armor_table(self.world).items()
                     if spec.get('min_expedition', 0) <= self.expeditions_completed
                 }
                 new_armor_name = self.rng.choice(list(eligible_armor.keys()))

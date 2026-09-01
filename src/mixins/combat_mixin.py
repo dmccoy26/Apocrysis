@@ -634,20 +634,15 @@ class CombatMixin:
                 self.backpack.medicine += 1
                 self.io.say("You found some medicine!")
             elif item == "weapon":
-                # 1d: pull a NAMED weapon from LOOT_WEAPON_TABLE (banded
-                # by depth), same as world_mixin.find_loot - so two
-                # looted guns aren't both just "Gun" and the empty-mag
-                # auto-swap message can name the actual weapon.
-                from src.constants import LOOT_WEAPON_TABLE
-                _elig = {n: s for n, s in LOOT_WEAPON_TABLE.items()
+                # 1d: pull a NAMED weapon from the world's weapon table
+                # (banded by depth), same as world_mixin.find_loot - so
+                # two looted guns aren't both just "Gun" and the
+                # empty-mag auto-swap message can name the actual weapon.
+                from src import loot as _loot
+                _elig = {n: s for n, s in _loot.weapon_table(self.world).items()
                          if s.get("min_expedition", 0) <= self.expeditions_completed}
                 _n = random.choice(list(_elig))
-                _s = _elig[_n]
-                if _s["type"] == "ranged":
-                    weapon = RangedWeapon(_n, _s["damage"], _s["max_ammo"],
-                                          _s["durability"])
-                else:
-                    weapon = MeleeWeapon(_n, _s["damage"], _s["durability"])
+                weapon = _loot.build_weapon(_n, _elig[_n])
                 self.backpack.weapons.append(weapon)
                 self.io.say(f"You found a {weapon.name}!")
             elif item == "ammo":

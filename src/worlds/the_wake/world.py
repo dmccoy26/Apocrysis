@@ -11,6 +11,7 @@ from src.worlds.the_wake.hypotheses import REGIONAL_HYPOTHESES
 from src.worlds.the_wake.lore import SURVIVOR_LORE, LORE_TRIGGERS
 from src.worlds.the_wake.manifest import MANIFEST
 from src.worlds.the_wake.mechanism_prose import MECHANISM_PROSE
+from src.worlds.the_wake.loot import THE_WAKE_LOOT
 from src.worlds.the_wake.terrain import TERRAIN
 from src.worlds.the_wake.truth import WORLD_FACTS
 
@@ -82,4 +83,5 @@ THE_WAKE = World(
     population=_population,
     chapters=CHAPTERS_DICT,
     mechanism_prose=MECHANISM_PROSE,
+    loot=THE_WAKE_LOOT,
 )

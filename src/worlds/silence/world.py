@@ -32,6 +32,7 @@ from src.worlds.silence.hypotheses import REGIONAL_HYPOTHESES
 from src.worlds.silence.lore import SURVIVOR_LORE, LORE_TRIGGERS
 from src.worlds.silence.manifest import MANIFEST
 from src.worlds.silence.mechanism_prose import MECHANISM_PROSE
+from src.worlds.silence.loot import SILENCE_LOOT
 from src.worlds.silence.terrain import (
     TERRAIN_SYMBOLS,          # re-exported for the constants.py shim
     TERRAIN_LEGEND,
@@ -110,4 +111,5 @@ SILENCE = World(
     population=_population,
     chapters=CHAPTERS_DICT,
     mechanism_prose=MECHANISM_PROSE,
+    loot=SILENCE_LOOT,
 )

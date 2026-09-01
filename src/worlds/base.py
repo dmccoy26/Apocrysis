@@ -92,6 +92,36 @@ class WorldFinale:
 
 
 @dataclass(frozen=True)
+class WorldLoot:
+    """The world's equipment VOCABULARY (Phase F §F.10). The engine
+    owns the GRAMMAR - expedition bands, min_expedition gating, the
+    melee/ranged split, drop RNG, crafting ingredient costs + level
+    gates, the drop-on-full-slots behaviour. A world supplies only the
+    names and their stat values.
+
+    weapons / armor : name -> spec, same shape as the historical
+        constants.LOOT_WEAPON_TABLE / ARMOR_TABLE. Key ORDER matters
+        (the loot RNG picks by index), so a world that wants the
+        current balance keeps the same number of entries per band.
+    crafting : recipe_key -> {ingredients, min_level, result} where
+        result is {"kind": "melee"|"ranged", "name", "damage",
+        "durability", ["max_ammo"]} or None (a utility recipe like the
+        repair kit). Keys are shared across worlds (the `craft <key>`
+        command, tests); only the result vocabulary changes.
+    starter : {"name", "damage", "durability", "variants": (...)} - the
+        weapon a fresh survivor comes in with, replacing the vestigial
+        class weapon.
+
+    None on any field -> the engine falls back to The Silence's table
+    (src/worlds/silence/loot.py), so a partial / fixture world still
+    runs (mirrors mechanism_prose's fallback)."""
+    weapons: dict = None
+    armor: dict = None
+    crafting: dict = None
+    starter: dict = None
+
+
+@dataclass(frozen=True)
 class World:
     id: str
     name: str
@@ -131,6 +161,9 @@ class World:
     # chapter intro lines + retrospective text: {"chapters": (...),
     # "retro_lead": str, "retro_tail": str}
     chapters: dict = field(default_factory=dict)
+    # equipment vocabulary (Phase F §F.10). None -> the engine uses
+    # The Silence's tables (src/loot.py's fallback).
+    loot: WorldLoot = None
 
     # A World is immutable shared content (it may hold un-copyable
     # references, e.g. the population module). Copying it is always a

@@ -167,36 +167,12 @@ DAY_COMPRESSION_SCALE = 1440 / MINUTES_PER_DAY
 # TERRAIN_MOVE_MINUTES moved to src/worlds/silence/terrain.py (Phase F);
 # re-exported at the top of this file.
 
-# Real bug found live: world_mixin.py's find_loot() used to build
-# every looted weapon as MeleeWeapon(name, 10, 100) regardless of
-# which name got picked - a "Rusty Dagger" and a "Steel Katana" were
-# mechanically identical, and "Broken Rifle"/"Leather Bow" (names
-# that clearly mean a ranged weapon) were built as MeleeWeapon
-# instances that could never use ammo/reload at all. Real stat
-# variance tied to the name, and the correct weapon type per name.
-LOOT_WEAPON_TABLE = {
-    "Rusty Dagger": {"type": "melee", "damage": 8, "durability": 40, "min_expedition": 0},
-    "Chipped Sword": {"type": "melee", "damage": 12, "durability": 50, "min_expedition": 0},
-    "Iron Axe": {"type": "melee", "damage": 16, "durability": 90, "min_expedition": 4},
-    "Steel Katana": {"type": "melee", "damage": 20, "durability": 110, "min_expedition": 6},
-    "Broken Rifle": {"type": "ranged", "damage": 10, "max_ammo": 5, "durability": 15, "min_expedition": 0},
-    "Leather Bow": {"type": "ranged", "damage": 14, "max_ammo": 8, "durability": 45, "min_expedition": 2},
-}
-
-# Equipment-slot investigation, multi-piece follow-up: four slots
-# (head/body/hands/feet), each banded by expeditions_completed the
-# same way LOOT_WEAPON_TABLE is. Per-slot reductions are kept modest
-# (a full head+body+hands+feet loadout at max expedition sums to 13)
-# so gearing out doesn't dwarf the old single-slot design's max of 10
-# - more pieces to find/maintain, not a flat power multiplier.
-ARMOR_TABLE = {
-    "Bandana": {"slot": "head", "reduction": 1, "durability": 20, "min_expedition": 0},
-    "Combat Helmet": {"slot": "head", "reduction": 3, "durability": 50, "min_expedition": 4},
-    "Padded Vest": {"slot": "body", "reduction": 2, "durability": 30, "min_expedition": 0},
-    "Kevlar Vest": {"slot": "body", "reduction": 4, "durability": 70, "min_expedition": 3},
-    "Riot Armor": {"slot": "body", "reduction": 6, "durability": 100, "min_expedition": 6},
-    "Work Gloves": {"slot": "hands", "reduction": 1, "durability": 25, "min_expedition": 0},
-    "Reinforced Gauntlets": {"slot": "hands", "reduction": 2, "durability": 50, "min_expedition": 3},
-    "Sneakers": {"slot": "feet", "reduction": 1, "durability": 25, "min_expedition": 0},
-    "Steel-Toe Boots": {"slot": "feet", "reduction": 2, "durability": 50, "min_expedition": 3},
-}
+# Phase F §F.10: equipment vocabulary is world-owned
+# (src/worlds/<w>/loot.py, read via src/loot.py). Re-exported here from
+# the DEFAULT world for legacy `from src.constants import
+# LOOT_WEAPON_TABLE` call sites (tests, dev.py); engine code with a
+# game in hand goes through src.loot.weapon_table(game.world).
+from src.worlds.silence.loot import (  # noqa: F401
+    WEAPONS as LOOT_WEAPON_TABLE,
+    ARMOR as ARMOR_TABLE,
+)

@@ -60,22 +60,15 @@ class ActionsMixin:
         else:
             cell.pop('ground', None)
 
-    # v3 SPRINT step 4: min_level gates a real tiered progression -
-    # the original 3 recipes stay at level 1 (no regression), several
-    # new ones unlock at higher levels, spanning the same existing
-    # ingredient types (food/water/medicine/ammo/weapon - no new
-    # resource types, so Backpack needs no changes).
-    crafting_recipes = {
-        "steel_sword": {"ingredients": {"weapon": 1, "food": 2}, "min_level": 1, "result_name": "Steel Sword", "result": lambda: MeleeWeapon("Steel Sword", 20, 50)},
-        "repair_kit": {"ingredients": {"medicine": 2, "food": 1}, "min_level": 8, "result_name": "Repair Kit", "result": None},
-        "heavy_bow": {"ingredients": {"weapon": 1, "ammo": 3}, "min_level": 1, "result_name": "Heavy Bow", "result": lambda: RangedWeapon("Heavy Bow", 25, 10)},
-        "combat_knife": {"ingredients": {"weapon": 1, "medicine": 1}, "min_level": 1, "result_name": "Combat Knife", "result": lambda: MeleeWeapon("Combat Knife", 15, 40)},
-        "reinforced_blade": {"ingredients": {"weapon": 1, "medicine": 1, "food": 1}, "min_level": 4, "result_name": "Reinforced Blade", "result": lambda: MeleeWeapon("Reinforced Blade", 28, 60)},
-        "hunting_crossbow": {"ingredients": {"weapon": 1, "ammo": 5, "food": 1}, "min_level": 6, "result_name": "Hunting Crossbow", "result": lambda: RangedWeapon("Hunting Crossbow", 30, 15)},
-        "survivor_machete": {"ingredients": {"weapon": 2, "water": 2}, "min_level": 9, "result_name": "Survivor Machete", "result": lambda: MeleeWeapon("Survivor Machete", 35, 70)},
-        "military_carbine": {"ingredients": {"weapon": 1, "ammo": 8, "medicine": 2}, "min_level": 13, "result_name": "Military Carbine", "result": lambda: RangedWeapon("Military Carbine", 45, 20)},
-        "apex_blade": {"ingredients": {"weapon": 2, "medicine": 3, "food": 3}, "min_level": 18, "result_name": "Apex Blade", "result": lambda: MeleeWeapon("Apex Blade", 55, 100)},
-    }
+    # v3 SPRINT step 4: min_level gates a real tiered progression.
+    # F.10: the ingredient costs + level gates are engine grammar; the
+    # result names/stats are the world's vocabulary. src/loot.py
+    # hydrates the world's data spec back into this {ingredients,
+    # min_level, result_name, result()} shape.
+    @property
+    def crafting_recipes(self):
+        from src import loot as _loot
+        return _loot.craft_recipes(getattr(self, "world", None))
 
     def initialize_player(self):
         # v3: no class choice at game start (SPRINT plan, step 1) -
@@ -97,20 +90,19 @@ class ActionsMixin:
         self.dexterity = attrs.dexterity
         self.intelligence = attrs.intelligence
         self.wisdom = attrs.wisdom
-        # Real bug found live (via the new autoplay balance harness
-        # running many games in one process): PLAYER_CLASSES' weapons
-        # are single module-level instances, shared by every player
-        # who ever rolls that starter/tier class - attrs.equipped_
-        # weapon is that same object, not a fresh one. Combat mutates
-        # durability/ammo in place, so without copying here, one
-        # game's wear and tear on "Kitchen Knife" permanently carries
-        # into every future game (or TUI win-continuation - see
-        # tui.py's _game_thread()) that rolls the same class, for the
-        # rest of the process's lifetime.
-        self.equipped_weapon = copy.deepcopy(attrs.equipped_weapon)
-        if self.equipped_weapon.name == 'Kitchen Knife':
-            variant_name = self.rng.choice(['Kitchen Knife', 'Rolling Pin', 'Frying Pan', 'Screwdriver'])
-            self.equipped_weapon.name = variant_name
+        # F.10: the starting weapon is the world's, not the vestigial
+        # tier-0 class weapon. It's built fresh here (a new MeleeWeapon,
+        # never a shared PLAYER_CLASSES instance - combat mutates
+        # durability/ammo in place, and one game's wear used to carry
+        # into every later game in the process). The Silence's starter
+        # is still the household knife + variant roll, so this stays
+        # RNG-identical there; The Wake comes in with a ship tool.
+        from src import loot as _loot
+        _st = _loot.starter_spec(getattr(self, "world", None))
+        _variants = _st.get("variants")
+        _name = self.rng.choice(list(_variants)) if _variants else _st["name"]
+        self.equipped_weapon = MeleeWeapon(
+            _name, _st["damage"], _st["durability"])
         # RangedWeapon.__init__ already starts ammo at max_ammo - no
         # separate top-up needed here.
 

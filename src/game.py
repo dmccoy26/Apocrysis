@@ -283,6 +283,13 @@ class Apocrysis(
         # One-time discoverable item: waders that reduce water movement cost / prevent drowning (to be wired up in world_mixin.py)
         self.has_waders = False
 
+        # H1 (WAKE_DEVICE_PASS.md): the tactical helmet. Its onboard
+        # tactical system is the information capability - detected sites
+        # show `?`, identified sites show `!`. Persists across
+        # expeditions (Normal). Only a world with markers_need_device
+        # gates anything on it; every other world ignores the flag.
+        self.has_scanner = False
+
         self._update_time()
 
         # generate_map() sets self.current_position (spawn) itself -

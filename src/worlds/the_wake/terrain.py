@@ -25,7 +25,8 @@ TERRAIN_LEGEND = (
     "  # = hull (no way through)   , = driftfield (grav out - slow)\n"
     "  T/H/R/S/B = enclave (Muster/Hab/Run/Store/Bay)\n"
     "  P = you   Z = one of the changed (only shown once you've been there)\n"
-    "  ! = something you've found   + = the way out, now open"
+    "  ? = the helmet detects something here   ! = identified, or reached on foot\n"
+    "  + = the way out, now open"
 )
 
 # positional [forest, building, water, plain, swamp] = wreckage,

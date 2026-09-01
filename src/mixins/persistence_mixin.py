@@ -302,6 +302,12 @@ class PersistenceMixin:
             "day_phase": self.day_phase,
             "visibility_radius": self.visibility_radius,
             "has_flashlight": self.has_flashlight,
+            "has_scanner": getattr(self, "has_scanner", False),
+            "discovery_pickup": (
+                [list(self._discovery_pickup[0]), self._discovery_pickup[1]]
+                if getattr(self, "_discovery_pickup", None) else None),
+            "discovery_pickup_taken": bool(getattr(self, "_discovery_pickup_taken", False)),
+            "scanner_contact_made": bool(getattr(self, "_scanner_contact_made", False)),
             "visited": [list(pos) for pos in self.visited],
             "backpack_food": self.backpack.food,
             "backpack_water": self.backpack.water,
@@ -408,6 +414,11 @@ class PersistenceMixin:
         player.day_phase = data.get("day_phase", "day")
         player.visibility_radius = data.get("visibility_radius", 3)
         player.has_flashlight = data.get("has_flashlight", False)
+        player.has_scanner = data.get("has_scanner", getattr(player, "has_scanner", False))
+        _dp = data.get("discovery_pickup")
+        player._discovery_pickup = (tuple(_dp[0]), _dp[1]) if _dp else None
+        player._discovery_pickup_taken = bool(data.get("discovery_pickup_taken", False))
+        player._scanner_contact_made = bool(data.get("scanner_contact_made", False))
         player.town_known = data.get("town_known", False)
         player.map_revealed = data.get("map_revealed", False)
 
@@ -527,6 +538,7 @@ class PersistenceMixin:
                 if piece
             },
             "has_flashlight": getattr(self, "has_flashlight", False),
+            "has_scanner": getattr(self, "has_scanner", False),
         }
         campaign = {
             # Phase F: which world this campaign belongs to. A profile
@@ -799,6 +811,7 @@ class PersistenceMixin:
             if getattr(self, "world_investigation", None) is not None:
                 self.world_investigation.restore({"status": dict(_wi)})
         self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
+        self.has_scanner = profile.get("has_scanner", getattr(self, "has_scanner", False))
         self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time
         self.level = profile.get("level", self.level)
         self.xp = profile.get("xp", self.xp)

@@ -152,6 +152,8 @@ class MysteryMixin:
         if m.knowledge.hypothesis_state() != "confirmed":
             return "make sure this really leads out"
         mech = getattr(m, "mech_name", "the way out")
+        if getattr(self, 'hardcore', False) or self._markers_gated():
+            return f"get to {mech}{self._lead_loc('route')}"
         return f"go to {mech} - it's marked on your map"
 
     def objective_tick(self):
@@ -367,7 +369,9 @@ class MysteryMixin:
         marker is placed - a bearing and a rough tile count, and the
         player searches for it (a POI marker in Hardcore is earned by
         stepping onto the tile)."""
-        if not getattr(self, 'hardcore', False):
+        # H1: a marker-gated world pre-device behaves like Hardcore here
+        # - bearing + rough distance, no "marked on your map".
+        if not (getattr(self, 'hardcore', False) or self._markers_gated()):
             return f"{self._mystery_heading(role)}, marked on your map"
         m = self._mystery()
         xy = m.sites.get(role) if m else None
@@ -412,7 +416,7 @@ class MysteryMixin:
                 pass
             elif m.site_labels.get('route'):
                 _tail = ("It's marked on your map now."
-                         if not getattr(self, 'hardcore', False)
+                         if not (getattr(self, 'hardcore', False) or self._markers_gated())
                          else f"No marker -{self._lead_loc('route')}. You'll have to find it.")
                 self.announce_event(f"the route is at {m.site_labels['route']}",
                                     _tail, kind="lead")

@@ -330,9 +330,11 @@ def _objective_steps(p, m, k):
             return bearing            # bare bearing only (the A arm)
         hx, hy = p.current_position
         dist = abs(xy[0] - hx) + abs(xy[1] - hy)
-        if getattr(p, "hardcore", False):
-            # Hardcore: no POI marker until you stand on it. Guidance is
-            # a bearing and a rough distance; the search is yours.
+        _contact_only = getattr(p, "hardcore", False) or (
+            hasattr(p, "_markers_gated") and p._markers_gated())
+        if _contact_only:
+            # Hardcore / H1 pre-device: no POI marker until you stand on
+            # it. Guidance is a bearing and a rough distance.
             _b = bearing.strip(" ()")
             if not _b or _b == "near here":
                 return f" - {dist} tiles off, no marker"
@@ -1435,6 +1437,8 @@ class GameScreen(Screen):
                            if a and getattr(a, "durability", 1) > 0)
         if _armor_total:
             lines.append(f"  [{_DIM}]protection[/] [cyan]{_armor_total}[/]")
+        if getattr(p, "has_scanner", False):
+            lines.append(f"  [cyan]◦ tactical helmet[/]   [{_DIM}]? detects · ! identifies[/]")
         _pack_n = len(p.backpack.weapons)
         _pack_c = ("b #ff8c00" if _pack_n >= w_cap
                    else "#ff8c00" if _pack_n >= w_cap - 1 else _DIM)

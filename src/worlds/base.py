@@ -66,6 +66,13 @@ class WorldManifest:
     section_bounds: tuple = ()
     section_names: tuple = ()
     section_archetypes: tuple = ()
+    # H1 (WAKE_DEVICE_PASS.md): this world's site markers are gated on
+    # an information device. Before the survivor finds it the world
+    # plays contact-only (like Hardcore) - bearing + distance + physical
+    # landmarks, no `!`. After: learned leads mark `!` again, and
+    # detected-but-unidentified sites show `?`. The Silence leaves this
+    # False - markers work exactly as they always have.
+    markers_need_device: bool = False
     # Per pre-finale level (index == expeditions_completed), the level's
     # TYPE: "" / "fact" -> the ordinary escape-mystery level carrying a
     # WorldFact (today's only kind); "traversal" / "discovery" /

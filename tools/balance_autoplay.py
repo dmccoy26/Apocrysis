@@ -658,9 +658,13 @@ class BotIO:
         _sx = getattr(p, "section_exit", None)
         if _sx is not None:
             _beat = getattr(p, "_encounter_beat", None)
-            _goal = (_beat if (_beat is not None
-                               and not getattr(p, "_encounter_beat_seen", False))
-                     else _sx)
+            _pk = getattr(p, "_discovery_pickup", None)
+            if _beat is not None and not getattr(p, "_encounter_beat_seen", False):
+                _goal = _beat
+            elif _pk is not None and not getattr(p, "_discovery_pickup_taken", False):
+                _goal = _pk[0]
+            else:
+                _goal = _sx
             if getattr(self, "_sx_cached", None) != _goal or not self._path:
                 self._sx_cached = _goal
                 self._path = _bfs_path(p, p.current_position, _goal)

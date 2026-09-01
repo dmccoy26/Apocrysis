@@ -67,6 +67,8 @@ MANIFEST = WorldManifest(
     section_names=SECTION_NAMES,
     section_archetypes=SECTION_ARCHETYPES,
     level_types=LEVEL_TYPES,
+    # H1: no `!` until the tactical helmet is recovered (L5).
+    markers_need_device=True,
     # 8 of the 10 grammars - the ones whose shape fits a ship (§7).
     # boat_crossing and tidal_causeway are dropped (§10.3).
     supported_mechanisms=(

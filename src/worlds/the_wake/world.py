@@ -162,6 +162,12 @@ THE_WAKE = World(
                           "are much easier to move through now.",
             "waders": "You found a sealed hardsuit! Breaches and grav-out "
                       "sections no longer slow you down as much.",
+            # H1 (WAKE_DEVICE_PASS.md): the object is a tactical helmet;
+            # the capability is its onboard tactical system. Deliberately
+            # not "scanner" / "sensor" / "visor" - name the thing, not
+            # its function. Distinct from the hardsuit (survival kit).
+            "scanner": "You get the helmet on. A moment later the visor "
+                       "lights, and its onboard system runs up.",
         },
         # No `zone_labels`: the HUD location sub-label stays blank on The
         # Wake rather than borrowing Silence's valley zone words. The

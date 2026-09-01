@@ -171,6 +171,7 @@ class UIMixin:
             _brief = self._section_brief()
             from src.nav import bearing
             _beat = getattr(self, '_encounter_beat', None)
+            _pickup = getattr(self, '_discovery_pickup', None)
             if _beat is not None:
                 # an encounter crossing: point at the person/scene first
                 _, _marker = self._encounter_beat_prose()
@@ -179,6 +180,15 @@ class UIMixin:
                     "the way through",
                     f"On the way across, {_marker}{f' - {_bb}' if _bb else ''}. "
                     "You reach that before you leave this section.",
+                    kind="objective", level=1)
+            elif _pickup is not None:
+                # H1: the discovery crossing with the helmet on it
+                _pb = bearing(self.current_position, _pickup[0])
+                self.announce_event(
+                    "the way through",
+                    "The crew left kit at a supply point on the way across"
+                    f"{f', {_pb}' if _pb else ''}. Worth the stop before you "
+                    "go on.",
                     kind="objective", level=1)
             elif _brief:
                 _scene, _obj = _brief
@@ -825,6 +835,11 @@ class UIMixin:
             if getattr(self, '_encounter_beat_seen', False):
                 return None
             return f"{BOLD}{YELLOW}!{RESET}"
+        _pk = getattr(self, '_discovery_pickup', None)
+        if _pk is not None and (x, y) == _pk[0]:
+            if getattr(self, '_discovery_pickup_taken', False):
+                return None
+            return f"{BOLD}{YELLOW}!{RESET}"
         m = getattr(self, 'mystery', None)
         if m is None:
             return None
@@ -866,7 +881,12 @@ class UIMixin:
         # handled above) is deliberately NOT gated - the player still
         # sees the objective they are navigating toward, just not the
         # search targets. Rendering seam only; the generator is untouched.
-        _advance = not getattr(self, 'hardcore', False)
+        # H1 (WAKE_DEVICE_PASS.md): a marker-gated world grants NO advance
+        # `!` until the tactical helmet is found - it plays contact-only,
+        # exactly like Hardcore. Once the helmet is held, advance markers
+        # return AND detected-but-unidentified sites render `?` (below).
+        _advance = (not getattr(self, 'hardcore', False)
+                    and not self._markers_gated())
         role_known = {'closed': _advance,
                       'route': _advance and 'F_ROUTE' in known,
                       'require': _advance and 'F_REQUIRE' in known,
@@ -884,6 +904,16 @@ class UIMixin:
         for role, xy in m.sites.items():
             if xy == (x, y) and (role in named or role_known.get(role)):
                 return f"{BOLD}{YELLOW}!{RESET}"
+        # H1: with the helmet, a site the sensor has picked up but not
+        # yet identified shows `?` (fact OBSERVED, not KNOWN). `_SITE_
+        # ROLE_FACT` and the OBSERVED sightings come from _scanner_detect.
+        if self._has_scanner() and self._world_gates_markers():
+            for role, xy in m.sites.items():
+                if xy != (x, y):
+                    continue
+                fid = self._SITE_ROLE_FACT.get(role)
+                if fid and m.knowledge.fact_state(fid) == "Observed":
+                    return f"{BOLD}{CYAN}?{RESET}"
         return None
 
     def perceived_map_grid(self):

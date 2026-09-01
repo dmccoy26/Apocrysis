@@ -170,13 +170,33 @@ class WorldMixin:
         _transit_world = bool(_mf is not None and getattr(_mf, 'map_transit', False))
         _max_map_tries = (12 if (getattr(self, '_mapgen', 'v1') in ('v2', 'landscape')
                                  or _transit_world) else 1)
+        # H1 (WAKE_DEVICE_PASS.md): the L5 discovery crossing is where
+        # the tactical helmet is recovered - the guaranteed thing a
+        # `discovery` level discovers. Placed on the critical path (like
+        # the encounter beat); picking it up is what completes the
+        # crossing. Only fires on a marker-gated world that hasn't found
+        # it yet -> a plain discovery crossing otherwise (e.g. L21).
+        self._discovery_pickup = None
+        self._discovery_pickup_taken = False
+        # The helmet sits on the FIRST discovery crossing (L5). Keyed by
+        # schedule index, not `has_scanner` - the profile that restores
+        # `has_scanner` is applied AFTER generate_map runs, and the
+        # campaign never replays an earlier expedition, so "first
+        # discovery level" is always "the one before the helmet".
+        _exp_i = getattr(self, 'expeditions_completed', 0)
+        _lts = getattr(self.world.manifest, 'level_types', ())
+        _first_disc = next((i for i, t in enumerate(_lts) if t == "discovery"), None)
+        _wants_helmet = (self._world_gates_markers()
+                         and _first_disc is not None
+                         and _exp_i == _first_disc)
+
         self.mystery = None
         _mystery_exc = None
         if _section_level:
             # A section crossing: carve the far-wall exit, no mystery. If
             # the map comes out degenerate after every retry, fall back
             # to an ordinary fact level rather than ship a broken map.
-            from src.escape import carve_section_transit, place_encounter_beat
+            from src.escape import (carve_section_transit, place_encounter_beat)
             for _try in range(_max_map_tries):
                 if _try > 0:
                     town_center = gen.generate()
@@ -193,6 +213,12 @@ class WorldMixin:
                         continue
                     self._encounter_beat = _beat
                     self._encounter_fact = _target
+                if _wants_helmet:
+                    _pt = place_encounter_beat(self)   # same placement rule
+                    if _pt is None:
+                        self.section_exit = None
+                        continue
+                    self._discovery_pickup = (_pt, "scanner")
                 break
             if self.section_exit is None:
                 _section_level = _encounter_level = False
@@ -269,6 +295,9 @@ class WorldMixin:
             if getattr(self, '_encounter_beat', None) is not None:
                 _nodes['beat'] = self._encounter_beat
                 _mystery_nodes.append('beat')
+            if getattr(self, '_discovery_pickup', None) is not None:
+                _nodes['pickup'] = self._discovery_pickup[0]
+                _mystery_nodes.append('pickup')
         _required = list(_mystery_nodes) + (['town'] if 'town' in _nodes else [])
         self._map_graph = MapGraph(self.map, (self.map_w, self.map_h), _nodes)
         _blocked = [nm for nm in self._map_graph.unreachable_from('spawn')
@@ -305,6 +334,9 @@ class WorldMixin:
             if getattr(self, '_encounter_beat', None) is not None:
                 protected.add(self._encounter_beat)
                 _corr.append('beat')
+            if getattr(self, '_discovery_pickup', None) is not None:
+                protected.add(self._discovery_pickup[0])
+                _corr.append('pickup')
             protected |= self._map_graph.critical_path_tiles('spawn', *_corr)
 
         def _passable_neighbours(x, y):
@@ -584,7 +616,10 @@ class WorldMixin:
             # coming within sight of the place IS discovery through
             # exploration - name it as a heading (not "the marked
             # spot"), and let stepping onto the tile be what pins it.
-            _hc = getattr(self, 'hardcore', False)
+            # H1: a marker-gated world pre-device navigates like Hardcore
+            # - line of sight names the place as a heading, contact pins
+            # it. There's just no advance `!`.
+            _hc = getattr(self, 'hardcore', False) or self._markers_gated()
             if not _hc and not self._mystery_site_mark(*xy):
                 continue
             seen.add(role)
@@ -884,6 +919,19 @@ class WorldMixin:
             self._show_encounter_beat()   # the scene now; the fact lands on win
             _beat_fired_now = True
 
+        # H1: the tactical helmet on the L5 discovery crossing. Picked
+        # up here; the "TACTICAL SYSTEM ONLINE" beat + the capability
+        # land on crossing completion (like the encounter beat's fact) -
+        # so a retry after a mid-crossing death still shows the beat.
+        _pickup = getattr(self, '_discovery_pickup', None)
+        if (_pickup is not None and self.current_position == _pickup[0]
+                and not getattr(self, '_discovery_pickup_taken', False)):
+            self._discovery_pickup_taken = True
+            if _pickup[1] == "scanner":
+                self.io.say("A section officer's tactical helmet, on the deck "
+                            "beside its owner's kit. You take it.")
+            _beat_fired_now = True
+
         # WAKE_SPINE_INVESTIGATION.md §5: a scheduled section crossing -
         # no mystery, no settlement win, just reach the far-wall exit.
         # An encounter crossing cannot complete until its beat is passed.
@@ -896,8 +944,18 @@ class WorldMixin:
                     f"that way{f', {_bb}' if _bb else ''} you haven't reached "
                     "yet. You don't leave this section without seeing them.")
                 return
+            if _pickup is not None and not getattr(self, '_discovery_pickup_taken', False):
+                from src.nav import bearing
+                _pb = bearing(self.current_position, _pickup[0])
+                self.io.say(
+                    "You're at the way through - but you passed something "
+                    f"back that way{f', {_pb}' if _pb else ''} worth going "
+                    "back for first.")
+                return
             if _beat is not None:
                 self._establish_encounter_fact()
+            if _pickup is not None and getattr(self, '_discovery_pickup_taken', False):
+                self._grant_discovery_pickup(_pickup[1])
             self.finish_expedition(reason=self._section_cross_reason())
             return
 
@@ -1006,6 +1064,7 @@ class WorldMixin:
         self._spot_landmarks()
         self._spot_threats()
         self._spot_route_landmark()
+        self._scanner_detect()
         self._spot_leads()
 
         # v4 Phase C: generated-mystery site arrival (blurb + observe
@@ -1104,6 +1163,25 @@ class WorldMixin:
         for ln in lines:
             self.io.say(ln)
 
+    def _grant_discovery_pickup(self, key):
+        """H1: the guaranteed item on a discovery crossing lands on
+        crossing completion (mirrors the encounter beat's fact). The
+        only one for now is the tactical helmet."""
+        if key == "scanner":
+            if getattr(self, 'has_scanner', False):
+                return
+            self.has_scanner = True
+            self._update_time(0)   # no time cost, refresh derived state
+            self.io.say(self._discoverable_line(
+                "scanner",
+                "You get the helmet on. A moment later the visor lights and "
+                "its onboard system runs up."))
+            self.announce_event(
+                "TACTICAL SYSTEM ONLINE",
+                "It reads the deck around you now - flags what it can "
+                "identify, marks what it only detects.",
+                kind="milestone")
+
     def _establish_encounter_fact(self):
         """Called from finish_expedition for an encounter crossing:
         establish the beat's WorldFact with the full milestone /
@@ -1120,6 +1198,58 @@ class WorldMixin:
         the same split applied to the day/night dressing."""
         prose = (getattr(self.world, "prose", None) or {}).get("discoverables", {})
         return prose.get(key, default)
+
+    # --- H1: the tactical helmet (WAKE_DEVICE_PASS.md) -------------
+    _SITE_ROLE_FACT = {'closed': 'F_CLOSED', 'route': 'F_ROUTE',
+                       'require': 'F_REQUIRE', 'power': 'F_POWER'}
+
+    def _has_scanner(self):
+        return bool(getattr(self, 'has_scanner', False))
+
+    def _world_gates_markers(self):
+        _mf = getattr(self.world, 'manifest', None)
+        return bool(_mf is not None and getattr(_mf, 'markers_need_device', False))
+
+    def _markers_gated(self):
+        """True when this world hides advance `!` markers and the device
+        that lifts the gate isn't held yet - the world plays contact-
+        only, exactly like Hardcore."""
+        return self._world_gates_markers() and not self._has_scanner()
+
+    def _scanner_detect(self):
+        """The helmet's detection beat: any mystery site within sight
+        whose fact isn't known yet registers as an OBSERVED sighting -
+        it renders `?` until identified. Line-of-sight only; no radius
+        tuning, no active scan. No-op without the helmet or on a world
+        that doesn't gate markers."""
+        if not (self._has_scanner() and self._world_gates_markers()):
+            return
+        m = getattr(self, 'mystery', None)
+        if m is None:
+            return
+        px, py = self.current_position
+        r = self.visibility_radius
+        _known = m.knowledge.facts_known()
+        _first = not getattr(self, '_scanner_contact_made', False)
+        for role, xy in m.sites.items():
+            if xy is None or role == 'obstacle':
+                continue
+            if abs(xy[0] - px) + abs(xy[1] - py) > r:
+                continue
+            fid = self._SITE_ROLE_FACT.get(role)
+            if not fid or fid in _known:
+                continue
+            if m.knowledge.fact_state(fid) == "Observed":
+                continue
+            m.knowledge.observe_fact(fid)
+            if _first:
+                _first = False
+                self._scanner_contact_made = True
+                self.announce_event(
+                    "tactical - contact",
+                    "The helmet picks up something ahead it can't resolve "
+                    "yet. It's on your map, marked.",
+                    kind="discovery", level=1)
 
     def find_loot(self):
         current_tile = self.map[self.current_position[1]][self.current_position[0]]

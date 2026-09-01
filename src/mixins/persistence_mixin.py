@@ -584,9 +584,14 @@ class PersistenceMixin:
     def list_campaign_summaries():
         """Newest-first metadata for every on-disk campaign profile -
         which, post-Q1, means every *Normal* campaign (Hardcore writes
-        no file, ever). Each entry: name, world_id / world_title,
-        expeditions_completed / campaign_length, ending, last_played
-        (mtime), path.
+        no file, ever). Each entry:
+          name    - the CURRENT survivor's display name (rotates on
+                    death -> heir); for the SURVIVOR column
+          key     - the campaign's stable identity, from the filename;
+                    resume / delete address the campaign by this, NOT
+                    by `name` (which changes)
+          world_id / world_title, expeditions_completed /
+          campaign_length, ending, last_played (mtime), path
 
         The Phase-G shell's CONTINUE and LOAD read this; the game
         proper never does. Deliberately tolerant - a profile naming a
@@ -610,8 +615,14 @@ class PersistenceMixin:
                 title = _w.manifest.title
             except Exception:
                 length, title = None, (wid or "?")
+            # key = the filename stem after apocrysis_profile_ and any
+            # <world>__ prefix. This is what the campaign was created
+            # under; the survivor name inside can differ after an heir.
+            stem = os.path.basename(path)[len("apocrysis_profile_"):-len(".json")]
+            key = stem.split("__", 1)[1] if "__" in stem else stem
             out.append({
                 "name": name,
+                "key": key,
                 "world_id": wid,
                 "world_title": title,
                 "expeditions_completed": int(

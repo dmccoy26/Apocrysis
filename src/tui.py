@@ -759,13 +759,20 @@ class GameScreen(Screen):
     ]
 
     def __init__(self, *, game_name=None, level=1, seed=None, hardcore=False,
-                 start_log=False, dev=None, world=None, settings=None):
+                 start_log=False, dev=None, world=None, settings=None,
+                 game_key=None):
         # Keyword-only game params: Screen.__init__ already claims the
         # positional `name` (a DOM id concept), so the survivor name
         # comes in as `game_name` and is stashed as self._name exactly
         # as before.
         super().__init__()
         self._name = game_name
+        # The campaign's stable on-disk identity. For a NEW campaign
+        # it's the slug of the chosen name; for a resume the caller
+        # passes it (the survivor name can differ after a death ->
+        # heir, the campaign key never does).
+        from src.mixins.persistence_mixin import _name_slug
+        self._key = game_key or (_name_slug(game_name) if game_name else None)
         self._level = level
         self._seed = seed
         self._hardcore = hardcore
@@ -906,8 +913,8 @@ class GameScreen(Screen):
             _p._settings = self._settings
             return _p
 
-        profile = (Apocrysis.load_campaign(self._world, self._name)
-                   if self._name else None)
+        profile = (Apocrysis.load_campaign(self._world, self._key or self._name)
+                   if (self._key or self._name) else None)
         self._last_load_was_profile = profile is not None
         if profile is not None:
             from src.mixins.persistence_mixin import _profile_flat
@@ -962,7 +969,7 @@ class GameScreen(Screen):
                 p.save_profile(_dev_profile)
             return
         campaign_file = campaign_filename(
-            getattr(p.world, "id", None), self._name or p.name)
+            getattr(p.world, "id", None), self._key or p.name)
         if p.health <= 0:
             if p.hardcore:
                 p.delete_profile()
@@ -994,9 +1001,9 @@ class GameScreen(Screen):
         if self._dev is not None:
             return   # the dev harness seeds its own synthetic state
         flat = {}
-        if self._name:
+        if self._key or self._name:
             from src.mixins.persistence_mixin import _profile_flat
-            _prof = Apocrysis.load_campaign(self._world, self._name)
+            _prof = Apocrysis.load_campaign(self._world, self._key or self._name)
             if _prof is not None:
                 flat = _profile_flat(_prof)
         Apocrysis.reset_campaign_state(restore_from=flat)
@@ -1076,11 +1083,20 @@ class GameScreen(Screen):
                     self._save_or_delete_profile()
                     raise
 
-                self._save_or_delete_profile()
-
                 if not getattr(self.player, 'won', False):
-                    break  # quit or death - a real exit, not a new game
+                    # Death or quit. The game SESSION is over - the app
+                    # is NOT. Persist per the session-end rule (Normal
+                    # death -> heir; Hardcore death -> delete; Normal
+                    # quit -> save the resume point; Hardcore quit ->
+                    # nothing, Q1), tidy the playlog, and hand the UI
+                    # thread the teardown that returns to the menu -
+                    # the same path as the `menu` command. No app.exit().
+                    self._persist_on_session_end()
+                    self._end_session_playlog()
+                    self.app.call_from_thread(self._finish_session_teardown)
+                    return
 
+                self._save_or_delete_profile()
                 self.player = self._new_player()
 
                 # run_game_loop() closes the previous expedition's
@@ -1655,7 +1671,8 @@ class MenuScreen(Screen):
                 f"[dim]Press Enter again to resume.[/dim]")
             return
         self._armed = None
-        self._start_game(name=s["name"], world=s.get("world_id"))
+        self._start_game(name=s["name"], key=s.get("key"),
+                         world=s.get("world_id"))
 
     # ---- starting a game ------------------------------------------
 
@@ -1667,12 +1684,12 @@ class MenuScreen(Screen):
         self._start_game(name=name, world=world_id, hardcore=hardcore)
 
     def _on_load_pick(self, result):
-        # LoadGameScreen.dismiss((world_id, name)) to load, or None
-        # (Back / nothing left after deletes). Same survivor name can
-        # exist in two worlds, so the world must come through too.
+        # LoadGameScreen.dismiss((world_id, key, name)) to load, or None
+        # (Back / nothing left after deletes). The campaign is addressed
+        # by (world, key) - the survivor name only labels the row.
         if result:
-            world_id, name = result
-            self._start_game(name=name, world=world_id)
+            world_id, key, name = result
+            self._start_game(name=name, key=key, world=world_id)
 
     def _on_settings(self, result):
         # SettingsScreen.dismiss(<settings dict>); it also wrote the
@@ -1681,11 +1698,12 @@ class MenuScreen(Screen):
         if result:
             self.app._settings = result
 
-    def _start_game(self, *, name, world=None, hardcore=False):
+    def _start_game(self, *, name, key=None, world=None, hardcore=False):
         """Push a GameScreen on top of this menu. When the session ends
         (`menu` command / death / quit) GameScreen pops back to here."""
         self.app.push_screen(GameScreen(
             game_name=name,
+            game_key=key,
             world=world,
             hardcore=hardcore,
             start_log=getattr(self.app, "_start_log", False),
@@ -1926,22 +1944,22 @@ class LoadGameScreen(Screen):
             self.dismiss(None)
             return
         r = self._rows[self._sel]
-        self.dismiss((r.get("world_id"), r["name"]))
+        self.dismiss((r.get("world_id"), r.get("key"), r["name"]))
 
     def action_delete(self):
         if not self._rows:
             return
         r = self._rows[self._sel]
         target = r["name"]
-        key = (r.get("world_id"), target)
+        arm = (r.get("world_id"), r.get("key"))
         note = self.query_one("#lg_note", Static)
-        if self._armed_delete != key:
-            self._armed_delete = key
+        if self._armed_delete != arm:
+            self._armed_delete = arm
             note.update(
                 f"[b]Delete {target}'s {r['world_title']} campaign? "
                 f"This can't be undone.[/b] [dim]Press D again.[/dim]")
             return
-        Apocrysis.delete_campaign(target, r.get("world_id"))
+        Apocrysis.delete_campaign(r.get("key") or target, r.get("world_id"))
         self._armed_delete = None
         note.update(f"[dim]Deleted {target}.[/dim]")
         self._reload()

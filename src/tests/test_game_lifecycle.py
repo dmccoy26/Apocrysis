@@ -21,6 +21,8 @@
 
 import asyncio
 import os
+import shutil
+import tempfile
 import threading
 import time
 import unittest
@@ -363,6 +365,96 @@ class TestReturnToMenu(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await asyncio.wait_for(pilot.pause(0.3), timeout=5)
             self.assertFalse(app.is_running)
+
+
+@unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")
+class TestDeathEndsTheSessionNotTheApp(unittest.IsolatedAsyncioTestCase):
+    """Reported: dying closed the whole TUI. Death (like the `menu`
+    command) ends the game SESSION - the app stays alive and returns to
+    the menu. For a Normal campaign the heir is persisted and CONTINUE
+    resumes it."""
+
+    async def asyncSetUp(self):
+        self._home = tempfile.mkdtemp(prefix="apoc_death_")
+        self._prev = os.environ.get("APOCRYSIS_HOME")
+        os.environ["APOCRYSIS_HOME"] = self._home
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+
+    async def asyncTearDown(self):
+        await asyncio.sleep(0.3)
+        if self._prev is None:
+            os.environ.pop("APOCRYSIS_HOME", None)
+        else:
+            os.environ["APOCRYSIS_HOME"] = self._prev
+        shutil.rmtree(self._home, ignore_errors=True)
+
+    async def _wait_menu(self, app, pilot):
+        for _ in range(40):
+            await asyncio.wait_for(pilot.pause(0.15), timeout=5)
+            if isinstance(app.screen, MenuScreen):
+                return
+        self.assertIsInstance(app.screen, MenuScreen)
+
+    async def test_normal_death_returns_to_menu_and_heir_is_resumable(self):
+        from src.game import Apocrysis
+        app = ApocrysisApp(name="Fallen", level=1, seed=1)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            gs = app.screen
+            self.assertIsInstance(gs, GameScreen)
+            dead_name = gs.player.name
+
+            # kill the survivor, then drive one command so run_game_loop
+            # re-checks its `while health > 0` guard and exits.
+            gs.player.health = 0
+            await pilot.press("l")
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.5), timeout=5)
+            # the end screen's "Press Enter to continue..."
+            await pilot.press("enter")
+
+            await self._wait_menu(app, pilot)
+            self.assertTrue(app.is_running, "the app exited on death")
+
+            # the campaign persisted, now carried by an heir
+            rows = Apocrysis.list_campaign_summaries()
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["key"], "Fallen")
+            self.assertNotEqual(rows[0]["name"], dead_name)  # the heir
+            self.assertIn("CONTINUE", app.screen._items())
+
+            # CONTINUE resumes the heir campaign (by key, not the
+            # changed survivor name)
+            ms = app.screen
+            ms._sel = ms._items().index("CONTINUE")
+            ms._render_items()
+            await pilot.press("enter")           # arm
+            await asyncio.wait_for(pilot.pause(0.2), timeout=5)
+            await pilot.press("enter")           # resume
+            for _ in range(40):
+                await asyncio.wait_for(pilot.pause(0.15), timeout=5)
+                if isinstance(app.screen, GameScreen):
+                    break
+            self.assertIsInstance(app.screen, GameScreen)
+            self.assertEqual(app.screen.player.name, rows[0]["name"])
+
+    async def test_hardcore_death_returns_to_menu_with_no_saved_campaign(self):
+        from src.game import Apocrysis
+        app = ApocrysisApp(name="HardFall", level=1, seed=1, hardcore=True)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            gs = app.screen
+            gs.player.health = 0
+            await pilot.press("l")
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.5), timeout=5)
+            await pilot.press("enter")
+
+            await self._wait_menu(app, pilot)
+            self.assertTrue(app.is_running)
+            self.assertEqual(Apocrysis.list_campaign_summaries(), [])
+            self.assertNotIn("CONTINUE", app.screen._items())
 
 
 @unittest.skipUnless(_TEXTUAL_AVAILABLE, "textual not installed")

@@ -62,7 +62,12 @@ class TestFullNoFlagLoop(unittest.IsolatedAsyncioTestCase):
     async def _to_menu(self, app, pilot):
         await _type(pilot, "menu")
         await pilot.press("enter")
-        await asyncio.wait_for(pilot.pause(1.0), timeout=8)
+        # The worker persists + tears down + pops on its own thread;
+        # under load that can take more than a fixed pause. Poll.
+        for _ in range(40):
+            await asyncio.wait_for(pilot.pause(0.15), timeout=5)
+            if isinstance(app.screen, MenuScreen):
+                return
         self.assertIsInstance(app.screen, MenuScreen)
 
     async def test_launch_new_play_menu_load_settings_continue(self):

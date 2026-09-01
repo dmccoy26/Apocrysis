@@ -439,6 +439,57 @@ class TestDeathEndsTheSessionNotTheApp(unittest.IsolatedAsyncioTestCase):
             self.assertIsInstance(app.screen, GameScreen)
             self.assertEqual(app.screen.player.name, rows[0]["name"])
 
+    async def test_death_in_a_non_default_world_keeps_the_heir_in_that_world(self):
+        # Regression: persist_new_survivor built the heir for the
+        # DEFAULT world, so a Normal death in The Wake stamped
+        # world_id="silence" onto the campaign file - it then showed up
+        # under The Silence and collided invisibly.
+        from src.game import Apocrysis
+        from src.mixins.persistence_mixin import campaign_filename
+        import json
+        from src import runtime_paths
+
+        app = ApocrysisApp(start_log=False)
+        async with app.run_test(size=(130, 48)) as pilot:
+            await asyncio.wait_for(pilot.pause(), timeout=5)
+            ms = app.screen
+            ms._sel = ms._items().index("NEW CAMPAIGN")
+            ms._render_items()
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.4), timeout=5)
+            nc = app.screen
+            nc.query_one("#nc_world").children[1].value = True   # the_wake
+            await pilot.pause(0.1)
+            nc.query_one("#nc_name").focus()
+            for ch in "Kessel":
+                await pilot.press(ch)
+            await pilot.pause(0.1)
+            nc._start()
+            for _ in range(40):
+                await asyncio.wait_for(pilot.pause(0.15), timeout=5)
+                if isinstance(app.screen, GameScreen):
+                    break
+            gs = app.screen
+            self.assertEqual(gs.player.world.id, "the_wake")
+
+            gs.player.health = 0
+            await pilot.press("l")
+            await pilot.press("enter")
+            await asyncio.wait_for(pilot.pause(0.5), timeout=5)
+            await pilot.press("enter")
+            await self._wait_menu(app, pilot)
+
+            path = runtime_paths.resolve(
+                "player", campaign_filename("the_wake", "Kessel"))
+            self.assertTrue(os.path.exists(path))
+            saved = json.load(open(path))
+            self.assertEqual(saved["campaign"]["world_id"], "the_wake")
+
+            rows = Apocrysis.list_campaign_summaries()
+            wake = [r for r in rows if r["key"] == "Kessel"]
+            self.assertEqual(len(wake), 1)
+            self.assertEqual(wake[0]["world_id"], "the_wake")
+
     async def test_hardcore_death_returns_to_menu_with_no_saved_campaign(self):
         from src.game import Apocrysis
         app = ApocrysisApp(name="HardFall", level=1, seed=1, hardcore=True)

@@ -918,6 +918,15 @@ class GameScreen(Screen):
         self._last_load_was_profile = profile is not None
         if profile is not None:
             from src.mixins.persistence_mixin import _profile_flat
+            # The world the shell resolved this campaign under (from the
+            # filename) is authoritative. If the file's own world_id
+            # disagrees - a pre-fix heir stamped with the default world
+            # - correct it here so __init__ builds the right DAG and
+            # apply_profile doesn't re-point back to the stale value.
+            # The next save_profile then writes it straight.
+            _cw = self._world or profile.get("campaign", {}).get("world_id")
+            if _cw and profile.get("campaign", {}).get("world_id") != _cw:
+                profile.setdefault("campaign", {})["world_id"] = _cw
             flat = _profile_flat(profile)
             # A.5/B: seed the campaign class-vars before construction
             # (generate_map targets next_target() in __init__, before
@@ -931,7 +940,7 @@ class GameScreen(Screen):
                 level=flat.get("level", 1),
                 hardcore=flat.get("hardcore", self._hardcore),
                 expeditions_completed=flat.get("expeditions_completed", 0),
-                # G5: build with the profile's own world so __init__
+                # G5: build with the campaign's world so __init__
                 # constructs the investigation off THAT world's fact
                 # DAG - apply_profile's re-point then becomes a no-op.
                 world=flat.get("world_id"),
@@ -981,7 +990,8 @@ class GameScreen(Screen):
             from src.cli import _next_survivor_name
             Apocrysis.persist_new_survivor(
                 campaign_file, _next_survivor_name(Apocrysis._survivors_lost),
-                p.hardcore, p.expeditions_completed)
+                p.hardcore, p.expeditions_completed,
+                world_id=getattr(p.world, "id", None))
             return
         p.save_profile(campaign_file)
 

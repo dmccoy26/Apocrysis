@@ -596,7 +596,7 @@ class PersistenceMixin:
         The Phase-G shell's CONTINUE and LOAD read this; the game
         proper never does. Deliberately tolerant - a profile naming a
         removed world still lists (get_world falls back)."""
-        from src.worlds import get_world
+        from src.worlds import get_world, WORLDS
         _pat = os.path.join(runtime_paths.player_dir(),
                             "apocrysis_profile_*.json")
         out = []
@@ -608,18 +608,24 @@ class PersistenceMixin:
             name = flat.get("name")
             if not name:
                 continue
-            wid = flat.get("world_id")
+            # key = the filename stem after apocrysis_profile_ and any
+            # <world>__ prefix. This is what the campaign was created
+            # under; the survivor name inside can differ after an heir.
+            stem = os.path.basename(path)[len("apocrysis_profile_"):-len(".json")]
+            if "__" in stem:
+                _fworld, key = stem.split("__", 1)
+            else:
+                _fworld, key = None, stem
+            # The filename's world prefix is authoritative - the file's
+            # own world_id can be stale (a pre-fix heir was stamped with
+            # the default world). Only trust it if it names a real world.
+            wid = _fworld if _fworld in WORLDS else flat.get("world_id")
             try:
                 _w = get_world(wid)
                 length = _w.manifest.campaign_length
                 title = _w.manifest.title
             except Exception:
                 length, title = None, (wid or "?")
-            # key = the filename stem after apocrysis_profile_ and any
-            # <world>__ prefix. This is what the campaign was created
-            # under; the survivor name inside can differ after an heir.
-            stem = os.path.basename(path)[len("apocrysis_profile_"):-len(".json")]
-            key = stem.split("__", 1)[1] if "__" in stem else stem
             out.append({
                 "name": name,
                 "key": key,
@@ -670,11 +676,17 @@ class PersistenceMixin:
         return None
 
     @classmethod
-    def persist_new_survivor(cls, campaign_file, heir_name, hardcore, depth):
+    def persist_new_survivor(cls, campaign_file, heir_name, hardcore, depth,
+                             world_id=None):
         """Phase B: this survivor died (non-hardcore). The campaign is
         still held in the class-vars; a fresh survivor takes it up.
         Writes {campaign: <verbatim>, survivor: <fresh>} to
         `campaign_file` and returns the heir game (unstarted).
+
+        `world_id` MUST be the dying campaign's world - without it the
+        heir is built for the default world and save_profile then
+        stamps the wrong world_id onto a non-default campaign's file
+        (and the heir's investigation is built off the wrong DAG).
 
         1d: the campaign inherits a *survivability floor*
         (_apply_heir_advantage) - the heir is a fresh survivor but not a
@@ -682,7 +694,8 @@ class PersistenceMixin:
         environment. Their own progression still starts near-scratch and
         stacks on top.
         """
-        heir = cls(heir_name, hardcore=hardcore, expeditions_completed=depth)
+        heir = cls(heir_name, hardcore=hardcore, expeditions_completed=depth,
+                   world=world_id)
         _apply_heir_advantage(heir, depth)
         heir.save_profile(campaign_file)
         return heir

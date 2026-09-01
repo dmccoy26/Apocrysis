@@ -389,7 +389,30 @@ class CombatMixin:
                 self.io.say(f"  Threat:  {tier}")
                 self.io.say(f"  With your {wname} ({wdmg} dmg):   "
                             f"Fight ~{fp}%    Escape ~{ep}%")
-                if oc["p90_frac"] is not None and fp >= 65 and oc["p90_frac"] >= 0.45:
+                # Map-9 postmortem (2026-09): the forecast already
+                # computes win% + the HP-loss cost of winning, but the
+                # only sentence it ever spoke was the fp>=65 "you'll
+                # win, but it'll cost you" case - so a 22%-to-win fight
+                # got NO cost sentence at all, just the number and
+                # "poorly suited". The missing conclusion isn't "you
+                # might lose" (the % already says that) - it's "and
+                # this specific fight is a beating even when it goes
+                # your way". Bands mirror threat_tier's own 15/35/65
+                # breakpoints so the sentence never disagrees with the
+                # "Threat: X" line already on the card. Below 65% the
+                # message is fp-led (a bad-odds fight is a beating
+                # whether or not you happen to win it - the sweep in
+                # docs/COMBAT_INFO_SPEC.md shows p90-given-a-win climbs
+                # sharply as fp drops, e.g. a 41%-to-win fight still
+                # costs ~98% of max HP in its worst wins); at 65%+ the
+                # existing win-but-costly check decides.
+                if fp < 15:
+                    self.io.say("  This fight is likely to be fatal.")
+                elif fp < 35:
+                    self.io.say("  This fight is likely to leave you badly hurt.")
+                elif fp < 65:
+                    self.io.say("  This fight will probably cost you significant health.")
+                elif oc["p90_frac"] is not None and oc["p90_frac"] >= 0.45:
                     self.io.say("  You'll probably win this - but expect to be "
                                 "near death by the end.")
                 # P1-a companion (spec §3.2): the old flat "if the escape fails

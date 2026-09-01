@@ -927,6 +927,14 @@ class WorldMixin:
 
         self.tile_event_cooldowns[self.current_position] = self.day + 3
 
+    def _discoverable_line(self, key, default):
+        """The pickup line for a one-time discoverable (`waders`,
+        `flashlight`). `world.prose["discoverables"][key]` overrides the
+        valley default so a ship names its own kit. See daycycle.py for
+        the same split applied to the day/night dressing."""
+        prose = (getattr(self.world, "prose", None) or {}).get("discoverables", {})
+        return prose.get(key, default)
+
     def find_loot(self):
         current_tile = self.map[self.current_position[1]][self.current_position[0]]
         terrain = current_tile.get('terrain') if isinstance(current_tile, dict) else None
@@ -974,7 +982,12 @@ class WorldMixin:
             # raises `find_chance` (above) - it just no longer biases
             # *what* you find toward weapons.
 
-            self.io.say(f"You found {loot_type}!")
+            # map / flashlight / waders carry their own full pickup line
+            # (and their own world vocabulary) - the bare "You found
+            # <internal key>!" ahead of it is both redundant and, for a
+            # non-valley world, a leak ("You found waders!" on a ship).
+            if loot_type not in ("map", "flashlight", "waders"):
+                self.io.say(f"You found {loot_type}!")
             self.award_xp(10)
 
             if loot_type == "weapon":
@@ -1049,13 +1062,16 @@ class WorldMixin:
             elif loot_type == "flashlight":
                 self.has_flashlight = True
                 self._update_time(0)  # refresh visibility_radius immediately, without advancing time
-                self.io.say(
+                # F.11-class: "flashlight" and "waders" are valley kit.
+                # The mechanic (visibility / move-cost relief) is the
+                # engine's; the item's name + line is the world's.
+                self.io.say(self._discoverable_line(
+                    "flashlight",
                     "You found a working flashlight! Visibility at "
-                    "dawn, dusk, and night is now much better."
-                )
+                    "dawn, dusk, and night is now much better."))
             elif loot_type == 'waders':
                 self.has_waders = True
-                self.io.say(
-                    'You found a sturdy pair of waders! Water and swamp '
-                    'terrain no longer slow you down as much.'
-                )
+                self.io.say(self._discoverable_line(
+                    "waders",
+                    "You found a sturdy pair of waders! Water and swamp "
+                    "terrain no longer slow you down as much."))

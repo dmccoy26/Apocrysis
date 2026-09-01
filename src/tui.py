@@ -176,8 +176,7 @@ class TextualIO:
         self._answers.put(text)
 
 
-_PHASE_GLYPH = {"day": "☀", "night": "☾", "dusk": "◐", "dawn": "☼"}
-_PHASE_COLOR = {"day": "yellow", "night": "blue", "dusk": "#d08a3c", "dawn": "#d08a3c"}
+from src.daycycle import phase_label as _phase_label, phase_glyph as _phase_glyph, phase_color as _phase_color
 _HDR = "bold grey70"          # section headers
 _DIM = "grey50"
 
@@ -873,8 +872,8 @@ class GameScreen(Screen):
         _help = "arrows move · type a command + Enter · ? for help"
         _sub = "  ·  ".join(x for x in (_z, _slow) if x)
         tail = f"{_sub}   —   {_help}" if _sub else _help
-        w.update(f"[b]{loc}[/b]   [{_PHASE_COLOR.get(phase, _DIM)}]"
-                 f"{_PHASE_GLYPH.get(phase, '·')} {phase.upper()} {clk}[/]\n[dim]{tail}[/dim]")
+        w.update(f"[b]{loc}[/b]   [{_phase_color(p.world, phase)}]"
+                 f"{_phase_glyph(p.world, phase)} {_phase_label(p.world, phase).upper()} {clk}[/]\n[dim]{tail}[/dim]")
 
     def _new_player(self):
         # Shared by on_mount() (first launch, main thread) and
@@ -1323,8 +1322,8 @@ class GameScreen(Screen):
 
         stats_widget = self.query_one("#stats_text", Static)
         phase = getattr(p, "day_phase", "night" if p.is_night else "day")
-        glyph = _PHASE_GLYPH.get(phase, "·")
-        pcol = _PHASE_COLOR.get(phase, _DIM)
+        glyph = _phase_glyph(p.world, phase)
+        pcol = _phase_color(p.world, phase)
         clock = f"{p.time_of_day // 60:02d}:{p.time_of_day % 60:02d}"
 
         w_cap = getattr(p.backpack, "MAX_WEAPONS", len(p.backpack.weapons))
@@ -1371,7 +1370,7 @@ class GameScreen(Screen):
             f"[{_DIM}]Level {p.level} · XP {p.xp}/{p.max_xp}[/]",
             f"[{_HDR}]EXPEDITION {_exp_n} / {_campaign_length}[/]"
             + (f"   [{_DIM}]CH{_ch} — {_ch_title}[/]" if _ch_title else ""),
-            f"[{pcol}]{glyph} {phase.upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
+            f"[{pcol}]{glyph} {_phase_label(p.world, phase).upper()}[/]   [{_DIM}]Day {p.day} · {clock} · "
             f"Turn {getattr(p, 'turns', 0)}[/]{_vis_note}",
             f"[{_DIM}]Map {_exp_n} · {p.map_size}×{p.map_size}"
             + (f" · walked {_mi:.1f} mi" if _mi else "") + "[/]",

@@ -44,7 +44,11 @@ _PLACE_LEAKS = ("valley", "ranger station", "forestry", "hydro station",
                 "forest", "wade through water", "the far bank",
                 "the current takes you", "swim for it", "mountains rise",
                 "cross the mountain", "cross the river", "dense forest",
-                "off the ridge", "back to the pass")
+                "off the ridge", "back to the pass",
+                # F.11-class - one-time discoverables + day/night dressing.
+                # A ship has no waders and no sunrise.
+                "waders", "water and swamp", "working flashlight",
+                "you found map", "you found flashlight", "you found waders")
 
 # World-1 COMBAT prose - "the infected" is hardcoded in combat_mixin's
 # battle lines. Reported separately (it's the deferred sweep's scope,

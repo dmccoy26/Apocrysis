@@ -38,6 +38,22 @@ THE_WAKE = World(
                      "Every section, passage, and compartment is on it now - "
                      "including the ones the working schematics leave blank. "
                      "It won't tell you what's moving in them."),
+        # F.11-class: the one-time discoverables. Engine keeps the
+        # mechanic (visibility relief / move-cost relief on the vac +
+        # grav-out roles); the ship names its own kit.
+        "discoverables": {
+            "flashlight": "You found a working hand lamp! The dark stretches "
+                          "are much easier to move through now.",
+            "waders": "You found a sealed hardsuit! Breaches and grav-out "
+                      "sections no longer slow you down as much.",
+        },
+        # The ship has no sky - it keeps a clock and a lighting
+        # schedule. Same four internal phase roles, ship words.
+        "day_cycle": {
+            "labels": {"day": "ship day", "night": "ship night",
+                       "dawn": "lights up", "dusk": "lights down"},
+            "glyphs": {"day": "○", "night": "●", "dawn": "◔", "dusk": "◑"},
+        },
         # same keys as the engine's _ABANDONMENT_FLAVOUR (a per-tile RNG
         # draw); ship text.
         "abandonment_flavour": {

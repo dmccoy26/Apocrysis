@@ -200,7 +200,9 @@ class UIMixin:
                 hour = self.time_of_day // 60
                 minute = self.time_of_day % 60
                 time_str = f"{hour:02d}:{minute:02d}"
-                day_night = getattr(self, "day_phase", "night" if self.is_night else "day").title()
+                from src.daycycle import phase_label as _phase_label
+                _phase = getattr(self, "day_phase", "night" if self.is_night else "day")
+                day_night = _phase_label(self.world, _phase).title()
 
                 right_lines.append(f"Day {self.day}  {time_str}  {day_night}   Turn {getattr(self, 'turns', 0)}")
                 right_lines.append("--- Player Stats ---")

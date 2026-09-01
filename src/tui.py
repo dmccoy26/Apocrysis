@@ -1416,6 +1416,16 @@ class GameScreen(Screen):
         elif _next:
             lines += ["", "[b #d8b84a]▸ THIS RUN[/]", f"  [#d8b84a]{_next}[/]"]
 
+        # The spatial spine's long-term purpose (WAKE_SPINE §5.5), below
+        # THIS RUN. World-owned - None for a world without a spine.
+        try:
+            from src.sections import campaign_objective_line
+            _camp = campaign_objective_line(p)
+        except Exception:
+            _camp = None
+        if _camp:
+            lines += ["", "[b #7fb0d8]▸ CAMPAIGN[/]", f"  [#7fb0d8]{_camp}[/]"]
+
         lines += ["", f"[{_HDR}]EQUIPMENT[/]", eq_line]
         worn = [_fmt_gear(pc, equipped=True).replace("  ", f"  [{_DIM}]{slot}[/] ", 1)
                 for slot, pc in p.equipped_armor.items() if pc]

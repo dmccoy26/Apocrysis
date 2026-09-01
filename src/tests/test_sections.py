@@ -9,7 +9,7 @@ import unittest
 from src.worlds import get_world
 from src.sections import (
     section_index_for, section_name_for, section_archetype_for,
-    sections_ahead, section_count, has_spine,
+    sections_ahead, section_count, has_spine, campaign_objective_line,
 )
 
 WAKE = get_world("the_wake")
@@ -65,6 +65,49 @@ class TestWakeSpine(unittest.TestCase):
     def test_first_and_last_sections_read_bridge_and_engineering(self):
         self.assertEqual(section_name_for(0, WAKE), "BRIDGE")
         self.assertEqual(section_name_for(24, WAKE), "MAIN ENGINEERING")
+
+
+class TestCampaignObjectiveLine(unittest.TestCase):
+    def _game(self, exp):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        return Apocrysis("W", seed=exp + 1, io=_IO(), world="the_wake",
+                         expeditions_completed=exp)
+
+    def tearDown(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+
+    def test_hidden_until_the_gate_milestone_is_known(self):
+        g = self._game(3)
+        self.assertIsNone(campaign_objective_line(g))
+        g.world_investigation.mark_known("SECTIONS_SEALED")
+        self.assertEqual(campaign_objective_line(g),
+                         "REACH MAIN ENGINEERING · 5 SECTIONS AHEAD")
+
+    def test_counts_down_and_arrives(self):
+        g = self._game(3)
+        g.world_investigation.mark_known("SECTIONS_SEALED")
+        self.assertIn("5 SECTIONS AHEAD", campaign_objective_line(g))
+        g2 = self._game(22)
+        g2.world_investigation.mark_known("SECTIONS_SEALED")
+        self.assertEqual(campaign_objective_line(g2),
+                         "MAIN ENGINEERING - THE REACTOR IS HERE")
+
+    def test_never_shows_a_bearing(self):
+        g = self._game(10)
+        g.world_investigation.mark_known("SECTIONS_SEALED")
+        words = set(campaign_objective_line(g).lower().replace("·", " ").split())
+        for bearing in ("north", "south", "east", "west", "northeast",
+                        "ne", "nw", "se", "sw", "bearing"):
+            self.assertNotIn(bearing, words)
+
+    def test_none_for_the_silence(self):
+        from src.game import Apocrysis
+        Apocrysis.reset_campaign_state()
+        g = Apocrysis("S", seed=1, io=_IO())
+        self.assertIsNone(campaign_objective_line(g))
+        Apocrysis.reset_campaign_state()
 
 
 class TestChaptersRespacedToSectionStarts(unittest.TestCase):

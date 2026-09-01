@@ -34,6 +34,19 @@ THE_WAKE = World(
         "region_edge": "outer hull",
         "region_noun": "the ship",
         "hostile_noun": "the changed",       # round-by-round combat text
+        # The spatial spine's CAMPAIGN objective line (WAKE_SPINE §5.5):
+        # the long-term purpose, shown once the ship's shape is
+        # understood (SECTIONS_SEALED, ~level 3) and updated each
+        # section. No bearing - "N sections ahead" is honest progress,
+        # a compass claim across freshly-generated sections would be a
+        # lie. World-owned: a world without this block shows no line.
+        "campaign_objective": {
+            "revealed_when": "SECTIONS_SEALED",
+            "goal": "REACH MAIN ENGINEERING",
+            "arrived": "MAIN ENGINEERING - THE REACTOR IS HERE",
+            "ahead_one": "1 SECTION AHEAD",
+            "ahead_many": "{n} SECTIONS AHEAD",
+        },
         "map_item": ("a full deck-plan of the ship",
                      "Every section, passage, and compartment is on it now - "
                      "including the ones the working schematics leave blank. "

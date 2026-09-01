@@ -877,10 +877,12 @@ class WorldMixin:
         # WAKE_SPINE §5 / F.9 pass 2: an ENCOUNTER crossing has an
         # authored person/scene on the walk that carries this level's
         # WorldFact. Reaching it fires the beat and establishes the fact.
+        _beat_fired_now = False
         if (_beat is not None and self.current_position == _beat
                 and not getattr(self, '_encounter_beat_seen', False)):
             self._encounter_beat_seen = True
             self._show_encounter_beat()   # the scene now; the fact lands on win
+            _beat_fired_now = True
 
         # WAKE_SPINE_INVESTIGATION.md §5: a scheduled section crossing -
         # no mystery, no settlement win, just reach the far-wall exit.
@@ -947,9 +949,13 @@ class WorldMixin:
                 # block of letters).
                 if not self.settlement_explored:
                     self.settlement_explored = True
-                    self.io.say(self._places(
-                        "settlement_found",
-                        "You've found a settlement - it's worth exploring before moving on."))
+                    # on an encounter crossing the real "held section" is
+                    # the authored beat - don't also announce a generated
+                    # settlement tile as one to go explore.
+                    if getattr(self, '_encounter_beat', None) is None:
+                        self.io.say(self._places(
+                            "settlement_found",
+                            "You've found a settlement - it's worth exploring before moving on."))
                 district = current_tile.get('district')
                 # Only when it changes - not on every tile of the same
                 # district (playtest: repeated identical lines).
@@ -1022,6 +1028,14 @@ class WorldMixin:
         if self.current_position in self.tile_event_cooldowns and self.day < self.tile_event_cooldowns[self.current_position]:
             return
 
+        # The scripted encounter beat IS this tile's event this turn -
+        # don't also roll a wandering Changed on top of the survivor /
+        # the scene. (A zombie already standing on the tile still
+        # fights - but the beat tile is on the protected corridor.)
+        if _beat_fired_now and not isinstance(current_tile, Zombie):
+            self.tile_event_cooldowns[self.current_position] = self.day + 3
+            return
+
         encounter_chance = ENCOUNTER_CHANCE_NIGHT if self.is_night else ENCOUNTER_CHANCE_DAY
 
         # Forest increases encounter rate
@@ -1067,13 +1081,18 @@ class WorldMixin:
 
     def _encounter_beat_prose(self):
         """The authored person / scene lines for an encounter crossing,
-        keyed by the section it's in (BRIDGE / CREW SECTION / ...).
-        World-owned - The Silence has no encounter levels."""
-        from src.sections import section_name_for
+        keyed by the WorldFact the DAG selected for this level - so the
+        scene can never canonically assert a fact other than the one
+        being established. If the DAG hands a fact with no authored beat
+        (a slip), fall back to the generic 'encounter' scene line and
+        let the milestone banner carry the fact. World-owned."""
         beats = self._section_levels_prose().get("encounter_beats") or {}
-        key = section_name_for(getattr(self, "expeditions_completed", 0), self.world)
-        entry = beats.get(key) or {}
-        return entry.get("lines", []), entry.get("marker", "someone is here")
+        entry = beats.get(getattr(self, "_encounter_fact", None)) or {}
+        if entry:
+            return entry.get("lines", []), entry.get("marker", "someone is here")
+        _generic = self._section_levels_prose().get("encounter")
+        _line = _generic[0] if isinstance(_generic, (list, tuple)) else ""
+        return ([_line] if _line else []), "someone made it this far"
 
     def _show_encounter_beat(self):
         """Play the authored person / scene. The WorldFact it carries is

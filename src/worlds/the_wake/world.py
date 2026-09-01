@@ -66,12 +66,16 @@ THE_WAKE = World(
             "reached": "reach the section boundary and cross into the next",
             # F.9 pass 2: an ENCOUNTER crossing delivers its WorldFact
             # through a person / a scene on the walk, not a console.
-            # Keyed by section. `lines` are said on reaching the beat
-            # tile, then the DAG fact establishes; `marker` is the
-            # one-line "what's ahead" for the opening objective. DRAFT
-            # PROSE - for review after the mechanical implementation.
+            # KEYED BY THE FACT ID the DAG selects for that level, so the
+            # scene can never assert a different fact than the one it
+            # establishes. `lines` play on reaching the beat; the fact
+            # (+ its milestone / correction banner) lands on completion.
+            # DRAFT PROSE - review pending the 2nd F.9 read.
             "encounter_beats": {
-                "CRYO / MEDICAL": {
+                # L8 - THE_CHANGED: the Changed stop being something you
+                # found in the dark and become crew, told by one who
+                # lived through the change starting.
+                "THE_CHANGED": {
                     "marker": "someone in there is still alive",
                     "lines": (
                         "There's a light on in the compartment ahead - "
@@ -83,39 +87,57 @@ THE_WAKE = World(
                         "\"You came from forward.\" Not a question. She looks "
                         "you over again. \"Forward's clear enough to walk. "
                         "God. We'd stopped thinking anyone was.\"",
-                        "She talks while you catch your breath - low and "
-                        "fast, everything she's worked out holed up in here "
-                        "listening to the ship through the walls. By the "
-                        "time you move on, you know something you didn't.",
+                        "She talks low and fast while you catch your breath - "
+                        "then she tells you what happened to the ones who "
+                        "didn't make it this far.",
+                        "\"They changed before they died. Not all at once. "
+                        "First they stopped knowing us. Then they started "
+                        "coming after us.\" Her hand tightens on the pipe. "
+                        "\"That's what you've been fighting. That's the "
+                        "crew.\"",
                     ),
                 },
-                "OFFICER / RECORDS": {
+                # L17 - ONE_AUTHORIZATION: one signature on all of it,
+                # one officer, alone. NOT the reasoning (L18) and NOT
+                # that it was deliberate containment (L19) - only the
+                # single hand behind everything. The dead officer is a
+                # witness who got here first, not the one who did it.
+                "ONE_AUTHORIZATION": {
                     "marker": "there's someone at the records console",
                     "lines": (
                         "The records office door is wedged half open. The "
                         "screens inside are still lit.",
-                        "Someone is in the chair. Has been a long time. A "
-                        "section officer's coat, the seat turned to face the "
-                        "door - they saw who came last, and didn't get up "
-                        "for them either.",
-                        "The screen in front of them is frozen on one open "
-                        "file, the cursor still blinking in it. You read it "
-                        "over their shoulder, all of it, twice.",
+                        "Someone is in the chair, and has been a long time - "
+                        "a section officer's coat, the seat turned to face "
+                        "the door. They pulled the seal logs before the end "
+                        "and were still looking at them when it came.",
+                        "The screen is frozen on what they found: every "
+                        "deck-seal command on the ship, the nav hold, the "
+                        "comms cut - and one authorization signature under "
+                        "all of them. The same hand, every time.",
+                        "One person did this. Closed the ship up, section by "
+                        "section, alone. This officer worked that out too, "
+                        "and stayed in the chair with it.",
                     ),
                 },
-                "MAIN ENGINEERING": {
+                # L24 - SURVIVORS_ON_A_CLOCK: nothing explains the clock.
+                # The player observes it and does the inference.
+                "SURVIVORS_ON_A_CLOCK": {
                     "marker": "the last held section is on the way",
                     "lines": (
                         "The passage opens onto the last held section - "
-                        "right up against engineering. Blankets, water cans, "
-                        "a camp stove. People.",
-                        "They're rationing the light. One of them has been "
-                        "working a hand-crank charger in the corner for "
-                        "hours, by the state of their arm.",
-                        "Nobody asks who you are. One of them just points - "
-                        "at the thermometer on the bulkhead, then at the "
-                        "line marked on the water tank, then at the door to "
-                        "engineering.",
+                        "right up against engineering. Blankets. Water cans. "
+                        "A camp stove. People.",
+                        "They've been living this for days: the light "
+                        "rationed, a hand-crank charger going in the corner, "
+                        "the person on it not stopping when you come in.",
+                        "Nobody asks who you are. One of them just looks from "
+                        "the thermometer on the bulkhead, to the line marked "
+                        "on the water tank, to the door to engineering, and "
+                        "back to you.",
+                        "The temperature is still falling. The water is still "
+                        "going down. The reactor is still cold behind that "
+                        "door. They don't need to explain it.",
                         "You do the arithmetic they finished days ago.",
                     ),
                 },

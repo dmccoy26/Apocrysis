@@ -278,7 +278,7 @@ def weapon_verdict(win_pct, cost_frac=None):
     if win_pct < 35:
         return "poorly suited to this target"
     if win_pct < 65:
-        return "a real gamble with this weapon"
+        return "a real gamble against this one"
     if cost_frac < 0.15:
         return "overkill for this target"
     if cost_frac < 0.35:

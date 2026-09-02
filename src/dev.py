@@ -17,21 +17,38 @@ from collections import namedtuple
 from src.runtime_paths import dev_profile_path
 from src.worlds import get_world
 
-# `--dev` is a World-1 story-inspection harness by nature.
+# Back-compat re-exports (this harness began as World-1-only).
 _WORLD = get_world("silence")
 SILENCE = _WORLD
-_CHAPTER_BOUNDS = _WORLD.manifest.chapter_bounds
-CHAPTER_TITLES = _WORLD.manifest.chapter_titles
 
-DevConfig = namedtuple("DevConfig", "seed chapter finale")
+# DevConfig gained `world` + `expedition` when the harness went
+# multi-world (2026-09-02). `world` defaults to silence so every old
+# `--dev` command still resolves; `expedition` (1-based level number)
+# overrides `chapter` for a finer drop-in.
+DevConfig = namedtuple("DevConfig", "seed chapter finale world expedition")
+DevConfig.__new__.__defaults__ = (None, False, "silence", None)
 
 # The `--dev` sandbox profile - wiped each run (reset_sandbox), never a
 # real campaign file. Lives under the runtime-data root like everything
 # else Apocrysis writes. Call dev_profile_path() (re-exported here) at
 # use time so an APOCRYSIS_HOME override is always honoured.
 
-# The finale expedition establishes these itself - never pre-mark them.
-_FINALE_FACTS = {"RESP_THE_ORDER", "RESP_THE_CHOICE"}
+
+def _dev_world(cfg):
+    return get_world(getattr(cfg, "world", None) or "silence")
+
+
+def _finale_facts(world):
+    """Facts the finale expedition establishes itself - never pre-mark
+    them. The converge fact plus whatever the finale also_establishes."""
+    fin = getattr(world, "finale", None)
+    if fin is None:
+        return set()
+    out = set(getattr(fin, "also_establishes", ()) or ())
+    cf = getattr(fin, "converge_fact", None)
+    if cf:
+        out.add(cf)
+    return out
 
 
 def _dev_level(depth):
@@ -42,33 +59,57 @@ def _dev_level(depth):
 
 def synthetic_state(cfg):
     """(expeditions_completed, world_investigation_status) for a coherent
-    drop-in at the START of the requested chapter (1-6), or the finale.
-    Every WorldFact in an EARLIER chapter is marked known, so
-    next_target() points at the first fact of the requested chapter."""
-    facts = SILENCE.world_facts
-    if cfg.finale:
-        depth = _CHAPTER_BOUNDS[-1]                    # expedition 25
-        known = {f.id for f in facts if f.id not in _FINALE_FACTS}
+    drop-in. Every WorldFact in an EARLIER chapter than the drop-in
+    point is marked known, so next_target() points at the first
+    still-open fact. `--expedition N` (1-based) drops mid-chapter;
+    `--chapter C` drops at that chapter's first expedition; `--finale`
+    drops at the last."""
+    world = _dev_world(cfg)
+    facts = world.world_facts
+    bounds = world.manifest.chapter_bounds
+    n_ch = len(bounds)
+    length = world.manifest.campaign_length
+
+    if getattr(cfg, "expedition", None):
+        depth = max(0, min(length - 1, int(cfg.expedition) - 1))
+        # the chapter this expedition falls in
+        ch = 1
+        for i, lo in enumerate(bounds):
+            if depth >= lo:
+                ch = i + 1
+        known = {f.id for f in facts if f.chapter < ch}
+    elif cfg.finale:
+        depth = length - 1                      # the LAST expedition, not the last chapter
+        known = {f.id for f in facts if f.id not in _finale_facts(world)}
     else:
-        ch = max(1, min(6, cfg.chapter or 1))
-        depth = _CHAPTER_BOUNDS[ch - 1]
+        ch = max(1, min(n_ch, cfg.chapter or 1))
+        depth = bounds[ch - 1]
         known = {f.id for f in facts if f.chapter < ch}
     return depth, {fid: "known" for fid in known}
 
 
 def entry_label(cfg):
+    world = _dev_world(cfg)
+    titles = world.manifest.chapter_titles
+    length = world.manifest.campaign_length
+    if getattr(cfg, "expedition", None):
+        n = max(1, min(length, int(cfg.expedition)))
+        return f"expedition {n} of {length}"
     if cfg.finale:
-        return "the finale (expedition 25) - THE TRUTH"
-    ch = max(1, min(6, cfg.chapter or 1))
-    return f"Chapter {ch} - {CHAPTER_TITLES[ch - 1]}"
+        return f"the finale (expedition {length}) - THE TRUTH"
+    ch = max(1, min(len(titles) or 1, cfg.chapter or 1))
+    t = titles[ch - 1] if ch - 1 < len(titles) else ""
+    return f"Chapter {ch} - {t}"
 
 
 def banner(cfg, depth):
+    world = _dev_world(cfg)
     return (
         "\n==================== DEV PLAYTEST ====================\n"
+        f" World:          {world.manifest.title}  ({world.id})\n"
         f" Seed:           {cfg.seed}\n"
         f" Entry:          {entry_label(cfg)}\n"
-        f" Expedition:     {depth + 1} of 25\n"
+        f" Expedition:     {depth + 1} of {world.manifest.campaign_length}\n"
         " Campaign state: SYNTHETIC (sandboxed - no real profile touched)\n"
         f" Survivor:       L{_dev_level(depth)} + depth-appropriate gear "
         "(what a real run produces)\n"
@@ -95,8 +136,14 @@ def equip_for_depth(player, depth):
     are untouched. Without this, a fresh L1 body can't survive the
     depth-N difficulty curve long enough to reach any story content
     (playtest 2026-08-30: CH3 jump-in died turn 32, zero sites)."""
-    from src.constants import LOOT_WEAPON_TABLE, ARMOR_TABLE
+    from src import loot as _loot
     from src.items import MeleeWeapon, RangedWeapon, Armor
+
+    # world-owned loot tables (F.10) - so a dev drop into The Wake comes
+    # in with ship kit, not valley weapon names.
+    _world = getattr(player, "world", None)
+    LOOT_WEAPON_TABLE = _loot.weapon_table(_world)
+    ARMOR_TABLE = _loot.armor_table(_world)
 
     lvl = _dev_level(depth)
     bump = lvl - player.level
@@ -133,3 +180,16 @@ def equip_for_depth(player, depth):
     player.backpack.food = max(player.backpack.food, 40 + depth)
     player.backpack.water = max(player.backpack.water, 40 + depth)
     player.backpack.ammo = max(player.backpack.ammo, 30)
+
+    # Persistent kit a real survivor at this depth would already hold -
+    # so a mid-campaign drop-in isn't missing the one-time discoverables.
+    # Presentation state only; no balance number moves.
+    if depth >= 2:
+        player.has_flashlight = True
+    _mf = getattr(_world, "manifest", None)
+    if _mf is not None and getattr(_mf, "markers_need_device", False):
+        # H1: the tactical helmet is the first `discovery` crossing.
+        _lts = getattr(_mf, "level_types", ()) or ()
+        _first_disc = next((i for i, t in enumerate(_lts) if t == "discovery"), None)
+        if _first_disc is not None and depth > _first_disc:
+            player.has_scanner = True

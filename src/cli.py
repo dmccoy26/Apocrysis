@@ -65,7 +65,8 @@ def _dev_main(start_log=False, dev=None):
         Apocrysis._world_investigation = dict(wi_status)
         Apocrysis._survivor_knowledge = []
         player = Apocrysis("Dev", level=1, seed=dev.seed, hardcore=False,
-                           expeditions_completed=depth, io=None)
+                           expeditions_completed=depth, io=None,
+                           world=dev.world)
         equip_for_depth(player, depth)
         from src.campaign import chapter_intro
         _ms = len(player.world_investigation.milestones_known())
@@ -84,7 +85,8 @@ def _dev_main(start_log=False, dev=None):
             # on, so the section is still playable through a death.
             Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
             Apocrysis.persist_new_survivor(
-                _dev_profile, "Dev", False, player.expeditions_completed)
+                _dev_profile, "Dev", False, player.expeditions_completed,
+                world_id=player.world.id)
             wi_status = dict(Apocrysis._world_investigation)
             depth = player.expeditions_completed
             print("\n(dev: survivor lost - a fresh one takes up the same point)\n")

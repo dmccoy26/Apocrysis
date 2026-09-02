@@ -33,14 +33,19 @@ if __name__ == "__main__":
                              "MAP_REALISM_SPEC, experimental)")
     parser.add_argument("--dev", action="store_true",
                         help="Story-inspection harness: drop into a chosen "
-                             "chapter with synthetic (sandboxed) campaign "
-                             "state. See docs/DEV_PLAYTEST.md.")
+                             "chapter / expedition with synthetic (sandboxed) "
+                             "campaign state. See docs/DEV_PLAYTEST.md.")
     parser.add_argument("--seed", type=int, default=12345,
                         help="(--dev) deterministic seed")
+    parser.add_argument("--world", default="silence",
+                        help="(--dev) which world to inspect (default silence)")
     parser.add_argument("--chapter", type=int, choices=range(1, 7),
                         help="(--dev) drop in at the start of this chapter (1-6)")
+    parser.add_argument("--expedition", type=int,
+                        help="(--dev) drop in at this expedition / level number "
+                             "(1-based, e.g. --expedition 13). Overrides --chapter.")
     parser.add_argument("--finale", action="store_true",
-                        help="(--dev) drop into the finale (expedition 25)")
+                        help="(--dev) drop into the finale (last expedition)")
     args = parser.parse_args()
 
     from src.game import Apocrysis
@@ -49,9 +54,13 @@ if __name__ == "__main__":
     dev_cfg = None
     if args.dev:
         from src.dev import DevConfig
-        dev_cfg = DevConfig(seed=args.seed,
-                            chapter=args.chapter or (None if args.finale else 3),
-                            finale=args.finale)
+        dev_cfg = DevConfig(
+            seed=args.seed,
+            chapter=args.chapter or (None if (args.finale or args.expedition) else 3),
+            finale=args.finale,
+            world=args.world,
+            expedition=args.expedition,
+        )
 
     # Logging is on by default for interactive play (feel-tests /
     # playtests need the transcript); --no-log opts out.

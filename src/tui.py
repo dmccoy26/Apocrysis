@@ -930,7 +930,7 @@ class GameScreen(Screen):
             self._last_load_was_profile = False
             _p = Apocrysis("Dev", level=1, seed=self._dev.seed,
                            hardcore=False, expeditions_completed=depth,
-                           io=self.io)
+                           io=self.io, world=self._dev.world)
             from src.dev import equip_for_depth
             equip_for_depth(_p, depth)
             _p._return_to_menu_hook = self._worker_return_to_menu
@@ -997,7 +997,8 @@ class GameScreen(Screen):
             if p.health <= 0:
                 Apocrysis._survivors_lost = int(getattr(Apocrysis, "_survivors_lost", 0)) + 1
                 Apocrysis.persist_new_survivor(_dev_profile, "Dev", False,
-                                               p.expeditions_completed)
+                                               p.expeditions_completed,
+                                               world_id=p.world.id)
             else:
                 p.save_profile(_dev_profile)
             return

@@ -6,8 +6,9 @@ listing it in WORLDS - no engine change.
 """
 from src.worlds.silence import SILENCE
 from src.worlds.the_wake import THE_WAKE
+from src.worlds.the_deep import THE_DEEP
 
-WORLDS = {w.id: w for w in (SILENCE, THE_WAKE)}
+WORLDS = {w.id: w for w in (SILENCE, THE_WAKE, THE_DEEP)}
 
 DEFAULT_WORLD_ID = SILENCE.id
 

@@ -24,7 +24,11 @@ def _r(fid, *mechs):
 
 DISCOVERY_TEMPLATES = dict([
     # CH1 - THE WAKE
-    _r("WAKE_ALONE", "mountain_pass"),              # a locked bay, find the access card
+    # Three routes off the pod bay so expedition 1 isn't the same map
+    # every campaign (no `_last_family` to vary against on a fresh run):
+    # the ladderway (find the access card), the maintenance crawlway
+    # (find the panel key), the cargo rail (cut through the fall).
+    _r("WAKE_ALONE", "mountain_pass", "service_route", "rail_tunnel"),
     _r("POWER_PARTITIONED", "power_station", "dam_valves"),
     _r("NAV_ON_HOLD", "radio_tower"),               # a nav console reads you the held command
     _r("SECTIONS_SEALED", "service_route", "rail_tunnel"),

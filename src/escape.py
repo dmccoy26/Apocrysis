@@ -1058,8 +1058,12 @@ def build_mystery(game, target_fact=None):
         Evidence('E_require_a', spec["require"], supports=['F_REQUIRE'],
                  location='route', method='search'),
         Evidence('E_require_b',
-                 (f"A bank of controls: {', '.join(spec['controls'])}. "
+                 (f"A bank of controls: "
+                  + ", ".join(f"[{_i + 1}] {_c}"
+                              for _i, _c in enumerate(spec['controls']))
+                  + ".  "
                   + spec.get('controls_prompt', "One of them opens the way - but which?")
+                  + "  (try `pull 1`)"
                   if spec.get('controls')
                   else spec.get('require_ev') or f"You find the {spec['item']} here."),
                  supports=['F_REQUIRE'], location='require', method='search'),

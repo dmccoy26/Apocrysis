@@ -454,9 +454,15 @@ class MysteryMixin:
                     # `escape` works from wherever you are now. A kid
                     # walked to the map marker and died one tile short
                     # (playtest) - say it loud, say you don't travel.
+                    _mf = getattr(self.world, 'manifest', None)
+                    _transit = bool(_mf is not None and getattr(_mf, 'map_transit', False))
                     if MECHANISMS.get(m.mechanism, {}).get('reveals_route'):
                         body = ("The way's been found for you - you do NOT have to "
                                 "reach it yourself. Type `escape` right now and you're out.")
+                    elif _transit:
+                        # the exit is the far wall; crossing IS the level
+                        body = ("The way through is open. Get to it - it's "
+                                "marked - and `escape`.")
                     else:
                         body = ("The way's open and you know it leads out. Type `escape` "
                                 "from here - no need to walk back to it.")
@@ -601,7 +607,10 @@ class MysteryMixin:
             elif role == 'require' and _fix_done and m.requirement_item:
                 self.io.say("  Nothing more to take here - you've already got what this place had.")
             if m.controls and role == 'require' and not m.obstacle_open:
-                self.io.say("  Work them one at a time - pull <name> and see what each does.")
+                self.io.say("  " + ", ".join(f"[{_i + 1}] {_c}"
+                                             for _i, _c in enumerate(m.controls))
+                            + ".  Work them one at a time - `pull 1`, `pull 2`, "
+                            "and see what each does.")
             elif m.power_role and role == 'power' and not m.power_restored and not self._mystery_has_item():
                 self.io.say(f"  The generator needs the {m.requirement_item} - it is kept at {m.site_labels.get('require', 'the store')}.")
 
@@ -742,11 +751,20 @@ class MysteryMixin:
             self.io.say("The controls for that are back at the control room.")
             return
         arg = (arg or "").strip().lower()
-        match = next((c for c in m.controls
-                      if arg and (arg in c.lower() or c.lower() in arg)), None)
+        # `pull 2` - the numbered shortcut. The control names ("the deck
+        # isolation control") are long and easy to mistype (playtest:
+        # "desk insulator"); the bank is shown numbered everywhere it's
+        # listed. Name matching still works.
+        if arg.isdigit() and 1 <= int(arg) <= len(m.controls):
+            match = m.controls[int(arg) - 1]
+        else:
+            match = next((c for c in m.controls
+                          if arg and (arg in c.lower() or c.lower() in arg)), None)
         if match is None:
-            self.io.say("The controls here: " + ", ".join(m.controls)
-                        + ".  (try `pull <name>`)")
+            self.io.say("The controls here: "
+                        + ", ".join(f"[{i + 1}] {c}"
+                                    for i, c in enumerate(m.controls))
+                        + ".  (try `pull 1`)")
             return
         if m.obstacle_open:
             self.io.say("The water's already down. No need to touch anything else.")
@@ -841,8 +859,22 @@ class MysteryMixin:
         # go." Playtest: solved the whole mystery, then starved on the
         # trek back to the exit tile. The investigation is the game;
         # the walk back is not.
-        if not on_tile and not (confirmed and _open):
+        #
+        # EXCEPT on a map_transit world (The Wake / The Deep): there the
+        # exit is the FAR wall and crossing the map IS the level (the
+        # spine). Solving a mystery near spawn and `escape`-ing straight
+        # to the far exit would skip the authored traverse. A reveals_
+        # route mechanism still lets you follow the given route from
+        # anywhere - the route is handed to you, not walked to.
+        _mf = getattr(self.world, 'manifest', None)
+        _transit = bool(_mf is not None and getattr(_mf, 'map_transit', False))
+        _reveals = bool(MECHANISMS.get(m.mechanism, {}).get('reveals_route'))
+        _skip_ok = confirmed and _open and not (_transit and not _reveals)
+        if not on_tile and not _skip_ok:
             self.io.say(
+                "You're not at the way through yet - and on a crossing "
+                "like this there's no shortcut to it. Get to it."
+                if (_transit and not _reveals) else
                 "You're not anywhere you could leave from. If there's a "
                 "way out you haven't reached it yet."
             )

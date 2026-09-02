@@ -67,6 +67,31 @@ class TestTransitLayout(unittest.TestCase):
                 misses.append((s, e))
         self.assertEqual(misses, [])
 
+    def test_wake_settlement_block_is_a_ship_enclave_not_a_valley_town(self):
+        # H1 read: the T/H/R/S/B town glyphs were The Silence's valley
+        # vocabulary rendered unchanged on a ship deck. The Wake owns
+        # its own block letters (Muster/Hab/Run/Store/Bay) - no 'T'.
+        WAKE = get_world("the_wake")
+        self.assertEqual(WAKE.terrain.settlement_glyphs[0], 'M')
+        seen = set()
+        for seed in range(1, 20):
+            g = Apocrysis("W", seed=seed, io=_IO(), world="the_wake",
+                          expeditions_completed=2)
+            seen |= {t['content'] for row in g.map for t in row
+                     if isinstance(t, dict) and t.get('terrain') == 'town'}
+        self.assertTrue(seen)
+        self.assertNotIn('T', seen)
+        self.assertLessEqual(seen, set('MHRSB'))
+
+    def test_the_silence_settlement_block_is_unchanged(self):
+        seen = set()
+        for seed in range(1, 20):
+            g = Apocrysis("S", seed=seed, io=_IO(), expeditions_completed=3)
+            seen |= {t['content'] for row in g.map for t in row
+                     if isinstance(t, dict) and t.get('terrain') == 'town'}
+        self.assertLessEqual(seen, set('THRSB'))
+        self.assertIn('T', seen)
+
     def test_the_silence_spawn_is_not_forced_to_an_edge(self):
         interior = 0
         for seed in range(1, 25):

@@ -105,6 +105,13 @@ class WorldTerrain:
     # claim about the physical world; it belongs here, not in the
     # engine.
     prose: dict = None
+    # Settlement block glyphs: (centre, *feature letters). The generator
+    # stamps a cluster of these where a settlement stands; the legend
+    # names them. Default = The Silence's valley town (Town centre /
+    # House / Road / Shop / Building). A world on a ship wants its own
+    # (The Wake: Muster / Hab / Run / Store / Bay) so a deck doesn't
+    # render a suburban block.
+    settlement_glyphs: tuple = ('T', 'H', 'R', 'S', 'B')
 
 
 @dataclass(frozen=True)

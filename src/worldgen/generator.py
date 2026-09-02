@@ -40,6 +40,14 @@ class MapGenerator:
         t = getattr(self.g.world, "terrain", None)
         return list(t.generator_terrain_order) if t is not None else list(_DEFAULT_TERRAIN_ORDER)
 
+    @property
+    def _settlement_glyphs(self):
+        """(centre, *feature letters) - world-owned. The Wake is a ship,
+        not a valley town, so it re-letters the block."""
+        t = getattr(self.g.world, "terrain", None)
+        g = getattr(t, "settlement_glyphs", None) if t is not None else None
+        return tuple(g) if g else ('T', 'H', 'R', 'S', 'B')
+
     # ---- zones / terrain -------------------------------------------
 
     def _zone_for_terrain(self, terrain):
@@ -135,7 +143,8 @@ class MapGenerator:
 
     def _generate_settlement(self, top_left, size, is_real):
         g = self.g
-        town_features = ['H', 'R', 'S', 'B']
+        _glyphs = self._settlement_glyphs
+        centre_glyph, town_features = _glyphs[0], list(_glyphs[1:])
         cx = top_left[0] + size // 2
         cy = top_left[1] + size // 2
         max_dist = max(1, size // 2)
@@ -151,7 +160,7 @@ class MapGenerator:
                     continue
 
                 is_center = is_real and (x, y) == (cx, cy)
-                feature = 'T' if is_center else g.rng.choice(town_features)
+                feature = centre_glyph if is_center else g.rng.choice(town_features)
                 district = (
                     "downtown" if dist <= max_dist // 2
                     else "commercial" if dist <= max_dist
@@ -583,7 +592,8 @@ class MapGenerator:
         ):
             tx = min(max(town_center[0], 1), g.map_w - 2)
             ty = min(max(town_center[1], 1), g.map_h - 2)
-            g.map[ty][tx] = {'terrain': 'town', 'content': 'T', 'explored': False}
+            g.map[ty][tx] = {'terrain': 'town', 'content': self._settlement_glyphs[0],
+                             'explored': False}
             town_center = (tx, ty)
 
         g.map_archetype_blurb = _arch['blurb']

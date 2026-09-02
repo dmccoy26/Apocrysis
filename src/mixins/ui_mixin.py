@@ -777,7 +777,9 @@ class UIMixin:
                         # (set by find_loot()'s map item) as the one
                         # deliberate override - a found map reveals
                         # the town regardless of current visibility.
-                        char = tile.get('content') or 'T'
+                        _tw = getattr(self.world, 'terrain', None)
+                        _tc = getattr(_tw, 'settlement_glyphs', None)
+                        char = tile.get('content') or (_tc[0] if _tc else 'T')
                         char = f"{TERRAIN_COLOR['town']}{char}{RESET}"
                     elif in_range:
                         # Show real terrain (forest/water/building/

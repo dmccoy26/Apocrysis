@@ -23,7 +23,7 @@ TERRAIN_SYMBOLS = {
 TERRAIN_LEGEND = (
     "  x = wreckage   ~ = breach (exposed)   o = compartment   . = corridor\n"
     "  # = hull (no way through)   , = driftfield (grav out - slow)\n"
-    "  T/H/R/S/B = enclave (Muster/Hab/Run/Store/Bay)\n"
+    "  M/H/R/S/B = enclave (Muster/Hab/Run/Store/Bay)\n"
     "  P = you   Z = one of the changed (only shown once you've been there)\n"
     "  ? = the helmet detects something here   ! = identified, or reached on foot\n"
     "  + = the way out, now open"
@@ -111,4 +111,6 @@ TERRAIN = WorldTerrain(
     impassable=IMPASSABLE_TERRAIN,
     generator_terrain_order=GENERATOR_TERRAIN_ORDER,
     prose=TERRAIN_PROSE,
+    # a ship's enclave, not a valley town: Muster / Hab / Run / Store / Bay
+    settlement_glyphs=('M', 'H', 'R', 'S', 'B'),
 )

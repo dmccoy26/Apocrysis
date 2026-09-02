@@ -12,8 +12,15 @@ from src.worlds.base import DiscoveryTemplate
 # a story family get a 2nd route of a different family, so A.4.2's
 # variety-aware picker has something to choose (see PHASE_A4_SURFACE.md).
 DISCOVERY_TEMPLATES = {
+    # Expedition 1 is a fresh campaign with no `_last_family` to vary
+    # against, so a single route made every first expedition the same
+    # map. Three "find the physical way out" routes - a pass, a rail
+    # line, a service track - keep the opening legible while giving each
+    # new campaign a different first expedition.
     "DIS_FEW_REMAINS": (
         DiscoveryTemplate("DIS_FEW_REMAINS", "mountain_pass"),
+        DiscoveryTemplate("DIS_FEW_REMAINS", "rail_tunnel"),
+        DiscoveryTemplate("DIS_FEW_REMAINS", "service_route"),
     ),
     "DIS_MOVED_TOGETHER": (
         DiscoveryTemplate("DIS_MOVED_TOGETHER", "rail_tunnel"),

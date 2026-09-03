@@ -147,8 +147,16 @@ class WorldMixin:
         _section_level = _plain_crossing or _encounter_level
         # A plain crossing carries no fact; an encounter crossing DOES -
         # it just delivers it through a person/scene, not a console.
+        _mf0 = getattr(self.world, "manifest", None)
+        _reserved = getattr(_mf0, "beat_carried_facts", frozenset())
         if _wi is not None and not _plain_crossing:
-            _target = _wi.next_target()
+            # a generated mystery must never grab a fact an authored beat
+            # carries (Deep integration); a scene-beat encounter level
+            # overrides with its declared fact just below.
+            _target = _wi.next_target(exclude=_reserved)
+            _bf = (getattr(_mf0, "beat_facts", None) or {}).get(_exp_now)
+            if _bf is not None:
+                _target = _bf
         # E.2: the last expedition is the bespoke finale - it always
         # targets the world's finale.converge_fact (converging the whole
         # investigation), never the random roll.
@@ -235,7 +243,12 @@ class WorldMixin:
                         getattr(self, "expeditions_completed", 0))
                     if _c is not None:
                         self._encounter_contact = _c
-                        self._encounter_fact = _c["fact"]
+                        # a contested-testimony contact names its fact;
+                        # an establishes-only contact (ORLA, the three)
+                        # has none - the crossing still completes on the
+                        # `establishes` in _establish_contact_testimony.
+                        self._encounter_fact = _c.get("fact") or (
+                            _c.get("establishes") or (None,))[0]
                     # kill-test C: this encounter crossing may be the L7
                     # stationed-pair combat beat. No-op unless
                     # world.combat_beat declares this level.
@@ -256,7 +269,7 @@ class WorldMixin:
             if self.section_exit is None:
                 _section_level = _encounter_level = False
                 if _wi is not None:
-                    _target = _wi.next_target()
+                    _target = _wi.next_target(exclude=_reserved)
         for _try in range(_max_map_tries):
             if _section_level:
                 break
@@ -1017,6 +1030,18 @@ class WorldMixin:
                 self._establish_encounter_fact()
             if _pickup is not None and getattr(self, '_discovery_pickup_taken', False):
                 self._grant_discovery_pickup(_pickup[1])
+            # Deep integration: a `discovery` crossing may also carry a
+            # physical reading (the containment layout, L19). Establish
+            # it once its needs are met - it can adjudicate a contested
+            # fact (kill-test B, via _mystery_mark_world_fact).
+            _df = (getattr(getattr(self.world, "manifest", None),
+                           "discovery_facts", None) or {}).get(
+                getattr(self, "expeditions_completed", 0))
+            _wi2 = getattr(self, "world_investigation", None)
+            if (_df and _wi2 is not None and _wi2.fact(_df) is not None
+                    and not _wi2.is_known(_df)
+                    and all(_wi2.is_known(d) for d in _wi2.fact(_df).needs)):
+                self._mystery_mark_world_fact(_df)
             self.finish_expedition(reason=self._section_cross_reason())
             return
 
@@ -1164,12 +1189,27 @@ class WorldMixin:
 
         if isinstance(current_tile, Zombie):
             self.encounter_zombie(current_tile)
+            self._deep_auto_fact("first_hostile")
         elif self.rng.random() < encounter_chance:  # Chance encounter when moving around the map
             self.encounter_zombie()
+            self._deep_auto_fact("first_hostile")
         else:
             self.find_loot()
 
         self.tile_event_cooldowns[self.current_position] = self.day + 3
+
+    def _deep_auto_fact(self, trigger):
+        """Deep integration: a fact established by a world event rather
+        than an investigation step (manifest.auto_facts). "first_hostile"
+        -> CHANGED_ARE_CREW, established the first time you meet one of
+        the Changed. No-op unless the world declares it."""
+        fid = (getattr(getattr(self.world, "manifest", None), "auto_facts", None)
+               or {}).get(trigger)
+        _wi = getattr(self, "world_investigation", None)
+        if (fid and _wi is not None and _wi.fact(fid) is not None
+                and not _wi.is_known(fid)
+                and all(_wi.is_known(d) for d in _wi.fact(fid).needs)):
+            self._mystery_mark_world_fact(fid)
 
     def _places(self, key, default):
         """A player-facing line about the settlement / built environment,
@@ -1328,6 +1368,8 @@ class WorldMixin:
         self.io.say(f"\n{BOLD}{cb['first_line']}{RESET}")
         z1 = getattr(self, "_combat_z1", None) or self._select_zombie_for_encounter()
         self.encounter_zombie(z1)
+        # you just fought crew, and read the tag on the way past
+        self._deep_auto_fact("first_hostile")
         if self.health <= 0:
             return                       # died to the first - retry the crossing
         self._combat_flank_faced = True
@@ -1433,38 +1475,35 @@ class WorldMixin:
     # any of this.
 
     def _establish_contact_testimony(self):
-        """A contact has spoken. Their reading of the contested fact
-        enters the model as testimony - the fact is marked SUSPECTED
-        (a claim), never KNOWN (that needs physical evidence, see
-        _deep_resolve_contested). The stance is recorded; once both
-        sides are heard, THE_STANCES lands."""
+        """A contact has spoken. A person with a `fact` gives TESTIMONY
+        about a contested fact (SUSPECTED + attributed + a stance,
+        settled later by physical evidence - _deep_resolve_contested).
+        A person with `establishes` confirms facts they know directly
+        (KNOWN). A person can do both (MAREK). The stance is always
+        recorded."""
         c = self._encounter_contact
-        cf = getattr(self.world, "contacts", None) or {}
-        fid = c["fact"]
         _wi = getattr(self, "world_investigation", None)
         cs = self._deep_state()
-        # record the testimony (distinct from physical evidence)
-        entry = [c["id"], c["stance"], c["reading"]]
-        heard = cs["testimony"].setdefault(fid, [])
-        if entry not in heard:
-            heard.append(entry)
-        if c["stance"] not in cs["stances"]:
+        if c.get("stance") and c["stance"] not in cs["stances"]:
             cs["stances"].append(c["stance"])
+        fid = c.get("fact")
+        if fid:
+            entry = [c["id"], c["stance"], c["reading"]]
+            heard = cs["testimony"].setdefault(fid, [])
+            if entry not in heard:
+                heard.append(entry)
+            self.io.say(f"\n{BOLD}{CYAN}◇ YOU HAVE THEIR ACCOUNT{RESET}  "
+                        f"{c['id'].title()}: {c['reading']}")
+            if _wi is not None and _wi.fact(fid) is not None and not _wi.is_known(fid):
+                _wi.mark_suspected(fid)
+                self.__class__._world_investigation = _wi.snapshot()['status']
+                if len(heard) >= 2:
+                    self.io.say(f"{YELLOW}Two accounts, and they don't agree. "
+                                f"You'll need the site itself to settle it.{RESET}")
         self.__class__._campaign_state = cs
-        self.io.say(f"\n{BOLD}{CYAN}◇ YOU HAVE THEIR ACCOUNT{RESET}  "
-                    f"{c['id'].title()}: {c['reading']}")
-        # suspected, not known - unless physical evidence already settled it
-        if _wi is not None and _wi.fact(fid) is not None and not _wi.is_known(fid):
-            _wi.mark_suspected(fid)
-            self.__class__._world_investigation = _wi.snapshot()['status']
-            if len(heard) >= 2:
-                self.io.say(f"{YELLOW}Two accounts, and they don't agree. "
-                            f"You'll need the site itself to settle it.{RESET}")
-        # THE_STANCES: both sides heard
-        sf = cf.get("stances_fact")
-        need = set(cf.get("stances_needed") or ())
-        if sf and need and need.issubset(set(cs["stances"])):
-            self._mystery_mark_world_fact(sf)
+        # facts this person confirms from direct knowledge
+        for _ef in c.get("establishes", ()):
+            self._mystery_mark_world_fact(_ef)
 
     def _deep_resolve_contested(self, resolved_fid):
         """A physical fact was just established KNOWN. If it is the one

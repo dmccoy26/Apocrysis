@@ -50,21 +50,14 @@ BODY_B = (
 
 FINALE = WorldFinale(
     converge_fact="THE_CHOICE",
-    also_establishes=(
-        # CASE_TIMING lost its carrier when DEL/MAREK took the L15/L20
-        # encounter slots (kill-test B); safety net until integration.
-        "CASE_TIMING",
-        # CONTAINMENT_INFRASTRUCTURE is the physical fact that
-        # adjudicates the testimony-contested WORKERS_CHOSE_ISOLATION
-        # (kill-test B) - establishing it here promotes that fact.
-        "CONTAINMENT_INFRASTRUCTURE",
-        "WORKERS_MAINTAINING_IT",
-        "ORE_IS_SOURCE",
-        "SURVIVORS_ON_A_CLOCK",
-        "RESTART_REOPENS_THE_ROUTE",
-        "THE_STANCES",
-        "SOMEONE_IS_COMING",
-    ),
+    # Integration pass: the kill-test scaffolding is gone. Every
+    # load-bearing fact now has a real carrier on the schedule (L7
+    # combat, L15/L20/L22/L24 contacts, L16/L8 scene beats, L19
+    # discovery, the L23 campaign_state check). SOMEONE_IS_COMING is
+    # texture - milestone False, needed by nothing on the critical path
+    # - and reads as something you piece together on the final
+    # approach; it is the one fact the finale still establishes.
+    also_establishes=("SOMEONE_IS_COMING",),
     escape_kind="power_station",
     site_labels={
         "power": "main extraction control",

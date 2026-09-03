@@ -100,9 +100,11 @@ def _fact_lines(new_ids):
 def play(seed, ending, max_turns, max_attempts, narrate=True):
     """One full campaign. Returns a stats dict; narrates to stdout when
     narrate=True."""
-    Apocrysis._used_mechanisms = []
-    Apocrysis._world_investigation = {}
-    Apocrysis._campaign_ending = None
+    # a clean campaign - wipe EVERY campaign-scoped class var, not just
+    # the three this tool historically knew about (kill-test A added
+    # _campaign_state; leaking it between campaigns corrupts the
+    # restoration log / stances of the next run).
+    Apocrysis.reset_campaign_state()
 
     profile = None
     level = 1

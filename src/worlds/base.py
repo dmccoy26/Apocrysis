@@ -93,6 +93,20 @@ class WorldManifest:
     # (the H1 helmet mechanism, generalised). world.prose
     # ["discoverables"][key] is the pickup line.
     discovery_grants: dict = None
+    # Deep Phase 6 integration: the carrier map.
+    #   beat_carried_facts - frozenset a generated mystery must not
+    #     target (next_target(exclude=...)); an authored beat carries it.
+    #   beat_facts - {level_idx: fact_id} for plain scene-beat encounter
+    #     crossings (not a contact, not a fight).
+    #   auto_facts - {trigger: fact_id} established by a world event
+    #     ("first_hostile" -> the first Changed).
+    #   discovery_facts - {level_idx: fact_id} a `discovery` crossing
+    #     establishes on completion once the fact's needs are met.
+    # All empty/None -> unchanged behaviour (The Silence / The Wake).
+    beat_carried_facts: frozenset = frozenset()
+    beat_facts: dict = None
+    auto_facts: dict = None
+    discovery_facts: dict = None
 
 
 @dataclass(frozen=True)

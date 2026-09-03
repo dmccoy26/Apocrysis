@@ -40,13 +40,19 @@ class WorldInvestigation:
         if fid in self._facts and self._status.get(fid) != KNOWN:
             self._status[fid] = SUSPECTED
 
-    def eligible(self):
+    def eligible(self, exclude=()):
+        exclude = set(exclude)
         return [f for f in self._facts.values()
                 if self.status(f.id) == UNKNOWN
+                and f.id not in exclude
                 and all(self.is_known(dep) for dep in f.needs)]
 
-    def next_target(self):
-        e = self.eligible()
+    def next_target(self, exclude=()):
+        # `exclude`: facts a world reserves for a specific authored beat
+        # (a contact / a scene / a campaign_state check) so a generated
+        # mystery never grabs them out from under the schedule. Empty ->
+        # unchanged (The Silence / The Wake).
+        e = self.eligible(exclude)
         return e[0].id if e else None
 
     def thread_progress(self):

@@ -565,6 +565,112 @@ class TestKillTestC(unittest.TestCase):
         self.assertTrue(g.world_investigation.is_known(g._combat_beat["fact"]))
 
 
+class TestKillTestD(unittest.TestCase):
+    """Deep Phase 6 kill-test D - D1 the capability-floor kit seam
+    (§3.1) and D2 the vertical-fiction / horizontal-transit question
+    (§5B.11). Tested independently."""
+
+    def setUp(self):
+        _reset()
+
+    def tearDown(self):
+        _reset()
+
+    def _walk_to(self, g, target):
+        from src.worldgen.reachable import shortest_path
+        for (nx, ny) in shortest_path(g.map, g.map_size,
+                                      g.current_position, target)[1:]:
+            cx, cy = g.current_position
+            d = {(1, 0): "e", (-1, 0): "w", (0, 1): "s", (0, -1): "n"}.get(
+                (nx - cx, ny - cy))
+            if d is None or g.health <= 0:
+                break
+            g.move_and_search(d)
+
+    # --- D1 -----------------------------------------------------------
+
+    def test_no_section_kit_is_a_noop(self):
+        for wid in ("silence", "the_wake"):
+            m = get_world(wid).manifest
+            self.assertIsNone(getattr(m, "section_kit", None))
+            self.assertIsNone(getattr(m, "discovery_grants", None))
+
+    def test_the_requirement_is_always_meetable(self):
+        sk = THE_DEEP.manifest.section_kit
+        dg = THE_DEEP.manifest.discovery_grants
+        self.assertTrue(sk and dg)
+        for lvl, (flag, _label) in sk.items():
+            granted_at = [g_lvl for g_lvl, (g_flag, _k) in dg.items()
+                          if g_flag == flag]
+            self.assertTrue(granted_at, f"{flag} required at L{lvl+1}, never granted")
+            self.assertLess(min(granted_at), lvl,
+                            f"{flag} granted at/after the level that needs it")
+
+    def test_the_bore_crossing_is_gated_on_breathing_gear(self):
+        lvl = min(THE_DEEP.manifest.section_kit)          # L21, index 20
+        g = Apocrysis("D", seed=5, io=_IO(["1"]), world="the_deep",
+                      expeditions_completed=lvl)
+        self.assertIsNone(g.mystery)
+        self.assertFalse(getattr(g, "has_waders", False))
+        self._walk_to(g, g.section_exit)
+        self.assertFalse(getattr(g, "won", False),
+                         "reached the bore with no breathing gear - must be gated")
+        self.assertTrue(any("without sealed breathing gear" in ln
+                            or "can't take it without" in ln for ln in g.io.log))
+        # with the kit, the same crossing completes
+        _reset()
+        g2 = Apocrysis("D", seed=5, io=_IO(["1"]), world="the_deep",
+                       expeditions_completed=lvl)
+        g2.has_waders = True
+        g2.has_flashlight = True
+        self._walk_to(g2, g2.section_exit)
+        self.assertTrue(getattr(g2, "won", False))
+
+    def test_the_kit_is_guaranteed_on_the_earlier_discovery_crossing(self):
+        g_lvl = min(THE_DEEP.manifest.discovery_grants)   # L19, index 18
+        g = Apocrysis("D", seed=3, io=_IO(["1"]), world="the_deep",
+                      expeditions_completed=g_lvl)
+        self.assertIsNone(g.mystery)
+        self.assertEqual(g._section_level_type, "discovery")
+        self.assertIsNotNone(g._discovery_pickup)
+        self.assertEqual(g._discovery_pickup[1], "waders")
+        # the grant lands on crossing completion (like H1's helmet) -
+        # test the mechanism directly, RNG-free.
+        self.assertFalse(getattr(g, "has_waders", False))
+        g._grant_discovery_pickup(g._discovery_pickup[1])
+        self.assertTrue(getattr(g, "has_waders", False),
+                        "completing the L19 discovery crossing grants the kit")
+
+    # --- D2 -----------------------------------------------------------
+
+    def test_the_deep_crossings_suppress_the_compass(self):
+        g = Apocrysis("D", seed=5, io=_IO(), world="the_deep",
+                      expeditions_completed=11)          # a quiet crossing
+        self.assertEqual(g._crossing_bearing(g.section_exit), "")
+        self.assertEqual(g._crossing_exit_noun(), "the way down")
+
+    def test_other_worlds_keep_the_compass(self):
+        g = Apocrysis("W", seed=5, io=_IO(), world="the_wake",
+                      expeditions_completed=6)           # a Wake traversal (L7)
+        if getattr(g, "section_exit", None) is not None:
+            b = g._crossing_bearing(g.section_exit)
+            self.assertTrue(b == "" or b.lstrip(", ") in
+                            ("north", "south", "east", "west",
+                             "north-east", "north-west", "south-east", "south-west"))
+        self.assertEqual(g._crossing_exit_noun(), "the way through")
+
+    def test_no_deep_crossing_objective_names_a_direction(self):
+        import io as _io
+        g = Apocrysis("D", seed=7, io=_IO(), world="the_deep",
+                      expeditions_completed=11)
+        g.has_flashlight = True
+        _scene, _obj = g._section_brief()
+        line = f"{_obj} It's marked{g._crossing_bearing(g.section_exit)}."
+        for d in (" east", " west", " north", " south"):
+            self.assertNotIn(d, line.lower())
+        self.assertIn("way down", _obj.lower() + g._crossing_exit_noun())
+
+
 def _fresh_wi():
     from src.world_investigation import WorldInvestigation
     return WorldInvestigation(THE_DEEP.world_facts, THE_DEEP.regional_hypotheses)

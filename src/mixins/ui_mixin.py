@@ -169,34 +169,34 @@ class UIMixin:
             # point at the marked exit. No mystery, no leads.
             self._opening_beat_shown = True
             _brief = self._section_brief()
-            from src.nav import bearing
             _beat = getattr(self, '_encounter_beat', None)
             _pickup = getattr(self, '_discovery_pickup', None)
+            _exit_noun = self._crossing_exit_noun()   # kill-test D2
             if _beat is not None:
                 # an encounter crossing: point at the person/scene first
                 _, _marker = self._encounter_beat_prose()
-                _bb = bearing(self.current_position, _beat)
+                _bb = self._crossing_bearing(_beat)
                 self.announce_event(
-                    "the way through",
-                    f"On the way across, {_marker}{f' - {_bb}' if _bb else ''}. "
+                    _exit_noun,
+                    f"On the way across, {_marker}{f' -{_bb}' if _bb else ''}. "
                     "You reach that before you leave this section.",
                     kind="objective", level=1)
             elif _pickup is not None:
                 # H1: the discovery crossing with the helmet on it
-                _pb = bearing(self.current_position, _pickup[0])
+                _pb = self._crossing_bearing(_pickup[0])
                 self.announce_event(
-                    "the way through",
+                    _exit_noun,
                     "The crew left kit at a supply point on the way across"
-                    f"{f', {_pb}' if _pb else ''}. Worth the stop before you "
-                    "go on.",
+                    f"{_pb}. Worth the stop before you go on.",
                     kind="objective", level=1)
             elif _brief:
                 _scene, _obj = _brief
-                _b = bearing(self.current_position, self.section_exit)
+                _b = self._crossing_bearing(self.section_exit)
                 self.io.say(_scene)
                 self.announce_event(
-                    "the way through",
-                    f"{_obj} It's marked{f', {_b}' if _b else ''}.",
+                    _exit_noun,
+                    f"{_obj} It's marked{_b}." if _b
+                    else f"{_obj} It's marked.",
                     kind="objective", level=1)
 
         while self.health > 0 and not getattr(self, 'won', False):

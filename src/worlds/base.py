@@ -81,6 +81,18 @@ class WorldManifest:
     # framing. Requires map_transit. Empty tuple -> every level is a
     # fact level (The Silence). WAKE_SPINE_INVESTIGATION.md §5.1.
     level_types: tuple = ()
+    # Deep Phase 6 / kill-test D1 (docs/WORLD_3_THE_DEEP.md §3.1): a
+    # capability floor - {level_idx: (game_flag_name, kit_label)}. That
+    # crossing cannot be completed unless getattr(game, flag) is True.
+    # A single declarative requirement, not a capability subsystem.
+    # Empty -> no crossing gates on kit (The Silence / The Wake).
+    section_kit: dict = None
+    # kill-test D1: the matching guaranteed delivery -
+    # {discovery_level_idx: (game_flag_name, discoverables_key)}. That
+    # `discovery` crossing carries the kit as its guaranteed pickup
+    # (the H1 helmet mechanism, generalised). world.prose
+    # ["discoverables"][key] is the pickup line.
+    discovery_grants: dict = None
 
 
 @dataclass(frozen=True)

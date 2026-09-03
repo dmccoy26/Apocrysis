@@ -193,6 +193,15 @@ class WorldMixin:
         _wants_helmet = (self._world_gates_markers()
                          and _first_disc is not None
                          and _exp_i == _first_disc)
+        # kill-test D1: a world may declare a guaranteed kit pickup on a
+        # given `discovery` crossing (the H1 helmet mechanism,
+        # generalised). {level_idx: (flag, discoverables_key)}.
+        _grant = (getattr(self.world.manifest, 'discovery_grants', None)
+                  or {}).get(_exp_i)
+        if _grant is not None and not getattr(self, _grant[0], False):
+            _wants_pickup_key = _grant[1]
+        else:
+            _wants_pickup_key = None
 
         self.mystery = None
         _mystery_exc = None
@@ -236,12 +245,13 @@ class WorldMixin:
                         self._combat_beat = _cb
                         self._encounter_fact = _cb["fact"]
                         self._deep_place_stationed_pair(_beat)
-                if _wants_helmet:
+                if _wants_helmet or _wants_pickup_key:
                     _pt = place_encounter_beat(self)   # same placement rule
                     if _pt is None:
                         self.section_exit = None
                         continue
-                    self._discovery_pickup = (_pt, "scanner")
+                    self._discovery_pickup = (
+                        _pt, "scanner" if _wants_helmet else _wants_pickup_key)
                 break
             if self.section_exit is None:
                 _section_level = _encounter_level = False
@@ -966,27 +976,42 @@ class WorldMixin:
             if _pickup[1] == "scanner":
                 self.io.say("A section officer's tactical helmet, on the deck "
                             "beside its owner's kit. You take it.")
+            else:
+                self.io.say("The crew left it here when they pulled back. "
+                            "You take it - you'll need it deeper.")
             _beat_fired_now = True
 
         # WAKE_SPINE_INVESTIGATION.md §5: a scheduled section crossing -
         # no mystery, no settlement win, just reach the far-wall exit.
         # An encounter crossing cannot complete until its beat is passed.
         if _section_exit is not None and self.current_position == _section_exit:
+            _xn = self._crossing_exit_noun()
             if _beat is not None and not getattr(self, '_encounter_beat_seen', False):
-                from src.nav import bearing
-                _bb = bearing(self.current_position, _beat)
+                _bb = self._crossing_bearing(_beat)
                 self.io.say(
-                    "You're at the way through - but there's someone back "
-                    f"that way{f', {_bb}' if _bb else ''} you haven't reached "
+                    f"You're at {_xn} - but there's someone back "
+                    f"that way{_bb} you haven't reached "
                     "yet. You don't leave this section without seeing them.")
                 return
             if _pickup is not None and not getattr(self, '_discovery_pickup_taken', False):
-                from src.nav import bearing
-                _pb = bearing(self.current_position, _pickup[0])
+                _pb = self._crossing_bearing(_pickup[0])
                 self.io.say(
-                    "You're at the way through - but you passed something "
-                    f"back that way{f', {_pb}' if _pb else ''} worth going "
+                    f"You're at {_xn} - but you passed something "
+                    f"back that way{_pb} worth going "
                     "back for first.")
+                return
+            # kill-test D1: a crossing may require a held capability/kit
+            # (§3.1 - a capability floor, never HP damage). One
+            # declarative requirement per level, world-owned; inert for
+            # a world that declares none.
+            _kit = (getattr(getattr(self.world, "manifest", None),
+                            "section_kit", {}) or {}).get(
+                getattr(self, "expeditions_completed", 0))
+            if _kit is not None and not getattr(self, _kit[0], False):
+                self.io.say(
+                    f"You're at {_xn} - but you can't take it without "
+                    f"{_kit[1]}. The air past here has gone. It's not a "
+                    "thing to push. Go back with the right kit.")
                 return
             if _beat is not None:
                 self._establish_encounter_fact()
@@ -1174,6 +1199,23 @@ class WorldMixin:
         return self._section_levels_prose().get(
             "reached", "cross into the next section")
 
+    def _crossing_bearing(self, tile):
+        """kill-test D2: the compass suffix for a crossing's marked
+        point (", east"). A world whose crossings read as a DESCENT
+        sets section_levels["exit_bearing"] = False - the way down is
+        marked, not a heading - so a top-down mine level doesn't tell
+        the player to go 'east' while the campaign says 'levels down'."""
+        if self._section_levels_prose().get("exit_bearing", True) is False:
+            return ""
+        from src.nav import bearing
+        b = bearing(self.current_position, tile)
+        return f", {b}" if b else ""
+
+    def _crossing_exit_noun(self):
+        """"the way through" by default; a descent world names the shaft
+        ("the way down")."""
+        return self._section_levels_prose().get("exit_noun", "the way through")
+
     # --- Deep Phase 6 / kill-test A: persistent facility restoration ---
     # (docs/WORLD_3_THE_DEEP.md §5B.8). All data-gated: a world whose
     # World.facility_systems is None never touches any of this.
@@ -1343,9 +1385,11 @@ class WorldMixin:
             self.io.say(ln)
 
     def _grant_discovery_pickup(self, key):
-        """H1: the guaranteed item on a discovery crossing lands on
-        crossing completion (mirrors the encounter beat's fact). The
-        only one for now is the tactical helmet."""
+        """The guaranteed item on a discovery crossing lands on crossing
+        completion (mirrors the encounter beat's fact). H1's helmet
+        ("scanner"); kill-test D1 generalises this to any `has_<key>`
+        capability flag a world's manifest.discovery_grants declares
+        (the Deep: breathing gear on L19, required at L21)."""
         if key == "scanner":
             if getattr(self, 'has_scanner', False):
                 return
@@ -1360,6 +1404,14 @@ class WorldMixin:
                 "It reads the deck around you now - flags what it can "
                 "identify, marks what it only detects.",
                 kind="milestone")
+            return
+        _flag = f"has_{key}"
+        if getattr(self, _flag, False):
+            return
+        setattr(self, _flag, True)
+        self._update_time(0)
+        self.io.say(self._discoverable_line(
+            key, f"You found {key}."))
 
     def _establish_encounter_fact(self):
         """Called from finish_expedition for an encounter crossing:

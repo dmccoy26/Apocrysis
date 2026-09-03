@@ -34,6 +34,16 @@ LEVEL_TYPES = (
     "quiet", "fact", "discovery", "encounter",           # 21-24 THE SEAL
 )
 
+# §3.1 kill-test D1: the capability floor. The Band V bore crossing
+# (L21, index 20) cannot be taken without sealed breathing gear - the
+# air past the last sealed galleries has gone. One declarative
+# requirement; `has_waders` is the Deep's breathing gear (world.prose
+# ["discoverables"]["waders"]), obtained from the loot pool.
+SECTION_KIT = {20: ("has_waders", "sealed breathing gear")}
+# ...guaranteed on the L19 discovery crossing (index 18) - "the crew
+# left kit" (§5B.10). L19 < L21, so the requirement is always meetable.
+DISCOVERY_GRANTS = {18: ("has_waders", "waders")}
+
 MANIFEST = WorldManifest(
     id="the_deep",
     title="The Deep",
@@ -46,6 +56,8 @@ MANIFEST = WorldManifest(
     section_names=SECTION_NAMES,
     section_archetypes=SECTION_ARCHETYPES,
     level_types=LEVEL_TYPES,
+    section_kit=SECTION_KIT,
+    discovery_grants=DISCOVERY_GRANTS,
     # ⟐ deliberate contrast with The Wake. The Deep's information tension
     # is "records are competing evidence" (§3.10 L12), not "you can't see
     # the map".

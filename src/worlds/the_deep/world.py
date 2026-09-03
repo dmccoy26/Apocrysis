@@ -48,24 +48,32 @@ THE_DEEP = World(
         # section crossing with no mystery. (scene line, objective line)
         # per type; "reached" is the finish reason.
         "section_levels": {
+            # kill-test D2: the Deep's crossings read as a DESCENT.
+            # "down" happens AT the crossing (the winze / the cage / the
+            # man-way), not during the traverse of a level - a mine
+            # level is a horizontal plane you work across. So no compass
+            # heading on the marked point, and the exit is "the way
+            # down", not "the way through".
+            "exit_bearing": False,
+            "exit_noun": "the way down",
             "traversal": (
-                "This stretch is a hard push - a run half fallen in, or a "
+                "This level is a hard push - a run half fallen in, or a "
                 "gallery down to the roof in water. No time to read the "
-                "ground; just get down through it.",
-                "Push on down to the next level."),
+                "ground; get across it to the shaft.",
+                "Work across to the way down."),
             "discovery": (
-                "The crew left kit in this stretch when they pulled back - "
-                "worth having. Work down through it with your lamp up.",
-                "Work down through the level."),
+                "The crew left kit on this level when they pulled back - "
+                "worth having. Work across it with your lamp up.",
+                "Work across the level to the way down."),
             "encounter": (
-                "This stretch still has people in it. Or things that used "
-                "to be. Either way you're not going through it quietly.",
-                "Get down to the level below."),
+                "This level still has people on it. Or things that used "
+                "to be. Either way you're not crossing it quietly.",
+                "Get across to the way down."),
             "quiet": (
-                "A worked-out stretch. Nothing moving, the air not too bad. "
-                "Catch your breath and keep going down.",
-                "Cross to the next level."),
-            "reached": "reach the level boundary and go on down",
+                "A worked-out level. Nothing moving, the air not too bad. "
+                "Catch your breath and work across to the shaft.",
+                "Cross to the way down."),
+            "reached": "reach the shaft and go down to the next level",
             # KEYED BY THE FACT ID the DAG selects for that crossing (the
             # Wake pattern). DRAFT prose - the wording pass (§5B.11) and
             # kill-tests B/C re-align these to the spec's intent (combat

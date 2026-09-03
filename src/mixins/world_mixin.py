@@ -138,6 +138,9 @@ class WorldMixin:
         self._encounter_fact = None
         self._encounter_beat_seen = False
         self._encounter_contact = None   # kill-test B: a person, not a scene
+        self._combat_beat = None         # kill-test C: the L7 stationed pair
+        self._combat_flank_faced = False
+        self._combat_beat_first_shown = False
         _exp_now = getattr(self, 'expeditions_completed', 0)
         _plain_crossing = is_section_transit_level(_exp_now, self.world)
         _encounter_level = is_encounter_level(_exp_now, self.world)
@@ -224,6 +227,15 @@ class WorldMixin:
                     if _c is not None:
                         self._encounter_contact = _c
                         self._encounter_fact = _c["fact"]
+                    # kill-test C: this encounter crossing may be the L7
+                    # stationed-pair combat beat. No-op unless
+                    # world.combat_beat declares this level.
+                    _cb = getattr(self.world, "combat_beat", None)
+                    if _cb and _cb.get("level") == getattr(
+                            self, "expeditions_completed", 0):
+                        self._combat_beat = _cb
+                        self._encounter_fact = _cb["fact"]
+                        self._deep_place_stationed_pair(_beat)
                 if _wants_helmet:
                     _pt = place_encounter_beat(self)   # same placement rule
                     if _pt is None:
@@ -930,11 +942,18 @@ class WorldMixin:
         # authored person/scene on the walk that carries this level's
         # WorldFact. Reaching it fires the beat and establishes the fact.
         _beat_fired_now = False
+        _cbeat = getattr(self, '_combat_beat', None)
         if (_beat is not None and self.current_position == _beat
                 and not getattr(self, '_encounter_beat_seen', False)):
-            self._encounter_beat_seen = True
-            self._show_encounter_beat()   # the scene now; the fact lands on win
-            _beat_fired_now = True
+            if _cbeat is not None:
+                # kill-test C: the stationed pair - fight one, the
+                # second flanks, the way through stays open.
+                self._deep_combat_beat_run()
+                _beat_fired_now = True
+            else:
+                self._encounter_beat_seen = True
+                self._show_encounter_beat()   # the scene now; the fact lands on win
+                _beat_fired_now = True
 
         # H1: the tactical helmet on the L5 discovery crossing. Picked
         # up here; the "TACTICAL SYSTEM ONLINE" beat + the capability
@@ -1223,6 +1242,68 @@ class WorldMixin:
         if level_index >= len(lts) or lts[level_index] != "discovery":
             return None
         return lts[:level_index].count("discovery")
+
+    # --- kill-test C: the L7 stationed-pair combat beat (§5B.3) --------
+    # The authored beat "I committed, it got worse, I still had a way
+    # out" - on the EXISTING encounter_zombie, two placed hostiles + one
+    # sequencing hook. Data-gated on world.combat_beat.
+
+    _CB_CLASSES = {"Regular": "RegularZombie", "Heavy": "HeavyZombie",
+                   "Fresh": "FreshZombie"}
+
+    def _deep_build_stationed(self, spec):
+        """Build one authored stationed hostile from a combat_beat spec
+        (kill-test C). Authored, not rolled - so it can't be skittish,
+        passive, fast or elite."""
+        import src.zombies as _z
+        z = getattr(_z, self._CB_CLASSES.get(spec.get("cls", "Regular"),
+                                             "RegularZombie"))()
+        z.health = spec.get("health", z.health)
+        z.attack = spec.get("attack", z.attack)
+        z.flags = tuple(spec.get("flags", ()))
+        z.identity_label = spec.get("label", "ONE OF THE CHANGED")
+        z.identity_line = spec.get("line", "")
+        z.identity = z.identity_label
+        return z
+
+    def _deep_place_stationed_pair(self, beat_tile):
+        """Build the pair (authored, held as refs - not placed, a Zombie
+        on the protected beat tile breaks graph reachability). Fought
+        from the beat-touch handler, one then the other."""
+        cb = getattr(self.world, "combat_beat", None) or {}
+        self._combat_z1 = self._deep_build_stationed(cb.get("z1", {}))
+        self._combat_flank_zombie = self._deep_build_stationed(cb.get("z2", {}))
+
+    def _deep_combat_beat_run(self):
+        """The whole L7 beat, fired when the player reaches the beat
+        tile: the first hostile (commit), then the flank (it got worse),
+        with encounter_zombie's own pre-fight escape as the way out.
+        Witnessing the pair work you from two sides IS the evidence for
+        CHANGED_HAVE_STRUCTURE - it lands whether you finish or break."""
+        cb = getattr(self, "_combat_beat", None)
+        if cb is None or getattr(self, "_combat_flank_faced", False):
+            return
+        self.io.say(f"\n{BOLD}{cb['first_line']}{RESET}")
+        z1 = getattr(self, "_combat_z1", None) or self._select_zombie_for_encounter()
+        self.encounter_zombie(z1)
+        if self.health <= 0:
+            return                       # died to the first - retry the crossing
+        self._combat_flank_faced = True
+        self._encounter_beat_seen = True    # the coordination is witnessed
+        z2 = getattr(self, "_combat_flank_zombie", None)
+        if z2 is None or z2.health <= 0:
+            return
+        self.io.say(f"\n{BOLD}{YELLOW}{cb['flank_line']}{RESET}")
+        # an explicit, reliable way out - not an escape roll. Breaking
+        # contact with a stationed guard is a legitimate success (§3.3 C).
+        if self.io.ask_yes_no("Break for the way through? (else you take it on)"):
+            self.io.say(f"\n{cb['retreat_line']}")
+            return
+        self.encounter_zombie(z2)
+        if self.health <= 0:
+            return
+        self.io.say(f"\n{cb['pushed_line']}" if z2.health <= 0
+                    else f"\n{cb['retreat_line']}")
 
     def _encounter_beat_prose(self):
         """The authored person / scene lines for an encounter crossing,

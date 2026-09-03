@@ -12,6 +12,7 @@ fact the DAG selects for them, through an authored scene.
 from src.worlds.base import World
 from src.worlds.the_deep import population as _population
 from src.worlds.the_deep.chapters import CHAPTERS_DICT
+from src.worlds.the_deep.combat_beat import COMBAT_BEAT
 from src.worlds.the_deep.contacts import CONTACTS_FILE
 from src.worlds.the_deep.discovery import DISCOVERY_TEMPLATES
 from src.worlds.the_deep.facility import FACILITY
@@ -253,4 +254,5 @@ THE_DEEP = World(
     loot=THE_DEEP_LOOT,
     facility_systems=FACILITY,
     contacts=CONTACTS_FILE,
+    combat_beat=COMBAT_BEAT,
 )

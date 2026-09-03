@@ -464,6 +464,107 @@ class TestKillTestB(unittest.TestCase):
             os.unlink(path)
 
 
+class _ScriptIO:
+    """Answers yes/no prompts from a queue (default True). Logs say()."""
+    renders_natively = True
+
+    def __init__(self, answers=()):
+        self.log = []
+        self._a = list(answers)
+
+    def say(self, *a, **k):
+        self.log.append(" ".join(str(x) for x in a))
+
+    def ask(self, prompt=""):
+        return ""
+
+    def ask_yes_no(self, prompt):
+        return self._a.pop(0) if self._a else True
+
+
+class TestKillTestC(unittest.TestCase):
+    """Deep Phase 6 kill-test C - the L7 stationed-pair combat beat
+    (docs/WORLD_3_THE_DEEP.md §5B.3). The authored beat: one visible
+    hostile -> commit -> a second flanks -> retreat stays a real
+    choice. Runs on the existing encounter_zombie; the only new surface
+    is the authored pair + the sequencing hook."""
+
+    def setUp(self):
+        _reset()
+
+    def tearDown(self):
+        _reset()
+
+    def _at_beat(self, answers, seed=5):
+        g = Apocrysis("Deep", seed=seed, io=_ScriptIO(answers),
+                      world="the_deep", expeditions_completed=6)   # L7
+        self.assertIsNotNone(getattr(g, "_combat_beat", None),
+                             "no combat beat at L7")
+        g.world_investigation.restore(
+            {"status": dict(Apocrysis._world_investigation)})
+        return g
+
+    def test_no_combat_beat_is_a_noop(self):
+        for wid in ("silence", "the_wake"):
+            self.assertIsNone(get_world(wid).combat_beat)
+        g = Apocrysis("W", seed=1, io=_IO(), world="the_wake")
+        self.assertIsNone(getattr(g, "_combat_beat", None))
+
+    def test_the_pair_is_authored_not_rolled(self):
+        from src.zombies import speed_class_of
+        g = self._at_beat([])
+        for z in (g._combat_z1, g._combat_flank_zombie):
+            self.assertEqual(z.flags, ())                 # not skittish/passive
+            self.assertNotIn("Elite", z.name)             # not an elite roll
+            self.assertEqual(speed_class_of(z), "normal")  # retreat isn't forced
+            self.assertLessEqual(z.health, 30)            # winnable at L7 kit
+
+    def test_commit_then_break_is_a_legitimate_success(self):
+        # fight Z1 (True), then break for the way through (True)
+        g = self._at_beat([True, True])
+        g.current_position = tuple(g._encounter_beat)
+        g._deep_combat_beat_run()
+        self.assertGreater(g.health, 0, "breaking should not be a death")
+        self.assertTrue(g._encounter_beat_seen, "the coordination was witnessed")
+        self.assertTrue(g._combat_flank_faced)
+        # the flank hostile is untouched - you left it holding the ground
+        self.assertGreater(g._combat_flank_zombie.health, 0)
+
+    def test_pushing_the_flank_costs_more_than_breaking(self):
+        g_break = self._at_beat([True, True])
+        g_break.current_position = tuple(g_break._encounter_beat)
+        g_break._deep_combat_beat_run()
+
+        _reset()
+        g_push = self._at_beat([True, False] + [True] * 20)
+        g_push.current_position = tuple(g_push._encounter_beat)
+        g_push._deep_combat_beat_run()
+
+        if g_push.health > 0:
+            self.assertLess(g_push.health, g_break.health,
+                            "taking the second fight should cost more")
+
+    def test_dying_to_the_first_does_not_burn_the_fact(self):
+        g = self._at_beat([True] + [True] * 20)
+        g.current_position = tuple(g._encounter_beat)
+        g.health = 8                          # will fall to the first
+        g._combat_z1.health = 200             # unkillable for this check
+        g._combat_z1.attack = 30
+        g._deep_combat_beat_run()
+        self.assertLessEqual(g.health, 0)
+        self.assertFalse(g._encounter_beat_seen,
+                         "died to the first - the beat isn't witnessed")
+
+    def test_the_fact_lands_on_crossing_completion(self):
+        g = self._at_beat([True, True])
+        g.current_position = tuple(g._encounter_beat)
+        g._deep_combat_beat_run()
+        self.assertFalse(g.world_investigation.is_known(
+            g._combat_beat["fact"]), "not yet - lands on completion")
+        g._establish_encounter_fact()
+        self.assertTrue(g.world_investigation.is_known(g._combat_beat["fact"]))
+
+
 def _fresh_wi():
     from src.world_investigation import WorldInvestigation
     return WorldInvestigation(THE_DEEP.world_facts, THE_DEEP.regional_hypotheses)

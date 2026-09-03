@@ -226,6 +226,12 @@ class World:
     # marks a WorldFact SUSPECTED (not KNOWN) and records a stance.
     # None -> no contacts; the engine's contact path is a total no-op.
     contacts: dict = None
+    # Deep Phase 6 / kill-test C (docs/WORLD_3_THE_DEEP.md §5B.3): the
+    # L7 stationed-pair combat beat - {"level": idx, "fact": id,
+    # "first_line"/"flank_line"/"pushed_line"/"retreat_line": str}.
+    # One visible hostile -> a second arrives -> retreat stays viable.
+    # None -> no combat beat; runs the ordinary encounter crossing.
+    combat_beat: dict = None
 
     # A World is immutable shared content (it may hold un-copyable
     # references, e.g. the population module). Copying it is always a

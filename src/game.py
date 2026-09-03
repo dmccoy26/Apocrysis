@@ -46,12 +46,22 @@ def depth_supply_bonus(depth):
 
 
 def _norm_campaign_state(raw):
-    """Deep kill-test A: normalise a persisted campaign_state (or None)
-    to the canonical shape. Lists, not sets, for JSON."""
+    """Deep kill-tests A + B: normalise a persisted campaign_state (or
+    None) to the canonical shape. Lists, not sets, for JSON.
+
+    A: restored / restoration_log - facility systems the player brought
+       back and when.
+    B: stances - which survivor stances ("leave"/"hold"/"choose") the
+       player has heard; testimony - {fact_id: [[who, stance, reading],
+       ...]} the person-carried claims about a contested fact.
+    """
     raw = raw or {}
     return {
         "restored": list(raw.get("restored", []) or []),
         "restoration_log": [list(e) for e in raw.get("restoration_log", []) or []],
+        "stances": list(raw.get("stances", []) or []),
+        "testimony": {k: [list(t) for t in v]
+                      for k, v in (raw.get("testimony", {}) or {}).items()},
     }
 
 

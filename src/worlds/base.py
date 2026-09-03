@@ -219,6 +219,13 @@ class World:
     # None -> this world has no persistent facility state; the engine's
     # restoration hook is a total no-op (The Silence / The Wake).
     facility_systems: dict = None
+    # Deep Phase 6 / kill-test B (docs/WORLD_3_THE_DEEP.md §5B.7):
+    # {"contested_fact": id, "resolved_by": id, "by_level": {lvl_idx ->
+    # contact dict}, "stances_fact": id, "stances_needed": (...)}.
+    # A contact is a person on an encounter crossing whose testimony
+    # marks a WorldFact SUSPECTED (not KNOWN) and records a stance.
+    # None -> no contacts; the engine's contact path is a total no-op.
+    contacts: dict = None
 
     # A World is immutable shared content (it may hold un-copyable
     # references, e.g. the population module). Copying it is always a

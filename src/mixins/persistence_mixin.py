@@ -506,6 +506,7 @@ class PersistenceMixin:
 
     def save_profile(self, filename=DEFAULT_PROFILE_FILENAME):
         filename = runtime_paths.resolve("player", filename)
+        from src.game import _norm_campaign_state
         # Phase B: one file, two logical records.
         #   SURVIVOR  - identity + progression + gear + physical state;
         #               replaced wholesale when a survivor dies.
@@ -555,11 +556,11 @@ class PersistenceMixin:
             "recent_signatures": list(getattr(self.__class__, "_recent_signatures", []) or []),
             # A.3: World Investigation status carries across death.
             "world_investigation": dict(getattr(self.__class__, "_world_investigation", {}) or {}),
-            # Deep kill-test A: persistent facility state (§5B.8).
-            "campaign_state": {
-                k: list(v) for k, v in
-                (getattr(self.__class__, "_campaign_state", {}) or {}).items()
-            },
+            # Deep kill-tests A + B: persistent facility state (§5B.8)
+            # + heard stances / person-carried testimony (§5B.7).
+            # Already JSON-safe (lists + a dict-of-lists).
+            "campaign_state": _norm_campaign_state(
+                getattr(self.__class__, "_campaign_state", {})),
             # B.2: Survivor Knowledge - learned SurvivorLore ids.
             "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
             # B.1b: how many survivors this campaign has lost.

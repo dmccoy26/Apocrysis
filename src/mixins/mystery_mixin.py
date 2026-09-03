@@ -841,6 +841,8 @@ class MysteryMixin:
         # itself is not a restores key, so re-entry from
         # _deep_check_extraction_line dead-ends immediately.
         self._deep_restore(fid)
+        # kill-test B: this fact may adjudicate a contested one (§5B.7).
+        self._deep_resolve_contested(fid)
         _fact = _wi.fact(fid)
         if _fact is not None and _fact.milestone:
             self.announce_event(_fact.statement, kind="milestone")
@@ -931,6 +933,10 @@ class MysteryMixin:
                 # brings its facility system online (§5B.6). No-op
                 # unless world.facility_systems maps this id.
                 self._deep_restore(_fid)
+                # kill-test B: a physical fact may adjudicate a
+                # testimony-contested fact (§5B.7). No-op unless
+                # world.contacts names this id as the resolver.
+                self._deep_resolve_contested(_fid)
                 # E.1: discovering this fact may break a rung of the
                 # regional wrong-assumptions ladder - the "you had it
                 # wrong" beat. Fires once (a fact flips not-known->known

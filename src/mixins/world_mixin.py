@@ -15,7 +15,7 @@ from collections import deque
 import random
 
 from src.constants import (
-    BOLD, GREEN, RESET,
+    BOLD, GREEN, RESET, CYAN, YELLOW,
     IMPASSABLE_TERRAIN as _DEFAULT_IMPASSABLE,
     MAX_DAY_DIFFICULTY_FACTOR, ELITE_MIN_EXPEDITION, ELITE_STAT_MULTIPLIER,
     TERRAIN_MOVE_MINUTES as _DEFAULT_MOVE_MINUTES,
@@ -137,6 +137,7 @@ class WorldMixin:
         self._encounter_beat = None
         self._encounter_fact = None
         self._encounter_beat_seen = False
+        self._encounter_contact = None   # kill-test B: a person, not a scene
         _exp_now = getattr(self, 'expeditions_completed', 0)
         _plain_crossing = is_section_transit_level(_exp_now, self.world)
         _encounter_level = is_encounter_level(_exp_now, self.world)
@@ -213,6 +214,16 @@ class WorldMixin:
                         continue
                     self._encounter_beat = _beat
                     self._encounter_fact = _target
+                    # kill-test B: this encounter crossing may be a
+                    # scheduled contact - a person keyed to this level,
+                    # speaking to their own contested fact (not the DAG
+                    # target). No-op unless world.contacts declares one.
+                    _contacts = getattr(self.world, "contacts", None) or {}
+                    _c = (_contacts.get("by_level") or {}).get(
+                        getattr(self, "expeditions_completed", 0))
+                    if _c is not None:
+                        self._encounter_contact = _c
+                        self._encounter_fact = _c["fact"]
                 if _wants_helmet:
                     _pt = place_encounter_beat(self)   # same placement rule
                     if _pt is None:
@@ -1220,6 +1231,18 @@ class WorldMixin:
         being established. If the DAG hands a fact with no authored beat
         (a slip), fall back to the generic 'encounter' scene line and
         let the milestone banner carry the fact. World-owned."""
+        # kill-test B: a scheduled contact - a person, keyed to this
+        # level. Their pointed variant plays only if the player has
+        # already heard the opposing stance (campaign_state), the
+        # "stance affects what the contact reveals" rule - a state
+        # check, not a branch tree.
+        _c = getattr(self, "_encounter_contact", None)
+        if _c is not None:
+            _gate = (_c.get("gate") or {}).get("after_stance")
+            if _gate and _gate in set(self._deep_state().get("stances", [])) \
+                    and _c.get("lines_after_del"):
+                return list(_c["lines_after_del"]), f"{_c['id'].title()} is here"
+            return list(_c.get("lines", [])), f"{_c['id'].title()} is here"
         beats = self._section_levels_prose().get("encounter_beats") or {}
         entry = beats.get(getattr(self, "_encounter_fact", None)) or {}
         if entry:
@@ -1261,10 +1284,81 @@ class WorldMixin:
         """Called from finish_expedition for an encounter crossing:
         establish the beat's WorldFact with the full milestone /
         hypothesis-correction machinery (the same _mystery_mark_world_
-        fact a solved mystery uses)."""
+        fact a solved mystery uses). A contact crossing records
+        TESTIMONY instead - suspected, not known (kill-test B)."""
+        if not getattr(self, "_encounter_beat_seen", False):
+            return
+        if getattr(self, "_encounter_contact", None) is not None:
+            self._establish_contact_testimony()
+            return
         fid = getattr(self, "_encounter_fact", None)
-        if fid and getattr(self, "_encounter_beat_seen", False):
+        if fid:
             self._mystery_mark_world_fact(fid)
+
+    # --- kill-test B: person-as-evidence (docs/WORLD_3_THE_DEEP.md §5B.7)
+    # All data-gated on world.contacts; a world without it never reaches
+    # any of this.
+
+    def _establish_contact_testimony(self):
+        """A contact has spoken. Their reading of the contested fact
+        enters the model as testimony - the fact is marked SUSPECTED
+        (a claim), never KNOWN (that needs physical evidence, see
+        _deep_resolve_contested). The stance is recorded; once both
+        sides are heard, THE_STANCES lands."""
+        c = self._encounter_contact
+        cf = getattr(self.world, "contacts", None) or {}
+        fid = c["fact"]
+        _wi = getattr(self, "world_investigation", None)
+        cs = self._deep_state()
+        # record the testimony (distinct from physical evidence)
+        entry = [c["id"], c["stance"], c["reading"]]
+        heard = cs["testimony"].setdefault(fid, [])
+        if entry not in heard:
+            heard.append(entry)
+        if c["stance"] not in cs["stances"]:
+            cs["stances"].append(c["stance"])
+        self.__class__._campaign_state = cs
+        self.io.say(f"\n{BOLD}{CYAN}◇ YOU HAVE THEIR ACCOUNT{RESET}  "
+                    f"{c['id'].title()}: {c['reading']}")
+        # suspected, not known - unless physical evidence already settled it
+        if _wi is not None and _wi.fact(fid) is not None and not _wi.is_known(fid):
+            _wi.mark_suspected(fid)
+            self.__class__._world_investigation = _wi.snapshot()['status']
+            if len(heard) >= 2:
+                self.io.say(f"{YELLOW}Two accounts, and they don't agree. "
+                            f"You'll need the site itself to settle it.{RESET}")
+        # THE_STANCES: both sides heard
+        sf = cf.get("stances_fact")
+        need = set(cf.get("stances_needed") or ())
+        if sf and need and need.issubset(set(cs["stances"])):
+            self._mystery_mark_world_fact(sf)
+
+    def _deep_resolve_contested(self, resolved_fid):
+        """A physical fact was just established KNOWN. If it is the one
+        the world names as the adjudicator (contacts["resolved_by"]),
+        promote the contested fact SUSPECTED -> KNOWN - physical
+        evidence is what settles a contested claim."""
+        cf = getattr(self.world, "contacts", None) or {}
+        if not cf or resolved_fid != cf.get("resolved_by"):
+            return
+        contested = cf.get("contested_fact")
+        _wi = getattr(self, "world_investigation", None)
+        if not contested or _wi is None or _wi.fact(contested) is None:
+            return
+        if _wi.is_known(contested):
+            return
+        _wi.mark_known(contested)
+        self.__class__._world_investigation = _wi.snapshot()['status']
+        cs = self._deep_state()
+        if cs["testimony"].get(contested):
+            self.io.say(f"\n{BOLD}THE SITE SETTLES IT.{RESET}  What you've "
+                        f"just read backs one account over the other.")
+        _fact = _wi.fact(contested)
+        if _fact is not None and _fact.milestone:
+            self.announce_event(_fact.statement, kind="milestone")
+        _rung = _wi.hypothesis_broken_by(contested)
+        if _rung is not None:
+            self.announce_event(_rung.statement, _rung.corrected_to, kind="correction")
 
     def _discoverable_line(self, key, default):
         """The pickup line for a one-time discoverable (`waders`,

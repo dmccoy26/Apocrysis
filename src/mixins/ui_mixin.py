@@ -1177,6 +1177,13 @@ class UIMixin:
                     self.io.say(f"    {GREEN}✓{RESET} {f.statement}")
                 elif st == "suspected":
                     self.io.say(f"    · {f.statement}")
+                    # kill-test B: a fact contested by testimony shows
+                    # the accounts, so "suspected" reads as "two people
+                    # told me different things" not just "unconfirmed".
+                    _tst = (getattr(self.__class__, "_campaign_state", {})
+                            or {}).get("testimony", {}).get(f.id, [])
+                    for _who, _stance, _reading in _tst:
+                        self.io.say(f"      {CYAN}– {_who} ({_stance}):{RESET} {_reading}")
                 elif f.id in eligible:
                     # a lead you could pick up now - name it, so the
                     # player knows what evidence remains (audit 1a).

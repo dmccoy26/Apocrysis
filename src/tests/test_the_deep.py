@@ -343,6 +343,127 @@ class TestKillTestA(unittest.TestCase):
         self.assertEqual(Apocrysis._campaign_state["restored"], ["power"])
 
 
+class TestKillTestB(unittest.TestCase):
+    """Deep Phase 6 kill-test B - person as evidence source
+    (docs/WORLD_3_THE_DEEP.md §5B.7). Proves two people can give
+    contradictory testimony about one contested WorldFact, that
+    testimony enters the model DISTINCTLY from physical evidence
+    (suspected, not known), that physical evidence adjudicates, and
+    that a contact's line varies on the player's heard stance."""
+
+    def setUp(self):
+        _reset()
+
+    def tearDown(self):
+        _reset()
+
+    def _contact_level(self, lvl_idx, seed=5):
+        g = Apocrysis("Deep", seed=seed, io=_IO(), world="the_deep",
+                      expeditions_completed=lvl_idx)
+        g.world_investigation.restore(
+            {"status": dict(Apocrysis._world_investigation)})
+        self.assertIsNotNone(getattr(g, "_encounter_contact", None),
+                             f"no contact at level index {lvl_idx}")
+        g._encounter_beat_seen = True
+        return g
+
+    def test_no_contacts_is_a_noop(self):
+        for wid in ("silence", "the_wake"):
+            self.assertIsNone(get_world(wid).contacts)
+        g = Apocrysis("W", seed=1, io=_IO(), world="the_wake")
+        self.assertIsNone(getattr(g, "_encounter_contact", None))
+        g._establish_contact_testimony  # attribute exists; never reached
+
+    def test_del_then_marek_contradict_and_the_fact_stays_suspected(self):
+        cf = THE_DEEP.contacts["contested_fact"]
+        g = self._contact_level(14)                 # DEL
+        g._show_encounter_beat()
+        g._establish_contact_testimony()
+        self.assertEqual(Apocrysis._world_investigation.get(cf), "suspected")
+        _reset_keep = dict(Apocrysis._world_investigation)
+        cs = dict(Apocrysis._campaign_state)
+        g2 = self._contact_level(19)                # MAREK
+        Apocrysis._world_investigation = _reset_keep
+        Apocrysis._campaign_state = cs
+        g2.world_investigation.restore({"status": _reset_keep})
+        g2._show_encounter_beat()
+        g2._establish_contact_testimony()
+        # still a claim, not settled
+        self.assertEqual(Apocrysis._world_investigation.get(cf), "suspected")
+        tst = Apocrysis._campaign_state["testimony"][cf]
+        self.assertEqual([t[0] for t in tst], ["DEL", "MAREK"])
+        self.assertEqual([t[1] for t in tst], ["leave", "hold"])
+        self.assertNotEqual(tst[0][2], tst[1][2])   # the readings differ
+
+    def test_testimony_is_distinct_from_physical_evidence(self):
+        cf = THE_DEEP.contacts["contested_fact"]
+        g = self._contact_level(14)
+        g._establish_contact_testimony()
+        # physical evidence would be mark_known via a solved mystery;
+        # testimony is mark_suspected + a campaign_state record.
+        self.assertEqual(g.world_investigation.status(cf), "suspected")
+        self.assertFalse(g.world_investigation.is_known(cf))
+        self.assertIn(cf, Apocrysis._campaign_state["testimony"])
+
+    def test_physical_evidence_adjudicates_the_contested_fact(self):
+        cf = THE_DEEP.contacts["contested_fact"]
+        rb = THE_DEEP.contacts["resolved_by"]
+        g = self._contact_level(14)
+        g._establish_contact_testimony()
+        self.assertEqual(g.world_investigation.status(cf), "suspected")
+        # establish the adjudicating physical fact
+        g._mystery_mark_world_fact(rb)
+        self.assertEqual(Apocrysis._world_investigation.get(cf), "known",
+                         "physical evidence should settle the contested fact")
+
+    def test_marek_line_varies_on_whether_del_was_heard(self):
+        # heard DEL first -> pointed variant
+        g = self._contact_level(14)
+        g._establish_contact_testimony()             # stance "leave" recorded
+        g2 = self._contact_level(19)
+        lines, _ = g2._encounter_beat_prose()
+        self.assertTrue(any("Del" in ln for ln in lines),
+                        "MAREK should acknowledge DEL when DEL was heard")
+        # cold (no DEL) -> base variant
+        _reset()
+        g3 = self._contact_level(19)
+        lines3, _ = g3._encounter_beat_prose()
+        self.assertFalse(any("Del's been talking" in ln for ln in lines3))
+
+    def test_the_stances_lands_when_both_sides_are_heard(self):
+        sf = THE_DEEP.contacts["stances_fact"]
+        g = self._contact_level(14)
+        g._establish_contact_testimony()
+        self.assertNotEqual(Apocrysis._world_investigation.get(sf), "known")
+        g2 = self._contact_level(19)
+        g2._establish_contact_testimony()
+        self.assertEqual(Apocrysis._world_investigation.get(sf), "known")
+
+    def test_contact_state_round_trips_through_save_load(self):
+        import tempfile, os
+        Apocrysis._campaign_state = {
+            "restored": [], "restoration_log": [],
+            "stances": ["leave"],
+            "testimony": {"WORKERS_CHOSE_ISOLATION": [["DEL", "leave", "x"]]},
+        }
+        g = Apocrysis("Deep", seed=1, io=_IO(), world="the_deep",
+                      expeditions_completed=15)
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        try:
+            g.save_profile(path)
+            _reset()
+            prof = Apocrysis.load_profile(path)
+            g2 = Apocrysis("Deep", seed=1, io=_IO(), world="the_deep")
+            g2.apply_profile(prof)
+            cs = Apocrysis._campaign_state
+            self.assertEqual(cs["stances"], ["leave"])
+            self.assertEqual(cs["testimony"]["WORKERS_CHOSE_ISOLATION"],
+                             [["DEL", "leave", "x"]])
+        finally:
+            os.unlink(path)
+
+
 def _fresh_wi():
     from src.world_investigation import WorldInvestigation
     return WorldInvestigation(THE_DEEP.world_facts, THE_DEEP.regional_hypotheses)

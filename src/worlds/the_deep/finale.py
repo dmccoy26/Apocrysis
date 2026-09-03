@@ -51,6 +51,12 @@ BODY_B = (
 FINALE = WorldFinale(
     converge_fact="THE_CHOICE",
     also_establishes=(
+        # CASE_TIMING lost its carrier when DEL/MAREK took the L15/L20
+        # encounter slots (kill-test B); safety net until integration.
+        "CASE_TIMING",
+        # CONTAINMENT_INFRASTRUCTURE is the physical fact that
+        # adjudicates the testimony-contested WORKERS_CHOSE_ISOLATION
+        # (kill-test B) - establishing it here promotes that fact.
         "CONTAINMENT_INFRASTRUCTURE",
         "WORKERS_MAINTAINING_IT",
         "ORE_IS_SOURCE",

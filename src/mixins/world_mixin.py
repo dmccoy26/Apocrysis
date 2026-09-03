@@ -638,6 +638,12 @@ class WorldMixin:
         expedition counter, prints the ordinary/campaign-complete
         message, and stages the next-game supply prize."""
         self.won = True
+        # Deep kill-test A: a `discovery` crossing is "a system to bring
+        # back" (§5B.10). Restore it before the counter moves, so the
+        # restoration_log records the level just crossed.
+        _disc_n = self._deep_discovery_ordinal(self.expeditions_completed)
+        if _disc_n is not None:
+            self._deep_restore(f"discovery:{_disc_n}")
         self.expeditions_completed += 1
         self.__class__.prize_for_next_game = True
         if self.expeditions_completed >= self.world.manifest.campaign_length:
@@ -1137,6 +1143,75 @@ class WorldMixin:
     def _section_cross_reason(self):
         return self._section_levels_prose().get(
             "reached", "cross into the next section")
+
+    # --- Deep Phase 6 / kill-test A: persistent facility restoration ---
+    # (docs/WORLD_3_THE_DEEP.md §5B.8). All data-gated: a world whose
+    # World.facility_systems is None never touches any of this.
+
+    def _deep_state(self):
+        from src.game import _norm_campaign_state
+        cs = _norm_campaign_state(getattr(self.__class__, "_campaign_state", {}))
+        self.__class__._campaign_state = cs
+        return cs
+
+    def _deep_restore(self, trigger):
+        """A facility system comes back online, keyed by `trigger` (a
+        WorldFact id that was just established, or "discovery:<n>" for
+        the nth discovery crossing completing). Records it on the
+        persistent campaign_state, says the line, and - once every
+        on-extraction-path system is back - fires RESTART_REOPENS_THE_
+        ROUTE ★23 (§5B.4: a campaign_state-derived fact, not a mystery
+        or a discoverable)."""
+        fac = getattr(self.world, "facility_systems", None)
+        if not fac:
+            return
+        system = (fac.get("restores") or {}).get(trigger)
+        if not system:
+            return
+        cs = self._deep_state()
+        if system in cs["restored"]:
+            return
+        cs["restored"].append(system)
+        cs["restoration_log"].append([system, int(self.expeditions_completed)])
+        spec = (fac.get("systems") or {}).get(system, {})
+        if spec.get("prose"):
+            self.io.say(f"{BOLD}{GREEN}◆ SYSTEM RESTORED{RESET}  {spec['prose']}")
+        self._deep_check_extraction_line(fac)
+
+    def _deep_check_extraction_line(self, fac):
+        path = set(fac.get("extraction_path") or ())
+        fid = fac.get("restart_fact")
+        if not path or not fid:
+            return
+        cs = self._deep_state()
+        if not path.issubset(set(cs["restored"])):
+            return
+        _wi = getattr(self, "world_investigation", None)
+        if _wi is None or _wi.fact(fid) is None or _wi.is_known(fid):
+            return
+        # the readable trail (§5B.8 row 21) - shown the moment the line
+        # is physically whole, regardless of whether the fact can land.
+        self.io.say(f"\n{BOLD}THE EXTRACTION LINE IS WHOLE.{RESET}")
+        for sysid, exp in self._deep_state()["restoration_log"]:
+            if sysid in path:
+                self.io.say(f"  – {sysid.replace('_', ' ')}  (level {exp + 1})")
+        # RESTART_REOPENS_THE_ROUTE is campaign_state-derived, but its
+        # statement presumes the seam-is-source read - fire it here only
+        # once that knowledge precondition is also met; otherwise the
+        # finale's also_establishes carries it, in DAG order. (Kill-test
+        # A scope: the also_establishes trim that makes the L23 fire the
+        # normal case is integration work.)
+        _fact = _wi.fact(fid)
+        if _fact is not None and all(_wi.is_known(d) for d in _fact.needs):
+            self._mystery_mark_world_fact(fid)
+
+    def _deep_discovery_ordinal(self, level_index):
+        """0-based: which `discovery` crossing (by schedule) the level
+        at `level_index` is, or None if it isn't one."""
+        lts = getattr(getattr(self.world, "manifest", None), "level_types", ()) or ()
+        if level_index >= len(lts) or lts[level_index] != "discovery":
+            return None
+        return lts[:level_index].count("discovery")
 
     def _encounter_beat_prose(self):
         """The authored person / scene lines for an encounter crossing,

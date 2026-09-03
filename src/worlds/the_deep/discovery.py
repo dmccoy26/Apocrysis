@@ -60,7 +60,10 @@ DISCOVERY_TEMPLATES = dict([
     # BAND V - THE SEAL
     _r("ORE_IS_SOURCE", "dam_valves", "radio_tower"),
     _r("SURVIVORS_ON_A_CLOCK", "evac_corridor", "airfield_plane"),
-    _r("RESTART_REOPENS_THE_ROUTE", "power_station", "dam_valves"),
+    # RESTART_REOPENS_THE_ROUTE has NO mechanism route (§5B.4 / kill-test
+    # A): it is campaign_state-derived - it fires when `restored` covers
+    # the whole extraction line (facility.py), at the L23 crossing, and
+    # the finale's also_establishes is the safety net.
     _r("THE_STANCES", "evac_corridor", "radio_tower"),
     _r("THE_CHOICE", "power_station"),          # the finale - always
 

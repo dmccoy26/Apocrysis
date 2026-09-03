@@ -73,6 +73,7 @@ _CAMPAIGN_KEYS = (
     "world_id",
     "hardcore", "expeditions_completed", "used_mechanisms", "last_family",
     "recent_mechanisms", "recent_signatures", "world_investigation",
+    "campaign_state",
     "survivor_knowledge", "survivors_lost", "ending", "distance_walked",
 )
 
@@ -554,6 +555,11 @@ class PersistenceMixin:
             "recent_signatures": list(getattr(self.__class__, "_recent_signatures", []) or []),
             # A.3: World Investigation status carries across death.
             "world_investigation": dict(getattr(self.__class__, "_world_investigation", {}) or {}),
+            # Deep kill-test A: persistent facility state (§5B.8).
+            "campaign_state": {
+                k: list(v) for k, v in
+                (getattr(self.__class__, "_campaign_state", {}) or {}).items()
+            },
             # B.2: Survivor Knowledge - learned SurvivorLore ids.
             "survivor_knowledge": list(getattr(self.__class__, "_survivor_knowledge", []) or []),
             # B.1b: how many survivors this campaign has lost.
@@ -810,6 +816,10 @@ class PersistenceMixin:
             self.__class__._world_investigation = dict(_wi)
             if getattr(self, "world_investigation", None) is not None:
                 self.world_investigation.restore({"status": dict(_wi)})
+        _cs = profile.get("campaign_state")
+        if _cs is not None:
+            from src.game import _norm_campaign_state
+            self.__class__._campaign_state = _norm_campaign_state(_cs)
         self.has_flashlight = profile.get("has_flashlight", getattr(self, "has_flashlight", False))
         self.has_scanner = profile.get("has_scanner", getattr(self, "has_scanner", False))
         self._update_time(0)  # refresh visibility_radius for a restored flashlight, without advancing time

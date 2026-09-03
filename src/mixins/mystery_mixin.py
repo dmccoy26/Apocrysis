@@ -835,6 +835,12 @@ class MysteryMixin:
         _learned = list(getattr(self, '_expedition_learned', []))
         _learned.append(fid)
         self._expedition_learned = _learned
+        # Deep kill-test A: a few infra facts are "restore-to-read" -
+        # establishing them brings a facility system back (§5B.6). No-op
+        # unless world.facility_systems maps this id; the RESTART fact
+        # itself is not a restores key, so re-entry from
+        # _deep_check_extraction_line dead-ends immediately.
+        self._deep_restore(fid)
         _fact = _wi.fact(fid)
         if _fact is not None and _fact.milestone:
             self.announce_event(_fact.statement, kind="milestone")
@@ -921,6 +927,10 @@ class MysteryMixin:
             _wi.mark_known(_fid)
             self.__class__._world_investigation = _wi.snapshot()['status']
             if not _was_known:
+                # Deep kill-test A: an infra "restore-to-read" fact
+                # brings its facility system online (§5B.6). No-op
+                # unless world.facility_systems maps this id.
+                self._deep_restore(_fid)
                 # E.1: discovering this fact may break a rung of the
                 # regional wrong-assumptions ladder - the "you had it
                 # wrong" beat. Fires once (a fact flips not-known->known

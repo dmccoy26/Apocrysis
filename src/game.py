@@ -45,6 +45,16 @@ def depth_supply_bonus(depth):
     return int(min(_SUPPLY_BONUS_CAP, round(_SUPPLY_PER_DEPTH * over)))
 
 
+def _norm_campaign_state(raw):
+    """Deep kill-test A: normalise a persisted campaign_state (or None)
+    to the canonical shape. Lists, not sets, for JSON."""
+    raw = raw or {}
+    return {
+        "restored": list(raw.get("restored", []) or []),
+        "restoration_log": [list(e) for e in raw.get("restoration_log", []) or []],
+    }
+
+
 class Apocrysis(
     PersistenceMixin,
     CombatMixin,
@@ -78,6 +88,13 @@ class Apocrysis(
     # None). Campaign-level; persisted so a completed campaign never
     # re-prompts.
     _campaign_ending = None
+    # Deep Phase 6 / kill-test A (docs/WORLD_3_THE_DEEP.md §5B.8): the
+    # persistent facility state - which site systems the player has
+    # brought back online, and the readable trail. Same class-var +
+    # profile round-trip pattern as _world_investigation. Empty and
+    # inert for any world whose World.facility_systems is None.
+    # { "restored": [system_id, ...], "restoration_log": [[system_id, expedition_int], ...] }
+    _campaign_state = {}
     # C.3: which map generator to use. "v1" is the frozen rectangular
     # pipeline; "v2" is the irregular-valley experiment. Default stays
     # "v1" until C.3 is accepted. A constructor arg overrides this;
@@ -125,6 +142,7 @@ class Apocrysis(
         cls._recent_mechanisms = list(f.get("recent_mechanisms", []) or [])
         cls._recent_signatures = list(f.get("recent_signatures", []) or [])
         cls._world_investigation = dict(f.get("world_investigation", {}) or {})
+        cls._campaign_state = _norm_campaign_state(f.get("campaign_state"))
         cls._survivor_knowledge = list(f.get("survivor_knowledge", []) or [])
         cls._survivors_lost = int(f.get("survivors_lost", 0) or 0)
         cls._campaign_ending = f.get("ending")

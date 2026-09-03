@@ -213,6 +213,12 @@ class World:
     # equipment vocabulary (Phase F §F.10). None -> the engine uses
     # The Silence's tables (src/loot.py's fallback).
     loot: WorldLoot = None
+    # Deep Phase 6 / kill-test A (docs/WORLD_3_THE_DEEP.md §5B.8):
+    # {"systems": {...}, "extraction_path": (...), "restores":
+    # {fact_id|"discovery:<n>" -> system_id}, "restart_fact": id}.
+    # None -> this world has no persistent facility state; the engine's
+    # restoration hook is a total no-op (The Silence / The Wake).
+    facility_systems: dict = None
 
     # A World is immutable shared content (it may hold un-copyable
     # references, e.g. the population module). Copying it is always a

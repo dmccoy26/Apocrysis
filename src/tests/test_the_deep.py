@@ -100,7 +100,14 @@ class TestTheDeepDAG(unittest.TestCase):
                          set(MILESTONE_IDS))
 
     def test_every_fact_has_a_discovery_route(self):
+        # RESTART_REOPENS_THE_ROUTE is campaign_state-derived (kill-test
+        # A) - it has no mechanism route by design.
+        _derived = {THE_DEEP.facility_systems["restart_fact"]}
         for f in WORLD_FACTS:
+            if f.id in _derived:
+                self.assertNotIn(f.id, THE_DEEP.discovery_templates,
+                                 f"{f.id} is campaign_state-derived - no route")
+                continue
             self.assertIn(f.id, THE_DEEP.discovery_templates,
                           f"{f.id} has no discovery route - it would stall")
             for dt in THE_DEEP.discovery_templates[f.id]:
@@ -224,6 +231,116 @@ class TestTheDeepRuns(unittest.TestCase):
         m2 = Mystery.from_dict(d)
         self.assertEqual(m2.mech_name, g.mystery.mech_name)
         self.assertEqual(m2.mech_landmark, g.mystery.mech_landmark)
+
+
+class TestKillTestA(unittest.TestCase):
+    """Deep Phase 6 kill-test A - persistent facility restoration
+    (docs/WORLD_3_THE_DEEP.md §5B.8). Proves campaign_state accumulates
+    across expeditions, round-trips through save/load, and drives the
+    L23 extraction-line-whole check."""
+
+    def setUp(self):
+        _reset()
+
+    def tearDown(self):
+        _reset()
+
+    def test_no_facility_systems_is_a_total_noop(self):
+        # The Wake / The Silence never touch any of this.
+        for wid in ("silence", "the_wake"):
+            self.assertIsNone(get_world(wid).facility_systems)
+        g = Apocrysis("W", seed=1, io=_IO(), world="the_wake")
+        g._deep_restore("ANYTHING")          # must not raise, must not record
+        self.assertEqual(Apocrysis._campaign_state.get("restored", []), [])
+
+    def test_restoration_accumulates_and_fills_the_extraction_line(self):
+        depth, guard = 0, 0
+        line_whole_at = None
+        while depth < THE_DEEP.manifest.campaign_length and guard < 80:
+            guard += 1
+            g = Apocrysis("Deep", seed=100 + depth, io=_IO(["1"]),
+                          world="the_deep", expeditions_completed=depth)
+            if g.mystery is None:
+                if getattr(g, "_encounter_beat", None) is not None:
+                    g._encounter_beat_seen = True
+                    g._show_encounter_beat()
+                    g._establish_encounter_fact()
+                g.io.log.clear()
+                g.finish_expedition(reason="went on down")
+            else:
+                _solve(g)
+            if any("EXTRACTION LINE IS WHOLE" in ln for ln in g.io.log) \
+                    and line_whole_at is None:
+                line_whole_at = depth + 1
+            if getattr(g, "won", False):
+                depth = g.expeditions_completed
+        cs = Apocrysis._campaign_state
+        path = set(THE_DEEP.facility_systems["extraction_path"])
+        self.assertTrue(path.issubset(set(cs["restored"])),
+                        f"line not whole: {cs['restored']}")
+        self.assertIsNotNone(line_whole_at, "the L23 check never ran")
+        self.assertLessEqual(line_whole_at, 23)
+        # the readable trail records (system, level) pairs, in order
+        self.assertTrue(cs["restoration_log"])
+        levels = [e[1] for e in cs["restoration_log"]]
+        self.assertEqual(levels, sorted(levels))
+        # RESTART lands by the finale regardless
+        self.assertEqual(Apocrysis._world_investigation.get("RESTART_REOPENS_THE_ROUTE"),
+                         "known")
+
+    def test_restart_fires_at_L23_when_its_knowledge_precondition_is_met(self):
+        # seed the DAG so ORE_IS_SOURCE (RESTART's need) is already known
+        # + every extraction-path system bar the last one is restored.
+        fac = THE_DEEP.facility_systems
+        path = list(fac["extraction_path"])
+        Apocrysis._world_investigation = {
+            f.id: "known" for f in WORLD_FACTS
+            if f.id not in ("RESTART_REOPENS_THE_ROUTE", "THE_CHOICE")
+        }
+        Apocrysis._campaign_state = {"restored": path[:-1],
+                                     "restoration_log": [[s, 3] for s in path[:-1]]}
+        g = Apocrysis("Deep", seed=7, io=_IO(), world="the_deep",
+                      expeditions_completed=22)          # L23
+        g.world_investigation.restore({"status": dict(Apocrysis._world_investigation)})
+        g._deep_restore("discovery:2")                    # completes the line
+        self.assertIn(path[-1], Apocrysis._campaign_state["restored"])
+        self.assertTrue(g.world_investigation.is_known("RESTART_REOPENS_THE_ROUTE"),
+                        "RESTART should fire from campaign_state at L23")
+
+    def test_campaign_state_round_trips_through_save_load(self):
+        import tempfile, os
+        Apocrysis._campaign_state = {
+            "restored": ["power", "lift_deep"],
+            "restoration_log": [["power", 4], ["lift_deep", 10]],
+        }
+        g = Apocrysis("Deep", seed=1, io=_IO(), world="the_deep",
+                      expeditions_completed=11)
+        fd, path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        try:
+            g.save_profile(path)
+            _reset()
+            self.assertEqual(Apocrysis._campaign_state.get("restored", []), [])
+            prof = Apocrysis.load_profile(path)
+            from src.mixins.persistence_mixin import _profile_flat
+            g2 = Apocrysis("Deep", seed=1, io=_IO(), world="the_deep")
+            g2.apply_profile(prof)
+            self.assertEqual(set(Apocrysis._campaign_state["restored"]),
+                             {"power", "lift_deep"})
+            self.assertEqual(Apocrysis._campaign_state["restoration_log"],
+                             [["power", 4], ["lift_deep", 10]])
+        finally:
+            os.unlink(path)
+
+    def test_restoration_survives_a_survivor_death(self):
+        Apocrysis._campaign_state = {"restored": ["power"],
+                                     "restoration_log": [["power", 4]]}
+        Apocrysis._world_investigation = {"DESCENT_BLOCKED": "known"}
+        # a death re-applies the campaign verbatim onto the heir
+        f = {"campaign_state": dict(Apocrysis._campaign_state),
+             "world_investigation": dict(Apocrysis._world_investigation)}
+        Apocrysis.reset_campaign_state(restore_from=f)
+        self.assertEqual(Apocrysis._campaign_state["restored"], ["power"])
 
 
 def _fresh_wi():

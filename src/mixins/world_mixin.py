@@ -1231,9 +1231,16 @@ class WorldMixin:
             return None
         p = self._section_levels_prose()
         entry = p.get(t) or p.get("traversal")
-        if isinstance(entry, (list, tuple)) and len(entry) >= 2:
-            return entry[0], entry[1]
-        return ("You push on through the section.", "Reach the far side.")
+        _scene, _obj = (entry[0], entry[1]) if (
+            isinstance(entry, (list, tuple)) and len(entry) >= 2) else (
+            "You push on through the section.", "Reach the far side.")
+        # an authored one-off scene woven into a specific crossing
+        # (KESH on the Deep's L11 - a Changed present without a fight).
+        _extra = (p.get("extra_scene") or {}).get(
+            getattr(self, "expeditions_completed", -1))
+        if _extra:
+            _scene = f"{_scene}\n\n{_extra}"
+        return _scene, _obj
 
     def _section_cross_reason(self):
         return self._section_levels_prose().get(

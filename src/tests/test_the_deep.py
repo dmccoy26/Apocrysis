@@ -475,16 +475,20 @@ class TestKillTestC(unittest.TestCase):
         self.assertTrue(g._encounter_beat_seen)
         self.assertGreater(g._combat_flank_zombie.health, 0)
 
-    def test_pushing_the_flank_costs_more_than_breaking(self):
+    def test_breaking_leaves_the_flank_hostile_untouched(self):
+        # breaking contact: you didn't fight the second one.
         g_break = self._at_beat([True, True])
         g_break.current_position = tuple(g_break._encounter_beat)
+        z2_hp0 = g_break._combat_flank_zombie.health
         g_break._deep_combat_beat_run()
+        self.assertEqual(g_break._combat_flank_zombie.health, z2_hp0)
+        # pushing: you did fight it (it takes damage / dies).
         _reset()
         g_push = self._at_beat([True, False] + [True] * 20)
         g_push.current_position = tuple(g_push._encounter_beat)
+        z2b0 = g_push._combat_flank_zombie.health
         g_push._deep_combat_beat_run()
-        if g_push.health > 0:
-            self.assertLess(g_push.health, g_break.health)
+        self.assertLess(g_push._combat_flank_zombie.health, z2b0)
 
     def test_dying_to_the_first_does_not_burn_the_fact(self):
         g = self._at_beat([True] * 20)

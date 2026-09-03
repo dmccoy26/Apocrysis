@@ -74,6 +74,18 @@ THE_DEEP = World(
                 "Catch your breath and work across to the shaft.",
                 "Cross to the way down."),
             "reached": "reach the shaft and go down to the next level",
+            # KESH (§5B.7) - a Changed present without being a fight.
+            # Ecology texture on the L11 discovery crossing; establishes
+            # nothing.
+            "extra_scene": {
+                10: ("There's one of them at the junction ahead, sat "
+                     "against the rib, a survey harness still on it. It "
+                     "doesn't get up as you come past. It doesn't track "
+                     "you. Its eyes are open and its hands are moving a "
+                     "little, the way someone works a tally in their "
+                     "head. You could put it down. It gives you no "
+                     "reason to. You step around it and go on."),
+            },
             # KEYED BY THE FACT ID the DAG selects for that crossing (the
             # Wake pattern). DRAFT prose - the wording pass (§5B.11) and
             # kill-tests B/C re-align these to the spec's intent (combat
